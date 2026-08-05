@@ -1,6 +1,6 @@
 # MagicIng
 
-Herramienta web de verificaciones estructurales según Eurocódigo 2 (EN 1992-1-1).
+Herramienta web de verificaciones estructurales.
 
 Nace para reemplazar un conjunto de planillas de Excel (`CALCULOS TODO.xlsx`, 24 hojas) por
 una interfaz clara, con el detalle de fórmulas visible para poder auditar cada resultado.
@@ -24,55 +24,71 @@ npm run dev
 ```
 app/verificaciones/<id>/page.tsx   Formulario + resultados de cada verificación
 components/verificaciones/         Diagramas SVG y piezas de UI compartidas
-lib/calc/ec2/                      Motor de cálculo: funciones puras, sin React
+lib/calc/ec2/                      Motor de cálculo Eurocódigo 2
+lib/calc/aisc/                     Motor de cálculo AISC 360 (acero y mixtas)
+lib/calc/cirsoc/                   Motor de cálculo CIRSOC (viento)
 lib/verificaciones/registry.ts     Índice de verificaciones (alimenta menú y landing)
 ```
 
-El motor de cálculo (`lib/calc/ec2/`) no depende de React: son funciones puras con sus
-tests al lado (`*.test.ts`). Agregar una verificación nueva = un archivo de cálculo + sus
-tests + una página + una entrada en el registry.
+El motor de cálculo no depende de React: son funciones puras con sus tests al lado
+(`*.test.ts`). Agregar una verificación nueva = un archivo de cálculo + sus tests + una
+página + una entrada en el registry.
 
-## Estado de las verificaciones
+## Verificaciones disponibles
 
-### Validadas contra la planilla original
+Todas están portadas de la planilla original y sus tests comparan el resultado contra los
+valores que produce el Excel, celda por celda.
 
-Los tests comparan el resultado contra los valores que produce el Excel, celda por celda.
+**Vigas** — flexión y cortante · con torsión (sección hueca equivalente, con la interacción
+entre torsión, flexión y cortante) · de apeo (verificación completa: además de flexión y
+cortante, armadura secundaria y de piel, anclaje y flecha).
 
-- **Vigas — flexión y cortante** (hoja `VIGAS 1`). Incluye distribución automática de la
-  armadura en capas cuando no entra en una sola fila por separación mínima, recalculando el
-  centroide y por lo tanto `d`.
-- **Zapata aislada** (hoja `Zapatas`, bloque *ZAPATA AISLADA CON MOMENTO*).
-- **Zapata corrida** (hoja `Zapatas`, bloque *ZAPATA CORRIDA CON MOMENTO*).
+**Losas** — armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.
 
-Dos errores encontrados en la planilla original, corregidos acá a propósito (los tests lo
-documentan):
+**Pilares** — sección mixta CFT: tubo circular relleno de hormigón (AISC 360).
 
-1. En vigas, la armadura negativa no aplicaba el As mínimo (`=MAX(L8)` sin el rango de mínimos).
-2. En zapatas, el armado en dirección B usaba `Mk A` en lugar de `Mk B`.
+**Cimentaciones** — zapata aislada (con punzonamiento y cortante) · zapata corrida · zapata de
+medianería · zapata combinada · losa de fundación · pilotes · cabezal de 2 pilotes.
 
-### Construidas con el método general de EC2
+**Contención** — muro de contención: vuelco, deslizamiento y tensión del suelo, en muro libre
+o apuntalado por contrapiso y losa.
 
-No existen en la planilla, así que **no hay un caso real contra el cual contrastarlas**.
-Verificadas a mano contra fórmulas clásicas y con tests de sanidad, pero conviene revisarlas
-antes de usarlas en obra. Cada página lo aclara en pantalla.
+**Estado límite de servicio** — fisuración: abertura característica por separación media.
 
-- Punzonamiento y cortante unidireccional de la zapata aislada (EC2 6.4 y 6.2.2).
-- **Zapata de medianería** — excentricidad geométrica; avisa cuando la resultante se sale del
-  núcleo central (ahí hace falta viga centradora).
-- **Zapata combinada** — dos pilares, resuelta como viga sobre el terreno con diagrama de
-  esfuerzos por integración numérica.
-- **Losa de fundación** — método de franjas (cada línea de pilares como una viga sobre el
-  terreno). Método preliminar de mano, no reemplaza un análisis de placa.
-- **Pilotes** — capacidad axial por fuste y punta, más verificación estructural de la sección.
+**Acciones** — viento (CIRSOC 102): velocidad de cálculo, presión dinámica y carga por nivel.
 
-### Pendientes
+**Uniones** — cordón de soldadura en perfil H y chapa de base con pernos de anclaje.
 
-Listadas en el índice como *Próximamente*: vigas con torsión, vigas de apeo, losas,
-secciones mixtas, cabezales de pilotes, muros de contención, fisuración (ELS), viento,
-soldaduras y chapas.
+De estas, cuatro tipos de fundación (medianería, combinada, losa de fundación y pilotes) más
+el punzonamiento de la zapata aislada **no existían en la planilla**: se construyeron con el
+método general de la norma, sin un caso real contra el cual contrastarlos. Están verificados a
+mano contra fórmulas clásicas y con tests de sanidad, pero conviene revisarlos antes de usarlos
+en obra. Cada página lo aclara en pantalla.
 
-Fuera de alcance por ahora: grupo de pilotes, pandeo de pilotes, y punzonamiento en zapata
-combinada y losa de fundación.
+## Errores encontrados en la planilla original
+
+Todos corregidos acá a propósito, documentados en los tests y aclarados en la interfaz. El
+patrón se repite: la mayoría estaban ocultos porque en el caso de ejemplo los dos valores
+involucrados coincidían.
+
+1. **Vigas** — la armadura negativa no aplicaba el As mínimo (`=MAX(L8)` sin el rango de mínimos).
+2. **Zapatas** — el armado en dirección B usaba `Mk A` en lugar de `Mk B`.
+3. **Losas** — el canto útil de la armadura positiva en X usaba el recubrimiento de negativos,
+   y la separación máxima se redondeaba a múltiplos de 2 cm en tres de las cuatro direcciones
+   pero no en la cuarta.
+4. **Cabezales** — la separación de estribos verticales se dividía por `n+1` en la hoja de pilar
+   circular y por `n-1` en la de rectangular.
+5. **Muros de contención** — el peso del alzado entraba al momento estabilizador con brazo `A/2`
+   (medio ancho de zapata) en lugar del centro de gravedad del propio alzado. La corrección deja
+   el resultado más conservador que el de la planilla.
+6. **Viento** — los topes de la presión interior estaban escritos como comparaciones encadenadas
+   (`-0,2 < x < 0`), que Excel evalúa de izquierda a derecha y por lo tanto nunca se cumplen.
+
+## Pendientes
+
+Fuera de alcance por ahora: punzonamiento en zapata combinada y losa de fundación, grupo de
+pilotes, pandeo de pilotes, y cabezales sobre núcleos (la planilla tiene hojas aparte para
+esos).
 
 ## Convenciones
 

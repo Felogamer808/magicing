@@ -166,7 +166,7 @@ export default function VigasTorsionPage() {
             <CardHeader>
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
@@ -214,7 +214,7 @@ export default function VigasTorsionPage() {
             <CardHeader>
               <CardTitle className="text-base">Cortante</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
               <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />

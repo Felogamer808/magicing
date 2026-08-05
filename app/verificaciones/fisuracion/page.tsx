@@ -91,7 +91,7 @@ export default function FisuracionPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
@@ -110,7 +110,7 @@ export default function FisuracionPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Sección y solicitación</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />

@@ -118,7 +118,7 @@ export default function SeccionMixtaPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="dMm" etiqueta="D" sufijo="mm" valor={dMm} onChange={setDMm} />
               <CampoNumerico id="tMm" etiqueta="t" sufijo="mm" valor={tMm} onChange={setTMm} />
               <CampoNumerico id="lM" etiqueta="L" sufijo="m" valor={lM} onChange={setLM} />
@@ -130,7 +130,7 @@ export default function SeccionMixtaPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Solicitaciones de servicio</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="p" etiqueta="P" sufijo="kN" valor={p} onChange={setP} />
               <CampoNumerico id="m" etiqueta="M" sufijo="kN·m" valor={m} onChange={setM} />
               <CampoNumerico id="v" etiqueta="V" sufijo="kN" valor={v} onChange={setV} />

@@ -190,7 +190,7 @@ export default function VigasFlexionCortantePage() {
             <CardHeader>
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico
@@ -247,7 +247,7 @@ export default function VigasFlexionCortantePage() {
             <CardHeader>
               <CardTitle className="text-base">Cortante</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
               <CampoNumerico
                 id="diametroEstribo"

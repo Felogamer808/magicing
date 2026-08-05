@@ -173,7 +173,7 @@ export default function MuroContencionPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Terreno y sobrecarga</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
               <CampoNumerico id="sobrecarga" etiqueta="Sobrecarga" sufijo="kN/m²" valor={sobrecarga} onChange={setSobrecarga} />
@@ -182,7 +182,7 @@ export default function MuroContencionPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Posición de los apoyos</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="l1Caso2" etiqueta="L1 (caso 2)" sufijo="m" valor={l1Caso2} onChange={setL1Caso2} />
               <CampoNumerico id="l1Caso3" etiqueta="L1 (caso 3)" sufijo="m" valor={l1Caso3} onChange={setL1Caso3} />
               <CampoNumerico id="l2Caso3" etiqueta="L2 (caso 3)" sufijo="m" valor={l2Caso3} onChange={setL2Caso3} />

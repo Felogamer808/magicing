@@ -117,7 +117,7 @@ export default function UnionesPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader><CardTitle className="text-base">Perfil y cordón</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="hMm" etiqueta="H" sufijo="mm" valor={hMm} onChange={setHMm} />
               <CampoNumerico id="bMm" etiqueta="B" sufijo="mm" valor={bMm} onChange={setBMm} />
               <CampoNumerico id="tfMm" etiqueta="tf" sufijo="mm" valor={tfMm} onChange={setTfMm} />
@@ -137,7 +137,7 @@ export default function UnionesPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Solicitaciones</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="px" etiqueta="Px" sufijo="kN" valor={px} onChange={setPx} />
               <CampoNumerico id="py" etiqueta="Py" sufijo="kN" valor={py} onChange={setPy} />
               <CampoNumerico id="pz" etiqueta="Pz" sufijo="kN" valor={pz} onChange={setPz} />
@@ -189,7 +189,7 @@ export default function UnionesPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="fu" etiqueta="Fu" sufijo="MPa" valor={fu} onChange={setFu} />
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
@@ -198,7 +198,7 @@ export default function UnionesPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Chapa y pernos</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="lx" etiqueta="Lx" sufijo="m" valor={lx} onChange={setLx} />
               <CampoNumerico id="ly" etiqueta="Ly" sufijo="m" valor={ly} onChange={setLy} />
               <CampoNumerico id="tChapa" etiqueta="t" sufijo="m" valor={tChapa} onChange={setTChapa} />
@@ -213,7 +213,7 @@ export default function UnionesPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Solicitaciones</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 gap-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="nMax" etiqueta="N máx" sufijo="kN" valor={nMax} onChange={setNMax} />
                 <CampoNumerico id="cortePerno" etiqueta="Corte" sufijo="kN" valor={cortePerno} onChange={setCortePerno} />
                 <CampoNumerico id="momentoPernos" etiqueta="M" sufijo="kN·m" valor={momentoPernos} onChange={setMomentoPernos} />

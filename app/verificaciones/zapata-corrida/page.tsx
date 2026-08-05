@@ -133,7 +133,7 @@ export default function ZapataCorridaPage() {
             <CardHeader>
               <CardTitle className="text-base">Materiales y suelo</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico

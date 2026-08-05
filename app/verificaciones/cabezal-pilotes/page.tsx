@@ -146,7 +146,7 @@ export default function CabezalPilotesPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
@@ -155,7 +155,7 @@ export default function CabezalPilotesPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría y carga</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="anchoPilar" etiqueta="Ancho pilar" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
               <CampoNumerico id="ladoX" etiqueta="Lado x" sufijo="m" valor={ladoX} onChange={setLadoX} />
               <CampoNumerico id="ladoY" etiqueta="Lado y" sufijo="m" valor={ladoY} onChange={setLadoY} />
@@ -185,7 +185,7 @@ export default function CabezalPilotesPage() {
           <div className="grid gap-6 sm:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="text-base">Estribos verticales</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="nEstV" etiqueta="Nº" valor={nEstV} onChange={setNEstV} />
                 <CampoNumerico id="phiEstV" etiqueta="φt" sufijo="mm" valor={phiEstV} onChange={setPhiEstV} />
                 <CampoNumerico id="nCercos" etiqueta="Cercos" valor={nCercos} onChange={setNCercos} />

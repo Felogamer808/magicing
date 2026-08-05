@@ -165,7 +165,7 @@ export default function LosasPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="e" etiqueta="Espesor e" sufijo="m" valor={e} onChange={setE} />
               <CampoNumerico id="rgPos" etiqueta="rg positivos" sufijo="m" valor={rgPos} onChange={setRgPos} />
               <CampoNumerico id="rgNeg" etiqueta="rg negativos" sufijo="m" valor={rgNeg} onChange={setRgNeg} />

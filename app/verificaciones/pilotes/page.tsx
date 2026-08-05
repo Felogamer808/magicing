@@ -131,7 +131,7 @@ export default function PilotesPage() {
               <CardHeader>
                 <CardTitle className="text-base">Parámetros geotécnicos</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="friccion" etiqueta="fs (fuste)" sufijo="kN/m²" valor={friccion} onChange={setFriccion} />
                 <CampoNumerico id="punta" etiqueta="qp (punta)" sufijo="kN/m²" valor={punta} onChange={setPunta} />
                 <CampoNumerico id="factorSeguridad" etiqueta="FS" valor={factorSeguridad} onChange={setFactorSeguridad} />
@@ -142,7 +142,7 @@ export default function PilotesPage() {
               <CardHeader>
                 <CardTitle className="text-base">Armadura y carga</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="numero" etiqueta="Nº barras" valor={numero} onChange={setNumero} />
                 <CampoNumerico id="diametroBarra" etiqueta="φ" sufijo="mm" valor={diametroBarra} onChange={setDiametroBarra} />
                 <CampoNumerico id="diametroEstribo" etiqueta="φ zuncho" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />

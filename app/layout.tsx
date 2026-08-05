@@ -1,27 +1,58 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/**
+ * Tres cortes con un rol cada uno, en línea con el lenguaje de plano técnico:
+ * una serif editorial para los títulos (autoridad de memoria de cálculo), una
+ * sans técnica para el cuerpo y los formularios densos, y una monoespaciada
+ * para números, cotas y etiquetas de especificación.
+ */
+const display = Newsreader({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sans = IBM_Plex_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
 });
+
+const mono = IBM_Plex_Mono({
+  variable: "--font-mono-tecnica",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500"],
+});
+
+const descripcion =
+  "Verificaciones estructurales según Eurocódigo 2, AISC 360 y CIRSOC: vigas, losas, cimentaciones, muros, viento y uniones, con el detalle de fórmulas a la vista.";
 
 export const metadata: Metadata = {
-  title: "MagicIng",
-  description: "Verificaciones estructurales rápidas, según normativa, para uso interno.",
+  title: {
+    default: "MagicIng · Verificaciones estructurales",
+    template: "%s · MagicIng",
+  },
+  description: descripcion,
+  applicationName: "MagicIng",
+  openGraph: {
+    title: "MagicIng · Verificaciones estructurales",
+    description: descripcion,
+    type: "website",
+    locale: "es_AR",
+  },
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

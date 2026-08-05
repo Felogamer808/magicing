@@ -145,7 +145,7 @@ export default function ZapataAisladaPage() {
             <CardHeader>
               <CardTitle className="text-base">Materiales y suelo</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico
@@ -162,7 +162,7 @@ export default function ZapataAisladaPage() {
             <CardHeader>
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="A" etiqueta="A" sufijo="m" valor={A} onChange={setA} />
               <CampoNumerico id="B" etiqueta="B" sufijo="m" valor={B} onChange={setB} />
               <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
@@ -190,7 +190,7 @@ export default function ZapataAisladaPage() {
             <CardHeader>
               <CardTitle className="text-base">Cargas</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
               <CampoNumerico id="MkA" etiqueta="Mk A" sufijo="kN·m" valor={MkA} onChange={setMkA} />
               <CampoNumerico id="MkB" etiqueta="Mk B" sufijo="kN·m" valor={MkB} onChange={setMkB} />

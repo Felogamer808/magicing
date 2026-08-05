@@ -158,10 +158,10 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "soldaduras",
     nombre: "Soldaduras y chapas",
     categoria: "Uniones",
-    descripcion: "Verificación de soldaduras e insertos metálicos, chapas de pilares.",
-    normasDisponibles: ["EC3"],
-    ruta: "",
-    disponible: false,
+    descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/uniones",
+    disponible: true,
   },
 ];
 

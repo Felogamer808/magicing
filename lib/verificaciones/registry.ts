@@ -38,10 +38,11 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "vigas-apeo",
     nombre: "Vigas de apeo",
     categoria: "Vigas",
-    descripcion: "Verificación de vigas de apeo y centradoras.",
+    descripcion:
+      "Verificación completa de viga: flexión, cortante, armadura secundaria y de piel, anclaje y flecha.",
     normasDisponibles: ["EC2"],
-    ruta: "",
-    disponible: false,
+    ruta: "/verificaciones/vigas-apeo",
+    disponible: true,
   },
   {
     id: "losas",

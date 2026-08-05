@@ -48,10 +48,10 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "losas",
     nombre: "Losas",
     categoria: "Losas",
-    descripcion: "Verificación de losas a flexión y punzonamiento.",
+    descripcion: "Armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.",
     normasDisponibles: ["EC2"],
-    ruta: "",
-    disponible: false,
+    ruta: "/verificaciones/losas",
+    disponible: true,
   },
   {
     id: "secciones-mixtas",

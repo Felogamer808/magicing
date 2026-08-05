@@ -1,19 +1,17 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { agruparPorCategoria, registroVerificaciones } from "@/lib/verificaciones/registry";
+import { IndiceVerificaciones } from "@/components/IndiceVerificaciones";
+import { TemaToggle } from "@/components/TemaToggle";
 
 export default function Home() {
-  const categorias = agruparPorCategoria(registroVerificaciones);
-
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 py-16">
-      <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-        <span className="flex h-5 w-5 items-center justify-center border border-primary font-mono text-[11px] text-primary">
-          §
-        </span>
-        MagicIng
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+          <span className="flex h-5 w-5 items-center justify-center border border-primary font-mono text-[11px] text-primary">
+            §
+          </span>
+          MagicIng
+        </div>
+        <TemaToggle />
       </div>
 
       <div className="drafting-marks flex flex-col gap-8 border border-border bg-card/60 px-6 py-8 sm:px-10 sm:py-10">
@@ -77,55 +75,7 @@ export default function Home() {
         </svg>
       </div>
 
-      <div className="space-y-8">
-        {categorias.map(([categoria, items]) => (
-          <section key={categoria} className="space-y-3">
-            <h2 className="spec-label">{categoria}</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {items.map((item) => {
-                const contenido = (
-                  <Card
-                    className={
-                      item.disponible
-                        ? "transition-colors hover:border-primary/40 hover:ring-primary/20"
-                        : "opacity-60"
-                    }
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-base">{item.nombre}</CardTitle>
-                        {item.disponible ? (
-                          <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
-                        ) : (
-                          <Badge variant="outline">Próximamente</Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">{item.descripcion}</p>
-                      <div className="flex gap-1.5">
-                        {item.normasDisponibles.map((norma) => (
-                          <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
-                            {norma}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-
-                return item.disponible ? (
-                  <Link key={item.id} href={item.ruta}>
-                    {contenido}
-                  </Link>
-                ) : (
-                  <div key={item.id}>{contenido}</div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
+      <IndiceVerificaciones />
     </main>
   );
 }

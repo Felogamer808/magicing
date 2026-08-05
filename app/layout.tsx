@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { scriptTemaInicial } from "@/components/TemaToggle";
 import "./globals.css";
 
 /**
@@ -53,7 +54,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Aplica el tema guardado antes del primer pintado, para que no destelle en claro. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptTemaInicial }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

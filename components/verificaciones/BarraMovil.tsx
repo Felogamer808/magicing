@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { TemaToggle } from "@/components/TemaToggle";
 import { NavVerificaciones } from "@/components/verificaciones/NavVerificaciones";
 
 /**
@@ -45,6 +46,10 @@ export function BarraMovil() {
         </span>
         MagicIng
       </Link>
+
+      <div className="ml-auto">
+        <TemaToggle />
+      </div>
     </header>
   );
 }

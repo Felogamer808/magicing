@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { PiloteDiagrama } from "@/components/verificaciones/PiloteDiagrama";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularPilote } from "@/lib/calc/ec2/pilote";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -22,23 +23,23 @@ const fmt = (n: number, decimales = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function PilotesPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("25");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [diametro, setDiametro] = useState("0.4");
-  const [longitud, setLongitud] = useState("10");
+  const [diametro, setDiametro] = useCampo("diametro", "0.4");
+  const [longitud, setLongitud] = useCampo("longitud", "10");
 
-  const [friccion, setFriccion] = useState("30");
-  const [punta, setPunta] = useState("800");
-  const [factorSeguridad, setFactorSeguridad] = useState("2.5");
+  const [friccion, setFriccion] = useCampo("friccion", "30");
+  const [punta, setPunta] = useCampo("punta", "800");
+  const [factorSeguridad, setFactorSeguridad] = useCampo("factorSeguridad", "2.5");
 
-  const [numero, setNumero] = useState("6");
-  const [diametroBarra, setDiametroBarra] = useState("16");
-  const [diametroEstribo, setDiametroEstribo] = useState("8");
+  const [numero, setNumero] = useCampo("numero", "6");
+  const [diametroBarra, setDiametroBarra] = useCampo("diametroBarra", "16");
+  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
 
-  const [Nk, setNk] = useState("300");
+  const [Nk, setNk] = useCampo("Nk", "300");
 
   const resultado = useMemo(() => {
     const v = {
@@ -90,7 +91,7 @@ export default function PilotesPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularFisuracion } from "@/lib/calc/ec2/fisuracion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -21,25 +22,25 @@ const fmt = (n: number, decimales = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function FisuracionPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("30");
-  const [fyk, setFyk] = useState("500");
-  const [esGPa, setEsGPa] = useState("200");
-  const [rg, setRg] = useState("0.02");
-  const [k2, setK2] = useState("0.5");
-  const [beta, setBeta] = useState("1.7");
-  const [wAdm, setWAdm] = useState("0.3");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
+  const [esGPa, setEsGPa] = useCampo("esGPa", "200");
+  const [rg, setRg] = useCampo("rg", "0.02");
+  const [k2, setK2] = useCampo("k2", "0.5");
+  const [beta, setBeta] = useCampo("beta", "1.7");
+  const [wAdm, setWAdm] = useCampo("wAdm", "0.3");
 
-  const [h, setH] = useState("0.18");
-  const [b, setB] = useState("1");
-  const [mqp, setMqp] = useState("22");
+  const [h, setH] = useCampo("h", "0.18");
+  const [b, setB] = useCampo("b", "1");
+  const [mqp, setMqp] = useCampo("mqp", "22");
 
   // Cada familia se define por separación (más habitual en losas) y diámetro.
-  const [s1, setS1] = useState("0.15");
-  const [phi1, setPhi1] = useState("8");
-  const [s2, setS2] = useState("0.2");
-  const [phi2, setPhi2] = useState("10");
+  const [s1, setS1] = useCampo("s1", "0.15");
+  const [phi1, setPhi1] = useCampo("phi1", "8");
+  const [s2, setS2] = useCampo("s2", "0.2");
+  const [phi2, setPhi2] = useCampo("phi2", "10");
 
   const resultado = useMemo(() => {
     const n = {
@@ -76,7 +77,7 @@ export default function FisuracionPage() {
           <p className="spec-label">Estado límite de servicio</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <Card className="border-primary/30">

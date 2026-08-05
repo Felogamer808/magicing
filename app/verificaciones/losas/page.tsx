@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { LosaDiagrama } from "@/components/verificaciones/LosaDiagrama";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularLosa, calcularMomentoResistenteLosa, type ResultadoDireccionLosa } from "@/lib/calc/ec2/losa";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -66,28 +67,28 @@ function TarjetaDireccion({
 }
 
 export default function LosasPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("30");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [e, setE] = useState("0.15");
-  const [rgPos, setRgPos] = useState("0.02");
-  const [rgNeg, setRgNeg] = useState("0.02");
+  const [e, setE] = useCampo("e", "0.15");
+  const [rgPos, setRgPos] = useCampo("rgPos", "0.02");
+  const [rgNeg, setRgNeg] = useCampo("rgNeg", "0.02");
 
-  const [mxPos, setMxPos] = useState("50");
-  const [myPos, setMyPos] = useState("30");
-  const [mxNeg, setMxNeg] = useState("40");
-  const [myNeg, setMyNeg] = useState("20");
+  const [mxPos, setMxPos] = useCampo("mxPos", "50");
+  const [myPos, setMyPos] = useCampo("myPos", "30");
+  const [mxNeg, setMxNeg] = useCampo("mxNeg", "40");
+  const [myNeg, setMyNeg] = useCampo("myNeg", "20");
 
-  const [phiPosX, setPhiPosX] = useState("12");
-  const [sPosX, setSPosX] = useState("0.1");
-  const [phiPosY, setPhiPosY] = useState("10");
-  const [sPosY, setSPosY] = useState("0.15");
-  const [phiNegX, setPhiNegX] = useState("12");
-  const [sNegX, setSNegX] = useState("0.15");
-  const [phiNegY, setPhiNegY] = useState("10");
-  const [sNegY, setSNegY] = useState("0.15");
+  const [phiPosX, setPhiPosX] = useCampo("phiPosX", "12");
+  const [sPosX, setSPosX] = useCampo("sPosX", "0.1");
+  const [phiPosY, setPhiPosY] = useCampo("phiPosY", "10");
+  const [sPosY, setSPosY] = useCampo("sPosY", "0.15");
+  const [phiNegX, setPhiNegX] = useCampo("phiNegX", "12");
+  const [sNegX, setSNegX] = useCampo("sNegX", "0.15");
+  const [phiNegY, setPhiNegY] = useCampo("phiNegY", "10");
+  const [sNegY, setSNegY] = useCampo("sNegY", "0.15");
 
   const resultado = useMemo(() => {
     const v = {
@@ -129,7 +130,7 @@ export default function LosasPage() {
           <p className="spec-label">Losas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {resultado && (

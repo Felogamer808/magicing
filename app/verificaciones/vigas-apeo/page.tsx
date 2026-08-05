@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import {
   calcularAnclajeMm,
@@ -38,34 +39,34 @@ const describirCapas = (capas: number[]) =>
   capas.length <= 1 ? `1 fila de ${capas[0]}` : `${capas.length} filas: ${capas.join("+")}`;
 
 export default function VigasApeoPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("30");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [b, setB] = useState("0.4");
-  const [h, setH] = useState("0.7");
-  const [recubrimiento, setRecubrimiento] = useState("0.03");
+  const [b, setB] = useCampo("b", "0.4");
+  const [h, setH] = useCampo("h", "0.7");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.03");
 
-  const [momentoPos, setMomentoPos] = useState("0");
-  const [numeroPos, setNumeroPos] = useState("4");
-  const [diametroPos, setDiametroPos] = useState("16");
+  const [momentoPos, setMomentoPos] = useCampo("momentoPos", "0");
+  const [numeroPos, setNumeroPos] = useCampo("numeroPos", "4");
+  const [diametroPos, setDiametroPos] = useCampo("diametroPos", "16");
 
-  const [momentoNeg, setMomentoNeg] = useState("230");
-  const [numeroNeg, setNumeroNeg] = useState("4");
-  const [diametroNeg, setDiametroNeg] = useState("20");
+  const [momentoNeg, setMomentoNeg] = useCampo("momentoNeg", "230");
+  const [numeroNeg, setNumeroNeg] = useCampo("numeroNeg", "4");
+  const [diametroNeg, setDiametroNeg] = useCampo("diametroNeg", "20");
 
-  const [vd, setVd] = useState("550");
-  const [diametroEstribo, setDiametroEstribo] = useState("8");
-  const [numeroRamas, setNumeroRamas] = useState("4");
+  const [vd, setVd] = useCampo("vd", "550");
+  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
+  const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "4");
 
-  const [numeroSec, setNumeroSec] = useState("2");
-  const [diametroSec, setDiametroSec] = useState("16");
-  const [numeroPiel, setNumeroPiel] = useState("6");
-  const [diametroPiel, setDiametroPiel] = useState("8");
+  const [numeroSec, setNumeroSec] = useCampo("numeroSec", "2");
+  const [diametroSec, setDiametroSec] = useCampo("diametroSec", "16");
+  const [numeroPiel, setNumeroPiel] = useCampo("numeroPiel", "6");
+  const [diametroPiel, setDiametroPiel] = useCampo("diametroPiel", "8");
 
-  const [luz, setLuz] = useState("6.2");
-  const [flechaInst, setFlechaInst] = useState("3");
+  const [luz, setLuz] = useCampo("luz", "6.2");
+  const [flechaInst, setFlechaInst] = useCampo("flechaInst", "3");
 
   const resultado = useMemo(() => {
     const v = {
@@ -145,7 +146,7 @@ export default function VigasApeoPage() {
           <p className="spec-label">Vigas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <Card className="border-primary/30">

@@ -25,7 +25,18 @@ export function PanelFormulas({ titulo, filas }: PanelFormulasProps) {
           className={`h-4 w-4 transition-transform ${abierto ? "rotate-180" : ""}`}
         />
       </CollapsibleTrigger>
-      <CollapsibleContent>
+      {/*
+        hiddenUntilFound deja el detalle en el DOM aunque el panel esté cerrado,
+        y lo oculta con content-visibility en lugar del atributo hidden a secas.
+        Importa por dos motivos: al imprimir la hoja para la memoria de cálculo
+        el desarrollo de fórmulas sale igual, y el buscador del navegador
+        (Ctrl+F) encuentra texto adentro y abre el panel solo.
+
+        Con hidden a secas no alcanzaría: el navegador lo aplica como
+        display:none !important desde su propia hoja de estilos, que gana sobre
+        cualquier regla nuestra.
+      */}
+      <CollapsibleContent hiddenUntilFound>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 pb-3 pt-1 text-sm">
           {filas.map((fila) => (
             <div key={fila.etiqueta} className="contents">

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularMuroContencion } from "@/lib/calc/ec2/muro-contencion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -78,24 +79,24 @@ function DiagramaMuro({
 }
 
 export default function MuroContencionPage() {
-  const [norma, setNorma] = useState("EC7");
+  const [norma, setNorma] = useCampo("norma", "EC7");
 
-  const [gamma, setGamma] = useState("18");
-  const [phi, setPhi] = useState("34");
-  const [c, setC] = useState("5");
-  const [sigmaAdm, setSigmaAdm] = useState("100");
+  const [gamma, setGamma] = useCampo("gamma", "18");
+  const [phi, setPhi] = useCampo("phi", "34");
+  const [c, setC] = useCampo("c", "5");
+  const [sigmaAdm, setSigmaAdm] = useCampo("sigmaAdm", "100");
 
-  const [anchoZap, setAnchoZap] = useState("0.5");
-  const [cantoZap, setCantoZap] = useState("0.3");
-  const [altMuro, setAltMuro] = useState("3.2");
-  const [espMuro, setEspMuro] = useState("0.15");
-  const [hAct, setHAct] = useState("3.2");
-  const [hPas, setHPas] = useState("0");
-  const [sobrecarga, setSobrecarga] = useState("5");
+  const [anchoZap, setAnchoZap] = useCampo("anchoZap", "0.5");
+  const [cantoZap, setCantoZap] = useCampo("cantoZap", "0.3");
+  const [altMuro, setAltMuro] = useCampo("altMuro", "3.2");
+  const [espMuro, setEspMuro] = useCampo("espMuro", "0.15");
+  const [hAct, setHAct] = useCampo("hAct", "3.2");
+  const [hPas, setHPas] = useCampo("hPas", "0");
+  const [sobrecarga, setSobrecarga] = useCampo("sobrecarga", "5");
 
-  const [l1Caso2, setL1Caso2] = useState("2");
-  const [l1Caso3, setL1Caso3] = useState("0.95");
-  const [l2Caso3, setL2Caso3] = useState("2.45");
+  const [l1Caso2, setL1Caso2] = useCampo("l1Caso2", "2");
+  const [l1Caso3, setL1Caso3] = useCampo("l1Caso3", "0.95");
+  const [l2Caso3, setL2Caso3] = useCampo("l2Caso3", "2.45");
 
   const resultado = useMemo(() => {
     const n = {
@@ -131,7 +132,7 @@ export default function MuroContencionPage() {
           <p className="spec-label">Contención</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {resultado && (

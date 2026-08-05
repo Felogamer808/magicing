@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ZapataCombinadaDiagrama } from "@/components/verificaciones/ZapataCombinadaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCombinada } from "@/lib/calc/ec2/zapata-combinada";
@@ -22,28 +23,28 @@ const fmt = (n: number, decimales = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function ZapataCombinadaPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("25");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [A, setA] = useState("6");
-  const [B, setB] = useState("1.2");
-  const [H, setH] = useState("0.6");
-  const [recubrimiento, setRecubrimiento] = useState("0.05");
-  const [sigmaAdmisible, setSigmaAdmisible] = useState("200");
+  const [A, setA] = useCampo("A", "6");
+  const [B, setB] = useCampo("B", "1.2");
+  const [H, setH] = useCampo("H", "0.6");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
+  const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "200");
 
-  const [pos1, setPos1] = useState("1");
-  const [Nk1, setNk1] = useState("250");
-  const [pos2, setPos2] = useState("5");
-  const [Nk2, setNk2] = useState("350");
+  const [pos1, setPos1] = useCampo("pos1", "1");
+  const [Nk1, setNk1] = useCampo("Nk1", "250");
+  const [pos2, setPos2] = useCampo("pos2", "5");
+  const [Nk2, setNk2] = useCampo("Nk2", "350");
 
-  const [diametroInferior, setDiametroInferior] = useState("16");
-  const [separacionInferior, setSeparacionInferior] = useState("0.15");
-  const [diametroSuperior, setDiametroSuperior] = useState("12");
-  const [separacionSuperior, setSeparacionSuperior] = useState("0.15");
-  const [numeroSecundario, setNumeroSecundario] = useState("6");
-  const [diametroSecundario, setDiametroSecundario] = useState("10");
+  const [diametroInferior, setDiametroInferior] = useCampo("diametroInferior", "16");
+  const [separacionInferior, setSeparacionInferior] = useCampo("separacionInferior", "0.15");
+  const [diametroSuperior, setDiametroSuperior] = useCampo("diametroSuperior", "12");
+  const [separacionSuperior, setSeparacionSuperior] = useCampo("separacionSuperior", "0.15");
+  const [numeroSecundario, setNumeroSecundario] = useCampo("numeroSecundario", "6");
+  const [diametroSecundario, setDiametroSecundario] = useCampo("diametroSecundario", "10");
 
   const resultado = useMemo(() => {
     const v = {
@@ -113,7 +114,7 @@ export default function ZapataCombinadaPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {diagrama && (

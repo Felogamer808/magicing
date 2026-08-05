@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/aisc/uniones";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -30,38 +31,38 @@ function parsearDistancias(texto: string): number[] {
 }
 
 export default function UnionesPage() {
-  const [norma, setNorma] = useState("AISC 360");
+  const [norma, setNorma] = useCampo("norma", "AISC 360");
 
   // Soldadura
-  const [hMm, setHMm] = useState("150");
-  const [bMm, setBMm] = useState("240");
-  const [tfMm, setTfMm] = useState("15.9");
-  const [twMm, setTwMm] = useState("12.7");
-  const [lado, setLado] = useState("9.5");
-  const [electrodo, setElectrodo] = useState<Electrodo>("E60");
-  const [px, setPx] = useState("0");
-  const [py, setPy] = useState("160");
-  const [pz, setPz] = useState("0");
-  const [mx, setMx] = useState("40");
-  const [my, setMy] = useState("0");
-  const [mz, setMz] = useState("0");
+  const [hMm, setHMm] = useCampo("hMm", "150");
+  const [bMm, setBMm] = useCampo("bMm", "240");
+  const [tfMm, setTfMm] = useCampo("tfMm", "15.9");
+  const [twMm, setTwMm] = useCampo("twMm", "12.7");
+  const [lado, setLado] = useCampo("lado", "9.5");
+  const [electrodo, setElectrodo] = useCampo<Electrodo>("electrodo", "E60");
+  const [px, setPx] = useCampo("px", "0");
+  const [py, setPy] = useCampo("py", "160");
+  const [pz, setPz] = useCampo("pz", "0");
+  const [mx, setMx] = useCampo("mx", "40");
+  const [my, setMy] = useCampo("my", "0");
+  const [mz, setMz] = useCampo("mz", "0");
 
   // Chapa
-  const [fy, setFy] = useState("310");
-  const [fu, setFu] = useState("407.8");
-  const [fck, setFck] = useState("25");
-  const [lx, setLx] = useState("0.4");
-  const [ly, setLy] = useState("0.4");
-  const [tChapa, setTChapa] = useState("0.0095");
-  const [dPerno, setDPerno] = useState("15");
-  const [lc, setLc] = useState("0.137");
-  const [nPernos, setNPernos] = useState("12");
-  const [ag, setAg] = useState("0.041");
-  const [ae, setAe] = useState("0.038");
-  const [nMax, setNMax] = useState("400");
-  const [cortePerno, setCortePerno] = useState("41.5");
-  const [momentoPernos, setMomentoPernos] = useState("25.2");
-  const [distancias, setDistancias] = useState("0.18, 0.127");
+  const [fy, setFy] = useCampo("fy", "310");
+  const [fu, setFu] = useCampo("fu", "407.8");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [lx, setLx] = useCampo("lx", "0.4");
+  const [ly, setLy] = useCampo("ly", "0.4");
+  const [tChapa, setTChapa] = useCampo("tChapa", "0.0095");
+  const [dPerno, setDPerno] = useCampo("dPerno", "15");
+  const [lc, setLc] = useCampo("lc", "0.137");
+  const [nPernos, setNPernos] = useCampo("nPernos", "12");
+  const [ag, setAg] = useCampo("ag", "0.041");
+  const [ae, setAe] = useCampo("ae", "0.038");
+  const [nMax, setNMax] = useCampo("nMax", "400");
+  const [cortePerno, setCortePerno] = useCampo("cortePerno", "41.5");
+  const [momentoPernos, setMomentoPernos] = useCampo("momentoPernos", "25.2");
+  const [distancias, setDistancias] = useCampo("distancias", "0.18, 0.127");
 
   const soldadura = useMemo(() => {
     const n = {
@@ -108,7 +109,7 @@ export default function UnionesPage() {
           <p className="spec-label">Uniones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {/* ---------- Soldadura ---------- */}

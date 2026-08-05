@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularCabezalDosPilotes } from "@/lib/calc/ec2/cabezal-pilotes";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -64,28 +65,28 @@ function DiagramaCabezal({
 }
 
 export default function CabezalPilotesPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("30");
-  const [fyk, setFyk] = useState("500");
-  const [rg, setRg] = useState("0.05");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
+  const [rg, setRg] = useCampo("rg", "0.05");
 
-  const [anchoPilar, setAnchoPilar] = useState("0.3");
-  const [ladoX, setLadoX] = useState("1.6");
-  const [ladoY, setLadoY] = useState("0.6");
-  const [hCab, setHCab] = useState("0.6");
-  const [dPilote, setDPilote] = useState("0.5");
-  const [ndPilar, setNdPilar] = useState("1040");
+  const [anchoPilar, setAnchoPilar] = useCampo("anchoPilar", "0.3");
+  const [ladoX, setLadoX] = useCampo("ladoX", "1.6");
+  const [ladoY, setLadoY] = useCampo("ladoY", "0.6");
+  const [hCab, setHCab] = useCampo("hCab", "0.6");
+  const [dPilote, setDPilote] = useCampo("dPilote", "0.5");
+  const [ndPilar, setNdPilar] = useCampo("ndPilar", "1040");
 
-  const [nPrinc, setNPrinc] = useState("7");
-  const [phiPrinc, setPhiPrinc] = useState("16");
-  const [nSec, setNSec] = useState("7");
-  const [phiSec, setPhiSec] = useState("10");
-  const [nEstV, setNEstV] = useState("10");
-  const [phiEstV, setPhiEstV] = useState("8");
-  const [nCercos, setNCercos] = useState("2");
-  const [nEstH, setNEstH] = useState("5");
-  const [phiEstH, setPhiEstH] = useState("10");
+  const [nPrinc, setNPrinc] = useCampo("nPrinc", "7");
+  const [phiPrinc, setPhiPrinc] = useCampo("phiPrinc", "16");
+  const [nSec, setNSec] = useCampo("nSec", "7");
+  const [phiSec, setPhiSec] = useCampo("phiSec", "10");
+  const [nEstV, setNEstV] = useCampo("nEstV", "10");
+  const [phiEstV, setPhiEstV] = useCampo("phiEstV", "8");
+  const [nCercos, setNCercos] = useCampo("nCercos", "2");
+  const [nEstH, setNEstH] = useCampo("nEstH", "5");
+  const [phiEstH, setPhiEstH] = useCampo("phiEstH", "10");
 
   const resultado = useMemo(() => {
     const n = {
@@ -124,7 +125,7 @@ export default function CabezalPilotesPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {resultado && (

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/ZapataCorridaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCorrida } from "@/lib/calc/ec2/zapata-corrida";
@@ -22,24 +23,24 @@ const fmt = (n: number, decimales = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function ZapataCorridaPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("25");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [A, setA] = useState("1");
-  const [H, setH] = useState("0.4");
-  const [recubrimiento, setRecubrimiento] = useState("0.05");
-  const [anchoPilar, setAnchoPilar] = useState("0.3");
+  const [A, setA] = useCampo("A", "1");
+  const [H, setH] = useCampo("H", "0.4");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
+  const [anchoPilar, setAnchoPilar] = useCampo("anchoPilar", "0.3");
 
-  const [sigmaAdmisible, setSigmaAdmisible] = useState("300");
-  const [Nk, setNk] = useState("100");
-  const [MkA, setMkA] = useState("15");
+  const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
+  const [Nk, setNk] = useCampo("Nk", "100");
+  const [MkA, setMkA] = useCampo("MkA", "15");
 
-  const [diametroPrincipal, setDiametroPrincipal] = useState("16");
-  const [separacionPrincipal, setSeparacionPrincipal] = useState("0.15");
-  const [numeroSecundario, setNumeroSecundario] = useState("4");
-  const [diametroSecundario, setDiametroSecundario] = useState("10");
+  const [diametroPrincipal, setDiametroPrincipal] = useCampo("diametroPrincipal", "16");
+  const [separacionPrincipal, setSeparacionPrincipal] = useCampo("separacionPrincipal", "0.15");
+  const [numeroSecundario, setNumeroSecundario] = useCampo("numeroSecundario", "4");
+  const [diametroSecundario, setDiametroSecundario] = useCampo("diametroSecundario", "10");
 
   const resultado = useMemo(() => {
     const v = {
@@ -112,7 +113,7 @@ export default function ZapataCorridaPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {diagrama && (

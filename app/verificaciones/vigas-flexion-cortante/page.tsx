@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import {
   calcularCantoUtil,
@@ -31,26 +32,26 @@ const describirCapas = (capas: number[]) =>
   capas.length <= 1 ? `1 fila de ${capas[0]}` : `${capas.length} filas: ${capas.join("+")}`;
 
 export default function VigasFlexionCortantePage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("30");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [b, setB] = useState("0.9");
-  const [h, setH] = useState("0.7");
-  const [recubrimiento, setRecubrimiento] = useState("0.04");
+  const [b, setB] = useCampo("b", "0.9");
+  const [h, setH] = useCampo("h", "0.7");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.04");
 
-  const [momentoPos, setMomentoPos] = useState("32");
-  const [numeroPos, setNumeroPos] = useState("10");
-  const [diametroPos, setDiametroPos] = useState("10");
+  const [momentoPos, setMomentoPos] = useCampo("momentoPos", "32");
+  const [numeroPos, setNumeroPos] = useCampo("numeroPos", "10");
+  const [diametroPos, setDiametroPos] = useCampo("diametroPos", "10");
 
-  const [momentoNeg, setMomentoNeg] = useState("14");
-  const [numeroNeg, setNumeroNeg] = useState("5");
-  const [diametroNeg, setDiametroNeg] = useState("12");
+  const [momentoNeg, setMomentoNeg] = useCampo("momentoNeg", "14");
+  const [numeroNeg, setNumeroNeg] = useCampo("numeroNeg", "5");
+  const [diametroNeg, setDiametroNeg] = useCampo("diametroNeg", "12");
 
-  const [vd, setVd] = useState("1076");
-  const [diametroEstribo, setDiametroEstribo] = useState("10");
-  const [numeroRamas, setNumeroRamas] = useState("6");
+  const [vd, setVd] = useCampo("vd", "1076");
+  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
+  const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
 
   const resultado = useMemo(() => {
     const v = {
@@ -159,7 +160,7 @@ export default function VigasFlexionCortantePage() {
           <p className="spec-label">Vigas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {diagrama && (

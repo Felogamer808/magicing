@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularSeccionMixta } from "@/lib/calc/aisc/seccion-mixta";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -45,24 +46,24 @@ function DiagramaCFT({ dMm, tMm, numeroBarras, diametroBarraMm }: { dMm: number;
 }
 
 export default function SeccionMixtaPage() {
-  const [norma, setNorma] = useState("AISC 360");
+  const [norma, setNorma] = useCampo("norma", "AISC 360");
 
-  const [es, setEs] = useState("200000");
-  const [fy, setFy] = useState("250");
-  const [fc, setFc] = useState("30");
-  const [ec, setEc] = useState("28000");
+  const [es, setEs] = useCampo("es", "200000");
+  const [fy, setFy] = useCampo("fy", "250");
+  const [fc, setFc] = useCampo("fc", "30");
+  const [ec, setEc] = useCampo("ec", "28000");
 
-  const [dMm, setDMm] = useState("300");
-  const [tMm, setTMm] = useState("9.5");
-  const [lM, setLM] = useState("3");
-  const [phiBarra, setPhiBarra] = useState("12");
-  const [nBarras, setNBarras] = useState("5");
+  const [dMm, setDMm] = useCampo("dMm", "300");
+  const [tMm, setTMm] = useCampo("tMm", "9.5");
+  const [lM, setLM] = useCampo("lM", "3");
+  const [phiBarra, setPhiBarra] = useCampo("phiBarra", "12");
+  const [nBarras, setNBarras] = useCampo("nBarras", "5");
 
-  const [p, setP] = useState("800");
-  const [m, setM] = useState("100");
-  const [v, setV] = useState("100");
-  const [yG, setYG] = useState("92.5");
-  const [lFuego, setLFuego] = useState("3");
+  const [p, setP] = useCampo("p", "800");
+  const [m, setM] = useCampo("m", "100");
+  const [v, setV] = useCampo("v", "100");
+  const [yG, setYG] = useCampo("yG", "92.5");
+  const [lFuego, setLFuego] = useCampo("lFuego", "3");
 
   const resultado = useMemo(() => {
     const n = {
@@ -93,7 +94,7 @@ export default function SeccionMixtaPage() {
           <p className="spec-label">Pilares</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <Card className="border-primary/30">

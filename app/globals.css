@@ -189,3 +189,74 @@
     @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
 }
+
+/*
+ * Impresión: la hoja se adjunta a la memoria de cálculo, así que se saca todo
+ * el cromo de navegación y se deja el planteo, el croquis y los resultados.
+ */
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  /* Barra lateral, barra móvil y botones de acción no aportan en papel. */
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+    gap: 1rem !important;
+  }
+
+  /*
+   * Los paneles "Ver cálculo" se imprimen abiertos: son los que justifican el
+   * resultado. Se ocultan con content-visibility (hidden="until-found"), así
+   * que alcanza con revertir esa propiedad.
+   */
+  [data-slot="collapsible-content"] {
+    content-visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  [data-slot="collapsible-trigger"] svg {
+    display: none !important;
+  }
+
+  /* Que una tarjeta no quede partida entre dos hojas. */
+  [data-slot="card"] {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+
+  h1,
+  h2 {
+    break-after: avoid;
+  }
+
+  /* Los campos se imprimen como texto plano, sin aspecto de formulario. */
+  input,
+  [data-slot="select-trigger"] {
+    border: none !important;
+    border-bottom: 1px solid #bbb !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding-left: 0 !important;
+  }
+
+  /* Las marcas de registro del plano ensucian en papel. */
+  .drafting-marks::before,
+  .drafting-marks::after {
+    display: none !important;
+  }
+}

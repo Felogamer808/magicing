@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import {
   calcularViento,
   generarNiveles,
@@ -47,21 +48,21 @@ function CampoSeleccion({
 }
 
 export default function VientoPage() {
-  const [norma, setNorma] = useState("CIRSOC 102");
+  const [norma, setNorma] = useCampo("norma", "CIRSOC 102");
 
-  const [altura, setAltura] = useState("53.1");
-  const [a, setA] = useState("26.7");
-  const [b, setB] = useState("22.9");
+  const [altura, setAltura] = useCampo("altura", "53.1");
+  const [a, setA] = useCampo("a", "26.7");
+  const [b, setB] = useCampo("b", "22.9");
 
-  const [velocidad, setVelocidad] = useState<TipoVelocidad>("Costero");
-  const [topografia, setTopografia] = useState<TipoTopografia>("Normal");
-  const [terreno, setTerreno] = useState<TipoTerreno>("II");
-  const [kd, setKd] = useState("1");
-  const [periodo, setPeriodo] = useState("20");
-  const [gamma, setGamma] = useState("1");
+  const [velocidad, setVelocidad] = useCampo<TipoVelocidad>("velocidad", "Costero");
+  const [topografia, setTopografia] = useCampo<TipoTopografia>("topografia", "Normal");
+  const [terreno, setTerreno] = useCampo<TipoTerreno>("terreno", "II");
+  const [kd, setKd] = useCampo("kd", "1");
+  const [periodo, setPeriodo] = useCampo("periodo", "20");
+  const [gamma, setGamma] = useCampo("gamma", "1");
 
-  const [zInicial, setZInicial] = useState("3.19");
-  const [nNiveles, setNNiveles] = useState("19");
+  const [zInicial, setZInicial] = useCampo("zInicial", "3.19");
+  const [nNiveles, setNNiveles] = useCampo("nNiveles", "19");
 
   const resultado = useMemo(() => {
     const n = {
@@ -93,7 +94,7 @@ export default function VientoPage() {
           <p className="spec-label">Acciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <Card className="border-primary/30">

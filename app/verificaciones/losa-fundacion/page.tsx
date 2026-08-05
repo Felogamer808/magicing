@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { FranjaLosaDiagrama } from "@/components/verificaciones/FranjaLosaDiagrama";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularFranjaLosa } from "@/lib/calc/ec2/losa-fundacion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -22,30 +23,30 @@ const fmt = (n: number, decimales = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function LosaFundacionPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("25");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [longitud, setLongitud] = useState("9");
-  const [anchoTributario, setAnchoTributario] = useState("3");
-  const [H, setH] = useState("0.5");
-  const [recubrimiento, setRecubrimiento] = useState("0.05");
-  const [sigmaAdmisible, setSigmaAdmisible] = useState("200");
+  const [longitud, setLongitud] = useCampo("longitud", "9");
+  const [anchoTributario, setAnchoTributario] = useCampo("anchoTributario", "3");
+  const [H, setH] = useCampo("H", "0.5");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
+  const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "200");
 
-  const [pos1, setPos1] = useState("1.5");
-  const [Nk1, setNk1] = useState("200");
-  const [pos2, setPos2] = useState("4.5");
-  const [Nk2, setNk2] = useState("200");
-  const [pos3, setPos3] = useState("7.5");
-  const [Nk3, setNk3] = useState("200");
+  const [pos1, setPos1] = useCampo("pos1", "1.5");
+  const [Nk1, setNk1] = useCampo("Nk1", "200");
+  const [pos2, setPos2] = useCampo("pos2", "4.5");
+  const [Nk2, setNk2] = useCampo("Nk2", "200");
+  const [pos3, setPos3] = useCampo("pos3", "7.5");
+  const [Nk3, setNk3] = useCampo("Nk3", "200");
 
-  const [diametroInferior, setDiametroInferior] = useState("16");
-  const [separacionInferior, setSeparacionInferior] = useState("0.15");
-  const [diametroSuperior, setDiametroSuperior] = useState("12");
-  const [separacionSuperior, setSeparacionSuperior] = useState("0.15");
-  const [numeroSecundario, setNumeroSecundario] = useState("8");
-  const [diametroSecundario, setDiametroSecundario] = useState("10");
+  const [diametroInferior, setDiametroInferior] = useCampo("diametroInferior", "16");
+  const [separacionInferior, setSeparacionInferior] = useCampo("separacionInferior", "0.15");
+  const [diametroSuperior, setDiametroSuperior] = useCampo("diametroSuperior", "12");
+  const [separacionSuperior, setSeparacionSuperior] = useCampo("separacionSuperior", "0.15");
+  const [numeroSecundario, setNumeroSecundario] = useCampo("numeroSecundario", "8");
+  const [diametroSecundario, setDiametroSecundario] = useCampo("diametroSecundario", "10");
 
   const resultado = useMemo(() => {
     const v = {
@@ -120,7 +121,7 @@ export default function LosaFundacionPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <Card className="border-primary/30">

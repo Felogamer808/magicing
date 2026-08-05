@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCampo } from "@/lib/hooks/useCampo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/ZapataMedianeriaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
@@ -62,29 +63,29 @@ function TarjetaLado({
 }
 
 export default function ZapataMedianeriaPage() {
-  const [norma, setNorma] = useState("EC2");
+  const [norma, setNorma] = useCampo("norma", "EC2");
 
-  const [fck, setFck] = useState("25");
-  const [fyk, setFyk] = useState("500");
+  const [fck, setFck] = useCampo("fck", "25");
+  const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [A, setA] = useState("2.5");
-  const [B, setB] = useState("1.2");
-  const [H, setH] = useState("0.5");
-  const [recubrimiento, setRecubrimiento] = useState("0.05");
-  const [distanciaColumnaLimite, setDistanciaColumnaLimite] = useState("0.7");
+  const [A, setA] = useCampo("A", "2.5");
+  const [B, setB] = useCampo("B", "1.2");
+  const [H, setH] = useCampo("H", "0.5");
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
+  const [distanciaColumnaLimite, setDistanciaColumnaLimite] = useCampo("distanciaColumnaLimite", "0.7");
 
-  const [anchoPilarA, setAnchoPilarA] = useState("0.4");
-  const [anchoPilarB, setAnchoPilarB] = useState("0.4");
+  const [anchoPilarA, setAnchoPilarA] = useCampo("anchoPilarA", "0.4");
+  const [anchoPilarB, setAnchoPilarB] = useCampo("anchoPilarB", "0.4");
 
-  const [sigmaAdmisible, setSigmaAdmisible] = useState("300");
-  const [Nk, setNk] = useState("300");
-  const [MkA, setMkA] = useState("0");
-  const [MkB, setMkB] = useState("0");
+  const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
+  const [Nk, setNk] = useCampo("Nk", "300");
+  const [MkA, setMkA] = useCampo("MkA", "0");
+  const [MkB, setMkB] = useCampo("MkB", "0");
 
-  const [numeroA, setNumeroA] = useState("8");
-  const [diametroA, setDiametroA] = useState("16");
-  const [numeroB, setNumeroB] = useState("6");
-  const [diametroB, setDiametroB] = useState("12");
+  const [numeroA, setNumeroA] = useCampo("numeroA", "8");
+  const [diametroA, setDiametroA] = useCampo("diametroA", "16");
+  const [numeroB, setNumeroB] = useCampo("numeroB", "6");
+  const [diametroB, setDiametroB] = useCampo("diametroB", "12");
 
   const resultado = useMemo(() => {
     const v = {
@@ -165,7 +166,7 @@ export default function ZapataMedianeriaPage() {
           <p className="spec-label">Cimentaciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       {diagrama && (

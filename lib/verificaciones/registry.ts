@@ -119,12 +119,12 @@ export const registroVerificaciones: VerificacionMeta[] = [
   },
   {
     id: "cabezales",
-    nombre: "Cabezales de pilotes",
+    nombre: "Cabezal de 2 pilotes",
     categoria: "Cimentaciones",
-    descripcion: "Cabezales sobre 2 pilotes y sobre núcleos.",
+    descripcion: "Modelo de bielas y tirantes: armadura principal, secundaria y de reparto.",
     normasDisponibles: ["EC2"],
-    ruta: "",
-    disponible: false,
+    ruta: "/verificaciones/cabezal-pilotes",
+    disponible: true,
   },
   {
     id: "muros-contencion",

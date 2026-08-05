@@ -8,6 +8,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/SolicitacionesZapataDiagrama";
 import { ZapataDiagrama } from "@/components/verificaciones/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataAislada } from "@/lib/calc/ec2/zapata-aislada";
@@ -139,6 +140,25 @@ export default function ZapataAisladaPage() {
           </CardHeader>
           <CardContent className="flex justify-center py-2">
             <ZapataDiagrama {...diagrama} />
+          </CardContent>
+        </Card>
+      )}
+
+      {resultado && (
+        <Card className="drafting-marks">
+          <CardHeader>
+            <CardTitle className="text-base">Solicitaciones y respuesta del terreno</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center py-2">
+            <SolicitacionesZapataDiagrama
+              anchoM={aNumero(A)}
+              cantoM={aNumero(H)}
+              anchoPilarM={aNumero(anchoPilarA)}
+              nkKN={aNumero(Nk)}
+              mkKNm={aNumero(MkA)}
+              sigmaMaxKPa={resultado.zapata.direccionA.sigmaMaxKPa}
+              sigmaMinKPa={resultado.zapata.direccionA.sigmaMinKPa}
+            />
           </CardContent>
         </Card>
       )}

@@ -55,12 +55,13 @@ export const registroVerificaciones: VerificacionMeta[] = [
   },
   {
     id: "secciones-mixtas",
-    nombre: "Secciones mixtas",
-    categoria: "Losas",
-    descripcion: "Verificación de secciones mixtas hormigón-acero.",
-    normasDisponibles: ["EC2", "EC4"],
-    ruta: "",
-    disponible: false,
+    nombre: "Sección mixta (pilar CFT)",
+    categoria: "Pilares",
+    descripcion:
+      "Tubo circular de acero relleno de hormigón: compresión, flexión, corte e incendio.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/seccion-mixta",
+    disponible: true,
   },
   {
     id: "zapatas",

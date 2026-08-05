@@ -140,10 +140,10 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "fisuracion",
     nombre: "Fisuración (ELS)",
     categoria: "Estado límite de servicio",
-    descripcion: "Control de fisuración en vigas y losas.",
+    descripcion: "Abertura característica de fisura por separación media, en vigas y losas.",
     normasDisponibles: ["EC2"],
-    ruta: "",
-    disponible: false,
+    ruta: "/verificaciones/fisuracion",
+    disponible: true,
   },
   {
     id: "viento",

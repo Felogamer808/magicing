@@ -36,6 +36,8 @@ export interface DatosFlexion {
   /** Momento de cálculo (kN·m), en valor absoluto */
   momento: number;
   armaduraReal: ArmaduraElegida;
+  /** Armadura longitudinal extra a sumar al As necesario (cm²), p. ej. la parte que aporta la torsión. */
+  asAdicionalCm2?: number;
 }
 
 export interface ResultadoFlexion {
@@ -75,6 +77,10 @@ export interface DatosCortante {
   diametroEstriboMm: number;
   /** Número de ramas del estribo */
   numeroRamas: number;
+  /** Armadura transversal extra a sumar a A90 (cm²/m), p. ej. la que aporta la torsión. */
+  a90AdicionalCm2PorM?: number;
+  /** Paso al que se redondea hacia abajo la separación adoptada (m). Por defecto 0.05. */
+  pasoSeparacionM?: number;
 }
 
 export interface ResultadoCortante {

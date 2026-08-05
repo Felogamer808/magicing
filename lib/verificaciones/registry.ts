@@ -29,10 +29,10 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "vigas-torsion",
     nombre: "Vigas con torsión",
     categoria: "Vigas",
-    descripcion: "Verificación combinada de flexión, cortante y torsión.",
+    descripcion: "Verificación combinada de flexión, cortante y torsión, con sección hueca equivalente.",
     normasDisponibles: ["EC2"],
-    ruta: "",
-    disponible: false,
+    ruta: "/verificaciones/vigas-torsion",
+    disponible: true,
   },
   {
     id: "vigas-apeo",

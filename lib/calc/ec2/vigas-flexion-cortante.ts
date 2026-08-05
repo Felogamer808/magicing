@@ -94,7 +94,7 @@ export function calcularFlexion(
 ): ResultadoFlexion {
   const { b, h } = geometria;
   const { fcd, fyd } = materiales;
-  const { momento, armaduraReal } = datos;
+  const { momento, armaduraReal, asAdicionalCm2 = 0 } = datos;
 
   const mu = momento / (b * d ** 2 * fcd * 1000);
   const omega = 1 - Math.sqrt(1 - 2 * mu);
@@ -105,7 +105,9 @@ export function calcularFlexion(
   const asMinMecanicoCm2 = (100 ** 2 * 0.045 * b * d * fcd) / fyd;
   const asMinGeometricoCm2 = 100 ** 2 * (2.8 / 1000) * b * h;
 
-  const asNecCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2);
+  // La armadura de torsión se suma a la de flexión (no se toma el máximo): son
+  // esfuerzos concomitantes que traccionan las mismas barras.
+  const asNecCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2) + asAdicionalCm2;
   const asRealCm2 = areaBarrasCm2(armaduraReal);
   const aprovechamiento = asNecCm2 / asRealCm2;
   const verificaAs = asRealCm2 >= asNecCm2;
@@ -136,9 +138,9 @@ function separacionMaxM(ratioVdVRdMax: number, d: number): number {
   return Math.min(0.6 * d, 0.45);
 }
 
-/** Redondea hacia abajo al múltiplo de 5 cm más cercano (criterio de oficina para separación de estribos). */
-function redondearSeparacionM(valor: number): number {
-  return Math.floor(valor / 0.05 + 1e-9) * 0.05;
+/** Redondea la separación de estribos hacia abajo al múltiplo de `paso` más cercano. */
+function redondearSeparacionM(valor: number, paso: number): number {
+  return Math.floor(valor / paso + 1e-9) * paso;
 }
 
 export function calcularCortante(
@@ -151,7 +153,7 @@ export function calcularCortante(
 ): ResultadoCortante {
   const { b } = geometria;
   const { fck, fcd, fctm, fydEstribos } = materiales;
-  const { vd, diametroEstriboMm, numeroRamas } = datos;
+  const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
   const vRdMax = 0.3 * fcd * b * d * 1000;
   const verificaVRdMax = vd <= vRdMax;
@@ -166,7 +168,9 @@ export function calcularCortante(
 
   const a90NecCm2PorM = (vEdEstribos * 10) / (fydEstribos * 0.9 * d);
   const a90MinCm2PorM = (fctm * b * 100 ** 2) / (7.5 * fydEstribos);
-  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM);
+  // La armadura transversal de torsión se suma a la de cortante: ambas traccionan
+  // los mismos cercos.
+  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + a90AdicionalCm2PorM;
 
   const aEstriboCm2 =
     (100 ** 2 * numeroRamas * Math.PI * (diametroEstriboMm / 1000) ** 2) / 4;
@@ -174,7 +178,10 @@ export function calcularCortante(
 
   const ratio = vd / vRdMax;
   const sepMax = separacionMaxM(ratio, d);
-  const separacionAdoptadaM = Math.min(redondearSeparacionM(Math.min(sepMax, separacionNecM)), 0.25);
+  const separacionAdoptadaM = Math.min(
+    redondearSeparacionM(Math.min(sepMax, separacionNecM), pasoSeparacionM),
+    0.25
+  );
 
   const areaRealCm2PorM = aEstriboCm2 / separacionAdoptadaM;
 

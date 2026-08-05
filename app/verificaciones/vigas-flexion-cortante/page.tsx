@@ -10,6 +10,12 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
 import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/SolicitacionesVigaDiagrama";
+import {
+  CroquisArmaduraFlexion,
+  CroquisGeometriaViga,
+  CroquisMateriales,
+  CroquisRamasEstribo,
+} from "@/components/verificaciones/croquis/CroquisViga";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import {
@@ -201,9 +207,12 @@ export default function VigasFlexionCortantePage() {
             <CardHeader>
               <CardTitle className="text-base">Materiales</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+            <CardContent>
+              <CroquisMateriales />
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+              </div>
             </CardContent>
           </Card>
 
@@ -211,16 +220,19 @@ export default function VigasFlexionCortantePage() {
             <CardHeader>
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
-              <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-              <CampoNumerico
-                id="recubrimiento"
-                etiqueta="Recubrimiento"
-                sufijo="m"
-                valor={recubrimiento}
-                onChange={setRecubrimiento}
-              />
+            <CardContent>
+              <CroquisGeometriaViga />
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
+                <CampoNumerico
+                  id="recubrimiento"
+                  etiqueta="Recubrimiento"
+                  sufijo="m"
+                  valor={recubrimiento}
+                  onChange={setRecubrimiento}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -229,17 +241,20 @@ export default function VigasFlexionCortantePage() {
               <CardHeader>
                 <CardTitle className="text-base">Armadura positiva</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4">
-                <CampoNumerico
-                  id="momentoPos"
-                  etiqueta="Mmax+"
-                  sufijo="kN·m"
-                  valor={momentoPos}
-                  onChange={setMomentoPos}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
+              <CardContent>
+                <CroquisArmaduraFlexion numero={aNumero(numeroPos)} cara="inferior" />
+                <div className="grid grid-cols-1 gap-4">
+                  <CampoNumerico
+                    id="momentoPos"
+                    etiqueta="Mmax+"
+                    sufijo="kN·m"
+                    valor={momentoPos}
+                    onChange={setMomentoPos}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
+                    <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -248,17 +263,20 @@ export default function VigasFlexionCortantePage() {
               <CardHeader>
                 <CardTitle className="text-base">Armadura negativa</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4">
-                <CampoNumerico
-                  id="momentoNeg"
-                  etiqueta="Mmax-"
-                  sufijo="kN·m"
-                  valor={momentoNeg}
-                  onChange={setMomentoNeg}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
+              <CardContent>
+                <CroquisArmaduraFlexion numero={aNumero(numeroNeg)} cara="superior" />
+                <div className="grid grid-cols-1 gap-4">
+                  <CampoNumerico
+                    id="momentoNeg"
+                    etiqueta="Mmax-"
+                    sufijo="kN·m"
+                    valor={momentoNeg}
+                    onChange={setMomentoNeg}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
+                    <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -268,16 +286,20 @@ export default function VigasFlexionCortantePage() {
             <CardHeader>
               <CardTitle className="text-base">Cortante</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-              <CampoNumerico
-                id="diametroEstribo"
-                etiqueta="φ estribo"
-                sufijo="mm"
-                valor={diametroEstribo}
-                onChange={setDiametroEstribo}
-              />
-              <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
+            <CardContent>
+              <CroquisRamasEstribo ramas={aNumero(numeroRamas)} />
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
+                <CampoNumerico
+                  id="diametroEstribo"
+                  etiqueta="φ estribo"
+                  sufijo="mm"
+                  sugerencias={DIAMETROS_ARMADURA}
+                  valor={diametroEstribo}
+                  onChange={setDiametroEstribo}
+                />
+                <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
+              </div>
             </CardContent>
           </Card>
         </div>

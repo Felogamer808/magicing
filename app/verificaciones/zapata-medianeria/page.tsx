@@ -1,0 +1,342 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/ZapataMedianeriaDiagrama";
+import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
+import { registroVerificaciones } from "@/lib/verificaciones/registry";
+
+const meta = registroVerificaciones.find((v) => v.id === "zapata-medianeria")!;
+
+function aNumero(texto: string): number {
+  const n = Number(texto.replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+const fmt = (n: number, decimales = 2) =>
+  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+
+function TarjetaLado({
+  titulo,
+  resultado,
+}: {
+  titulo: string;
+  resultado: ReturnType<typeof calcularZapataMedianeria>["ladoLimite"];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{titulo}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ResultadoCheck
+          etiqueta="Armadura suficiente"
+          verifica={resultado.verificaAs}
+          detalle={`As real ${fmt(resultado.asRealCm2)} cm² / As nec ${fmt(resultado.asNecCm2)} cm²`}
+        />
+        <ResultadoCheck
+          etiqueta="Cortante (EC2 6.2.2)"
+          verifica={resultado.verificaCorte}
+          detalle={`Vd ${fmt(resultado.vEdKN)} kN / VRd,c ${fmt(resultado.vRdCKN)} kN`}
+        />
+        <PanelFormulas
+          titulo="Ver cálculo"
+          filas={[
+            { etiqueta: "Vuelo", valor: `${fmt(resultado.lM, 3)} m` },
+            { etiqueta: "σ en el borde", valor: `${fmt(resultado.sigmaMaxKPa)} kN/m²` },
+            { etiqueta: "σ en sección crítica", valor: `${fmt(resultado.sigmaCriticaKPa)} kN/m²` },
+            { etiqueta: "Td", valor: `${fmt(resultado.tdKN)} kN` },
+            { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.asMinMecanicoCm2)} cm²` },
+            { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.asMinGeometricoCm2)} cm²` },
+          ]}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ZapataMedianeriaPage() {
+  const [norma, setNorma] = useState("EC2");
+
+  const [fck, setFck] = useState("25");
+  const [fyk, setFyk] = useState("500");
+
+  const [A, setA] = useState("2.5");
+  const [B, setB] = useState("1.2");
+  const [H, setH] = useState("0.5");
+  const [recubrimiento, setRecubrimiento] = useState("0.05");
+  const [distanciaColumnaLimite, setDistanciaColumnaLimite] = useState("0.7");
+
+  const [anchoPilarA, setAnchoPilarA] = useState("0.4");
+  const [anchoPilarB, setAnchoPilarB] = useState("0.4");
+
+  const [sigmaAdmisible, setSigmaAdmisible] = useState("300");
+  const [Nk, setNk] = useState("300");
+  const [MkA, setMkA] = useState("0");
+  const [MkB, setMkB] = useState("0");
+
+  const [numeroA, setNumeroA] = useState("8");
+  const [diametroA, setDiametroA] = useState("16");
+  const [numeroB, setNumeroB] = useState("6");
+  const [diametroB, setDiametroB] = useState("12");
+
+  const resultado = useMemo(() => {
+    const v = {
+      fck: aNumero(fck),
+      fyk: aNumero(fyk),
+      A: aNumero(A),
+      B: aNumero(B),
+      H: aNumero(H),
+      recubrimiento: aNumero(recubrimiento),
+      distanciaColumnaLimite: aNumero(distanciaColumnaLimite),
+      anchoPilarA: aNumero(anchoPilarA),
+      anchoPilarB: aNumero(anchoPilarB),
+      sigmaAdmisible: aNumero(sigmaAdmisible),
+      Nk: aNumero(Nk),
+      MkA: aNumero(MkA),
+      MkB: aNumero(MkB),
+      numeroA: aNumero(numeroA),
+      diametroA: aNumero(diametroA),
+      numeroB: aNumero(numeroB),
+      diametroB: aNumero(diametroB),
+    };
+
+    const todosValidos = Object.values(v).every((n) => Number.isFinite(n));
+    const geometriaValida = v.A > 0 && v.B > 0 && v.H > 0 && v.anchoPilarA > 0 && v.anchoPilarB > 0 && v.distanciaColumnaLimite >= 0;
+    const materialesValidos = v.fck > 0 && v.fyk > 0 && v.sigmaAdmisible > 0;
+    const armadurasValidas = v.numeroA > 0 && v.diametroA > 0 && v.numeroB > 0 && v.diametroB > 0;
+    const cargasValidas = v.Nk > 0;
+
+    if (!todosValidos || !geometriaValida || !materialesValidos || !armadurasValidas || !cargasValidas) {
+      return null;
+    }
+
+    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
+    const geometria = {
+      A: v.A,
+      B: v.B,
+      H: v.H,
+      anchoPilarA: v.anchoPilarA,
+      anchoPilarB: v.anchoPilarB,
+      recubrimiento: v.recubrimiento,
+      distanciaColumnaLimite: v.distanciaColumnaLimite,
+    };
+
+    const zapata = calcularZapataMedianeria(materiales, geometria, v.sigmaAdmisible, {
+      cargas: { Nk: v.Nk, MkA: v.MkA, MkB: v.MkB },
+      armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
+      armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
+    });
+
+    return { zapata };
+  }, [
+    fck, fyk, A, B, H, recubrimiento, distanciaColumnaLimite, anchoPilarA, anchoPilarB,
+    sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB,
+  ]);
+
+  const diagrama = useMemo(() => {
+    const v = {
+      A: aNumero(A),
+      B: aNumero(B),
+      anchoPilarA: aNumero(anchoPilarA),
+      anchoPilarB: aNumero(anchoPilarB),
+      distanciaColumnaLimite: aNumero(distanciaColumnaLimite),
+    };
+    if (!Object.values(v).every((n) => Number.isFinite(n) && n >= 0) || v.A <= 0 || v.B <= 0) return null;
+    return {
+      AM: v.A,
+      BM: v.B,
+      anchoPilarAM: v.anchoPilarA,
+      anchoPilarBM: v.anchoPilarB,
+      distanciaColumnaLimiteM: v.distanciaColumnaLimite,
+    };
+  }, [A, B, anchoPilarA, anchoPilarB, distanciaColumnaLimite]);
+
+  return (
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="spec-label">Cimentaciones</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
+        </div>
+        <SelectorNorma normas={meta.normasDisponibles} valor={norma} onChange={setNorma} />
+      </div>
+
+      {diagrama && (
+        <Card className="drafting-marks">
+          <CardHeader>
+            <CardTitle className="text-base">Planta</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center py-2">
+            <ZapataMedianeriaDiagrama {...diagrama} />
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Columna de datos */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Materiales y suelo</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+              <CampoNumerico
+                id="sigmaAdmisible"
+                etiqueta="σ suelo adm."
+                sufijo="kN/m²"
+                valor={sigmaAdmisible}
+                onChange={setSigmaAdmisible}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Geometría</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="A" etiqueta="A" sufijo="m" valor={A} onChange={setA} />
+              <CampoNumerico id="B" etiqueta="B" sufijo="m" valor={B} onChange={setB} />
+              <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
+              <CampoNumerico
+                id="recubrimiento"
+                etiqueta="Recubrimiento"
+                sufijo="m"
+                valor={recubrimiento}
+                onChange={setRecubrimiento}
+              />
+              <CampoNumerico
+                id="distanciaColumnaLimite"
+                etiqueta="Sep. al límite"
+                sufijo="m"
+                valor={distanciaColumnaLimite}
+                onChange={setDistanciaColumnaLimite}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Pilar</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="anchoPilarA" etiqueta="Ancho // A" sufijo="m" valor={anchoPilarA} onChange={setAnchoPilarA} />
+              <CampoNumerico id="anchoPilarB" etiqueta="Ancho // B" sufijo="m" valor={anchoPilarB} onChange={setAnchoPilarB} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Cargas</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
+              <CampoNumerico id="MkA" etiqueta="Mk A" sufijo="kN·m" valor={MkA} onChange={setMkA} />
+              <CampoNumerico id="MkB" etiqueta="Mk B" sufijo="kN·m" valor={MkB} onChange={setMkB} />
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Armado dirección A</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="numeroA" etiqueta="Nº barras" valor={numeroA} onChange={setNumeroA} />
+                <CampoNumerico id="diametroA" etiqueta="φ" sufijo="mm" valor={diametroA} onChange={setDiametroA} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Armado dirección B</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="numeroB" etiqueta="Nº barras" valor={numeroB} onChange={setNumeroB} />
+                <CampoNumerico id="diametroB" etiqueta="φ" sufijo="mm" valor={diametroB} onChange={setDiametroB} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Columna de resultados */}
+        <div className="space-y-6">
+          {!resultado ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Completá los datos con valores numéricos válidos para ver los resultados.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {!resultado.zapata.dentroDelNucleo && (
+                <Card className="border-destructive/40">
+                  <CardContent className="space-y-2 py-4 text-sm">
+                    <Badge variant="destructive">Excentricidad fuera del núcleo central</Badge>
+                    <p className="text-muted-foreground">
+                      El pilar está tan cerca del límite que la distribución lineal de presiones dejaría
+                      tracciones en el suelo (inválido). Con esta geometría hace falta una viga centradora
+                      que conecte esta zapata con una interior, en vez de diseñarla sola.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Verificación geotécnica</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta="Tensión admisible del suelo"
+                    verifica={resultado.zapata.geotecnico.verificaTension}
+                    detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                  />
+                  <PanelFormulas
+                    titulo="Ver cálculo"
+                    filas={[
+                      { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN` },
+                      { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.excentricidadM, 3)} m` },
+                      { etiqueta: "Núcleo central (±A/6)", valor: resultado.zapata.dentroDelNucleo ? "Dentro" : "Fuera" },
+                      { etiqueta: "Zapata rígida (vuelo ≤ 2H)", valor: resultado.zapata.esRigida ? "Sí" : "No" },
+                    ]}
+                  />
+                </CardContent>
+              </Card>
+
+              <TarjetaLado titulo="Armado — lado límite (vuelo corto)" resultado={resultado.zapata.ladoLimite} />
+              <TarjetaLado titulo="Armado — lado interior (vuelo largo)" resultado={resultado.zapata.ladoInterior} />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Armado dirección B</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta="Armadura suficiente"
+                    verifica={resultado.zapata.direccionB.verificaAs}
+                    detalle={`As real ${fmt(resultado.zapata.direccionB.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.direccionB.asNecCm2)} cm²`}
+                  />
+                </CardContent>
+              </Card>
+
+              <p className="text-xs text-muted-foreground">
+                Este tipo no viene de tu planilla — se calculó con el método general de EC2 (distribución
+                lineal de presiones con excentricidad). No incluye punzonamiento. Revisar antes de usar en obra.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}

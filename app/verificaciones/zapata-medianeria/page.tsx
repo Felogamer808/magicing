@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
@@ -169,6 +170,8 @@ export default function ZapataMedianeriaPage() {
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
+
+      <AvisoCombinacion idVerificacion={meta.id} />
 
       {diagrama && (
         <Card className="drafting-marks">

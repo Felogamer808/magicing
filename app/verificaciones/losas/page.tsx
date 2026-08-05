@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { LosaDiagrama } from "@/components/verificaciones/LosaDiagrama";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
@@ -133,6 +134,8 @@ export default function LosasPage() {
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
+
+      <AvisoCombinacion idVerificacion={meta.id} />
 
       {resultado && (
         <Card className="drafting-marks">

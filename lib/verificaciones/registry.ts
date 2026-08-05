@@ -130,10 +130,11 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "muros-contencion",
     nombre: "Muros de contención",
     categoria: "Contención",
-    descripcion: "Verificación geotécnica y estructural de muros de contención.",
-    normasDisponibles: ["EC2", "EC7"],
-    ruta: "",
-    disponible: false,
+    descripcion:
+      "Vuelco, deslizamiento y tensión del suelo, para muro libre o apuntalado por contrapiso y losa.",
+    normasDisponibles: ["EC7"],
+    ruta: "/verificaciones/muro-contencion",
+    disponible: true,
   },
   {
     id: "fisuracion",

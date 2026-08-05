@@ -9,6 +9,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
+import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/SolicitacionesVigaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import {
@@ -171,6 +172,19 @@ export default function VigasApeoPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="drafting-marks">
+        <CardHeader>
+          <CardTitle className="text-base">Solicitaciones</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center py-2">
+          <SolicitacionesVigaDiagrama
+            momentoPositivoKNm={aNumero(momentoPos) || 0}
+            momentoNegativoKNm={aNumero(momentoNeg) || 0}
+            cortanteKN={aNumero(vd) || 0}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">

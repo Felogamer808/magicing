@@ -12,6 +12,7 @@ import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/ec2/vigas-flexion-cortante";
 import { calcularVigaConTorsion } from "@/lib/calc/ec2/vigas-torsion";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
@@ -192,7 +193,7 @@ export default function VigasTorsionPage() {
                 <CampoNumerico id="momentoPos" etiqueta="Mmax+" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" valor={diametroPos} onChange={setDiametroPos} />
+                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
                 </div>
               </CardContent>
             </Card>
@@ -205,7 +206,7 @@ export default function VigasTorsionPage() {
                 <CampoNumerico id="momentoNeg" etiqueta="Mmax-" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" valor={diametroNeg} onChange={setDiametroNeg} />
+                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
                 </div>
               </CardContent>
             </Card>
@@ -217,7 +218,7 @@ export default function VigasTorsionPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
+              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
             </CardContent>
           </Card>

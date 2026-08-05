@@ -10,6 +10,7 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularLosa, calcularMomentoResistenteLosa, type ResultadoDireccionLosa } from "@/lib/calc/ec2/losa";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
@@ -187,18 +188,18 @@ export default function LosasPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Armado positivo</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="phiPosX" etiqueta="φ X" sufijo="mm" valor={phiPosX} onChange={setPhiPosX} />
+                <CampoNumerico id="phiPosX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosX} onChange={setPhiPosX} />
                 <CampoNumerico id="sPosX" etiqueta="s X" sufijo="m" valor={sPosX} onChange={setSPosX} />
-                <CampoNumerico id="phiPosY" etiqueta="φ Y" sufijo="mm" valor={phiPosY} onChange={setPhiPosY} />
+                <CampoNumerico id="phiPosY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosY} onChange={setPhiPosY} />
                 <CampoNumerico id="sPosY" etiqueta="s Y" sufijo="m" valor={sPosY} onChange={setSPosY} />
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">Armado negativo</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="phiNegX" etiqueta="φ X" sufijo="mm" valor={phiNegX} onChange={setPhiNegX} />
+                <CampoNumerico id="phiNegX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegX} onChange={setPhiNegX} />
                 <CampoNumerico id="sNegX" etiqueta="s X" sufijo="m" valor={sNegX} onChange={setSNegX} />
-                <CampoNumerico id="phiNegY" etiqueta="φ Y" sufijo="mm" valor={phiNegY} onChange={setPhiNegY} />
+                <CampoNumerico id="phiNegY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegY} onChange={setPhiNegY} />
                 <CampoNumerico id="sNegY" etiqueta="s Y" sufijo="m" valor={sNegY} onChange={setSNegY} />
               </CardContent>
             </Card>

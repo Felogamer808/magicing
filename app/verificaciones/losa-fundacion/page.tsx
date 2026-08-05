@@ -10,6 +10,7 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularFranjaLosa } from "@/lib/calc/ec2/losa-fundacion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-fundacion")!;
@@ -204,7 +205,7 @@ export default function LosaFundacionPage() {
                 <CardTitle className="text-base">Armado inferior</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="diametroInferior" etiqueta="φ" sufijo="mm" valor={diametroInferior} onChange={setDiametroInferior} />
+                <CampoNumerico id="diametroInferior" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroInferior} onChange={setDiametroInferior} />
                 <CampoNumerico id="separacionInferior" etiqueta="Separación" sufijo="m" valor={separacionInferior} onChange={setSeparacionInferior} />
               </CardContent>
             </Card>
@@ -213,7 +214,7 @@ export default function LosaFundacionPage() {
                 <CardTitle className="text-base">Armado superior</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="diametroSuperior" etiqueta="φ" sufijo="mm" valor={diametroSuperior} onChange={setDiametroSuperior} />
+                <CampoNumerico id="diametroSuperior" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroSuperior} onChange={setDiametroSuperior} />
                 <CampoNumerico id="separacionSuperior" etiqueta="Separación" sufijo="m" valor={separacionSuperior} onChange={setSeparacionSuperior} />
               </CardContent>
             </Card>
@@ -225,7 +226,7 @@ export default function LosaFundacionPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <CampoNumerico id="numeroSecundario" etiqueta="Nº barras/m" valor={numeroSecundario} onChange={setNumeroSecundario} />
-              <CampoNumerico id="diametroSecundario" etiqueta="φ" sufijo="mm" valor={diametroSecundario} onChange={setDiametroSecundario} />
+              <CampoNumerico id="diametroSecundario" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroSecundario} onChange={setDiametroSecundario} />
             </CardContent>
           </Card>
         </div>

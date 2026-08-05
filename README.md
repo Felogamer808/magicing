@@ -90,6 +90,18 @@ Fuera de alcance por ahora: punzonamiento en zapata combinada y losa de fundaci�
 pilotes, pandeo de pilotes, y cabezales sobre núcleos (la planilla tiene hojas aparte para
 esos).
 
+## Cómo se usa
+
+- **Los datos quedan guardados.** Cada verificación recuerda lo cargado entre recargas y
+  navegaciones, en su propio espacio, así que se puede saltar de una a otra sin perder nada.
+  El botón *Restablecer* vuelve a los valores por defecto.
+- **Imprimir** genera una hoja apta para adjuntar a la memoria de cálculo: sin navegación ni
+  botones, con los paneles "Ver cálculo" abiertos y sin cortar tarjetas entre páginas. Desde el
+  diálogo de impresión se puede guardar como PDF.
+- **Tema claro y oscuro**, con la preferencia guardada. Si nunca se eligió, sigue la del sistema.
+- Los campos de diámetro de armadura sugieren la serie comercial, pero no la imponen.
+- `Ctrl+F` encuentra texto dentro de los paneles "Ver cálculo" aunque estén cerrados, y los abre.
+
 ## Convenciones
 
 - Interfaz y nombres de variables en español, con la misma terminología que la planilla

@@ -9,6 +9,7 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularFisuracion } from "@/lib/calc/ec2/fisuracion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
@@ -122,14 +123,14 @@ export default function FisuracionPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Familia 1</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="phi1" etiqueta="φ" sufijo="mm" valor={phi1} onChange={setPhi1} />
+                <CampoNumerico id="phi1" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi1} onChange={setPhi1} />
                 <CampoNumerico id="s1" etiqueta="Separación" sufijo="m" valor={s1} onChange={setS1} />
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">Familia 2 (opcional)</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="phi2" etiqueta="φ" sufijo="mm" valor={phi2} onChange={setPhi2} />
+                <CampoNumerico id="phi2" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi2} onChange={setPhi2} />
                 <CampoNumerico id="s2" etiqueta="Separación" sufijo="m" valor={s2} onChange={setS2} />
               </CardContent>
             </Card>

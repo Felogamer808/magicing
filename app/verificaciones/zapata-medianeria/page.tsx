@@ -11,6 +11,7 @@ import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/ZapataMedianeriaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-medianeria")!;
@@ -253,7 +254,7 @@ export default function ZapataMedianeriaPage() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="numeroA" etiqueta="Nº barras" valor={numeroA} onChange={setNumeroA} />
-                <CampoNumerico id="diametroA" etiqueta="φ" sufijo="mm" valor={diametroA} onChange={setDiametroA} />
+                <CampoNumerico id="diametroA" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroA} onChange={setDiametroA} />
               </CardContent>
             </Card>
 
@@ -263,7 +264,7 @@ export default function ZapataMedianeriaPage() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="numeroB" etiqueta="Nº barras" valor={numeroB} onChange={setNumeroB} />
-                <CampoNumerico id="diametroB" etiqueta="φ" sufijo="mm" valor={diametroB} onChange={setDiametroB} />
+                <CampoNumerico id="diametroB" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroB} onChange={setDiametroB} />
               </CardContent>
             </Card>
           </div>

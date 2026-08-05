@@ -16,6 +16,7 @@ import {
   calcularDisposicionArmadura,
   calcularFlexion,
 } from "@/lib/calc/ec2/vigas-flexion-cortante";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-flexion-cortante")!;
@@ -219,7 +220,7 @@ export default function VigasFlexionCortantePage() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" valor={diametroPos} onChange={setDiametroPos} />
+                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
                 </div>
               </CardContent>
             </Card>
@@ -238,7 +239,7 @@ export default function VigasFlexionCortantePage() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" valor={diametroNeg} onChange={setDiametroNeg} />
+                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
                 </div>
               </CardContent>
             </Card>

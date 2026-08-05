@@ -23,6 +23,7 @@ import {
   calcularDisposicionArmadura,
   calcularFlexion,
 } from "@/lib/calc/ec2/vigas-flexion-cortante";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-apeo")!;
@@ -194,7 +195,7 @@ export default function VigasApeoPage() {
                 <CampoNumerico id="momentoPos" etiqueta="Mmax+" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" valor={diametroPos} onChange={setDiametroPos} />
+                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
                 </div>
               </CardContent>
             </Card>
@@ -204,7 +205,7 @@ export default function VigasApeoPage() {
                 <CampoNumerico id="momentoNeg" etiqueta="Mmax-" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" valor={diametroNeg} onChange={setDiametroNeg} />
+                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
                 </div>
               </CardContent>
             </Card>
@@ -214,7 +215,7 @@ export default function VigasApeoPage() {
             <CardHeader><CardTitle className="text-base">Cortante</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
+              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
             </CardContent>
           </Card>
@@ -224,14 +225,14 @@ export default function VigasApeoPage() {
               <CardHeader><CardTitle className="text-base">Armadura secundaria</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="numeroSec" etiqueta="Nº barras" valor={numeroSec} onChange={setNumeroSec} />
-                <CampoNumerico id="diametroSec" etiqueta="φ" sufijo="mm" valor={diametroSec} onChange={setDiametroSec} />
+                <CampoNumerico id="diametroSec" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroSec} onChange={setDiametroSec} />
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">Armadura de piel</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="numeroPiel" etiqueta="Nº por cara" valor={numeroPiel} onChange={setNumeroPiel} />
-                <CampoNumerico id="diametroPiel" etiqueta="φ" sufijo="mm" valor={diametroPiel} onChange={setDiametroPiel} />
+                <CampoNumerico id="diametroPiel" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPiel} onChange={setDiametroPiel} />
               </CardContent>
             </Card>
           </div>

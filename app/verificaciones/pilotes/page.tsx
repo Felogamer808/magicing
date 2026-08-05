@@ -10,6 +10,7 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularPilote } from "@/lib/calc/ec2/pilote";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "pilotes")!;
@@ -145,8 +146,8 @@ export default function PilotesPage() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="numero" etiqueta="Nº barras" valor={numero} onChange={setNumero} />
-                <CampoNumerico id="diametroBarra" etiqueta="φ" sufijo="mm" valor={diametroBarra} onChange={setDiametroBarra} />
-                <CampoNumerico id="diametroEstribo" etiqueta="φ zuncho" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
+                <CampoNumerico id="diametroBarra" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroBarra} onChange={setDiametroBarra} />
+                <CampoNumerico id="diametroEstribo" etiqueta="φ zuncho" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
                 <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
               </CardContent>
             </Card>

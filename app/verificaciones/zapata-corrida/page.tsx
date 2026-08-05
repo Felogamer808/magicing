@@ -10,6 +10,7 @@ import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/ZapataCorridaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCorrida } from "@/lib/calc/ec2/zapata-corrida";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-corrida")!;
@@ -191,6 +192,7 @@ export default function ZapataCorridaPage() {
                   id="diametroPrincipal"
                   etiqueta="φ"
                   sufijo="mm"
+                  sugerencias={DIAMETROS_ARMADURA}
                   valor={diametroPrincipal}
                   onChange={setDiametroPrincipal}
                 />
@@ -219,6 +221,7 @@ export default function ZapataCorridaPage() {
                   id="diametroSecundario"
                   etiqueta="φ"
                   sufijo="mm"
+                  sugerencias={DIAMETROS_ARMADURA}
                   valor={diametroSecundario}
                   onChange={setDiametroSecundario}
                 />

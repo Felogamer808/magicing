@@ -9,6 +9,7 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularCabezalDosPilotes } from "@/lib/calc/ec2/cabezal-pilotes";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "cabezales")!;
@@ -171,14 +172,14 @@ export default function CabezalPilotesPage() {
               <CardHeader><CardTitle className="text-base">Armadura principal</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nPrinc" etiqueta="Nº barras" valor={nPrinc} onChange={setNPrinc} />
-                <CampoNumerico id="phiPrinc" etiqueta="φ" sufijo="mm" valor={phiPrinc} onChange={setPhiPrinc} />
+                <CampoNumerico id="phiPrinc" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPrinc} onChange={setPhiPrinc} />
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">Armadura secundaria</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nSec" etiqueta="Nº barras" valor={nSec} onChange={setNSec} />
-                <CampoNumerico id="phiSec" etiqueta="φ" sufijo="mm" valor={phiSec} onChange={setPhiSec} />
+                <CampoNumerico id="phiSec" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiSec} onChange={setPhiSec} />
               </CardContent>
             </Card>
           </div>
@@ -188,7 +189,7 @@ export default function CabezalPilotesPage() {
               <CardHeader><CardTitle className="text-base">Estribos verticales</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="nEstV" etiqueta="Nº" valor={nEstV} onChange={setNEstV} />
-                <CampoNumerico id="phiEstV" etiqueta="φt" sufijo="mm" valor={phiEstV} onChange={setPhiEstV} />
+                <CampoNumerico id="phiEstV" etiqueta="φt" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstV} onChange={setPhiEstV} />
                 <CampoNumerico id="nCercos" etiqueta="Cercos" valor={nCercos} onChange={setNCercos} />
               </CardContent>
             </Card>
@@ -196,7 +197,7 @@ export default function CabezalPilotesPage() {
               <CardHeader><CardTitle className="text-base">Estribos horizontales</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nEstH" etiqueta="Nº" valor={nEstH} onChange={setNEstH} />
-                <CampoNumerico id="phiEstH" etiqueta="φl" sufijo="mm" valor={phiEstH} onChange={setPhiEstH} />
+                <CampoNumerico id="phiEstH" etiqueta="φl" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstH} onChange={setPhiEstH} />
               </CardContent>
             </Card>
           </div>

@@ -9,6 +9,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
+import { DiagramaRotura } from "@/components/verificaciones/hormigon/DiagramaRotura";
 import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/SolicitacionesVigaDiagrama";
 import {
   CroquisArmaduraFlexion,
@@ -319,6 +320,20 @@ export default function VigasFlexionCortantePage() {
                     verifica={resultado.flexionPositiva.verificaEntraEnAncho}
                     detalle={describirCapas(resultado.flexionPositiva.capas)}
                   />
+                  <DiagramaRotura
+                    bM={aNumero(b)}
+                    hM={aNumero(h)}
+                    dM={resultado.flexionPositiva.d}
+                    xM={resultado.flexionPositiva.xM}
+                    zM={resultado.flexionPositiva.zM}
+                    deformacionAcero={resultado.flexionPositiva.deformacionAcero}
+                    deformacionFluencia={resultado.materiales.fyd / 200000}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    El bloque rectangular equivalente tiene canto 0,8·x y tensión fcd. Lo que
+                    interesa mirar es la deformación del acero: si queda por encima de la de
+                    fluencia, la rotura avisa antes de producirse.
+                  </p>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

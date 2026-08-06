@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+// Las magnitudes del agotamiento (x, z y la deformación del acero) se derivan de
+// ω y alimentan el diagrama de rotura. Se comprueban acá y no en el dibujo.
 import { derivarMateriales } from "./materiales";
 import {
   calcularCantoUtil,
@@ -176,5 +178,48 @@ describe("armadura que no entra en una fila (viga angosta)", () => {
 
     const d = calcularCantoUtil(geometria, armadura);
     expect(d).toBeCloseTo(0.5 - 0.076, 6);
+  });
+});
+
+describe("geometría del agotamiento", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
+  const d = 0.45;
+  const armadura = { diametroMm: 16, numero: 4 };
+
+  const flexion = (momento: number) =>
+    calcularFlexion(materiales, geometria, d, { momento, armaduraReal: armadura });
+
+  it("x y z salen de ω por las relaciones del bloque rectangular", () => {
+    const r = flexion(150);
+    // ω·d = 0,8·x, y z = d·(1 − ω/2).
+    expect(r.xM).toBeCloseTo((r.omega * d) / 0.8, 9);
+    expect(r.zM).toBeCloseTo(d * (1 - r.omega / 2), 9);
+    // El brazo siempre queda entre la fibra neutra y el canto útil.
+    expect(r.zM).toBeLessThan(d);
+    expect(r.zM).toBeGreaterThan(d - r.xM);
+  });
+
+  it("el equilibrio cierra: la compresión del bloque iguala a la tracción", () => {
+    const r = flexion(150);
+    const compresionKN = 0.8 * r.xM * geometria.b * materiales.fcd * 1000;
+    const traccionKN = (r.asCalculadoCm2 / 1e4) * materiales.fyd * 1000;
+    expect(compresionKN).toBeCloseTo(traccionKN, 3);
+  });
+
+  it("más momento baja la fibra neutra y acerca el acero a no fluir", () => {
+    const flojo = flexion(80);
+    const cargado = flexion(260);
+
+    expect(cargado.xM).toBeGreaterThan(flojo.xM);
+    expect(cargado.zM).toBeLessThan(flojo.zM);
+    expect(cargado.deformacionAcero).toBeLessThan(flojo.deformacionAcero);
+  });
+
+  it("la deformación del acero sale del diagrama de deformaciones con εcu = 3,5 ‰", () => {
+    const r = flexion(150);
+    expect(r.deformacionAcero).toBeCloseTo((0.0035 * (d - r.xM)) / r.xM, 9);
+    // Con esta armadura y este momento la sección es dúctil: el acero fluye.
+    expect(r.deformacionAcero).toBeGreaterThan(materiales.fyd / 200000);
   });
 });

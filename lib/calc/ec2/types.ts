@@ -47,6 +47,19 @@ export interface ResultadoFlexion {
   mu: number;
   /** Cuantía mecánica ω = 1 - √(1 - 2μ) */
   omega: number;
+  /**
+   * Profundidad de la fibra neutra (m). Sale de ω: el bloque rectangular
+   * equivalente tiene canto 0,8·x y tensión fcd, así que igualar compresión y
+   * tracción da ω·d = 0,8·x.
+   */
+  xM: number;
+  /** Brazo mecánico z = d·(1 − ω/2) (m). */
+  zM: number;
+  /**
+   * Deformación de la armadura traccionada en agotamiento, con εcu = 3,5 ‰.
+   * Por debajo de la de fluencia la sección está sobrearmada y rompe frágil.
+   */
+  deformacionAcero: number;
   /** As requerido por momento (cm²) */
   asCalculadoCm2: number;
   /** As mínimo mecánico (cm²) */

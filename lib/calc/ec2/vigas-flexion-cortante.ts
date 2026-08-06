@@ -120,10 +120,18 @@ export function calcularFlexion(
 
   const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
 
+  // Geometría del agotamiento, para poder dibujarlo: ω·d = 0,8·x y z = d·(1 − ω/2).
+  const xM = (omega * d) / 0.8;
+  const zM = d * (1 - omega / 2);
+  const deformacionAcero = xM > 0 ? (0.0035 * (d - xM)) / xM : Infinity;
+
   return {
     d,
     mu,
     omega,
+    xM,
+    zM,
+    deformacionAcero,
     asCalculadoCm2,
     asMinMecanicoCm2,
     asMinGeometricoCm2,

@@ -39,6 +39,8 @@ export default function MuroContencionPage() {
   const [hAct, setHAct] = useCampo("hAct", "3.2");
   const [hPas, setHPas] = useCampo("hPas", "0");
   const [sobrecarga, setSobrecarga] = useCampo("sobrecarga", "5");
+  // Cero por defecto: el muro contra un límite de propiedad no lleva puntera.
+  const [puntera, setPuntera] = useCampo("puntera", "0");
 
   const [l1Caso2, setL1Caso2] = useCampo("l1Caso2", "2");
   const [l1Caso3, setL1Caso3] = useCampo("l1Caso3", "0.95");
@@ -49,12 +51,15 @@ export default function MuroContencionPage() {
       gamma: aNumero(gamma), phi: aNumero(phi), c: aNumero(c), sigmaAdm: aNumero(sigmaAdm),
       anchoZap: aNumero(anchoZap), cantoZap: aNumero(cantoZap), altMuro: aNumero(altMuro),
       espMuro: aNumero(espMuro), hAct: aNumero(hAct), hPas: aNumero(hPas), sobrecarga: aNumero(sobrecarga),
+      puntera: aNumero(puntera),
       l1Caso2: aNumero(l1Caso2), l1Caso3: aNumero(l1Caso3), l2Caso3: aNumero(l2Caso3),
     };
     if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
     if (n.gamma <= 0 || n.phi <= 0 || n.phi >= 90 || n.sigmaAdm <= 0) return null;
     if (n.anchoZap <= 0 || n.cantoZap <= 0 || n.altMuro <= 0 || n.espMuro <= 0 || n.hAct <= 0) return null;
     if (n.espMuro >= n.anchoZap) return null;
+    // La puntera y el hastial tienen que caber en la zapata y dejar talon.
+    if (n.puntera + n.espMuro >= n.anchoZap) return null;
     if (n.l1Caso2 <= 0 || n.l2Caso3 <= 0) return null;
 
     return {
@@ -64,12 +69,12 @@ export default function MuroContencionPage() {
         {
           anchoZapataM: n.anchoZap, cantoZapataM: n.cantoZap, alturaMuroM: n.altMuro,
           espesorMuroM: n.espMuro, alturaSueloActivoM: n.hAct, alturaSueloPasivoM: n.hPas,
-          sobrecargaKPa: n.sobrecarga,
+          sobrecargaKPa: n.sobrecarga, punteraM: n.puntera,
         },
         { l1Caso2M: n.l1Caso2, l1Caso3M: n.l1Caso3, l2Caso3M: n.l2Caso3 }
       ),
     };
-  }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecarga, l1Caso2, l1Caso3, l2Caso3]);
+  }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecarga, puntera, l1Caso2, l1Caso3, l2Caso3]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -149,6 +154,22 @@ export default function MuroContencionPage() {
               <CampoNumerico id="cantoZap" etiqueta="H zapata" sufijo="m" valor={cantoZap} onChange={setCantoZap} />
               <CampoNumerico id="altMuro" etiqueta="H muro" sufijo="m" valor={altMuro} onChange={setAltMuro} />
               <CampoNumerico id="espMuro" etiqueta="Espesor muro" sufijo="m" valor={espMuro} onChange={setEspMuro} />
+              <CampoNumerico id="puntera" etiqueta="Puntera" sufijo="m" valor={puntera} onChange={setPuntera} />
+              <div className="col-span-2">
+                <PanelAyuda titulo="Qué es la puntera y cuándo va en cero">
+                  <p>
+                    Es el vuelo de la zapata por delante del hastial, del lado que no retiene
+                    tierra. Cargarla en <strong className="text-foreground">cero</strong> es un caso
+                    real y frecuente: un muro contra un límite de propiedad o una medianera no puede
+                    volar hacia ese lado, y entonces toda la zapata es talón.
+                  </p>
+                  <p>
+                    Sin puntera no hay nada que dimensionar de ese lado, así que esa parte del
+                    armado desaparece. A cambio, el muro pierde brazo estabilizador y el vuelco se
+                    vuelve más exigente.
+                  </p>
+                </PanelAyuda>
+              </div>
               <div className="col-span-2">
                 <PredimensionadoMuro
                   alturaTotalM={aNumero(altMuro) + aNumero(cantoZap) || 3.5}
@@ -239,8 +260,53 @@ export default function MuroContencionPage() {
                     espesorMuroM={aNumero(espMuro)}
                     anchoZapataM={aNumero(anchoZap)}
                     cantoZapataM={aNumero(cantoZap)}
-                    punteraM={Math.max(aNumero(anchoZap) / 3, 0.1)}
+                    punteraM={aNumero(puntera)}
                   />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Momentos para armar</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <PanelFormulas
+                    titulo="Ver cálculo"
+                    filas={[
+                      {
+                        etiqueta: `Hastial · voladizo de ${fmt(resultado.r.momentos.alturaHastialM, 2)} m`,
+                        valor: `${fmt(resultado.r.momentos.hastialKNm)} kN·m/m`,
+                      },
+                      {
+                        etiqueta: `Talón · vuelo de ${fmt(resultado.r.momentos.talonM, 2)} m`,
+                        valor: `${fmt(resultado.r.momentos.talonKNm)} kN·m/m`,
+                      },
+                      ...(resultado.r.momentos.punteraM > 0
+                        ? [
+                            {
+                              etiqueta: `Puntera · vuelo de ${fmt(resultado.r.momentos.punteraM, 2)} m`,
+                              valor: `${fmt(resultado.r.momentos.punteraKNm)} kN·m/m`,
+                            },
+                            {
+                              etiqueta: "σ terreno en el borde / arranque",
+                              valor: `${fmt(resultado.r.momentos.sigmaPunteraBordeKPa)} / ${fmt(resultado.r.momentos.sigmaPunteraArranqueKPa)} kN/m²`,
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                  {resultado.r.momentos.punteraM === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Sin puntera no hay nada que armar de ese lado: toda la zapata trabaja como
+                      talón. Si el muro no está contra un límite de propiedad, darle puntera suele
+                      ser la forma más barata de resolver un vuelco justo.
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Momentos ya mayorados con γf = 1,5. El talón se resuelve del lado seguro:
+                    se cuentan las cargas que bajan y se desprecia la reacción del terreno, que
+                    iría a favor.
+                  </p>
                 </CardContent>
               </Card>
 

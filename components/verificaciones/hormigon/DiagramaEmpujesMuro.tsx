@@ -92,16 +92,23 @@ export function DiagramaEmpujesMuro({
         <line x1={10} y1={py(alturaSueloPasivoM)} x2={X_MURO - px(anchoZapataM) * 0.35}
               y2={py(alturaSueloPasivoM)} className="stroke-foreground/40" strokeWidth={1} />
 
-        {/* --- Empuje del suelo activo: triángulo, resultante al tercio inferior --- */}
+        {/*
+          Los dos se apilan para que juntos den el trapecio real de presiones:
+          la sobrecarga aporta un ancho constante pegado al muro y el suelo, un
+          triángulo que arranca donde termina aquélla. A cualquier profundidad la
+          suma de los dos anchos es la presión total ka·q + ka·γ·z, que es lo que
+          importa leer. Los colores se mantienen separados para poder distinguir
+          de dónde viene cada parte.
+        */}
         <polygon
-          points={`${X_MURO + px(espesorMuroM)},${yCoronacion} ${X_MURO + px(espesorMuroM) + pp(presionSueloBase)},${Y_BASE} ${X_MURO + px(espesorMuroM)},${Y_BASE}`}
+          points={`${X_MURO + px(espesorMuroM) + pp(presionSobrecarga)},${yCoronacion} ${X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase)},${Y_BASE} ${X_MURO + px(espesorMuroM) + pp(presionSobrecarga)},${Y_BASE}`}
           className="fill-destructive/25 stroke-destructive" strokeWidth={1.2} />
-        <line x1={X_MURO + px(espesorMuroM) + pp(presionSueloBase) + 26} y1={py(alturaSueloActivoM / 3)}
+        <line x1={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 26} y1={py(alturaSueloActivoM / 3)}
               x2={X_MURO + px(espesorMuroM) + 4} y2={py(alturaSueloActivoM / 3)}
               className="stroke-destructive" strokeWidth={1.8} />
         <polygon points={`${X_MURO + px(espesorMuroM) + 4},${py(alturaSueloActivoM / 3)} ${X_MURO + px(espesorMuroM) + 13},${py(alturaSueloActivoM / 3) - 4} ${X_MURO + px(espesorMuroM) + 13},${py(alturaSueloActivoM / 3) + 4}`}
                  className="fill-destructive" />
-        <text x={X_MURO + px(espesorMuroM) + pp(presionSueloBase) + 30} y={py(alturaSueloActivoM / 3) + 3}
+        <text x={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 30} y={py(alturaSueloActivoM / 3) + 3}
               className="fill-destructive text-[9px]">
           Ea = {fmt(empujeSueloKN, 0)} kN · h/3
         </text>
@@ -109,11 +116,11 @@ export function DiagramaEmpujesMuro({
         {/* --- Empuje de la sobrecarga: rectángulo, resultante a media altura --- */}
         {sobrecargaKPa > 0 && (
           <>
-            <rect x={X_MURO + px(espesorMuroM) + pp(presionSueloBase)} y={yCoronacion}
+            <rect x={X_MURO + px(espesorMuroM)} y={yCoronacion}
                   width={pp(presionSobrecarga)} height={Y_BASE - yCoronacion}
                   className="fill-amber-500/25 stroke-amber-600" strokeWidth={1.2} />
-            <text x={X_MURO + px(espesorMuroM) + pp(presionSueloBase) + pp(presionSobrecarga) + 30}
-                  y={py(alturaSueloActivoM / 2) + 3} className="fill-amber-700 text-[9px]">
+            <text x={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 30}
+                  y={py(alturaSueloActivoM * 0.72) + 3} className="fill-amber-700 text-[9px]">
               Eq = {fmt(empujeSobrecargaKN, 0)} kN · h/2
             </text>
           </>

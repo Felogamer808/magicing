@@ -107,9 +107,15 @@ export function AccionesElementosMuro({
                       </g>
                     );
                   })}
-                  <text x={xHastial + px(espesorMuroM) + px(talonM) / 2} y={yTopZapata - 30}
+                  <text x={xHastial + px(espesorMuroM) + px(talonM) / 2} y={yTopZapata - 32}
                         textAnchor="middle" className="fill-destructive text-[9px]">Wt</text>
-                  <MomentoCurvo x={xHastial + px(espesorMuroM)} y={Y_BASE + 4} etiqueta="Mt" sentido={1} />
+                  {/*
+                    El momento del talón se rotula por debajo de la zapata y
+                    desplazado: puesto sobre el arranque pisaba el nombre de la
+                    pieza y la leyenda del pie.
+                  */}
+                  <MomentoCurvo x={xHastial + px(espesorMuroM) + 12} y={Y_BASE + 18}
+                                etiqueta="Mt" sentido={1} etiquetaDebajo />
                 </>
               )}
 
@@ -119,8 +125,9 @@ export function AccionesElementosMuro({
                   <polygon
                     points={`${xZapata},${Y_BASE + 26} ${xZapata + px(punteraM)},${Y_BASE + 12} ${xZapata + px(punteraM)},${Y_BASE} ${xZapata},${Y_BASE}`}
                     className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1} />
-                  <text x={xZapata + px(punteraM) / 2} y={Y_BASE + 38} textAnchor="middle"
-                        className="fill-emerald-700 text-[9px]">σ terreno</text>
+                  {/* Al costado del triángulo: debajo pisaba la leyenda del pie. */}
+                  <text x={xZapata - 4} y={Y_BASE + 20} textAnchor="end"
+                        className="fill-emerald-700 text-[9px]">σ</text>
                   <MomentoCurvo x={xHastial} y={yTopZapata + px(cantoZapataM) / 2} etiqueta="Mp" sentido={1} />
                 </>
               )}
@@ -147,8 +154,10 @@ export function AccionesElementosMuro({
 
 /** Flecha curva que representa el momento en el arranque de un voladizo. */
 function MomentoCurvo({
-  x, y, etiqueta, sentido,
-}: { x: number; y: number; etiqueta: string; sentido: 1 | -1 }) {
+  x, y, etiqueta, sentido, etiquetaDebajo = false,
+}: {
+  x: number; y: number; etiqueta: string; sentido: 1 | -1; etiquetaDebajo?: boolean;
+}) {
   const r = 11;
   return (
     <g>
@@ -158,7 +167,8 @@ function MomentoCurvo({
       <polygon
         points={`${x + r},${y} ${x + r - 4},${y - 4 * sentido} ${x + r + 4},${y - 4 * sentido}`}
         className="fill-foreground" />
-      <text x={x} y={y - r - 3 * sentido} textAnchor="middle"
+      <text x={x + (etiquetaDebajo ? r + 6 : 0)} y={etiquetaDebajo ? y + 3 : y - r - 3 * sentido}
+            textAnchor={etiquetaDebajo ? "start" : "middle"}
             className="fill-foreground text-[9px] font-medium">
         {etiqueta}
       </text>

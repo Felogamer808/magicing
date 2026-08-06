@@ -36,6 +36,12 @@ export interface GeometriaMuro {
   alturaSueloPasivoM: number;
   /** Sobrecarga en superficie, p. ej. tránsito de vehículos (kN/m²) */
   sobrecargaKPa: number;
+  /**
+   * Vuelo de la puntera, por delante del hastial (m). Puede ser cero: un muro
+   * de medianera o contra un límite de propiedad no la lleva, y entonces toda
+   * la zapata es talón.
+   */
+  punteraM?: number;
 }
 
 export interface ResultadoEmpujes {
@@ -57,6 +63,29 @@ export interface ResultadoEmpujes {
   pesoZapataKN: number;
   pesoSueloActivoKN: number;
   pesoSueloPasivoKN: number;
+}
+
+/**
+ * Momentos de cálculo en las tres piezas del muro, en kN·m/m.
+ *
+ * Un muro en ménsula son tres voladizos independientes, con cargas de sentidos
+ * distintos, así que cada uno lleva su momento y su armadura en una cara
+ * distinta. Los momentos van mayorados con γf = 1,5, listos para dimensionar.
+ */
+export interface ResultadoMomentosElementos {
+  /** Hastial: lo empuja el terreno y tracciona la cara interior. */
+  hastialKNm: number;
+  /** Altura de terreno que empuja al hastial (m). */
+  alturaHastialM: number;
+  /** Talón: lo baja el peso de tierra que gravita encima; tracciona arriba. */
+  talonKNm: number;
+  talonM: number;
+  /** Puntera: la levanta la reacción del terreno; tracciona abajo. */
+  punteraKNm: number;
+  punteraM: number;
+  /** Presión del terreno en el borde de la puntera y en el arranque del hastial. */
+  sigmaPunteraBordeKPa: number;
+  sigmaPunteraArranqueKPa: number;
 }
 
 export interface ResultadoVuelco {
@@ -90,6 +119,8 @@ export interface ResultadoApoyos {
 }
 
 export interface ResultadoMuroContencion {
+  /** Momentos mayorados en las tres piezas, para dimensionar la armadura. */
+  momentos: ResultadoMomentosElementos;
   empujes: ResultadoEmpujes;
   vuelco: ResultadoVuelco;
   /** Caso 1: el muro se sostiene solo. */
@@ -124,6 +155,76 @@ export interface ApoyosConfig {
   /** Distancias de los apoyos en el caso 3 (m) */
   l1Caso3M: number;
   l2Caso3M: number;
+}
+
+/** Coeficiente de mayoración de acciones para dimensionar la armadura. */
+const GAMMA_F = 1.5;
+/** Peso específico del hormigón armado (kN/m³). */
+const PESO_HORMIGON = 25;
+
+interface DatosMomentos {
+  A: number; hZap: number; esp: number; hMuro: number;
+  hAct: number; q: number; gammaKNm3: number; ka: number; puntera: number;
+}
+
+/**
+ * Momentos en hastial, talón y puntera.
+ *
+ * El talón se resuelve del lado seguro: se cuentan las cargas que bajan —tierra
+ * que gravita, sobrecarga y peso propio de la losa— y se desprecia la reacción
+ * del terreno, que iría a favor. Es la simplificación habitual, y evita que un
+ * error de signo en la distribución de presiones deje el talón sin armar.
+ *
+ * La puntera sí necesita esa distribución, porque es justamente la reacción la
+ * que la levanta: se toma la presión lineal bajo la base y se le descuenta el
+ * peso propio de la losa, que actúa en sentido contrario.
+ */
+export function calcularMomentosElementos(
+  d: DatosMomentos,
+  nTensionKN: number,
+  momentoBaseKNm: number
+): ResultadoMomentosElementos {
+  const { A, hZap, esp, hMuro, hAct, q, gammaKNm3, ka, puntera } = d;
+
+  // --- Hastial: voladizo desde la cara superior de la zapata ---------------
+  const alturaHastialM = Math.max(Math.min(hAct - hZap, hMuro), 0);
+  const empujeSuelo = (gammaKNm3 * ka * alturaHastialM ** 2) / 2;
+  const empujeSobrecarga = ka * q * alturaHastialM;
+  const hastialKNm =
+    GAMMA_F * (empujeSuelo * (alturaHastialM / 3) + empujeSobrecarga * (alturaHastialM / 2));
+
+  // --- Talón: lo que queda de zapata por detrás del hastial ----------------
+  const talonM = Math.max(A - puntera - esp, 0);
+  const alturaTierraSobreTalon = Math.max(hAct - hZap, 0);
+  const cargaBajaKPa =
+    gammaKNm3 * alturaTierraSobreTalon + q + PESO_HORMIGON * hZap;
+  const talonKNm = GAMMA_F * ((cargaBajaKPa * talonM ** 2) / 2);
+
+  // --- Puntera: la levanta la reacción del terreno -------------------------
+  // Distribución lineal bajo la base, medida desde el borde de la puntera.
+  const sigmaMedia = nTensionKN / A;
+  const sigmaGradiente = momentoBaseKNm / (A ** 2 / 6);
+  const sigmaPunteraBordeKPa = sigmaMedia + sigmaGradiente;
+  const sigmaPunteraArranqueKPa =
+    puntera > 0 ? sigmaMedia + sigmaGradiente * (1 - (2 * puntera) / A) : sigmaPunteraBordeKPa;
+
+  // Momento en el arranque del voladizo: trapecio de presiones menos peso propio.
+  const rectangulo = sigmaPunteraArranqueKPa * puntera * (puntera / 2);
+  const triangulo =
+    ((sigmaPunteraBordeKPa - sigmaPunteraArranqueKPa) * puntera) / 2 * ((2 * puntera) / 3);
+  const pesoLosa = PESO_HORMIGON * hZap * puntera * (puntera / 2);
+  const punteraKNm = puntera > 0 ? GAMMA_F * Math.max(rectangulo + triangulo - pesoLosa, 0) : 0;
+
+  return {
+    hastialKNm,
+    alturaHastialM,
+    talonKNm,
+    talonM,
+    punteraKNm,
+    punteraM: puntera,
+    sigmaPunteraBordeKPa,
+    sigmaPunteraArranqueKPa,
+  };
 }
 
 export function calcularMuroContencion(
@@ -198,7 +299,14 @@ export function calcularMuroContencion(
   const momentoCasos23 = EXCENTRICIDAD_CASOS_APUNTALADOS * nTension;
   const sigmaCasos23 = nTension / A + momentoCasos23 / (A ** 2 / 6);
 
+  const momentos = calcularMomentosElementos(
+    { A, hZap, esp, hMuro, hAct, q, gammaKNm3, ka, puntera: geometria.punteraM ?? 0 },
+    nTension,
+    momentoCaso1
+  );
+
   return {
+    momentos,
     empujes: {
       ka,
       kp,

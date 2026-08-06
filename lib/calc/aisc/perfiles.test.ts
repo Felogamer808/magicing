@@ -7,19 +7,20 @@ import {
   type Familia,
 } from "./perfiles";
 
-// La planilla "AISC 360.xlsx" traía cinco columnas cargadas: PNI80, 100, 120 y 140,
-// y un 2PNC180. Las cuatro del PNI se usan acá como contraste contra la tabla,
-// celda por celda. El 2PNC180 de la planilla NO sirve de contraste porque sus
-// valores estaban puestos a mano y son incorrectos; ver el bloque del final.
+// La tabla se transcribe del catálogo de ArcelorMittal "Perfiles y barras"
+// (dimensiones EN 10365:2017). Los valores de abajo son los de ese catálogo, y
+// coinciden con las cuatro columnas de PNI que traía cargadas la planilla
+// "AISC 360.xlsx". El 2PNC180 de la planilla NO sirve de contraste: sus valores
+// estaban puestos a mano y son incorrectos; ver el bloque del final.
 
-describe("PNI: contraste contra los valores de la planilla", () => {
+describe("PNI: contraste contra el catálogo", () => {
   it("PNI80", () => {
     const p = propiedades("PNI", 80);
     expect(p.hM).toBeCloseTo(0.08, 6);
     expect(p.bM).toBeCloseTo(0.042, 6);
     expect(p.twM).toBeCloseTo(0.0039, 6);
     expect(p.tfM).toBeCloseTo(0.0059, 6);
-    expect(p.areaM2).toBeCloseTo(7.57e-4, 8);
+    expect(p.areaM2).toBeCloseTo(7.6e-4, 8);
     expect(p.ixM4).toBeCloseTo(77.8e-8, 12);
     expect(p.sxM3).toBeCloseTo(19.5e-6, 10);
     expect(p.zxM3).toBeCloseTo(22.8e-6, 10);
@@ -87,7 +88,11 @@ describe("coherencia interna del catálogo", () => {
 
           // El eje fuerte tiene que serlo.
           expect(p.ixM4).toBeGreaterThan(p.iyM4);
-          expect(p.dM).toBeCloseTo(p.hM - 2 * p.tfM, 9);
+          expect(p.hiM).toBeCloseTo(p.hM - 2 * p.tfM, 9);
+          // El alma recta descuenta además los acuerdos de laminación.
+          expect(p.hAlmaM).toBeGreaterThan(0);
+          expect(p.hAlmaM).toBeLessThanOrEqual(p.hiM + 1e-9);
+          expect(p.cwM6).toBeGreaterThan(0);
         });
       }
     });
@@ -97,6 +102,48 @@ describe("coherencia interna del catálogo", () => {
     for (const familia of familias) {
       expect(alturasDisponibles(familia).length).toBeGreaterThan(0);
     }
+  });
+});
+
+// La constante de torsión es la columna que más se aparta entre fuentes, y donde
+// una tabla vieja pasa desapercibida: no interviene en compresión ni en la
+// plastificación, solo en el pandeo lateral-torsional. Estos valores son los `It`
+// del catálogo.
+describe("PNC: constante de torsión contra el catálogo", () => {
+  const itCatalogo: Record<number, number> = {
+    80: 2.2, 100: 2.81, 120: 4.15, 140: 5.68, 160: 7.39, 180: 9.55,
+    200: 11.9, 220: 16.0, 240: 19.7, 260: 25.5, 280: 31.0, 300: 37.4,
+  };
+
+  for (const [altura, valorIt] of Object.entries(itCatalogo)) {
+    it(`PNC${altura}`, () => {
+      expect(propiedades("PNC", Number(altura)).jM4).toBeCloseTo(valorIt / 1e8, 12);
+    });
+  }
+
+  it("PNC80 usa los módulos plásticos del catálogo", () => {
+    const p = propiedades("PNC", 80);
+    expect(p.zxM3).toBeCloseTo(32.3e-6, 10);
+    expect(p.zyM3).toBeCloseTo(11.9e-6, 10);
+  });
+});
+
+describe("HEB: contraste contra el catálogo", () => {
+  it("HEB300", () => {
+    const p = propiedades("HEB", 300);
+    expect(p.areaM2).toBeCloseTo(149.1e-4, 8);
+    expect(p.ixM4).toBeCloseTo(25170e-8, 11);
+    expect(p.sxM3).toBeCloseTo(1678e-6, 9);
+    expect(p.zxM3).toBeCloseTo(1869e-6, 9);
+    expect(p.iyM4).toBeCloseTo(8563e-8, 11);
+    expect(p.jM4).toBeCloseTo(185.0e-8, 11);
+    // Iw = 1688 x 10⁹ mm⁶, y 1 mm⁶ = 1e-18 m⁶.
+    expect(p.cwM6).toBeCloseTo(1.688e-6, 12);
+    // En sección doblemente simétrica vale Cw = Iy·ho²/4: sirve de control
+    // cruzado entre el Iw tabulado y el Iy tabulado, que son columnas distintas.
+    const hoM = p.hM - p.tfM;
+    expect(p.cwM6 / ((p.iyM4 * hoM ** 2) / 4)).toBeCloseTo(1, 2);
+    expect(p.hAlmaM).toBeCloseTo(0.208, 6);
   });
 });
 

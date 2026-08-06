@@ -103,10 +103,17 @@ describe("alcance del artículo F2", () => {
     }
   });
 
-  it("rechaza el PNC simple, que no es doblemente simétrico", () => {
-    expect(() => calcularFlexion({ ...base, familia: "PNC", altura: 180, lbM: 2 })).toThrow(
-      /doblemente simétrica/
-    );
+  it("acepta el PNC simple usando el coeficiente c de la ec. F2-8b", () => {
+    const canal = calcularFlexion({ ...base, familia: "PNC", altura: 180, lbM: 2 });
+    const perfilI = calcularFlexion({ ...base, familia: "PNI", altura: 180, lbM: 2 });
+
+    // En secciones doblemente simétricas c vale exactamente 1 (ec. F2-8a), y de
+    // hecho la ec. F2-8b se reduce a 1 al sustituir Cw = Iy·ho²/4. En un canal
+    // el alabeo es menor que ese valor, así que c sale por encima de 1.
+    expect(perfilI.c).toBe(1);
+    expect(canal.c).toBeGreaterThan(1);
+    expect(canal.c).toBeLessThan(1.5);
+    expect(canal.mnKNm).toBeGreaterThan(0);
   });
 
   it("separar los dos PNC alarga Lp y Lr", () => {

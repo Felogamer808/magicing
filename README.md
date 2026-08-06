@@ -124,12 +124,20 @@ cortante, armadura secundaria y de piel, anclaje y flecha).
 **Losas** — armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.
 
 **Estructuras metálicas** — compresión con pandeo por flexión en los dos ejes (AISC 360 art. E3) ·
-flexión respecto del eje fuerte, con plastificación y pandeo lateral-torsional (art. F2) · sección
-mixta CFT: tubo circular relleno de hormigón · soldaduras y chapa de base.
+flexión, con plastificación y pandeo lateral-torsional en el eje fuerte (art. F2) y pandeo local
+del ala en el débil (art. F6) · corte en el alma, con y sin rigidizadores (art. G2) ·
+flexo-compresión biaxial (art. H1) · sección mixta CFT: tubo circular relleno de hormigón ·
+soldaduras y chapa de base.
 
-El catálogo de perfiles (`lib/calc/aisc/perfiles.ts`) cubre PNI y PNC 80–300 (DIN 1025-1 y
-1026-1) y HEB 100–300 (EN 10365). El **2PNC no se tabula: se compone** a partir del PNC simple,
-porque su inercia débil depende de la separación entre perfiles, que es un dato de proyecto.
+El catálogo de perfiles (`lib/calc/aisc/perfiles.ts`) cubre PNI y PNC 80–300 y HEB 100–300,
+transcritos del catálogo de ArcelorMittal *Perfiles y barras* (dimensiones según EN 10365:2017).
+El **2PNC no se tabula: se compone** a partir del PNC simple, porque su inercia débil depende de
+la separación entre perfiles, que es un dato de proyecto.
+
+Dos detalles del capítulo G que es fácil pasar por alto y que la herramienta aplica: el
+coeficiente de seguridad al corte **no** es 1,67 para todos —las almas robustas de perfiles I
+laminados van con 1,50 por el art. G1(a)—, y los canales quedan siempre fuera de esa excepción
+aunque su alma sea igual de robusta.
 
 **Cimentaciones** — zapata aislada (con punzonamiento y cortante) · zapata corrida · zapata de
 medianería · zapata combinada · losa de fundación · pilotes · cabezal de 2 pilotes.
@@ -168,6 +176,12 @@ involucrados coincidían.
    el resultado más conservador que el de la planilla.
 6. **Viento** — los topes de la presión interior estaban escritos como comparaciones encadenadas
    (`-0,2 < x < 0`), que Excel evalúa de izquierda a derecha y por lo tanto nunca se cumplen.
+9. **Constante de torsión de los PNC** — la primera versión de la tabla de perfiles se cargó de
+   valores de DIN 1026-1 que no coinciden con los del catálogo: el `It` salía alto en diez de las
+   doce alturas, hasta un 28 % en el PNC300 (47,9 cm⁴ contra 37,4). No afecta compresión ni
+   plastificación, solo el pandeo lateral-torsional, que es justo donde no se nota a simple
+   vista. Se corrigió contra el catálogo y quedó con un test por altura.
+
 8. **Perfiles 2PNC (planilla AISC 360.xlsx)** — la única columna de perfil doble traía tres
    valores puestos a mano: `Iy` igual a `Ix` (y por lo tanto `ry = rx`), lo que **sobrestima la
    capacidad a compresión** porque hace desaparecer el pandeo por el eje débil; `J` del mismo

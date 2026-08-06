@@ -265,6 +265,28 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
+    id: "corte-acero",
+    nombre: "Corte en el alma",
+    seccion: "estructuras-metalicas",
+    categoria: "Vigas",
+    descripcion:
+      "Resistencia al corte del alma, con y sin rigidizadores transversales, y el Ωv reducido de las almas robustas.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/corte-acero",
+    disponible: true,
+  },
+  {
+    id: "flexo-compresion",
+    nombre: "Flexo-compresión",
+    seccion: "estructuras-metalicas",
+    categoria: "Barras",
+    descripcion:
+      "Interacción de compresión y flexión en dos ejes, combinando las admisibles de los capítulos E y F.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/flexo-compresion",
+    disponible: true,
+  },
+  {
     id: "soldaduras",
     nombre: "Soldaduras y chapas",
     seccion: "estructuras-metalicas",

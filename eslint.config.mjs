@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Utilidades de línea de comandos, no código de la aplicación: corren con
+    // `node` sueltas y usan require(), que la config de Next prohíbe.
+    "scripts/**",
   ]),
 ]);
 

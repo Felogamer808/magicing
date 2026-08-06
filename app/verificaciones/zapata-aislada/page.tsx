@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
+import { DiagramaPresionSuelo } from '@/components/verificaciones/hormigon/DiagramaPresionSuelo';
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
@@ -279,6 +280,30 @@ export default function ZapataAisladaPage() {
                     verifica={resultado.zapata.geotecnico.verificaTension}
                     detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
                   />
+                  <DiagramaPresionSuelo
+                    distribucion={resultado.zapata.geotecnico.distribucionA}
+                    lM={aNumero(A)}
+                    sigmaAdmisibleKPa={aNumero(sigmaAdmisible)}
+                    etiqueta="Dirección A"
+                  />
+                  <DiagramaPresionSuelo
+                    distribucion={resultado.zapata.geotecnico.distribucionB}
+                    lM={aNumero(B)}
+                    sigmaAdmisibleKPa={aNumero(sigmaAdmisible)}
+                    etiqueta="Dirección B"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Mientras la resultante caiga dentro del núcleo central la zapata apoya entera y
+                    el diagrama es trapecial. Si se sale, el borde opuesto se levanta —el terreno no
+                    tracciona— y la carga se concentra en una cuña más corta.
+                  </p>
+                  {(resultado.zapata.geotecnico.distribucionA.hayDespegue ||
+                    resultado.zapata.geotecnico.distribucionB.hayDespegue) && (
+                    <p className="text-xs text-destructive">
+                      La resultante sale del núcleo central: hay despegue. La comprobación por área
+                      eficaz sigue siendo válida, pero conviene revisar la geometría.
+                    </p>
+                  )}
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

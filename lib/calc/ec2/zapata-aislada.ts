@@ -36,11 +36,79 @@ export interface DatosZapataAislada {
   armadoB: ArmadoDireccion;
 }
 
+/**
+ * Reparto de presiones bajo la base en una dirección.
+ *
+ * Mientras la excentricidad se mantenga dentro del núcleo central (e ≤ L/6) la
+ * zapata apoya entera y el diagrama es un trapecio. Pasado ese punto el borde
+ * opuesto se despega —el terreno no puede traccionar— y la resultante se
+ * reequilibra sobre una cuña triangular más corta y más cargada. Esa transición
+ * no se ve en la tensión por área eficaz, que devuelve un solo número.
+ */
+export interface DistribucionPresiones {
+  excentricidadM: number;
+  /** Límite del núcleo central, L/6. */
+  limiteNucleoM: number;
+  hayDespegue: boolean;
+  /** Longitud realmente en contacto con el terreno (m). */
+  longitudContactoM: number;
+  sigmaMaxKPa: number;
+  /** Presión en el borde opuesto. Nula si ese borde se despegó. */
+  sigmaMinKPa: number;
+}
+
 export interface ResultadoGeotecnico {
   pesoPropioKN: number;
   /** Presión de contacto por el método del área efectiva (kN/m²) */
   sigmaKPa: number;
   verificaTension: boolean;
+  /** Reparto real de presiones en cada dirección, para poder dibujarlo. */
+  distribucionA: DistribucionPresiones;
+  distribucionB: DistribucionPresiones;
+}
+
+/**
+ * Presiones en los bordes de la base en una dirección, con la carga vertical
+ * total (incluido el peso propio) y su excentricidad.
+ */
+export function distribucionPresiones(
+  cargaTotalKN: number,
+  lM: number,
+  anchoPerpM: number,
+  excentricidadM: number
+): DistribucionPresiones {
+  const e = Math.abs(excentricidadM);
+  const limiteNucleoM = lM / 6;
+
+  if (e <= limiteNucleoM) {
+    // Trapecio: toda la base trabaja.
+    const media = cargaTotalKN / (lM * anchoPerpM);
+    const incremento = (6 * cargaTotalKN * e) / (anchoPerpM * lM ** 2);
+    return {
+      excentricidadM: e,
+      limiteNucleoM,
+      hayDespegue: false,
+      longitudContactoM: lM,
+      sigmaMaxKPa: media + incremento,
+      sigmaMinKPa: media - incremento,
+    };
+  }
+
+  // Cuña triangular: la resultante cae fuera del núcleo y el borde opuesto se
+  // levanta. El triángulo tiene su baricentro bajo la resultante, así que mide
+  // 3·(L/2 − e), y de ahí sale σmax por equilibrio.
+  const longitudContactoM = Math.max(3 * (lM / 2 - e), 0);
+  const sigmaMaxKPa =
+    longitudContactoM > 0 ? (2 * cargaTotalKN) / (longitudContactoM * anchoPerpM) : Infinity;
+
+  return {
+    excentricidadM: e,
+    limiteNucleoM,
+    hayDespegue: true,
+    longitudContactoM,
+    sigmaMaxKPa,
+    sigmaMinKPa: 0,
+  };
 }
 
 export interface ResultadoArmadoDireccion {
@@ -246,7 +314,13 @@ export function calcularZapataAislada(
   return {
     vueloMaxM,
     esRigida: vueloMaxM <= 2 * H,
-    geotecnico: { pesoPropioKN, sigmaKPa, verificaTension },
+    geotecnico: {
+      pesoPropioKN,
+      sigmaKPa,
+      verificaTension,
+      distribucionA: distribucionPresiones(Nk + pesoPropioKN, A, B, excA),
+      distribucionB: distribucionPresiones(Nk + pesoPropioKN, B, A, excB),
+    },
     direccionA,
     direccionB,
     punzonamiento,

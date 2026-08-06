@@ -1,4 +1,67 @@
 import { describe, expect, it } from "vitest";
+import { distribucionPresiones } from "./zapata-aislada";
+
+/**
+ * El reparto de presiones bajo la base alimenta el diagrama, pero es cálculo:
+ * distingue la zapata que apoya entera de la que se despegó por un borde, y esa
+ * diferencia no la muestra la tensión por área eficaz.
+ */
+describe("distribución de presiones bajo la base", () => {
+  it("sin excentricidad la presión es uniforme", () => {
+    const d = distribucionPresiones(600, 2, 2, 0);
+    expect(d.hayDespegue).toBe(false);
+    expect(d.longitudContactoM).toBeCloseTo(2, 9);
+    // 600 kN sobre 4 m² son 150 kPa parejos.
+    expect(d.sigmaMaxKPa).toBeCloseTo(150, 9);
+    expect(d.sigmaMinKPa).toBeCloseTo(150, 9);
+  });
+
+  it("dentro del núcleo central el diagrama es trapecial y conserva la resultante", () => {
+    const lM = 2, bM = 2, nKN = 600, e = 0.2;
+    const d = distribucionPresiones(nKN, lM, bM, e);
+
+    expect(d.limiteNucleoM).toBeCloseTo(lM / 6, 9);
+    expect(d.hayDespegue).toBe(false);
+    // El volumen del trapecio tiene que devolver la carga aplicada.
+    const resultante = ((d.sigmaMaxKPa + d.sigmaMinKPa) / 2) * lM * bM;
+    expect(resultante).toBeCloseTo(nKN, 6);
+  });
+
+  it("justo en el borde del núcleo la presión mínima se anula", () => {
+    const d = distribucionPresiones(600, 2, 2, 2 / 6);
+    expect(d.hayDespegue).toBe(false);
+    expect(d.sigmaMinKPa).toBeCloseTo(0, 9);
+    expect(d.sigmaMaxKPa).toBeCloseTo(300, 6);
+  });
+
+  it("fuera del núcleo se despega un borde y la cuña conserva la resultante", () => {
+    const lM = 2, bM = 2, nKN = 600, e = 0.5;
+    const d = distribucionPresiones(nKN, lM, bM, e);
+
+    expect(d.hayDespegue).toBe(true);
+    // El triángulo mide 3·(L/2 − e) y su baricentro cae bajo la resultante.
+    expect(d.longitudContactoM).toBeCloseTo(3 * (lM / 2 - e), 9);
+    expect(d.sigmaMinKPa).toBe(0);
+    const resultante = (d.sigmaMaxKPa / 2) * d.longitudContactoM * bM;
+    expect(resultante).toBeCloseTo(nKN, 6);
+  });
+
+  it("las dos ramas empalman en el límite del núcleo", () => {
+    const antes = distribucionPresiones(600, 2, 2, 2 / 6 - 1e-9);
+    const despues = distribucionPresiones(600, 2, 2, 2 / 6 + 1e-9);
+
+    expect(despues.sigmaMaxKPa).toBeCloseTo(antes.sigmaMaxKPa, 4);
+    expect(despues.longitudContactoM).toBeCloseTo(antes.longitudContactoM, 6);
+  });
+
+  it("más excentricidad concentra más la carga", () => {
+    const poca = distribucionPresiones(600, 2, 2, 0.4);
+    const mucha = distribucionPresiones(600, 2, 2, 0.7);
+
+    expect(mucha.longitudContactoM).toBeLessThan(poca.longitudContactoM);
+    expect(mucha.sigmaMaxKPa).toBeGreaterThan(poca.sigmaMaxKPa);
+  });
+});
 import { derivarMateriales } from "./materiales";
 import { calcularZapataAislada } from "./zapata-aislada";
 

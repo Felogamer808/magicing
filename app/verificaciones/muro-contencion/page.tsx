@@ -8,6 +8,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/DiagramaEmpujesMuro";
+import { PredimensionadoMuro } from "@/components/verificaciones/hormigon/PredimensionadoMuro";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
 import {
@@ -107,6 +108,30 @@ export default function MuroContencionPage() {
               <CampoNumerico id="phi" etiqueta="φ" sufijo="°" valor={phi} onChange={setPhi} />
               <CampoNumerico id="c" etiqueta="Cohesión c" sufijo="kPa" valor={c} onChange={setC} />
               <CampoNumerico id="sigmaAdm" etiqueta="σ adm." sufijo="kN/m²" valor={sigmaAdm} onChange={setSigmaAdm} />
+              <div className="col-span-2 space-y-1.5 text-xs text-muted-foreground">
+                <p>
+                  <strong className="text-foreground">γ — peso específico.</strong> Cuánto pesa un
+                  metro cúbico de relleno. Multiplica todo el empuje: el doble de γ es el doble de
+                  empuje. Suelos corrientes van entre 17 y 21 kN/m³.
+                </p>
+                <p>
+                  <strong className="text-foreground">φ — ángulo de rozamiento interno.</strong> Qué
+                  tan bien se traba el suelo consigo mismo. Es el que más manda: entra en el
+                  coeficiente activo ka = tg²(45 − φ/2), así que subirlo baja el empuje rápido.
+                  Arenas 30–36°, gravas 35–40°, limos y arcillas menos.
+                </p>
+                <p>
+                  <strong className="text-foreground">c — cohesión.</strong> Lo que el suelo aguanta
+                  sin confinar, por atracción entre partículas. Acá solo interviene en el
+                  deslizamiento, sumando adherencia bajo la zapata. En arenas limpias vale cero, y
+                  conviene no confiar en ella si el terreno puede saturarse.
+                </p>
+                <p>
+                  <strong className="text-foreground">σ adm. — tensión admisible.</strong> Cuánta
+                  presión tolera el terreno de apoyo sin asentar de más. No sale de los otros tres:
+                  es un dato del estudio de suelos. Es la que limita el ancho de zapata.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -120,6 +145,17 @@ export default function MuroContencionPage() {
               <CampoNumerico id="cantoZap" etiqueta="H zapata" sufijo="m" valor={cantoZap} onChange={setCantoZap} />
               <CampoNumerico id="altMuro" etiqueta="H muro" sufijo="m" valor={altMuro} onChange={setAltMuro} />
               <CampoNumerico id="espMuro" etiqueta="Espesor muro" sufijo="m" valor={espMuro} onChange={setEspMuro} />
+              <div className="col-span-2">
+                <PredimensionadoMuro
+                  alturaTotalM={aNumero(altMuro) + aNumero(cantoZap) || 3.5}
+                  onAplicar={(d) => {
+                    setAnchoZap(String(d.anchoZapataM));
+                    setCantoZap(String(d.cantoZapataM));
+                    setAltMuro(String(d.alturaMuroM));
+                    setEspMuro(String(d.espesorMuroM));
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -129,6 +165,25 @@ export default function MuroContencionPage() {
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
               <CampoNumerico id="sobrecarga" etiqueta="Sobrecarga" sufijo="kN/m²" valor={sobrecarga} onChange={setSobrecarga} />
+              <div className="col-span-2 space-y-1.5 text-xs text-muted-foreground sm:col-span-3">
+                <p>
+                  <strong className="text-foreground">h activo.</strong> Altura de tierra retenida
+                  por detrás, medida desde la base de la zapata. Es la que genera el empuje que
+                  vuelca, y crece al cuadrado: pasar de 3 a 4 m casi duplica el empuje.
+                </p>
+                <p>
+                  <strong className="text-foreground">h pasivo.</strong> Altura de tierra que queda
+                  por delante, del lado de la puntera, y que resiste. Suele dejarse en cero: es
+                  terreno que puede excavarse después y confiar en él es optimista.
+                </p>
+                <p>
+                  <strong className="text-foreground">Sobrecarga.</strong> Sí, es la{" "}
+                  <strong className="text-foreground">q</strong> del diagrama de empujes: una carga
+                  repartida sobre la superficie del terreno retenido —tránsito, acopio, una losa de
+                  acceso—. Se traduce en un empuje horizontal ka·q constante en toda la altura, por
+                  eso su diagrama es el rectángulo ámbar y no un triángulo.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

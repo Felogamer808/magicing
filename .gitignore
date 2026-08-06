@@ -61,3 +61,4 @@ desktop.ini
 # de scripts/normas/ sí se versionan; el texto que producen, no.
 scripts/normas/salida/
 .claude/skills/aisc-360/
+.env*

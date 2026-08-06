@@ -188,6 +188,20 @@
   .spec-label {
     @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
+
+  /*
+   * Tope de altura de los esquemas. Varios dibujos arman su viewBox con la
+   * geometría que carga el usuario, así que un muro alto o un pilote esbelto
+   * salen verticales y, al ocupar todo el ancho de la columna, quedan al triple
+   * de alto que los demás dibujos de la misma página.
+   *
+   * El tope no deforma nada: el SVG conserva su relación de aspecto por el
+   * preserveAspectRatio por defecto, se achica hasta entrar y queda centrado.
+   * Los dibujos apaisados, que son la mayoría, nunca lo alcanzan.
+   */
+  .esquemas-acotados svg {
+    max-height: 20rem;
+  }
 }
 
 /*

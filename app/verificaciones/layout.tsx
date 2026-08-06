@@ -21,7 +21,7 @@ export default function VerificacionesLayout({ children }: LayoutProps<"/verific
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="esquemas-acotados min-w-0 flex-1">{children}</div>
     </div>
   );
 }

@@ -136,6 +136,19 @@ cortante, armadura secundaria y de piel, anclaje y flecha).
 
 **Losas** — armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.
 
+**Hormigón pretensado** — pieza pretesada según ACI 318-19: tensiones en servicio en las cuatro
+situaciones, área de pretensado necesaria, pérdidas instantáneas y diferidas (ES, SH, CR y RE),
+flexión última, cuantía mínima y flechas.
+
+Es la única sección que no sigue el Eurocódigo: las planillas de origen están resueltas con ACI 318
+y se respetó esa norma en lugar de traducirlas. Las dos —vigas y losas alveolares— resuelven el
+mismo cálculo con datos distintos, así que hay un módulo solo.
+
+El elemento se calcula en dos etapas, y esa distinción es la que manda: el pretensado se introduce
+sobre la **sección simple**, la pieza premoldeada sola, y las cargas posteriores actúan sobre la
+**sección compuesta**, ya con la carpeta. Mezclarlas es el error más fácil de cometer, y de hecho
+las planillas lo cometían en un punto.
+
 **Estructuras metálicas** — compresión con pandeo por flexión en los dos ejes (AISC 360 art. E3) ·
 flexión en secciones abiertas (arts. F2 y F6) y cerradas (arts. F7 y F8) · corte en secciones
 abiertas (art. G2) y cerradas (arts. G4 y G5) · flexo-compresión biaxial (art. H1) · sección mixta
@@ -208,6 +221,25 @@ involucrados coincidían.
    el resultado más conservador que el de la planilla.
 6. **Viento** — los topes de la presión interior estaban escritos como comparaciones encadenadas
    (`-0,2 < x < 0`), que Excel evalúa de izquierda a derecha y por lo tanto nunca se cumplen.
+10. **Planillas de pretensado** — cuatro hallazgos, todos con test de regresión en
+    `lib/calc/aci/pretensado.test.ts`:
+    - `ρp` se calculaba como `Ap/((0,2072 − 9·0,0091)·10⁶)`, un área fija sin relación con la
+      sección: daba el mismo denominador para la viga y para la losa, y sobrestimaba la cuantía
+      más del doble. Baja `fps` y por lo tanto `Mn`, así que iba **del lado seguro**, pero no es
+      el valor del art. 20.3.2.3.1.
+    - `Mcr` omitía el módulo de rotura y se quedaba solo con el aporte del pretensado. Eso
+      **subestima** `Mcr` y hace pasar la comprobación de cuantía mínima con más holgura de la que
+      corresponde: es el único de los cuatro que va del lado inseguro.
+    - Convivían **dos excentricidades distintas**: 0,156 m medida desde el baricentro para las
+      tensiones y 0,175 m medida desde la media altura para `Mcr`. En una sección no simétrica no
+      pueden ser las dos.
+    - La tensión de la fibra inferior por momento usaba el brazo de la fibra **superior**
+      (`ysup` en lugar de `yg`). En la losa no se notaba porque es simétrica; en la viga sí.
+
+    Además, la hoja de losas usaba el área de la sección **compuesta** para el término axial del
+    pretensado donde la de vigas usaba la **simple**. El pretensado actúa antes de que exista la
+    carpeta, así que corresponde la simple.
+
 9. **Constante de torsión de los PNC** — la primera versión de la tabla de perfiles se cargó de
    valores de DIN 1026-1 que no coinciden con los del catálogo: el `It` salía alto en diez de las
    doce alturas, hasta un 28 % en el PNC300 (47,9 cm⁴ contra 37,4). No afecta compresión ni

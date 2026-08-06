@@ -55,10 +55,11 @@ export const registroSecciones: SeccionMeta[] = [
   {
     id: "hormigon-pretensado",
     nombre: "Hormigón pretensado",
-    descripcion: "Pérdidas de pretensado, estados límite en transferencia y en servicio.",
-    normasDisponibles: ["EC2"],
+    descripcion:
+      "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
+    normasDisponibles: ["ACI 318"],
     ruta: "/secciones/hormigon-pretensado",
-    disponible: false,
+    disponible: true,
   },
   {
     id: "madera",
@@ -262,6 +263,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Momento resistente por plastificación y pandeo lateral-torsional, según la longitud sin arriostrar.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/flexion-acero",
+    disponible: true,
+  },
+  {
+    id: "pretensado",
+    nombre: "Pieza pretesada",
+    seccion: "hormigon-pretensado",
+    categoria: "Vigas y losas",
+    descripcion:
+      "Tensiones en servicio, pérdidas instantáneas y diferidas, flexión última, cuantía mínima y flechas.",
+    normasDisponibles: ["ACI 318"],
+    ruta: "/verificaciones/pretensado",
     disponible: true,
   },
   {

@@ -3,28 +3,27 @@
 Estado al último commit. Lo terminado no se lista: está en `git log` y en el
 `README.md`.
 
-## En curso
+## Terminado: croquis por tarjeta de datos
 
-### Croquis por tarjeta de datos
-Cada tarjeta del formulario lleva un croquis que rotula los mismos símbolos que
-sus campos. Hecho en **vigas — flexión y cortante** (materiales, geometría,
-armadura positiva y negativa, ramas del estribo), que es la implementación de
-referencia en `components/verificaciones/croquis/`.
+Las **16 páginas** tienen croquis en sus tarjetas de datos, rotulando los mismos
+símbolos que los campos. Viven en `components/verificaciones/croquis/`, agrupados
+por familia: `CroquisViga`, `CroquisLosa`, `CroquisCabezal`, `CroquisMuro`,
+`CroquisCimentacion` y `CroquisVarios`.
 
-Hecho también en **muro de contención** (suelo, geometría y posición de los
-apoyos). De paso las etiquetas dejaron de decir sólo "L1" y "L2": ahora nombran
-lo que miden, y el croquis dibuja los dos casos apuntalados juntos porque `L1` no
-significa lo mismo en uno que en otro.
+Lo que cada uno vino a resolver, por si hay que revisarlos:
 
-Faltan 12 páginas, en este orden de prioridad por cuánto se presta a confusión
-cada parámetro:
+- **Losas** — X va por dentro, apoyada sobre Y, y por eso tiene menor canto útil.
+- **Muro** — `L1` no significa lo mismo en el caso 2 que en el 3, y `L2` no es una
+  altura sino la separación entre apoyos.
+- **Cabezal** — la separación entre pilotes no es un dato: es 2,5·D.
+- **Zapatas** — "ancho // A" es el paralelo a A, no el perpendicular.
+- **Combinada y losa de fundación** — la posición de los pilares se mide desde el
+  borde izquierdo.
+- **Corrida** — se calcula una rebanada de un metro.
+- **Pilotes** — fs actúa en el fuste y qp sólo en la punta.
 
-1. **Losas** — que se vea que la armadura en X va por dentro, apoyada sobre la de
-   Y, y que por eso tienen distinto canto útil.
-2. **Cabezal de pilotes** — separación entre pilotes, ancho del pilar, armaduras
-   secundaria y de reparto, y la inclinación de la biela.
-3. Zapatas (medianería, corrida, combinada), pilotes, uniones, sección mixta,
-   viento, fisuración.
+Convención para los que se agreguen: el croquis va dentro de `CardContent`,
+envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
 
 ## Funcionalidad pendiente
 

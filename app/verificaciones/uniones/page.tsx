@@ -12,6 +12,10 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/aisc/uniones";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisChapaBase,
+  CroquisPerfilSoldadura,
+} from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "soldaduras")!;
@@ -115,6 +119,9 @@ export default function UnionesPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Perfil y cordón</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisPerfilSoldadura />
+              </div>
               <CampoNumerico id="hMm" etiqueta="H" sufijo="mm" valor={hMm} onChange={setHMm} />
               <CampoNumerico id="bMm" etiqueta="B" sufijo="mm" valor={bMm} onChange={setBMm} />
               <CampoNumerico id="tfMm" etiqueta="tf" sufijo="mm" valor={tfMm} onChange={setTfMm} />
@@ -196,6 +203,9 @@ export default function UnionesPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Chapa y pernos</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisChapaBase />
+              </div>
               <CampoNumerico id="lx" etiqueta="Lx" sufijo="m" valor={lx} onChange={setLx} />
               <CampoNumerico id="ly" etiqueta="Ly" sufijo="m" valor={ly} onChange={setLy} />
               <CampoNumerico id="tChapa" etiqueta="t" sufijo="m" valor={tChapa} onChange={setTChapa} />

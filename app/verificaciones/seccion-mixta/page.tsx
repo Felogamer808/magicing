@@ -13,6 +13,9 @@ import { DiagramaCFT } from "@/components/verificaciones/DiagramaCFT";
 import { calcularSeccionMixta } from "@/lib/calc/aisc/seccion-mixta";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisSeccionMixta,
+} from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "secciones-mixtas")!;
@@ -94,6 +97,9 @@ export default function SeccionMixtaPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisSeccionMixta />
+              </div>
               <CampoNumerico id="dMm" etiqueta="D" sufijo="mm" valor={dMm} onChange={setDMm} />
               <CampoNumerico id="tMm" etiqueta="t" sufijo="mm" valor={tMm} onChange={setTMm} />
               <CampoNumerico id="lM" etiqueta="L" sufijo="m" valor={lM} onChange={setLM} />

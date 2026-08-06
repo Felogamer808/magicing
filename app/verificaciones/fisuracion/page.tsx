@@ -12,6 +12,10 @@ import { calcularFisuracion } from "@/lib/calc/ec2/fisuracion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisFamiliaFisuracion,
+  CroquisSeccionFisuracion,
+} from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
@@ -107,6 +111,9 @@ export default function FisuracionPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Sección y solicitación</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisSeccionFisuracion />
+              </div>
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
@@ -117,6 +124,9 @@ export default function FisuracionPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Familia 1</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisFamiliaFisuracion numero={1} />
+                </div>
                 <CampoNumerico id="phi1" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi1} onChange={setPhi1} />
                 <CampoNumerico id="s1" etiqueta="Separación" sufijo="m" valor={s1} onChange={setS1} />
               </CardContent>
@@ -124,6 +134,9 @@ export default function FisuracionPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Familia 2 (opcional)</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisFamiliaFisuracion numero={2} />
+                </div>
                 <CampoNumerico id="phi2" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi2} onChange={setPhi2} />
                 <CampoNumerico id="s2" etiqueta="Separación" sufijo="m" valor={s2} onChange={setS2} />
               </CardContent>

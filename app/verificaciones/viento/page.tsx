@@ -16,6 +16,10 @@ import {
   type TipoVelocidad,
 } from "@/lib/calc/cirsoc/viento";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisGeometriaViento,
+  CroquisNivelesViento,
+} from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "viento")!;
@@ -85,6 +89,9 @@ export default function VientoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisGeometriaViento />
+              </div>
               <CampoNumerico id="a" etiqueta="a" sufijo="m" valor={a} onChange={setA} />
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="altura" etiqueta="h total" sufijo="m" valor={altura} onChange={setAltura} />
@@ -106,6 +113,9 @@ export default function VientoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Niveles</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisNivelesViento />
+              </div>
               <CampoNumerico id="zInicial" etiqueta="Cota del 1er nivel" sufijo="m" valor={zInicial} onChange={setZInicial} />
               <CampoNumerico id="nNiveles" etiqueta="Cantidad de niveles" valor={nNiveles} onChange={setNNiveles} />
             </CardContent>

@@ -7,6 +7,7 @@ import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/DiagramaEmpujesMuro";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
 import {
@@ -153,6 +154,28 @@ export default function MuroContencionPage() {
             </Card>
           ) : (
             <>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Empujes sobre el muro</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <DiagramaEmpujesMuro
+                    alturaTotalM={resultado.r.empujes.alturaTotalM}
+                    alturaSueloActivoM={aNumero(hAct)}
+                    alturaMuroM={aNumero(altMuro)}
+                    espesorMuroM={aNumero(espMuro)}
+                    anchoZapataM={aNumero(anchoZap)}
+                    cantoZapataM={aNumero(cantoZap)}
+                    alturaSueloPasivoM={aNumero(hPas)}
+                    ka={resultado.r.empujes.ka}
+                    kp={resultado.r.empujes.kp}
+                    gammaKNm3={aNumero(gamma)}
+                    sobrecargaKPa={aNumero(sobrecarga)}
+                    empujeSueloKN={resultado.r.empujes.empujeSueloKN}
+                    empujeSobrecargaKN={resultado.r.empujes.empujeSobrecargaKN}
+                    empujePasivoKN={resultado.r.empujes.empujePasivoKN}
+                  />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>
                 <CardContent className="space-y-3">

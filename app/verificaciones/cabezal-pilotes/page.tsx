@@ -7,6 +7,7 @@ import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { DiagramaBielasTirante } from "@/components/verificaciones/hormigon/DiagramaBielasTirante";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaCabezal } from "@/components/verificaciones/DiagramaCabezal";
 import { calcularCabezalDosPilotes } from "@/lib/calc/ec2/cabezal-pilotes";
@@ -200,6 +201,22 @@ export default function CabezalPilotesPage() {
                     verifica={resultado.r.principal.verificaBNec}
                     detalle={`b nec ${fmt(resultado.r.principal.bNecM, 3)} m / lado y ${fmt(resultado.n.ladoY, 2)} m · separación ${fmt(resultado.r.principal.separacionMm, 0)} mm`}
                   />
+                  <DiagramaBielasTirante
+                    separacionPilotesM={resultado.r.principal.separacionPilotesM}
+                    vM={resultado.r.principal.vM}
+                    hM={aNumero(hCab)}
+                    dM={resultado.r.principal.dM}
+                    anchoPilarM={aNumero(anchoPilar)}
+                    diametroPiloteM={aNumero(dPilote)}
+                    ndPilarKN={aNumero(ndPilar)}
+                    ndPorPiloteKN={resultado.r.principal.ndPorPiloteKN}
+                    tdKN={resultado.r.principal.tdKN}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    El cabezal no trabaja como viga: la carga baja por dos bielas comprimidas hasta
+                    los pilotes y el tirante inferior las cose. Por eso la armadura sale de la
+                    geometría del triángulo y no de un momento flector.
+                  </p>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

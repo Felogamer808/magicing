@@ -7,6 +7,7 @@ import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { DiagramaFisuracion } from "@/components/verificaciones/hormigon/DiagramaFisuracion";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularFisuracion } from "@/lib/calc/ec2/fisuracion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
@@ -167,6 +168,14 @@ export default function FisuracionPage() {
                       {fmt(resultado.r.srMaxMm, 1)} mm × {resultado.r.epsilonSmMenosCm.toExponential(3)}
                     </p>
                   </div>
+                  <DiagramaFisuracion
+                    resultado={resultado.r}
+                    bM={resultado.n.b}
+                    hM={resultado.n.h}
+                    n1={Math.round(resultado.n1)}
+                    diametro1Mm={resultado.n.phi1}
+                    wAdmMm={resultado.n.wAdm}
+                  />
                   {resultado.r.usaTopeSeparacionAmplia && (
                     <p className="rounded-md border border-primary/40 p-3 text-xs text-muted-foreground">
                       Las barras están a {fmt(resultado.r.sMm, 0)} mm, por encima del límite

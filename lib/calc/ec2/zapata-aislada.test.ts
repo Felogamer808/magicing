@@ -136,12 +136,23 @@ describe("cortante y punzonamiento (EC2, sin equivalente en la planilla)", () =>
     expect(r.direccionB.verificaCorte).toBe(true);
   });
 
-  it("reproduce el punzonamiento", () => {
+  it("reproduce el punzonamiento en el perímetro crítico", () => {
     expect(r.punzonamiento.dPromedioM).toBeCloseTo(0.534, 3);
-    expect(r.punzonamiento.u1M).toBeCloseTo(8.31, 1);
-    expect(r.punzonamiento.vEdKN).toBeCloseTo(544, 0);
-    expect(r.punzonamiento.vRdCKN).toBeCloseTo(1589, 0);
+    expect(r.punzonamiento.u1M).toBeCloseTo(4.754, 2);
+    expect(r.punzonamiento.vEdKN).toBeCloseTo(1111, 0);
+    expect(r.punzonamiento.vRdCKN).toBeCloseTo(1935, 0);
     expect(r.punzonamiento.verificaPunzonamiento).toBe(true);
+  });
+
+  it("el perímetro crítico cae dentro de 2d, no en 2d", () => {
+    // Antes se comprobaba sólo el perímetro de 2d y daba un aprovechamiento de
+    // 0,34. Barriendo los perímetros interiores como pide el art. 6.4.4(2), el
+    // que gobierna está a 0,94·d y el aprovechamiento real es 0,57: un 68 % más
+    // alto. Esta zapata sigue verificando, pero una que antes diera 0,62 en
+    // realidad estaría por encima de 1.
+    expect(r.punzonamiento.aCriticaM).toBeLessThan(2 * r.punzonamiento.dPromedioM);
+    expect(r.punzonamiento.aCriticaM / r.punzonamiento.dPromedioM).toBeCloseTo(0.94, 2);
+    expect(r.punzonamiento.aprovechamiento).toBeCloseTo(0.574, 3);
   });
 
   it("el punzonamiento deja de verificar con una carga mucho mayor (misma armadura)", () => {

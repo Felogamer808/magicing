@@ -252,6 +252,16 @@ export default function VigasTorsionPage() {
                     verifica={resultado.torsion.verificaBielas}
                     detalle={`Td ${fmt(aNumero(td))} kN·m / Tu1 ${fmt(resultado.torsion.tu1KNm)} kN·m`}
                   />
+                  <ResultadoCheck
+                    etiqueta="Interacción torsión + cortante"
+                    verifica={resultado.verificaInteraccionBielas}
+                    detalle={`Td/Tu1 + Vd/VRd,max = ${fmt(resultado.interaccionBielas, 3)} ≤ 1`}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Las bielas son las mismas para los dos esfuerzos, así que no alcanza con que cada
+                    uno verifique por separado: el articulado exige que la suma de los dos
+                    aprovechamientos no pase de 1.
+                  </p>
                   <Separator />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">Aportes de la torsión a la armadura</p>

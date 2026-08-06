@@ -102,8 +102,11 @@ describe("cortante (bloque VIGA)", () => {
     numeroRamas: 6,
   });
 
-  it("reproduce VRd,max y su verificación", () => {
-    expect(r.vRdMax).toBeCloseTo(3504.6, 3);
+  // La planilla daba 3504,6 kN con 0,30·fcd·b·d, que es la Vu1 de la EHE-08.
+  // El art. 6.2.3(3) usa el brazo z = 0,9d en vez del canto útil d, y con
+  // α_cw = 1, ν1 = 0,6 y θ = 45° queda 0,27·fcd·b·d = 3154,14 kN.
+  it("agota las bielas según el art. 6.2.3(3), no según la Vu1 de la EHE-08", () => {
+    expect(r.vRdMax).toBeCloseTo(3154.14, 3);
     expect(r.verificaVRdMax).toBe(true);
   });
 

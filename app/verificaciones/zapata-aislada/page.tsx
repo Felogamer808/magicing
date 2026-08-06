@@ -348,9 +348,25 @@ export default function ZapataAisladaPage() {
                     titulo="Ver cálculo"
                     filas={[
                       { etiqueta: "d promedio", valor: `${fmt(resultado.zapata.punzonamiento.dPromedioM, 3)} m` },
-                      { etiqueta: "Perímetro de control u1", valor: `${fmt(resultado.zapata.punzonamiento.u1M, 2)} m` },
+                      {
+                        etiqueta: "Perímetro crítico, a",
+                        valor: `${fmt(resultado.zapata.punzonamiento.aCriticaM, 3)} m = ${fmt(
+                          resultado.zapata.punzonamiento.aCriticaM /
+                            resultado.zapata.punzonamiento.dPromedioM,
+                          2
+                        )} d`,
+                      },
+                      { etiqueta: "Perímetro de control u", valor: `${fmt(resultado.zapata.punzonamiento.u1M, 2)} m` },
+                      {
+                        etiqueta: "Aprovechamiento",
+                        valor: fmt(resultado.zapata.punzonamiento.aprovechamiento, 3),
+                      },
                     ]}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Se barren los perímetros dentro de 2d y se informa el que peor verifica: en
+                    zapatas rígidas el crítico no es el de 2d sino uno más cercano al pilar.
+                  </p>
                 </CardContent>
               </Card>
             </>

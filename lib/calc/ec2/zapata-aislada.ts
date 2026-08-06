@@ -70,12 +70,16 @@ export interface ResultadoArmadoDireccion {
 
 export interface ResultadoPunzonamiento {
   dPromedioM: number;
-  /** Perímetro de control básico u1, a 2d de la cara del pilar, EC2 6.4.2 (m) */
+  /** Distancia del perímetro crítico a la cara del pilar, la que peor verifica dentro de 2d (m) */
+  aCriticaM: number;
+  /** Perímetro de control en la distancia crítica (m) */
   u1M: number;
-  /** Cortante de punzonamiento neto (descontando la reacción del suelo dentro del perímetro de control), EC2 6.4.3 (kN) */
+  /** Cortante de punzonamiento neto (descontando la reacción del suelo dentro del perímetro), art. 6.4.4(2) (kN) */
   vEdKN: number;
   vRdCKN: number;
   verificaPunzonamiento: boolean;
+  /** Aprovechamiento en el perímetro crítico, vEd/vRd */
+  aprovechamiento: number;
 }
 
 export interface ResultadoZapataAislada {
@@ -273,19 +277,57 @@ function calcularPunzonamiento(
   const BETA_COLUMNA_INTERIOR = 1.15;
 
   const dPromedioM = (dA + dB) / 2;
-  const u1M = 2 * (anchoPilarA + anchoPilarB) + 2 * Math.PI * 2 * dPromedioM;
-  const areaDentroPerimetroM2 =
-    anchoPilarA * anchoPilarB + 2 * (anchoPilarA + anchoPilarB) * 2 * dPromedioM + Math.PI * (2 * dPromedioM) ** 2;
 
   const sigmaDesignKPa = (1.5 * Nk) / (A * B);
-  const vEdKN = Math.max(BETA_COLUMNA_INTERIOR * (1.5 * Nk - sigmaDesignKPa * areaDentroPerimetroM2), 0);
 
   const rhoLA = asRealACm2 / (100 ** 2 * B * dA);
   const rhoLB = asRealBCm2 / (100 ** 2 * A * dB);
   const rhoL = Math.sqrt(Math.min(rhoLA, 0.02) * Math.min(rhoLB, 0.02));
-
   const k = factorEscalaK(dPromedioM);
-  const vRdCKN = tensionCortanteResistente(k, rhoL, fck) * u1M * dPromedioM * 1000;
 
-  return { dPromedioM, u1M, vEdKN, vRdCKN, verificaPunzonamiento: vEdKN <= vRdCKN };
+  /** Estado del punzonamiento en un perímetro situado a distancia `a` de la cara del pilar. */
+  function enPerimetro(aM: number) {
+    const uM = 2 * (anchoPilarA + anchoPilarB) + 2 * Math.PI * aM;
+    const areaDentroM2 =
+      anchoPilarA * anchoPilarB + 2 * (anchoPilarA + anchoPilarB) * aM + Math.PI * aM ** 2;
+
+    const vEdKN = Math.max(
+      BETA_COLUMNA_INTERIOR * (1.5 * Nk - sigmaDesignKPa * areaDentroM2),
+      0
+    );
+    // El factor 2d/a de la ec. (6.50) premia a los perímetros más cercanos al
+    // pilar, donde la biela es más tendida: sin él, el perímetro a 2d parecería
+    // siempre el peor.
+    const factorProximidad = (2 * dPromedioM) / aM;
+    const vRdCKN =
+      tensionCortanteResistente(k, rhoL, fck) * factorProximidad * uM * dPromedioM * 1000;
+
+    return { aM, u1M: uM, vEdKN, vRdCKN, aprovechamiento: vRdCKN > 0 ? vEdKN / vRdCKN : Infinity };
+  }
+
+  // El articulado pide comprobar los perímetros situados *dentro* de 2d, no sólo
+  // el de 2d (art. 6.4.4(2), ec. (6.50), pág. 95). En zapatas rígidas —vuelo
+  // corto respecto del canto, que es el caso habitual— el crítico cae más cerca
+  // del pilar: comprobar sólo el de 2d deja pasar zapatas que no verifican.
+  //
+  // No hay forma cerrada de dónde está el mínimo, así que se barre. El paso de
+  // d/50 da el mismo perímetro crítico que uno diez veces más fino en los casos
+  // ensayados, y el barrido arranca en d/50 porque en a → 0 el factor 2d/a se
+  // dispara y ningún perímetro tan cercano puede gobernar.
+  const PASOS = 100;
+  let critico = enPerimetro((2 * dPromedioM) / PASOS);
+  for (let i = 2; i <= PASOS; i++) {
+    const candidato = enPerimetro((2 * dPromedioM * i) / PASOS);
+    if (candidato.aprovechamiento > critico.aprovechamiento) critico = candidato;
+  }
+
+  return {
+    dPromedioM,
+    aCriticaM: critico.aM,
+    u1M: critico.u1M,
+    vEdKN: critico.vEdKN,
+    vRdCKN: critico.vRdCKN,
+    aprovechamiento: critico.aprovechamiento,
+    verificaPunzonamiento: critico.vEdKN <= critico.vRdCKN,
+  };
 }

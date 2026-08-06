@@ -7,7 +7,12 @@ import type {
   ResultadoCortante,
   ResultadoFlexion,
 } from "./types";
-import { factorEscalaK, tensionCortanteBase, tensionCortanteMinima } from "./cortante";
+import {
+  cortanteMaximoBielas,
+  factorEscalaK,
+  tensionCortanteBase,
+  tensionCortanteMinima,
+} from "./cortante";
 
 /** Recubrimiento de estribo asumido (m), fijo según el criterio de oficina de la planilla original. */
 const DIAMETRO_ESTRIBO_CALADO_M = 0.006;
@@ -156,7 +161,7 @@ export function calcularCortante(
   const { fck, fcd, fctm, fydEstribos } = materiales;
   const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
-  const vRdMax = 0.3 * fcd * b * d * 1000;
+  const vRdMax = cortanteMaximoBielas(fcd, b, d);
   const verificaVRdMax = vd <= vRdMax;
 
   const k = factorEscalaK(d);

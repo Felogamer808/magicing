@@ -3,8 +3,17 @@
 Fecha: 2026-08-05. Contrastado contra el Anejo 19 del Código Estructural
 (RD 470/2021), vía la skill `codigo-estructural-hormigon`.
 
-**Este documento no cambia código.** Lo único ya corregido es el punto 0, que se
-hizo con aprobación explícita antes de escribir esto.
+Los hallazgos 0 a 3 —los que iban del lado inseguro— **ya están corregidos**. Los
+4 y 5 siguen abiertos: cada uno dice por qué.
+
+Impacto medido de las correcciones sobre los casos de referencia:
+
+| Corrección | Antes | Después |
+|---|---|---|
+| Cortante sin estribos, viga plana ρl = 0,3 % | +43 % sobre la norma | conforme |
+| `V_Rd,max`, viga 90×70 | 3.504,6 kN | 3.154,1 kN |
+| Interacción torsión+cortante, caso de referencia | no se comprobaba | 1,284 → **no verifica** |
+| Punzonamiento, zapata 3×3 H = 0,6 | aprovechamiento 0,34 en 2d | 0,57 en el crítico (0,94·d) |
 
 ## Qué se auditó y qué no
 
@@ -34,7 +43,7 @@ con el mínimo de la EHE-08. Hasta **+43 %** de resistencia sobre el articulado
 con cuantías bajas, del lado inseguro. Unificado contra art. 6.2.2, ec. (6.2.a)
 y (6.2.b), pág. 76, en `lib/calc/ec2/cortante.ts`.
 
-## Hallazgo 1 — `V_Rd,max` sobreestimado un 11 % ⚠️ del lado inseguro
+## Hallazgo 1 — `V_Rd,max` sobreestimado un 11 % ✅ CORREGIDO
 
 `vigas-flexion-cortante.ts:158`
 
@@ -61,7 +70,7 @@ para f_yk = 500 es justo 0,8·f_yk — o sea, el tope de 400 no es arbitrario, e
 que habilita ν1 = 0,6. Si alguna vez se levanta ese tope, hay que bajar ν1 a
 0,528 (para f_ck = 30) y `V_Rd,max` cae otro 12 %.
 
-## Hallazgo 2 — Falta la interacción torsión + cortante ⚠️ del lado inseguro
+## Hallazgo 2 — Falta la interacción torsión + cortante ✅ CORREGIDO
 
 `vigas-torsion.ts` verifica las bielas de torsión (`td ≤ tu1`) y
 `vigas-flexion-cortante.ts` las de cortante (`vd ≤ vRdMax`), **cada una por
@@ -76,7 +85,7 @@ actuales y suma 1,8: **falla la norma y la herramienta dice que verifica**. Es e
 hallazgo más fácil de disparar en un caso real, porque torsión y cortante suelen
 ser máximos en la misma sección de apoyo.
 
-## Hallazgo 3 — Punzonamiento: no se recorren los perímetros ⚠️ del lado inseguro
+## Hallazgo 3 — Punzonamiento: no se recorren los perímetros ✅ CORREGIDO
 
 `zapata-aislada.ts:276` comprueba un único perímetro, el situado a 2d:
 

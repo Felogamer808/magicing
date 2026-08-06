@@ -90,6 +90,33 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(r.cortante.areaRealCm2PorM).toBeCloseTo(20.1061929829747, 6);
   });
 
+  // Este mismo caso es la mejor ilustración de por qué hacía falta la
+  // comprobación: cada esfuerzo verifica cómodo por separado —Td = 30 contra
+  // Tu1 = 42,6, y Vd = 405 contra VRd,max = 698,2— pero los dos comprimen las
+  // mismas bielas y la suma de aprovechamientos da 1,28. Antes de existir esta
+  // comprobación la viga daba por buena.
+  it("detecta lo que las dos comprobaciones sueltas dejaban pasar", () => {
+    expect(r.torsion.verificaBielas).toBe(true);
+    expect(r.cortante.verificaVRdMax).toBe(true);
+
+    expect(r.interaccionBielas).toBeCloseTo(30 / r.torsion.tu1KNm + 405 / r.cortante.vRdMax, 12);
+    expect(r.interaccionBielas).toBeCloseTo(1.28448, 4);
+    expect(r.verificaInteraccionBielas).toBe(false);
+  });
+
+  it("con esfuerzos moderados la interacción se cumple", () => {
+    const moderada = calcularVigaConTorsion(materiales, geometria, {
+      torsion: { td: 12 },
+      momentoPositivo: 219,
+      momentoNegativo: 235,
+      armaduraPositiva: { numero: 2, diametroMm: 25 },
+      armaduraNegativa: { numero: 2, diametroMm: 25 },
+      cortante: { vd: 200, diametroEstriboMm: 8, numeroRamas: 6 },
+    });
+    expect(moderada.interaccionBielas).toBeLessThan(1);
+    expect(moderada.verificaInteraccionBielas).toBe(true);
+  });
+
   it("sin torsión, los resultados coinciden con la viga simple", () => {
     const sinTorsion = calcularVigaConTorsion(materiales, geometria, {
       torsion: { td: 0 },

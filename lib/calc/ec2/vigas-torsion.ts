@@ -50,6 +50,9 @@ export interface ResultadoVigaTorsion {
   flexionPositiva: ResultadoFlexion;
   flexionNegativa: ResultadoFlexion;
   cortante: ResultadoCortante;
+  /** Td/Tu1 + Vd/VRd,max — art. 6.3.2(4), ec. (6.29). No debe pasar de 1. */
+  interaccionBielas: number;
+  verificaInteraccionBielas: boolean;
 }
 
 /**
@@ -132,5 +135,28 @@ export function calcularVigaConTorsion(
     pasoSeparacionM: PASO_SEPARACION_TORSION_M,
   });
 
-  return { d, torsion, flexionPositiva, flexionNegativa, cortante };
+  // Las bielas comprimidas son las mismas para los dos esfuerzos, así que no
+  // alcanza con que cada uno verifique por separado: el articulado pide que la
+  // suma de los dos aprovechamientos no pase de 1 (art. 6.3.2(4), ec. (6.29),
+  // pág. 86). Una viga al 90 % en cada uno pasa las dos comprobaciones sueltas y
+  // suma 1,8, y es un caso corriente porque torsión y cortante suelen ser
+  // máximos en la misma sección de apoyo.
+  //
+  // Se usa el Tu1 que ya calcula y muestra el motor, que es el de la EHE-08 y
+  // vale un 68 % del T_Rd,max del articulado: la comprobación queda del lado
+  // seguro y coherente con el número que ve el usuario en pantalla.
+  const interaccionBielas =
+    torsion.tu1KNm > 0 && cortante.vRdMax > 0
+      ? datos.torsion.td / torsion.tu1KNm + datos.cortante.vd / cortante.vRdMax
+      : 0;
+
+  return {
+    d,
+    torsion,
+    flexionPositiva,
+    flexionNegativa,
+    cortante,
+    interaccionBielas,
+    verificaInteraccionBielas: interaccionBielas <= 1,
+  };
 }

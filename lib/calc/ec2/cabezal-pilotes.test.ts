@@ -38,6 +38,42 @@ describe("cabezal de 2 pilotes: geometría y carga", () => {
   });
 });
 
+// El tirante ya se dimensionaba, pero no se comprobaba que el hormigón aguante
+// la biela que lo tracciona (art. 6.5.2 y 6.5.4). Es lo que suele gobernar en
+// cabezales bajos, donde la biela es corta y muy inclinada.
+describe("cabezal de 2 pilotes: bielas y nudos", () => {
+  it("resuelve la inclinación de la biela desde la geometría del modelo", () => {
+    // tan θ = 0,85·d / (v + a/4) = 0,4539 / 0,55
+    expect(r.bielas.anguloBielaGrados).toBeCloseTo(
+      (Math.atan((0.85 * 0.534) / (0.475 + 0.3 / 4)) * 180) / Math.PI,
+      9
+    );
+    expect(r.bielas.anguloBielaGrados).toBeCloseTo(39.53, 2);
+  });
+
+  it("verifica la compresión en la biela y en el nudo sobre el pilote", () => {
+    // ν' = 1 − 30/250 = 0,88 y fcd = 20 MPa
+    expect(r.bielas.sigmaBielaMaxMPa).toBeCloseTo(0.6 * 0.88 * 20, 9);
+    expect(r.bielas.sigmaNudoMaxMPa).toBeCloseTo(0.85 * 0.88 * 20, 9);
+    expect(r.bielas.verificaBiela).toBe(true);
+    expect(r.bielas.verificaNudo).toBe(true);
+  });
+
+  it("la biela se agota antes que el nudo al crecer la carga", () => {
+    // El nudo recibe la componente vertical y la biela la total dividida por
+    // sen²θ, así que con bielas tendidas la biela manda por lejos.
+    const sobrecargado = calcularCabezalDosPilotes(materiales, geometria, {
+      ndPilarKN: 9000,
+      armaduraPrincipal: { numero: 7, diametroMm: 16 },
+      armaduraSecundaria: { numero: 7, diametroMm: 10 },
+      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
+      estribosHorizontales: { numero: 5, diametroMm: 10 },
+    });
+    expect(sobrecargado.bielas.verificaBiela).toBe(false);
+    expect(sobrecargado.bielas.sigmaBielaMPa).toBeGreaterThan(sobrecargado.bielas.sigmaNudoMPa);
+  });
+});
+
 describe("cabezal de 2 pilotes: armadura principal", () => {
   it("reproduce la tracción del tirante y el As necesario", () => {
     expect(r.principal.tdKN).toBeCloseTo(641.87265917603, 6);

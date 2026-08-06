@@ -3,8 +3,8 @@
 Fecha: 2026-08-05. Contrastado contra el Anejo 19 del Código Estructural
 (RD 470/2021), vía la skill `codigo-estructural-hormigon`.
 
-Los hallazgos 0 a 3 —los que iban del lado inseguro— **ya están corregidos**. Los
-4 y 5 siguen abiertos: cada uno dice por qué.
+Corregidos los hallazgos 0, 1, 2, 3 y 5. Queda abierto sólo el 4, que no es un
+error de transcripción sino un cambio de método completo y necesita decisión.
 
 Impacto medido de las correcciones sobre los casos de referencia:
 
@@ -14,6 +14,7 @@ Impacto medido de las correcciones sobre los casos de referencia:
 | `V_Rd,max`, viga 90×70 | 3.504,6 kN | 3.154,1 kN |
 | Interacción torsión+cortante, caso de referencia | no se comprobaba | 1,284 → **no verifica** |
 | Punzonamiento, zapata 3×3 H = 0,6 | aprovechamiento 0,34 en 2d | 0,57 en el crítico (0,94·d) |
+| Bielas y nudos del cabezal | no se comprobaban | σ biela 6,66 / 10,56 MPa |
 
 ## Qué se auditó y qué no
 
@@ -136,7 +137,7 @@ No lo toco porque cambiarlo es rehacer el módulo, y porque los dos métodos son
 formulaciones calibradas y publicadas — no es un error de transcripción como los
 anteriores. Pero la página dice "EC2" y está calculando con la norma derogada.
 
-## Hallazgo 5 — Cabezal: faltan las comprobaciones de nudos y bielas 🔶
+## Hallazgo 5 — Cabezal: faltan las comprobaciones de nudos y bielas ✅ CORREGIDO
 
 `cabezal-pilotes.ts:114` resuelve el tirante:
 
@@ -145,10 +146,25 @@ const tdKN = (ndPorPiloteKN * (vM + anchoPilarM / 4)) / (0.85 * dM);
 ```
 
 Es la fórmula de encepado rígido de la EHE (art. 58.4.1.2.1) y es un criterio
-válido. Lo que falta es lo que el Anejo 19 pide alrededor: verificar la
-**compresión en las bielas y en los nudos** (art. 6.5.2 y 6.5.4), que es
-justamente donde suelen agotarse los cabezales bajos. Hoy se dimensiona el
-tirante pero no se comprueba que el hormigón aguante la biela.
+válido, así que se conserva. Lo que faltaba era lo que el Anejo 19 pide
+alrededor: verificar la **compresión en las bielas y en los nudos**, que es
+justamente donde suelen agotarse los cabezales bajos.
+
+Se agregaron las dos comprobaciones que la geometría define sin ambigüedad:
+
+- **Biela** (art. 6.5.2(2), ec. (6.56)): lleva tracción transversal —es lo que
+  toma el tirante—, así que su tope es `0,6·ν'·f_cd` con `ν' = 1 − f_ck/250`, no
+  `f_cd`. La fuerza es `N_pilote/senθ` repartida sobre la proyección del pilote,
+  o sea `σ = N_pilote/(A_pilote·sen²θ)`: por eso la biela se agota mucho antes
+  que el nudo cuando queda tendida.
+- **Nudo sobre el pilote** (art. 6.5.4(4)b, ec. (6.61)): está comprimido con el
+  tirante anclado en una dirección, `k2 = 0,85` → tope `0,85·ν'·f_cd`.
+
+**No** se comprueba el nudo superior bajo el pilar (CCC, `k1 = 1,0`): haría falta
+la segunda dimensión del pilar y el formulario sólo carga el ancho. Además rara
+vez gobierna, porque el pilar ya está dimensionado para ese mismo axil con su
+propio `f_cd`. Si algún día se agrega la segunda dimensión, es la comprobación
+que falta.
 
 ## Conformes ✅
 

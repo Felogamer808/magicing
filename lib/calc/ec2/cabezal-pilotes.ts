@@ -83,11 +83,32 @@ export interface ResultadoEstribosCabezal {
   separacionM: number;
 }
 
+/**
+ * Compresión en la biela inclinada y en el nudo sobre el pilote — art. 6.5.2 y
+ * 6.5.4. Dimensionar el tirante no alcanza: hay que comprobar que el hormigón
+ * aguante la biela que lo tracciona.
+ */
+export interface ResultadoBielasCabezal {
+  /** Inclinación de la biela respecto de la horizontal (grados) */
+  anguloBielaGrados: number;
+  /** Compresión en la biela (MPa) */
+  sigmaBielaMPa: number;
+  /** Tope de la biela con tracción transversal, 0,6·ν'·fcd (MPa) */
+  sigmaBielaMaxMPa: number;
+  verificaBiela: boolean;
+  /** Compresión en el nudo sobre el pilote (MPa) */
+  sigmaNudoMPa: number;
+  /** Tope del nudo con tirante anclado en una dirección, 0,85·ν'·fcd (MPa) */
+  sigmaNudoMaxMPa: number;
+  verificaNudo: boolean;
+}
+
 export interface ResultadoCabezal {
   principal: ResultadoArmaduraPrincipalCabezal;
   secundaria: ResultadoArmaduraSecundariaCabezal;
   estribosVerticales: ResultadoEstribosCabezal;
   estribosHorizontales: ResultadoEstribosCabezal;
+  bielas: ResultadoBielasCabezal;
 }
 
 const areaCm2 = (n: number, diametroMm: number) => (n * Math.PI * (diametroMm / 10) ** 2) / 4;
@@ -99,7 +120,7 @@ export function calcularCabezalDosPilotes(
 ): ResultadoCabezal {
   const { anchoPilarM, ladoXM, ladoYM, hM, diametroPiloteM, recubrimientoM } = geometria;
   const { ndPilarKN, armaduraPrincipal, armaduraSecundaria, estribosVerticales, estribosHorizontales } = datos;
-  const { fyk, fydEstribos } = materiales;
+  const { fck, fcd, fyk, fydEstribos } = materiales;
 
   const phiPrinc = armaduraPrincipal.diametroMm;
   const phiT = estribosVerticales.diametroMm;
@@ -115,6 +136,40 @@ export function calcularCabezalDosPilotes(
 
   const asNecCm2 = (tdKN * 100 ** 2) / (fydEstribos * 1000);
   const asRealCm2 = areaCm2(armaduraPrincipal.numero, phiPrinc);
+
+  // Bielas y nudos del modelo (art. 6.5.2 y 6.5.4). Dimensionar el tirante sin
+  // comprobar el hormigón deja fuera justamente el modo en que suelen agotarse
+  // los cabezales bajos: la biela es corta y muy inclinada, y la compresión se
+  // concentra sobre el pilote.
+  //
+  // Se comprueban los dos que la geometría define sin ambigüedad: el nudo sobre
+  // el pilote y la biela. El nudo superior bajo el pilar necesitaría las dos
+  // dimensiones del pilar y acá sólo se carga el ancho; además rara vez gobierna,
+  // porque el pilar ya está dimensionado para ese mismo axil con su propio fcd.
+  const nuPrima = 1 - fck / 250;
+  const anguloBiela = Math.atan((0.85 * dM) / (vM + anchoPilarM / 4));
+  const areaPiloteM2 = (Math.PI * diametroPiloteM ** 2) / 4;
+
+  // Nudo comprimido con el tirante anclado en una dirección: k2 = 0,85 (ec. 6.61).
+  const sigmaNudoMPa = ndPorPiloteKN / (areaPiloteM2 * 1000);
+  const sigmaNudoMaxMPa = 0.85 * nuPrima * fcd;
+
+  // La biela baja inclinada y apoya sobre la proyección del pilote. Lleva
+  // tracción transversal —es lo que toma el tirante—, así que su tope es el
+  // reducido de la ec. (6.56), no fcd.
+  const fBielaKN = ndPorPiloteKN / Math.sin(anguloBiela);
+  const sigmaBielaMPa = fBielaKN / (areaPiloteM2 * Math.sin(anguloBiela) * 1000);
+  const sigmaBielaMaxMPa = 0.6 * nuPrima * fcd;
+
+  const bielas: ResultadoBielasCabezal = {
+    anguloBielaGrados: (anguloBiela * 180) / Math.PI,
+    sigmaBielaMPa,
+    sigmaBielaMaxMPa,
+    verificaBiela: sigmaBielaMPa <= sigmaBielaMaxMPa,
+    sigmaNudoMPa,
+    sigmaNudoMaxMPa,
+    verificaNudo: sigmaNudoMPa <= sigmaNudoMaxMPa,
+  };
 
   const bNecM =
     2 * (recubrimientoM + phiT / 1000 + phiL / 1000) +
@@ -186,5 +241,6 @@ export function calcularCabezalDosPilotes(
       verificaAs: asLRealCm2 >= asLNecCm2,
       separacionM: (hM - 0.15) / Math.max(estribosHorizontales.numero - 1, 1),
     },
+    bielas,
   };
 }

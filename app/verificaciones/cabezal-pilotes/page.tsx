@@ -196,6 +196,36 @@ export default function CabezalPilotesPage() {
               </Card>
 
               <Card>
+                <CardHeader><CardTitle className="text-base">Bielas y nudos</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta="Compresión en la biela"
+                    verifica={resultado.r.bielas.verificaBiela}
+                    detalle={`σ ${fmt(resultado.r.bielas.sigmaBielaMPa)} MPa / máx 0,6·ν'·fcd = ${fmt(resultado.r.bielas.sigmaBielaMaxMPa)} MPa`}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Compresión en el nudo sobre el pilote"
+                    verifica={resultado.r.bielas.verificaNudo}
+                    detalle={`σ ${fmt(resultado.r.bielas.sigmaNudoMPa)} MPa / máx 0,85·ν'·fcd = ${fmt(resultado.r.bielas.sigmaNudoMaxMPa)} MPa`}
+                  />
+                  <PanelFormulas
+                    titulo="Ver cálculo"
+                    filas={[
+                      { etiqueta: "Inclinación de la biela θ", valor: `${fmt(resultado.r.bielas.anguloBielaGrados, 1)}°` },
+                      { etiqueta: "Tope de la biela (con tracción transversal)", valor: `${fmt(resultado.r.bielas.sigmaBielaMaxMPa)} MPa` },
+                      { etiqueta: "Tope del nudo (tirante en una dirección)", valor: `${fmt(resultado.r.bielas.sigmaNudoMaxMPa)} MPa` },
+                    ]}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Dimensionar el tirante no alcanza: la biela que lo tracciona también se puede
+                    agotar, y es lo que suele gobernar en cabezales bajos, donde queda corta y muy
+                    inclinada. El nudo bajo el pilar no se comprueba acá porque el pilar ya está
+                    dimensionado para ese mismo axil.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
                 <CardHeader><CardTitle className="text-base">Armaduras complementarias</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <ResultadoCheck

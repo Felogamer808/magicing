@@ -12,6 +12,11 @@ import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/ec2/losa
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisCapasLosa,
+  CroquisGeometriaLosa,
+  CroquisMomentosLosa,
+} from "@/components/verificaciones/croquis/CroquisLosa";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
@@ -119,6 +124,9 @@ export default function LosasPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisGeometriaLosa />
+              </div>
               <CampoNumerico id="e" etiqueta="Espesor e" sufijo="m" valor={e} onChange={setE} />
               <CampoNumerico id="rgPos" etiqueta="rg positivos" sufijo="m" valor={rgPos} onChange={setRgPos} />
               <CampoNumerico id="rgNeg" etiqueta="rg negativos" sufijo="m" valor={rgNeg} onChange={setRgNeg} />
@@ -128,6 +136,9 @@ export default function LosasPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Momentos de cálculo</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisMomentosLosa />
+              </div>
               <CampoNumerico id="mxPos" etiqueta="Mx +" sufijo="kN·m/m" valor={mxPos} onChange={setMxPos} />
               <CampoNumerico id="myPos" etiqueta="My +" sufijo="kN·m/m" valor={myPos} onChange={setMyPos} />
               <CampoNumerico id="mxNeg" etiqueta="Mx −" sufijo="kN·m/m" valor={mxNeg} onChange={setMxNeg} />
@@ -139,6 +150,9 @@ export default function LosasPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Armado positivo</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisCapasLosa cara="inferior" />
+                </div>
                 <CampoNumerico id="phiPosX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosX} onChange={setPhiPosX} />
                 <CampoNumerico id="sPosX" etiqueta="s X" sufijo="m" valor={sPosX} onChange={setSPosX} />
                 <CampoNumerico id="phiPosY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosY} onChange={setPhiPosY} />
@@ -148,6 +162,9 @@ export default function LosasPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Armado negativo</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisCapasLosa cara="superior" />
+                </div>
                 <CampoNumerico id="phiNegX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegX} onChange={setPhiNegX} />
                 <CampoNumerico id="sNegX" etiqueta="s X" sufijo="m" valor={sNegX} onChange={setSNegX} />
                 <CampoNumerico id="phiNegY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegY} onChange={setPhiNegY} />

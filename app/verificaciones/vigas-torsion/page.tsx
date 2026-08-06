@@ -16,6 +16,12 @@ import { calcularDisposicionArmadura } from "@/lib/calc/ec2/vigas-flexion-cortan
 import { calcularVigaConTorsion } from "@/lib/calc/ec2/vigas-torsion";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
+import {
+  CroquisArmaduraFlexion,
+  CroquisGeometriaViga,
+  CroquisMateriales,
+  CroquisRamasEstribo,
+} from "@/components/verificaciones/croquis/CroquisViga";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
@@ -167,6 +173,9 @@ export default function VigasTorsionPage() {
               <CardTitle className="text-base">Materiales</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisMateriales />
+              </div>
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
             </CardContent>
@@ -177,6 +186,9 @@ export default function VigasTorsionPage() {
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisGeometriaViga />
+              </div>
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
@@ -198,6 +210,9 @@ export default function VigasTorsionPage() {
                 <CardTitle className="text-base">Armadura positiva</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-4">
+                <div className="col-span-full">
+                  <CroquisArmaduraFlexion numero={aNumero(numeroPos)} cara="inferior" />
+                </div>
                 <CampoNumerico id="momentoPos" etiqueta="Mmax+" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
@@ -211,6 +226,9 @@ export default function VigasTorsionPage() {
                 <CardTitle className="text-base">Armadura negativa</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-4">
+                <div className="col-span-full">
+                  <CroquisArmaduraFlexion numero={aNumero(numeroNeg)} cara="superior" />
+                </div>
                 <CampoNumerico id="momentoNeg" etiqueta="Mmax-" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
@@ -225,6 +243,9 @@ export default function VigasTorsionPage() {
               <CardTitle className="text-base">Cortante</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisRamasEstribo ramas={aNumero(numeroRamas)} />
+              </div>
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
               <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />

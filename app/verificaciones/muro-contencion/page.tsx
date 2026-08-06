@@ -18,7 +18,14 @@ import {
   CroquisGeometriaMuro,
   CroquisSueloMuro,
 } from "@/components/verificaciones/croquis/CroquisMuro";
-import { calcularMuroContencion } from "@/lib/calc/ec2/muro-contencion";
+import {
+  areaPorMetroCm2,
+  armarPieza,
+  calcularMuroContencion,
+  separacionParaAs,
+} from "@/lib/calc/ec2/muro-contencion";
+import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -41,6 +48,16 @@ export default function MuroContencionPage() {
   const [sobrecarga, setSobrecarga] = useCampo("sobrecarga", "5");
   // Cero por defecto: el muro contra un límite de propiedad no lleva puntera.
   const [puntera, setPuntera] = useCampo("puntera", "0");
+
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
+  const [recArm, setRecArm] = useCampo("recArm", "0.05");
+  const [phiHastial, setPhiHastial] = useCampo("phiHastial", "12");
+  const [sepHastial, setSepHastial] = useCampo("sepHastial", "150");
+  const [phiTalon, setPhiTalon] = useCampo("phiTalon", "12");
+  const [sepTalon, setSepTalon] = useCampo("sepTalon", "150");
+  const [phiPuntera, setPhiPuntera] = useCampo("phiPuntera", "12");
+  const [sepPuntera, setSepPuntera] = useCampo("sepPuntera", "150");
 
   const [l1Caso2, setL1Caso2] = useCampo("l1Caso2", "2");
   const [l1Caso3, setL1Caso3] = useCampo("l1Caso3", "0.95");
@@ -75,6 +92,50 @@ export default function MuroContencionPage() {
       ),
     };
   }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecarga, puntera, l1Caso2, l1Caso3, l2Caso3]);
+
+  /**
+   * Armado de las tres piezas. Va aparte del resultado de estabilidad porque
+   * depende de los materiales y de las barras elegidas, que no intervienen en
+   * vuelco ni deslizamiento.
+   */
+  const armado = useMemo(() => {
+    if (!resultado) return null;
+    const m = resultado.r.momentos;
+    const materiales = derivarMateriales({ fck: aNumero(fck), fyk: aNumero(fyk) });
+    const rec = aNumero(recArm);
+    if (!Number.isFinite(rec) || rec <= 0) return null;
+
+    const pieza = (
+      nombre: string,
+      cara: "interior" | "superior" | "inferior",
+      momento: number,
+      h: number,
+      diam: string,
+      sep: string
+    ) => {
+      const calculo = armarPieza(nombre, cara, momento, h, rec, materiales.fcd, materiales.fyd);
+      const asRealCm2 = areaPorMetroCm2(aNumero(diam), aNumero(sep));
+      return {
+        calculo,
+        asRealCm2,
+        diametroMm: aNumero(diam),
+        separacionMm: aNumero(sep),
+        // Separación máxima que todavía cubre el área necesaria.
+        separacionMaxMm: separacionParaAs(aNumero(diam), calculo.asNecesarioCm2),
+        verifica: asRealCm2 >= calculo.asNecesarioCm2,
+      };
+    };
+
+    return {
+      hastial: pieza("Hastial", "interior", m.hastialKNm, aNumero(espMuro), phiHastial, sepHastial),
+      talon: pieza("Talón", "superior", m.talonKNm, aNumero(cantoZap), phiTalon, sepTalon),
+      puntera:
+        m.punteraM > 0
+          ? pieza("Puntera", "inferior", m.punteraKNm, aNumero(cantoZap), phiPuntera, sepPuntera)
+          : null,
+    };
+  }, [resultado, fck, fyk, recArm, espMuro, cantoZap,
+      phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -311,6 +372,77 @@ export default function MuroContencionPage() {
                   </p>
                 </CardContent>
               </Card>
+
+              {armado && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Armado</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                      <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                      <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                      <CampoNumerico id="recArm" etiqueta="Recubrimiento mec." sufijo="m" valor={recArm} onChange={setRecArm} />
+                      <CampoNumerico id="phiHastial" etiqueta="⌀ hastial" sufijo="mm" valor={phiHastial} onChange={setPhiHastial} />
+                      <CampoNumerico id="sepHastial" etiqueta="Sep. hastial" sufijo="mm" valor={sepHastial} onChange={setSepHastial} />
+                      <div />
+                      <CampoNumerico id="phiTalon" etiqueta="⌀ talón" sufijo="mm" valor={phiTalon} onChange={setPhiTalon} />
+                      <CampoNumerico id="sepTalon" etiqueta="Sep. talón" sufijo="mm" valor={sepTalon} onChange={setSepTalon} />
+                      <div />
+                      {armado.puntera && (
+                        <>
+                          <CampoNumerico id="phiPuntera" etiqueta="⌀ puntera" sufijo="mm" valor={phiPuntera} onChange={setPhiPuntera} />
+                          <CampoNumerico id="sepPuntera" etiqueta="Sep. puntera" sufijo="mm" valor={sepPuntera} onChange={setSepPuntera} />
+                        </>
+                      )}
+                    </div>
+
+                    {[armado.hastial, armado.talon, armado.puntera]
+                      .filter((p): p is NonNullable<typeof p> => p !== null)
+                      .map((p) => (
+                        <ResultadoCheck
+                          key={p.calculo.nombre}
+                          etiqueta={`${p.calculo.nombre} — cara ${p.calculo.cara}`}
+                          verifica={p.verifica}
+                          detalle={`As real ${fmt(p.asRealCm2)} / nec ${fmt(p.calculo.asNecesarioCm2)} cm²/m · ⌀${p.diametroMm} hasta c/${fmt(p.separacionMaxMm, 0)} mm${p.calculo.mandaMinimo ? " · manda el mínimo" : ""}`}
+                        />
+                      ))}
+
+                    <ArmadoMuroDiagrama
+                      alturaMuroM={resultado.n.altMuro}
+                      espesorMuroM={resultado.n.espMuro}
+                      anchoZapataM={resultado.n.anchoZap}
+                      cantoZapataM={resultado.n.cantoZap}
+                      punteraM={resultado.n.puntera}
+                      recubrimientoM={aNumero(recArm)}
+                      hastial={{ nombre: "Hastial", cara: "interior", diametroMm: armado.hastial.diametroMm, separacionMm: armado.hastial.separacionMm, verifica: armado.hastial.verifica }}
+                      talon={{ nombre: "Talón", cara: "superior", diametroMm: armado.talon.diametroMm, separacionMm: armado.talon.separacionMm, verifica: armado.talon.verifica }}
+                      puntera={armado.puntera ? { nombre: "Puntera", cara: "inferior", diametroMm: armado.puntera.diametroMm, separacionMm: armado.puntera.separacionMm, verifica: armado.puntera.verifica } : null}
+                    />
+
+                    <PanelFormulas
+                      titulo="Ver cálculo"
+                      filas={[armado.hastial, armado.talon, armado.puntera]
+                        .filter((p): p is NonNullable<typeof p> => p !== null)
+                        .flatMap((p) => [
+                          { etiqueta: `${p.calculo.nombre} · d`, valor: `${fmt(p.calculo.dM, 3)} m` },
+                          { etiqueta: `${p.calculo.nombre} · μ`, valor: fmt(p.calculo.mu, 4) },
+                          {
+                            etiqueta: `${p.calculo.nombre} · As por momento`,
+                            valor: Number.isFinite(p.calculo.asCalculadoCm2)
+                              ? `${fmt(p.calculo.asCalculadoCm2)} cm²/m`
+                              : "no da: engrosar la pieza",
+                          },
+                          { etiqueta: `${p.calculo.nombre} · mín. mecánico`, valor: `${fmt(p.calculo.asMinMecanicoCm2)} cm²/m` },
+                          { etiqueta: `${p.calculo.nombre} · mín. geométrico`, valor: `${fmt(p.calculo.asMinGeometricoCm2)} cm²/m` },
+                        ])}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      El mínimo geométrico es el de elementos superficiales (1,8 ‰ de la sección
+                      bruta). No sustituye a la armadura mínima de muros del art. 9.6 —vertical y
+                      horizontal repartida en las dos caras—, que es una comprobación aparte.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>

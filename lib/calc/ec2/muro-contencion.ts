@@ -157,6 +157,98 @@ export interface ApoyosConfig {
   l2Caso3M: number;
 }
 
+/** Cara de la pieza donde va la armadura principal. */
+export type CaraTraccionada = "interior" | "superior" | "inferior";
+
+export interface ArmaduraPieza {
+  nombre: string;
+  /** Canto total de la pieza (m). */
+  hM: number;
+  /** Canto útil (m). */
+  dM: number;
+  momentoKNm: number;
+  /** Momento reducido μ = M/(b·d²·fcd), con b = 1 m. */
+  mu: number;
+  asCalculadoCm2: number;
+  asMinMecanicoCm2: number;
+  asMinGeometricoCm2: number;
+  /** El que manda, por metro de muro. */
+  asNecesarioCm2: number;
+  /** true si gobernó un mínimo y no el momento. */
+  mandaMinimo: boolean;
+  cara: CaraTraccionada;
+}
+
+/**
+ * Cuantía geométrica mínima de elementos superficiales flectados, en tanto por
+ * mil de la sección bruta. Se usa el valor de losa: el hastial, el talón y la
+ * puntera trabajan como placas en una dirección, no como vigas.
+ *
+ * No sustituye a la armadura mínima de muros del art. 9.6 —vertical y
+ * horizontal, repartida en las dos caras—, que es una comprobación aparte y no
+ * está incluida acá.
+ */
+const CUANTIA_GEOMETRICA_MINIMA = 1.8 / 1000;
+
+/**
+ * Armadura de flexión de una pieza de un metro de ancho.
+ *
+ * Es el mismo planteo adimensional que las vigas —μ, ω y de ahí As— pero con
+ * b = 1 m, que es como se arma un muro: por metro corrido.
+ */
+export function armarPieza(
+  nombre: string,
+  cara: CaraTraccionada,
+  momentoKNm: number,
+  hM: number,
+  recubrimientoM: number,
+  fcdMPa: number,
+  fydMPa: number
+): ArmaduraPieza {
+  const b = 1;
+  const dM = Math.max(hM - recubrimientoM, 0.01);
+
+  const mu = momentoKNm / (b * dM ** 2 * fcdMPa * 1000);
+  // Por encima de μ = 0,5 la raíz no existe: la pieza no da como simplemente
+  // armada y hay que engrosarla, no seguir sumando acero.
+  const omega = mu < 0.5 ? 1 - Math.sqrt(1 - 2 * mu) : Infinity;
+  const asCalculadoCm2 = Number.isFinite(omega)
+    ? (100 ** 2 * omega * b * dM * fcdMPa) / fydMPa
+    : Infinity;
+
+  const asMinMecanicoCm2 = (100 ** 2 * 0.045 * b * dM * fcdMPa) / fydMPa;
+  const asMinGeometricoCm2 = 100 ** 2 * CUANTIA_GEOMETRICA_MINIMA * b * hM;
+
+  const asNecesarioCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2);
+
+  return {
+    nombre,
+    hM,
+    dM,
+    momentoKNm,
+    mu,
+    asCalculadoCm2,
+    asMinMecanicoCm2,
+    asMinGeometricoCm2,
+    asNecesarioCm2,
+    mandaMinimo: asNecesarioCm2 > asCalculadoCm2,
+    cara,
+  };
+}
+
+/** Área por metro de una malla de barras de un diámetro y separación dados. */
+export function areaPorMetroCm2(diametroMm: number, separacionMm: number): number {
+  const areaBarraCm2 = (Math.PI * (diametroMm / 10) ** 2) / 4;
+  return (areaBarraCm2 * 1000) / separacionMm;
+}
+
+/** Separación máxima, en mm, para cubrir un área dada con barras de un diámetro. */
+export function separacionParaAs(diametroMm: number, asCm2PorM: number): number {
+  if (asCm2PorM <= 0) return Infinity;
+  const areaBarraCm2 = (Math.PI * (diametroMm / 10) ** 2) / 4;
+  return (areaBarraCm2 * 1000) / asCm2PorM;
+}
+
 /** Coeficiente de mayoración de acciones para dimensionar la armadura. */
 const GAMMA_F = 1.5;
 /** Peso específico del hormigón armado (kN/m³). */

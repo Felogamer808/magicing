@@ -1,5 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { calcularMomentosElementos } from "./muro-contencion";
+import { areaPorMetroCm2, armarPieza, calcularMomentosElementos, separacionParaAs } from "./muro-contencion";
+
+describe("armadura por metro de las piezas del muro", () => {
+  // C30/37 y B500S: fcd = 20 MPa, fyd = 434,8 MPa.
+  const fcd = 20;
+  const fyd = 500 / 1.15;
+
+  it("resuelve la flexión con el mismo planteo adimensional que las vigas", () => {
+    const p = armarPieza("hastial", "interior", 60, 0.3, 0.05, fcd, fyd);
+
+    expect(p.dM).toBeCloseTo(0.25, 9);
+    expect(p.mu).toBeCloseTo(60 / (0.25 ** 2 * fcd * 1000), 9);
+    const omega = 1 - Math.sqrt(1 - 2 * p.mu);
+    expect(p.asCalculadoCm2).toBeCloseTo((100 ** 2 * omega * 0.25 * fcd) / fyd, 6);
+  });
+
+  it("aplica los dos mínimos y avisa cuál gobierna", () => {
+    // Momento muy chico: tiene que mandar un mínimo, no el cálculo.
+    const flojo = armarPieza("talón", "superior", 1, 0.3, 0.05, fcd, fyd);
+    expect(flojo.mandaMinimo).toBe(true);
+    expect(flojo.asNecesarioCm2).toBeCloseTo(
+      Math.max(flojo.asMinMecanicoCm2, flojo.asMinGeometricoCm2), 9
+    );
+    // El geométrico va con el canto total, no con el útil.
+    expect(flojo.asMinGeometricoCm2).toBeCloseTo(100 ** 2 * (1.8 / 1000) * 0.3, 9);
+
+    const cargado = armarPieza("talón", "superior", 120, 0.3, 0.05, fcd, fyd);
+    expect(cargado.mandaMinimo).toBe(false);
+    expect(cargado.asNecesarioCm2).toBeCloseTo(cargado.asCalculadoCm2, 9);
+  });
+
+  it("no devuelve un área finita si la sección no da como simplemente armada", () => {
+    // μ por encima de 0,5: engrosar la pieza, no seguir sumando acero.
+    const imposible = armarPieza("puntera", "inferior", 900, 0.3, 0.05, fcd, fyd);
+    expect(imposible.mu).toBeGreaterThan(0.5);
+    expect(imposible.asCalculadoCm2).toBe(Infinity);
+  });
+
+  it("más canto necesita menos armadura para el mismo momento", () => {
+    const fino = armarPieza("hastial", "interior", 80, 0.25, 0.05, fcd, fyd);
+    const grueso = armarPieza("hastial", "interior", 80, 0.45, 0.05, fcd, fyd);
+    expect(grueso.asCalculadoCm2).toBeLessThan(fino.asCalculadoCm2);
+  });
+
+  it("cada pieza recuerda de qué cara va su armadura", () => {
+    expect(armarPieza("hastial", "interior", 50, 0.3, 0.05, fcd, fyd).cara).toBe("interior");
+    expect(armarPieza("talón", "superior", 50, 0.3, 0.05, fcd, fyd).cara).toBe("superior");
+    expect(armarPieza("puntera", "inferior", 50, 0.3, 0.05, fcd, fyd).cara).toBe("inferior");
+  });
+
+  it("el área por metro y la separación son inversas entre sí", () => {
+    const as = areaPorMetroCm2(12, 150);
+    // Un ⌀12 cada 15 cm da 7,54 cm²/m.
+    expect(as).toBeCloseTo(((Math.PI * 1.2 ** 2) / 4 * 1000) / 150, 9);
+    expect(separacionParaAs(12, as)).toBeCloseTo(150, 6);
+  });
+
+  it("juntar las barras o engrosarlas sube el área", () => {
+    expect(areaPorMetroCm2(12, 100)).toBeGreaterThan(areaPorMetroCm2(12, 200));
+    expect(areaPorMetroCm2(16, 150)).toBeGreaterThan(areaPorMetroCm2(12, 150));
+  });
+});
 
 /**
  * Momentos en las tres piezas. Son voladizos independientes, así que cada uno se

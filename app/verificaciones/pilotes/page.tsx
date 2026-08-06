@@ -13,6 +13,10 @@ import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularPilote } from "@/lib/calc/ec2/pilote";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisArmaduraPilote,
+  CroquisGeotecniaPilote,
+} from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "pilotes")!;
@@ -130,6 +134,9 @@ export default function PilotesPage() {
                 <CardTitle className="text-base">Parámetros geotécnicos</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="col-span-full">
+                  <CroquisGeotecniaPilote />
+                </div>
                 <CampoNumerico id="friccion" etiqueta="fs (fuste)" sufijo="kN/m²" valor={friccion} onChange={setFriccion} />
                 <CampoNumerico id="punta" etiqueta="qp (punta)" sufijo="kN/m²" valor={punta} onChange={setPunta} />
                 <CampoNumerico id="factorSeguridad" etiqueta="FS" valor={factorSeguridad} onChange={setFactorSeguridad} />
@@ -141,6 +148,9 @@ export default function PilotesPage() {
                 <CardTitle className="text-base">Armadura y carga</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="col-span-full">
+                  <CroquisArmaduraPilote />
+                </div>
                 <CampoNumerico id="numero" etiqueta="Nº barras" valor={numero} onChange={setNumero} />
                 <CampoNumerico id="diametroBarra" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroBarra} onChange={setDiametroBarra} />
                 <CampoNumerico id="diametroEstribo" etiqueta="φ zuncho" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />

@@ -13,6 +13,9 @@ import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCorrida } from "@/lib/calc/ec2/zapata-corrida";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisZapataCorrida,
+} from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-corrida")!;
@@ -149,6 +152,9 @@ export default function ZapataCorridaPage() {
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisZapataCorrida />
+              </div>
               <CampoNumerico id="A" etiqueta="A (ancho)" sufijo="m" valor={A} onChange={setA} />
               <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
               <CampoNumerico

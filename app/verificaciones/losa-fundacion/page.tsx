@@ -13,6 +13,9 @@ import { calcularFranjaLosa } from "@/lib/calc/ec2/losa-fundacion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisPosicionPilares,
+} from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-fundacion")!;
@@ -158,6 +161,9 @@ export default function LosaFundacionPage() {
               <CardTitle className="text-base">Geometría de la franja</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisPosicionPilares cantidad={3} />
+              </div>
               <CampoNumerico id="longitud" etiqueta="Longitud" sufijo="m" valor={longitud} onChange={setLongitud} />
               <CampoNumerico id="anchoTributario" etiqueta="Ancho tributario" sufijo="m" valor={anchoTributario} onChange={setAnchoTributario} />
               <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />

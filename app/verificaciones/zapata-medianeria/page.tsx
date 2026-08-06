@@ -15,6 +15,12 @@ import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisArmadoDireccion,
+  CroquisCargasZapata,
+  CroquisGeometriaZapata,
+  CroquisPilarZapata,
+} from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-medianeria")!;
@@ -164,6 +170,9 @@ export default function ZapataMedianeriaPage() {
               <CardTitle className="text-base">Geometría</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisGeometriaZapata />
+              </div>
               <CampoNumerico id="A" etiqueta="A" sufijo="m" valor={A} onChange={setA} />
               <CampoNumerico id="B" etiqueta="B" sufijo="m" valor={B} onChange={setB} />
               <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
@@ -189,6 +198,9 @@ export default function ZapataMedianeriaPage() {
               <CardTitle className="text-base">Pilar</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-full">
+                <CroquisPilarZapata />
+              </div>
               <CampoNumerico id="anchoPilarA" etiqueta="Ancho // A" sufijo="m" valor={anchoPilarA} onChange={setAnchoPilarA} />
               <CampoNumerico id="anchoPilarB" etiqueta="Ancho // B" sufijo="m" valor={anchoPilarB} onChange={setAnchoPilarB} />
             </CardContent>
@@ -199,6 +211,9 @@ export default function ZapataMedianeriaPage() {
               <CardTitle className="text-base">Cargas</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="col-span-full">
+                <CroquisCargasZapata />
+              </div>
               <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
               <CampoNumerico id="MkA" etiqueta="Mk A" sufijo="kN·m" valor={MkA} onChange={setMkA} />
               <CampoNumerico id="MkB" etiqueta="Mk B" sufijo="kN·m" valor={MkB} onChange={setMkB} />
@@ -211,6 +226,9 @@ export default function ZapataMedianeriaPage() {
                 <CardTitle className="text-base">Armado dirección A</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisArmadoDireccion direccion="A" />
+                </div>
                 <CampoNumerico id="numeroA" etiqueta="Nº barras" valor={numeroA} onChange={setNumeroA} />
                 <CampoNumerico id="diametroA" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroA} onChange={setDiametroA} />
               </CardContent>
@@ -221,6 +239,9 @@ export default function ZapataMedianeriaPage() {
                 <CardTitle className="text-base">Armado dirección B</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisArmadoDireccion direccion="B" />
+                </div>
                 <CampoNumerico id="numeroB" etiqueta="Nº barras" valor={numeroB} onChange={setNumeroB} />
                 <CampoNumerico id="diametroB" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroB} onChange={setDiametroB} />
               </CardContent>

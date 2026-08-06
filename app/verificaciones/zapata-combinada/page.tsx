@@ -13,6 +13,9 @@ import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCombinada } from "@/lib/calc/ec2/zapata-combinada";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  CroquisPosicionPilares,
+} from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-combinada")!;
@@ -156,6 +159,9 @@ export default function ZapataCombinadaPage() {
                 <CardTitle className="text-base">Pilar 1</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                <div className="col-span-full">
+                  <CroquisPosicionPilares cantidad={2} />
+                </div>
                 <CampoNumerico id="pos1" etiqueta="Posición" sufijo="m" valor={pos1} onChange={setPos1} />
                 <CampoNumerico id="Nk1" etiqueta="Nk" sufijo="kN" valor={Nk1} onChange={setNk1} />
               </CardContent>

@@ -50,3 +50,8 @@ desktop.ini
 *.xlsx
 *.xlsm
 *.pdf
+
+# El manual de Jiménez Montoya es un libro con derechos de autor: la skill se usa
+# localmente pero no puede subirse al repositorio. La del Código Estructural sí
+# va versionada, porque es texto legal oficial.
+.claude/skills/jimenez-montoya/

@@ -18,6 +18,11 @@ transposición española del EC2: misma formulación y casi la misma numeración
 **Ante cualquier coeficiente o fórmula, consultarla antes que la memoria**, y
 citar apartado y página.
 
+Hay una segunda skill, `jimenez-montoya`, con el manual clásico: sirve para el
+*criterio* (de dónde sale una fórmula, cómo se predimensiona, ejemplos
+resueltos), **nunca para el número**, porque sigue la EHE-08 derogada. No está
+versionada, por derechos de autor.
+
 No hay base de datos: la persistencia es `localStorage` (ver `ARCHITECTURE.md`).
 
 ## Forma de trabajar

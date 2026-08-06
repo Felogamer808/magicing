@@ -129,10 +129,23 @@ del ala en el débil (art. F6) · corte en el alma, con y sin rigidizadores (art
 flexo-compresión biaxial (art. H1) · sección mixta CFT: tubo circular relleno de hormigón ·
 soldaduras y chapa de base.
 
-El catálogo de perfiles (`lib/calc/aisc/perfiles.ts`) cubre PNI y PNC 80–300 y HEB 100–300,
-transcritos del catálogo de ArcelorMittal *Perfiles y barras* (dimensiones según EN 10365:2017).
-El **2PNC no se tabula: se compone** a partir del PNC simple, porque su inercia débil depende de
-la separación entre perfiles, que es un dato de proyecto.
+El catálogo (`lib/calc/aisc/perfiles.ts`) tiene dos clases de familia. Las **de catálogo** —PNI y
+PNC 80–300, HEB 100–300— se eligen por altura y están transcritas del catálogo de ArcelorMittal
+*Perfiles y barras* (dimensiones según EN 10365:2017). Las **de geometría libre** —tubo redondo y
+tubo rectangular— se definen por dimensiones y espesor, y sus propiedades se calculan.
+
+Cada familia declara qué parámetros necesita, y de ahí sale el formulario: al pasar de un PNI a un
+tubo redondo el segundo campo deja de ser una altura de catálogo y pasa a ser diámetro con espesor.
+
+Los dos PNC **no se tabulan: se componen**, y de dos maneras que no dan lo mismo. Soldados por las
+almas forman una sección en I abierta; enfrentados y soldados por las alas, un cajón cerrado. El
+eje fuerte es idéntico en las dos —los perfiles están a la misma altura—, pero el cajón tiene mucha
+más inercia débil y una constante de torsión dos órdenes mayor, porque pasa a resistir por Bredt.
+
+Esa diferencia decide qué artículo aplica. Una sección cerrada tiene alabeo nulo, así que las ecs.
+F2-6 y F2-7 ni siquiera están definidas para ella: le corresponden F7 y F8 en flexión, y G4 y G5 en
+corte. Mientras no estén implementados, la página lo dice y no muestra ningún número, en lugar de
+calcular con un artículo que no corresponde.
 
 Dos detalles del capítulo G que es fácil pasar por alto y que la herramienta aplica: el
 coeficiente de seguridad al corte **no** es 1,67 para todos —las almas robustas de perfiles I

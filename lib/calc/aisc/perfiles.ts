@@ -1,38 +1,88 @@
 /**
- * Tabla de perfiles laminados y sus propiedades de sección.
+ * Catálogo de secciones de acero y sus propiedades.
  *
- * Los perfiles simples se guardan con los valores del catálogo de ArcelorMittal
- * "Perfiles y barras" (dimensiones según EN 10365:2017), en las unidades en que
- * el catálogo los publica —mm, cm², cm³, cm⁴—, y se convierten a SI al leerlos.
- * Se guardan tabulados y no calculados porque el redondeo de las alas inclinadas
- * y los radios de acuerdo no se reproduce con geometría simple: el PNI tiene alas
- * con 14 % de conicidad.
+ * Hay dos clases de familia, y la diferencia se nota en toda la herramienta:
  *
- *   PNI  perfil normal I, alas inclinadas   (IPN en el catálogo)
- *   PNC  perfil normal U, alas inclinadas   (UPN en el catálogo)
- *   HEB  perfil de ala ancha, serie B       (HE B en el catálogo)
+ * - **De catálogo** (PNI, PNC, HEB y las dos composiciones de PNC): se eligen por
+ *   altura nominal y sus propiedades están tabuladas del catálogo de ArcelorMittal
+ *   "Perfiles y barras" (dimensiones según EN 10365:2017). Se guardan tabuladas y
+ *   no calculadas porque el redondeo de las alas inclinadas y los radios de acuerdo
+ *   no se reproduce con geometría simple: el PNI tiene alas con 14 % de conicidad.
  *
- * El 2PNC en cambio **se calcula** a partir del PNC simple, porque sus propiedades
- * dependen de la separación entre perfiles, que es un dato de proyecto y no algo
- * que se pueda tabular. Ver `componerDoblePNC`.
+ * - **De geometría libre** (tubo redondo y tubo rectangular): no tienen catálogo,
+ *   se definen por sus dimensiones y espesor, y las propiedades se calculan.
+ *
+ * Cada familia declara qué parámetros necesita (`parametrosDe`), y de ahí sale el
+ * formulario: para un PNI se pide altura, para un tubo redondo diámetro y espesor.
+ *
+ * La otra distinción que importa es abierta contra cerrada. Una sección cerrada
+ * tiene una constante de torsión dos o tres órdenes mayor y alabeo despreciable,
+ * y por eso la norma la manda a otros artículos: F7 y F8 en lugar de F2, G4 y G5
+ * en lugar de G2. `esCerrada` es lo que usan los módulos de cálculo para no
+ * aplicar un artículo fuera de su alcance.
  */
+
+export type Familia =
+  | "PNI"
+  | "PNC"
+  | "2PNC-almas"
+  | "2PNC-cajon"
+  | "HEB"
+  | "tubo-redondo"
+  | "tubo-rectangular";
+
+export const familias: Familia[] = [
+  "PNI",
+  "PNC",
+  "2PNC-almas",
+  "2PNC-cajon",
+  "HEB",
+  "tubo-redondo",
+  "tubo-rectangular",
+];
+
+export const nombreFamilia: Record<Familia, string> = {
+  PNI: "PNI — perfil normal I",
+  PNC: "PNC — perfil normal U",
+  "2PNC-almas": "2 PNC soldados por las almas",
+  "2PNC-cajon": "2 PNC en cajón, soldados por las alas",
+  HEB: "HEB — ala ancha",
+  "tubo-redondo": "Tubo redondo",
+  "tubo-rectangular": "Tubo rectangular",
+};
+
+export type ClaveParametro =
+  | "altura"
+  | "separacion"
+  | "diametro"
+  | "espesor"
+  | "alto"
+  | "ancho";
+
+export interface ParametroFamilia {
+  clave: ClaveParametro;
+  etiqueta: string;
+  /** `lista` se resuelve con un desplegable de alturas de catálogo. */
+  tipo: "lista" | "numero";
+  opciones?: number[];
+  sufijo: string;
+  porDefecto: number;
+}
+
+/** Parámetros de una sección, todos en milímetros. */
+export type ParametrosPerfil = Partial<Record<ClaveParametro, number>>;
 
 /** Propiedades de una sección, ya en SI. */
 export interface PropiedadesSeccion {
-  /** Altura total del perfil. */
   hM: number;
-  /** Ancho del ala. */
   bM: number;
-  /** Espesor del alma. */
   twM: number;
-  /** Espesor del ala. */
   tfM: number;
-  /** Altura libre entre caras interiores de alas, h − 2·tf. */
+  /** Altura libre entre caras interiores de alas. */
   hiM: number;
   /**
-   * Altura recta del alma: entre alas y descontando los acuerdos de laminación.
-   * Es la `h` de AISC en las relaciones h/tw de los artículos B4.1 y G2, y la
-   * columna `d` del catálogo. Es menor que `hiM`.
+   * Altura del alma que usa AISC en las relaciones h/tw de los artículos B4.1 y
+   * G2: entre alas y descontando los acuerdos de laminación. Menor que `hiM`.
    */
   hAlmaM: number;
   areaM2: number;
@@ -44,19 +94,20 @@ export interface PropiedadesSeccion {
   syM3: number;
   zyM3: number;
   ryM: number;
-  /** Constante de torsión de Saint-Venant (It del catálogo). */
+  /** Constante de torsión de Saint-Venant. */
   jM4: number;
-  /** Constante de alabeo (Iw del catálogo). */
+  /** Constante de alabeo. Nula o despreciable en secciones cerradas. */
   cwM6: number;
-  /** Sección doblemente simétrica: define el coeficiente c de la ec. F2-8. */
   doblementeSimetrica: boolean;
+  /** Sección cerrada: cambia los artículos aplicables de flexión y corte. */
+  esCerrada: boolean;
+  /** Cantidad de almas que resisten corte, para el área de corte. */
+  almas: number;
 }
 
 /**
  * Fila del catálogo: dimensiones en mm, área en cm², inercias en cm⁴, módulos en
  * cm³ y la constante de alabeo en 10⁹ mm⁶, tal como las publica ArcelorMittal.
- * Se transcribe en esas unidades para poder cotejar contra el catálogo sin
- * convertir de cabeza.
  */
 interface FilaCatalogo {
   h: number;
@@ -75,12 +126,8 @@ interface FilaCatalogo {
   zy: number;
   ry: number;
   j: number;
-  /** Iw en 10⁹ mm⁶. */
   iw: number;
-  /**
-   * Solo en perfiles U: distancia del dorso del alma al centro de gravedad, en cm
-   * (columna `ys` del catálogo). Hace falta para componer el 2PNC con Steiner.
-   */
+  /** Solo en perfiles U: dorso del alma al centro de gravedad, en cm. */
   ys?: number;
 }
 
@@ -131,19 +178,70 @@ const HEB: Record<number, FilaCatalogo> = {
   300: { h: 300, b: 300, tw: 11, tf: 19, d: 208, area: 149.1, ix: 25170, sx: 1678, zx: 1869, rx: 12.99, iy: 8563, sy: 570.9, zy: 870.1, ry: 7.58, j: 185.0, iw: 1688 },
 };
 
-const CATALOGOS = { PNI, PNC, HEB } as const;
+const CATALOGOS: Partial<Record<Familia, Record<number, FilaCatalogo>>> = {
+  PNI,
+  PNC,
+  "2PNC-almas": PNC,
+  "2PNC-cajon": PNC,
+  HEB,
+};
 
-export type FamiliaSimple = keyof typeof CATALOGOS;
-export type Familia = FamiliaSimple | "2PNC";
-
-export const familias: Familia[] = ["PNI", "PNC", "HEB", "2PNC"];
-
-/** Alturas disponibles de una familia, en mm y de menor a mayor. */
+/** Alturas de catálogo de una familia. Vacío en las de geometría libre. */
 export function alturasDisponibles(familia: Familia): number[] {
-  const catalogo = familia === "2PNC" ? PNC : CATALOGOS[familia];
+  const catalogo = CATALOGOS[familia];
+  if (!catalogo) return [];
   return Object.keys(catalogo)
     .map(Number)
     .sort((a, b) => a - b);
+}
+
+/**
+ * Parámetros que define cada familia. Es lo que arma el formulario: el segundo
+ * campo no siempre es una altura de catálogo — en los tubos son dimensiones y
+ * espesor, que se cargan libres.
+ */
+export function parametrosDe(familia: Familia): ParametroFamilia[] {
+  switch (familia) {
+    case "tubo-redondo":
+      return [
+        { clave: "diametro", etiqueta: "Diámetro exterior", tipo: "numero", sufijo: "mm", porDefecto: 168.3 },
+        { clave: "espesor", etiqueta: "Espesor", tipo: "numero", sufijo: "mm", porDefecto: 6 },
+      ];
+    case "tubo-rectangular":
+      return [
+        { clave: "alto", etiqueta: "Alto exterior", tipo: "numero", sufijo: "mm", porDefecto: 200 },
+        { clave: "ancho", etiqueta: "Ancho exterior", tipo: "numero", sufijo: "mm", porDefecto: 100 },
+        { clave: "espesor", etiqueta: "Espesor", tipo: "numero", sufijo: "mm", porDefecto: 6 },
+      ];
+    case "2PNC-almas":
+      return [
+        { clave: "altura", etiqueta: "Altura del PNC", tipo: "lista", opciones: alturasDisponibles(familia), sufijo: "mm", porDefecto: 180 },
+        { clave: "separacion", etiqueta: "Separación entre dorsos de alma", tipo: "numero", sufijo: "mm", porDefecto: 0 },
+      ];
+    case "2PNC-cajon":
+      return [
+        { clave: "altura", etiqueta: "Altura del PNC", tipo: "lista", opciones: alturasDisponibles(familia), sufijo: "mm", porDefecto: 180 },
+      ];
+    default:
+      return [
+        { clave: "altura", etiqueta: "Altura", tipo: "lista", opciones: alturasDisponibles(familia), sufijo: "mm", porDefecto: 200 },
+      ];
+  }
+}
+
+/** Valores iniciales de una familia, listos para el formulario. */
+export function parametrosPorDefecto(familia: Familia): ParametrosPerfil {
+  const valores: ParametrosPerfil = {};
+  for (const p of parametrosDe(familia)) valores[p.clave] = p.porDefecto;
+  return valores;
+}
+
+function requerir(params: ParametrosPerfil, clave: ClaveParametro, familia: Familia): number {
+  const v = params[clave];
+  if (v === undefined || !Number.isFinite(v)) {
+    throw new Error(`Falta el parámetro "${clave}" para ${familia}.`);
+  }
+  return v;
 }
 
 /** Pasa una fila de catálogo a SI. */
@@ -165,83 +263,237 @@ function aSI(f: FilaCatalogo, doblementeSimetrica: boolean): PropiedadesSeccion 
     zyM3: f.zy / 1e6,
     ryM: f.ry / 100,
     jM4: f.j / 1e8,
-    // Iw viene en 10⁹ mm⁶; 1 mm⁶ = 1e-18 m⁶.
+    // Iw viene en 10⁹ mm⁶, y 1 mm⁶ = 1e-18 m⁶.
     cwM6: (f.iw * 1e9) / 1e18,
     doblementeSimetrica,
+    esCerrada: false,
+    almas: 1,
   };
 }
 
 /**
- * Compone dos PNC adosados por el dorso del alma, con las alas hacia afuera.
+ * Dos PNC adosados por el dorso del alma, con las alas hacia afuera: forma una
+ * sección en I, abierta.
  *
- * El eje x (el fuerte de cada perfil) simplemente se duplica. El eje y es el que
- * depende del armado: cada perfil aporta su propia inercia más el traslado de
- * Steiner hasta el eje de simetría del conjunto, a una distancia `separacion/2 + ys`,
- * donde `ys` es el dorso del alma al centro de gravedad del perfil simple.
- *
- * Por eso `Iy` nunca puede ser igual a `Ix`, ni siquiera con los perfiles en
- * contacto: son secciones distintas alrededor de ejes distintos.
- *
- * @param separacionM Luz libre entre los dorsos de alma. 0 = perfiles en contacto.
+ * El eje x (el fuerte de cada perfil) se duplica. El eje y depende del armado:
+ * cada perfil aporta su inercia propia más el traslado de Steiner hasta el eje de
+ * simetría, a una distancia `separacion/2 + ys`, donde `ys` es el dorso del alma
+ * al centro de gravedad. Por eso `Iy` no puede ser igual a `Ix` ni con los
+ * perfiles en contacto: son secciones distintas alrededor de ejes distintos.
  */
-export function componerDoblePNC(altura: number, separacionM = 0): PropiedadesSeccion {
+export function componerDoblePNCAlmas(altura: number, separacionM = 0): PropiedadesSeccion {
   const fila = PNC[altura];
   if (!fila) throw new Error(`No hay PNC de altura ${altura} mm en el catálogo.`);
   const simple = aSI(fila, false);
   const ys = (fila.ys as number) / 100;
 
-  // Distancia del eje de simetría del conjunto al baricentro de cada perfil.
   const brazo = separacionM / 2 + ys;
-  // Fibra extrema en y: la punta del ala, al otro lado del alma.
   const cY = separacionM / 2 + simple.bM;
-
   const areaM2 = 2 * simple.areaM2;
   const iyM4 = 2 * (simple.iyM4 + simple.areaM2 * brazo ** 2);
   const hoM = simple.hM - simple.tfM;
 
   return {
-    hM: simple.hM,
+    ...simple,
     bM: 2 * simple.bM + separacionM,
-    twM: simple.twM,
-    tfM: simple.tfM,
-    hiM: simple.hiM,
-    hAlmaM: simple.hAlmaM,
     areaM2,
     ixM4: 2 * simple.ixM4,
     sxM3: 2 * simple.sxM3,
     zxM3: 2 * simple.zxM3,
-    rxM: simple.rxM,
     iyM4,
     syM3: iyM4 / cY,
     // Cada perfil queda entero de un lado del eje: su aporte plástico es A·brazo exacto.
     zyM3: 2 * simple.areaM2 * brazo,
     ryM: Math.sqrt(iyM4 / areaM2),
-    // Suma de constantes de torsión: dos secciones abiertas independientes.
     jM4: 2 * simple.jM4,
     // Ya compuesta es doblemente simétrica, con alabeo Iy·ho²/4 como cualquier
     // sección en I: el alabeo propio de cada canal deja de gobernar.
     cwM6: (iyM4 * hoM ** 2) / 4,
     doblementeSimetrica: true,
+    almas: 2,
   };
 }
 
 /**
- * Propiedades de un perfil por familia y altura. Para 2PNC, `separacionM` es la
- * luz entre dorsos de alma (0 = en contacto).
+ * Dos PNC enfrentados y soldados por las puntas de las alas: forma un cajón
+ * cerrado de altura `h` y ancho `2b`, con las almas como caras laterales.
+ *
+ * La diferencia con la versión soldada por las almas no está en el eje fuerte
+ * —`Ix` se duplica igual en las dos— sino en el débil y sobre todo en la torsión:
+ * al cerrarse, la constante de torsión pasa a calcularse por Bredt y sube dos o
+ * tres órdenes respecto de la suma de las dos secciones abiertas.
  */
-export function propiedades(
-  familia: Familia,
-  altura: number,
-  separacionM = 0
-): PropiedadesSeccion {
-  if (familia === "2PNC") return componerDoblePNC(altura, separacionM);
-  const fila = CATALOGOS[familia][altura];
-  if (!fila) throw new Error(`No hay ${familia} de altura ${altura} mm en el catálogo.`);
-  // El PNC simple es el único de una sola simetría: el canal no lo es respecto de y.
-  return aSI(fila, familia !== "PNC");
+export function componerDoblePNCCajon(altura: number): PropiedadesSeccion {
+  const fila = PNC[altura];
+  if (!fila) throw new Error(`No hay PNC de altura ${altura} mm en el catálogo.`);
+  const simple = aSI(fila, false);
+  const ys = (fila.ys as number) / 100;
+
+  // El alma queda en el borde exterior y el baricentro del perfil mira hacia
+  // adentro: el brazo al eje de simetría es el ancho de ala menos ys.
+  const brazo = simple.bM - ys;
+  const anchoM = 2 * simple.bM;
+  const areaM2 = 2 * simple.areaM2;
+  const iyM4 = 2 * (simple.iyM4 + simple.areaM2 * brazo ** 2);
+
+  // Bredt para sección cerrada de pared delgada: J = 4·Am²/∮(ds/t), con Am el
+  // área encerrada por la línea media y el circuito recorriendo las cuatro caras.
+  const amM2 = (anchoM - simple.twM) * (simple.hM - simple.tfM);
+  const circuito =
+    (2 * (anchoM - simple.twM)) / simple.tfM + (2 * (simple.hM - simple.tfM)) / simple.twM;
+  const jM4 = (4 * amM2 ** 2) / circuito;
+
+  return {
+    ...simple,
+    bM: anchoM,
+    areaM2,
+    ixM4: 2 * simple.ixM4,
+    sxM3: 2 * simple.sxM3,
+    zxM3: 2 * simple.zxM3,
+    iyM4,
+    syM3: iyM4 / (anchoM / 2),
+    zyM3: 2 * simple.areaM2 * brazo,
+    ryM: Math.sqrt(iyM4 / areaM2),
+    jM4,
+    // Sección cerrada: el alabeo es despreciable frente a la torsión uniforme.
+    cwM6: 0,
+    doblementeSimetrica: true,
+    esCerrada: true,
+    almas: 2,
+  };
 }
 
-/** Etiqueta comercial: "PNI160", "2PNC180". */
-export function designacion(familia: Familia, altura: number) {
-  return `${familia}${altura}`;
+/** Tubo circular de diámetro exterior `d` y espesor `t`, ambos en metros. */
+export function tuboRedondo(dM: number, tM: number): PropiedadesSeccion {
+  if (!(tM > 0) || !(dM > 2 * tM)) {
+    throw new Error("El tubo redondo necesita espesor positivo y diámetro mayor que 2·espesor.");
+  }
+  const dInt = dM - 2 * tM;
+  const areaM2 = (Math.PI / 4) * (dM ** 2 - dInt ** 2);
+  const iM4 = (Math.PI / 64) * (dM ** 4 - dInt ** 4);
+  const sM3 = iM4 / (dM / 2);
+  // Módulo plástico de una corona circular.
+  const zM3 = (dM ** 3 - dInt ** 3) / 6;
+  const rM = Math.sqrt(iM4 / areaM2);
+
+  return {
+    hM: dM,
+    bM: dM,
+    twM: tM,
+    tfM: tM,
+    hiM: dInt,
+    hAlmaM: dInt,
+    areaM2,
+    ixM4: iM4,
+    sxM3: sM3,
+    zxM3: zM3,
+    rxM: rM,
+    iyM4: iM4,
+    syM3: sM3,
+    zyM3: zM3,
+    ryM: rM,
+    // En la sección circular cerrada la constante de torsión es el momento polar.
+    jM4: 2 * iM4,
+    cwM6: 0,
+    doblementeSimetrica: true,
+    esCerrada: true,
+    almas: 2,
+  };
+}
+
+/** Tubo rectangular de alto `h`, ancho `b` y espesor `t`, en metros. */
+export function tuboRectangular(hM: number, bM: number, tM: number): PropiedadesSeccion {
+  if (!(tM > 0) || !(hM > 2 * tM) || !(bM > 2 * tM)) {
+    throw new Error("El tubo rectangular necesita espesor positivo y lados mayores que 2·espesor.");
+  }
+  const hi = hM - 2 * tM;
+  const bi = bM - 2 * tM;
+
+  const areaM2 = hM * bM - hi * bi;
+  const ixM4 = (bM * hM ** 3 - bi * hi ** 3) / 12;
+  const iyM4 = (hM * bM ** 3 - hi * bi ** 3) / 12;
+  const sxM3 = ixM4 / (hM / 2);
+  const syM3 = iyM4 / (bM / 2);
+  const zxM3 = (bM * hM ** 2 - bi * hi ** 2) / 4;
+  const zyM3 = (hM * bM ** 2 - hi * bi ** 2) / 4;
+
+  // Bredt sobre la línea media del rectángulo.
+  const amM2 = (hM - tM) * (bM - tM);
+  const jM4 = (2 * tM * amM2 ** 2) / (hM - tM + (bM - tM));
+
+  return {
+    hM,
+    bM,
+    twM: tM,
+    tfM: tM,
+    hiM: hi,
+    // AISC mide la cara plana del tubo descontando los acuerdos, que para un HSS
+    // se toman como 1,5·t por lado a falta de dato de fabricación.
+    hAlmaM: Math.max(hM - 3 * tM, tM),
+    areaM2,
+    ixM4,
+    sxM3,
+    zxM3,
+    rxM: Math.sqrt(ixM4 / areaM2),
+    iyM4,
+    syM3,
+    zyM3,
+    ryM: Math.sqrt(iyM4 / areaM2),
+    jM4,
+    cwM6: 0,
+    doblementeSimetrica: true,
+    esCerrada: true,
+    almas: 2,
+  };
+}
+
+/** Propiedades de una sección a partir de su familia y sus parámetros en mm. */
+export function propiedades(familia: Familia, params: ParametrosPerfil): PropiedadesSeccion {
+  switch (familia) {
+    case "tubo-redondo":
+      return tuboRedondo(
+        requerir(params, "diametro", familia) / 1000,
+        requerir(params, "espesor", familia) / 1000
+      );
+    case "tubo-rectangular":
+      return tuboRectangular(
+        requerir(params, "alto", familia) / 1000,
+        requerir(params, "ancho", familia) / 1000,
+        requerir(params, "espesor", familia) / 1000
+      );
+    case "2PNC-almas":
+      return componerDoblePNCAlmas(
+        requerir(params, "altura", familia),
+        (params.separacion ?? 0) / 1000
+      );
+    case "2PNC-cajon":
+      return componerDoblePNCCajon(requerir(params, "altura", familia));
+    default: {
+      const catalogo = CATALOGOS[familia];
+      const altura = requerir(params, "altura", familia);
+      const fila = catalogo?.[altura];
+      if (!fila) throw new Error(`No hay ${familia} de altura ${altura} mm en el catálogo.`);
+      // El PNC simple es el único de una sola simetría: el canal no lo es respecto de y.
+      return aSI(fila, familia !== "PNC");
+    }
+  }
+}
+
+/** Etiqueta de la sección para mostrar en pantalla: "PNI160", "Ø168,3x6". */
+export function designacion(familia: Familia, params: ParametrosPerfil): string {
+  const n = (v: number | undefined) =>
+    v === undefined ? "?" : String(Number(v.toFixed(1))).replace(".", ",");
+
+  switch (familia) {
+    case "tubo-redondo":
+      return `Ø${n(params.diametro)}×${n(params.espesor)}`;
+    case "tubo-rectangular":
+      return `□${n(params.alto)}×${n(params.ancho)}×${n(params.espesor)}`;
+    case "2PNC-almas":
+      return params.separacion ? `2PNC${n(params.altura)} (sep. ${n(params.separacion)})` : `2PNC${n(params.altura)}`;
+    case "2PNC-cajon":
+      return `2PNC${n(params.altura)} cajón`;
+    default:
+      return `${familia}${n(params.altura)}`;
+  }
 }

@@ -4,7 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { agruparPorCategoria, registroVerificaciones } from "@/lib/verificaciones/registry";
+import {
+  agruparPorCategoria,
+  buscarSeccion,
+  registroVerificaciones,
+  verificacionesDeSeccion,
+} from "@/lib/verificaciones/registry";
 
 interface NavVerificacionesProps {
   /** Se dispara al elegir una verificación; el drawer móvil lo usa para cerrarse. */
@@ -13,10 +18,27 @@ interface NavVerificacionesProps {
 
 export function NavVerificaciones({ onNavegar }: NavVerificacionesProps) {
   const pathname = usePathname();
-  const categorias = agruparPorCategoria(registroVerificaciones);
+
+  // La barra lateral acompaña a la sección en la que se está trabajando: estando
+  // en una verificación de metálicas no tiene sentido ofrecer las de hormigón.
+  // La sección se deduce de la ruta actual y no de un prop, porque el layout que
+  // monta esta barra es común a todas las verificaciones.
+  const actual = registroVerificaciones.find((v) => v.ruta === pathname);
+  const seccion = actual ? buscarSeccion(actual.seccion) : undefined;
+  const visibles = seccion ? verificacionesDeSeccion(seccion.id) : registroVerificaciones;
+  const categorias = agruparPorCategoria(visibles);
 
   return (
     <nav className="space-y-6">
+      {seccion && (
+        <Link
+          href={seccion.ruta}
+          onClick={onNavegar}
+          className="block px-2 text-sm font-medium tracking-tight transition-colors hover:text-primary"
+        >
+          ← {seccion.nombre}
+        </Link>
+      )}
       {categorias.map(([categoria, items]) => (
         <div key={categoria} className="space-y-1">
           <p className="spec-label px-2">{categoria}</p>

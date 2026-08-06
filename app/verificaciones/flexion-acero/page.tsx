@@ -2,29 +2,24 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
+import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
+import { AvisoFueraDeAlcance } from "@/components/verificaciones/AvisoFueraDeAlcance";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { calcularFlexion, OMEGA_B } from "@/lib/calc/aisc/flexion";
-import { alturasDisponibles, type Familia } from "@/lib/calc/aisc/perfiles";
+import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
+import { calcularFlexion, OMEGA_B, SeccionFueraDeAlcance } from "@/lib/calc/aisc/flexion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexion-acero")!;
 
-/** F2 solo cubre secciones doblemente simétricas: el PNC simple queda afuera. */
-const FAMILIAS_F2: Familia[] = ["PNI", "HEB", "2PNC"];
-
 export default function FlexionAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
-
-  const [familia, setFamilia] = useCampo<Familia>("familiaFlexion", "PNI");
-  const [altura, setAltura] = useCampo("alturaFlexion", "200");
-  const [separacion, setSeparacion] = useCampo("separacionFlexion", "0");
+  const seccion = useSeccionAcero("PNI");
 
   const [lb, setLb] = useCampo("lb", "3");
   const [cb, setCb] = useCampo("cb", "1");
@@ -32,34 +27,30 @@ export default function FlexionAceroPage() {
   const [e, setE] = useCampo("eFlexion", "200000");
   const [mRequerido, setMRequerido] = useCampo("mRequerido", "40");
 
-  const alturas = useMemo(() => alturasDisponibles(familia).map(String), [familia]);
+  const { resultado, fueraDeAlcance } = useMemo(() => {
+    const n = { lb: aNumero(lb), cb: aNumero(cb), fy: aNumero(fy), e: aNumero(e), m: aNumero(mRequerido) };
+    if (!seccion.completos || !Object.values(n).every((x) => Number.isFinite(x) && x > 0)) {
+      return { resultado: null, fueraDeAlcance: null };
+    }
 
-  const resultado = useMemo(() => {
-    const n = {
-      altura: aNumero(altura),
-      separacion: aNumero(separacion),
-      lb: aNumero(lb),
-      cb: aNumero(cb),
-      fy: aNumero(fy),
-      e: aNumero(e),
-      m: aNumero(mRequerido),
-    };
-    if (!FAMILIAS_F2.includes(familia)) return null;
-    if (!alturas.includes(String(n.altura))) return null;
-    if (![n.lb, n.cb, n.fy, n.e, n.m].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (!Number.isFinite(n.separacion) || n.separacion < 0) return null;
-
-    return calcularFlexion({
-      familia,
-      altura: n.altura,
-      separacionM: n.separacion,
-      lbM: n.lb,
-      cb: n.cb,
-      fyPa: n.fy * 1e6,
-      ePa: n.e * 1e6,
-      mRequeridoKNm: n.m,
-    });
-  }, [familia, altura, separacion, lb, cb, fy, e, mRequerido, alturas]);
+    try {
+      return {
+        resultado: calcularFlexion({
+          familia: seccion.familia,
+          params: seccion.params,
+          lbM: n.lb,
+          cb: n.cb,
+          fyPa: n.fy * 1e6,
+          ePa: n.e * 1e6,
+          mRequeridoKNm: n.m,
+        }),
+        fueraDeAlcance: null,
+      };
+    } catch (error) {
+      if (error instanceof SeccionFueraDeAlcance) return { resultado: null, fueraDeAlcance: error };
+      return { resultado: null, fueraDeAlcance: null };
+    }
+  }, [seccion.familia, seccion.params, seccion.completos, lb, cb, fy, e, mRequerido]);
 
   const noCompacta = resultado && (!resultado.compacta.ala || !resultado.compacta.alma);
 
@@ -77,50 +68,22 @@ export default function FlexionAceroPage() {
 
       <Card className="border-primary/30">
         <CardContent className="py-4 text-sm text-muted-foreground">
-          Artículo F2: flexión respecto del eje fuerte en perfiles compactos y doblemente
-          simétricos, por el método ASD (Ωb = 1,67). Manda el menor entre plastificación
-          (Mp = Fy·Zx) y pandeo lateral-torsional, según cuánto valga Lb frente a Lp y Lr.
+          Artículo F2: flexión respecto del eje fuerte en perfiles I y canales compactos, por el
+          método ASD (Ωb = 1,67). Manda el menor entre plastificación (Mp = Fy·Zx) y pandeo
+          lateral-torsional, según cuánto valga Lb frente a Lp y Lr. Las secciones cerradas van
+          por otros artículos.
         </CardContent>
       </Card>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Perfil</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoSeleccion
-                id="familiaFlexion"
-                etiqueta="Familia"
-                valor={familia}
-                opciones={FAMILIAS_F2}
-                onChange={(v) => {
-                  setFamilia(v as Familia);
-                  const disponibles = alturasDisponibles(v as Familia);
-                  if (!disponibles.includes(aNumero(altura))) setAltura(String(disponibles[0]));
-                }}
-              />
-              <CampoSeleccion
-                id="alturaFlexion"
-                etiqueta="Altura"
-                valor={altura}
-                opciones={alturas}
-                onChange={setAltura}
-              />
-              {familia === "2PNC" && (
-                <div className="col-span-full">
-                  <CampoNumerico
-                    id="separacionFlexion"
-                    etiqueta="Separación entre dorsos de alma"
-                    sufijo="m"
-                    valor={separacion}
-                    onChange={setSeparacion}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SelectorSeccionAcero
+            familia={seccion.familia}
+            paramsTexto={seccion.paramsTexto}
+            params={seccion.params}
+            onFamiliaChange={seccion.cambiarFamilia}
+            onParamChange={seccion.cambiarParam}
+          />
 
           <Card>
             <CardHeader>
@@ -151,11 +114,12 @@ export default function FlexionAceroPage() {
         </div>
 
         <div className="space-y-6">
-          {!resultado ? (
+          {fueraDeAlcance ? (
+            <AvisoFueraDeAlcance error={fueraDeAlcance} />
+          ) : !resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Elegí un perfil del catálogo y completá Lb, Cb, material y momento con valores
-                positivos.
+                Completá la sección, Lb, Cb, el material y el momento con valores positivos.
               </CardContent>
             </Card>
           ) : (
@@ -202,6 +166,7 @@ export default function FlexionAceroPage() {
                       { etiqueta: "Lp = 1,76·ry·√(E/Fy)  (F2-5)", valor: `${fmt(resultado.lpM, 3)} m` },
                       { etiqueta: "Lr  (F2-6)", valor: `${fmt(resultado.lrM, 3)} m` },
                       { etiqueta: "rts  (F2-7)", valor: `${fmt(resultado.rtsM * 100, 2)} cm` },
+                      { etiqueta: "c  (F2-8)", valor: fmt(resultado.c, 3) },
                       { etiqueta: "ho (entre baricentros de alas)", valor: `${fmt(resultado.hoM * 100, 2)} cm` },
                       {
                         etiqueta: "Fcr  (F2-4)",
@@ -213,11 +178,11 @@ export default function FlexionAceroPage() {
                       { etiqueta: "Mn", valor: `${fmt(resultado.mnKNm, 1)} kN·m` },
                       { etiqueta: `Mn/Ωb con Ωb = ${OMEGA_B}`, valor: `${fmt(resultado.admisibleKNm, 1)} kN·m` },
                       {
-                        etiqueta: "Esbeltez del ala b/2tf",
+                        etiqueta: "Esbeltez del ala",
                         valor: `${fmt(resultado.compacta.esbeltezAla, 2)} — ${resultado.compacta.ala ? "compacta" : "no compacta"}`,
                       },
                       {
-                        etiqueta: "Esbeltez del alma d/tw",
+                        etiqueta: "Esbeltez del alma h/tw",
                         valor: `${fmt(resultado.compacta.esbeltezAlma, 2)} — ${resultado.compacta.alma ? "compacta" : "no compacta"}`,
                       },
                     ]}

@@ -9,12 +9,17 @@
  * lugar del capítulo con ese tratamiento (art. G1).
  */
 
-import { propiedades, type Familia } from "./perfiles";
+import {
+  designacion,
+  propiedades,
+  type Familia,
+  type ParametrosPerfil,
+} from "./perfiles";
+import { SeccionFueraDeAlcance } from "./flexion";
 
 export interface DatosCorte {
   familia: Familia;
-  altura: number;
-  separacionM?: number;
+  params: ParametrosPerfil;
   fyPa: number;
   ePa: number;
   /**
@@ -48,12 +53,21 @@ export interface ResultadoCorte {
 }
 
 export function calcularCorte(datos: DatosCorte): ResultadoCorte {
-  const p = propiedades(datos.familia, datos.altura, datos.separacionM ?? 0);
+  const p = propiedades(datos.familia, datos.params);
   const { fyPa, ePa } = datos;
 
-  // Aw = altura total por espesor de alma. En el 2PNC son dos almas.
-  const almas = datos.familia === "2PNC" ? 2 : 1;
-  const awM2 = almas * p.hM * p.twM;
+  // G2 es para perfiles I y canales. Los tubos van por G4 (rectangulares y
+  // cajones) o G5 (redondos), que tienen otro planteo.
+  if (p.esCerrada) {
+    const articulo = datos.familia === "tubo-redondo" ? "G5" : "G4";
+    throw new SeccionFueraDeAlcance(
+      articulo,
+      `El artículo G2 cubre perfiles I y canales. Una sección cerrada como esta se verifica por el artículo ${articulo}, todavía no implementado.`
+    );
+  }
+
+  // Aw = altura total por espesor de alma. Las composiciones aportan dos almas.
+  const awM2 = p.almas * p.hM * p.twM;
 
   const esbeltezAlma = p.hAlmaM / p.twM;
   const raiz = Math.sqrt(ePa / fyPa);
@@ -89,7 +103,7 @@ export function calcularCorte(datos: DatosCorte): ResultadoCorte {
   const requerido = datos.vRequeridoKN;
 
   return {
-    designacion: `${datos.familia}${datos.altura}`,
+    designacion: designacion(datos.familia, datos.params),
     awM2,
     esbeltezAlma,
     kv,

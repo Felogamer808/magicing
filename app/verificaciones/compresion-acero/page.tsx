@@ -2,15 +2,15 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
+import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
 import { calcularCompresion, OMEGA_C, type PandeoEnUnEje } from "@/lib/calc/aisc/compresion";
-import { alturasDisponibles, familias, type Familia } from "@/lib/calc/aisc/perfiles";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -36,10 +36,7 @@ function FilasDeEje({ eje }: { eje: PandeoEnUnEje }) {
 
 export default function CompresionAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
-
-  const [familia, setFamilia] = useCampo<Familia>("familia", "PNI");
-  const [altura, setAltura] = useCampo("altura", "200");
-  const [separacion, setSeparacion] = useCampo("separacion", "0");
+  const seccion = useSeccionAcero("PNI");
 
   const [lcx, setLcx] = useCampo("lcx", "3.6");
   const [lcy, setLcy] = useCampo("lcy", "1.5");
@@ -47,33 +44,25 @@ export default function CompresionAceroPage() {
   const [e, setE] = useCampo("e", "200000");
   const [pRequerida, setPRequerida] = useCampo("pRequerida", "300");
 
-  const alturas = useMemo(() => alturasDisponibles(familia).map(String), [familia]);
-
   const resultado = useMemo(() => {
-    const n = {
-      altura: aNumero(altura),
-      separacion: aNumero(separacion),
-      lcx: aNumero(lcx),
-      lcy: aNumero(lcy),
-      fy: aNumero(fy),
-      e: aNumero(e),
-      p: aNumero(pRequerida),
-    };
-    if (!alturas.includes(String(n.altura))) return null;
-    if (![n.lcx, n.lcy, n.fy, n.e, n.p].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (!Number.isFinite(n.separacion) || n.separacion < 0) return null;
+    const n = { lcx: aNumero(lcx), lcy: aNumero(lcy), fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida) };
+    if (!seccion.completos) return null;
+    if (!Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
 
-    return calcularCompresion({
-      familia,
-      altura: n.altura,
-      separacionM: n.separacion,
-      lcxM: n.lcx,
-      lcyM: n.lcy,
-      fyPa: n.fy * 1e6,
-      ePa: n.e * 1e6,
-      pRequeridaKN: n.p,
-    });
-  }, [familia, altura, separacion, lcx, lcy, fy, e, pRequerida, alturas]);
+    try {
+      return calcularCompresion({
+        familia: seccion.familia,
+        params: seccion.params,
+        lcxM: n.lcx,
+        lcyM: n.lcy,
+        fyPa: n.fy * 1e6,
+        ePa: n.e * 1e6,
+        pRequeridaKN: n.p,
+      });
+    } catch {
+      return null;
+    }
+  }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, fy, e, pRequerida]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -91,49 +80,20 @@ export default function CompresionAceroPage() {
         <CardContent className="py-4 text-sm text-muted-foreground">
           Artículo E3: pandeo por flexión de barras sin elementos esbeltos, por el método ASD
           (Ωc = 1,67). Se resuelven los dos ejes por separado y gobierna el menor. La longitud
-          efectiva Lc = K·L se carga ya multiplicada por K.
+          efectiva Lc = K·L se carga ya multiplicada por K. En tubos de pared muy delgada puede
+          gobernar el pandeo local del artículo E7, que todavía no está implementado.
         </CardContent>
       </Card>
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Perfil</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoSeleccion
-                id="familia"
-                etiqueta="Familia"
-                valor={familia}
-                opciones={familias}
-                onChange={(v) => {
-                  setFamilia(v as Familia);
-                  // Las alturas no coinciden entre familias: se reencuadra al cambiar.
-                  const disponibles = alturasDisponibles(v as Familia);
-                  if (!disponibles.includes(aNumero(altura))) setAltura(String(disponibles[0]));
-                }}
-              />
-              <CampoSeleccion
-                id="altura"
-                etiqueta="Altura"
-                valor={altura}
-                opciones={alturas}
-                onChange={setAltura}
-              />
-              {familia === "2PNC" && (
-                <div className="col-span-full">
-                  <CampoNumerico
-                    id="separacion"
-                    etiqueta="Separación entre dorsos de alma"
-                    sufijo="m"
-                    valor={separacion}
-                    onChange={setSeparacion}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SelectorSeccionAcero
+            familia={seccion.familia}
+            paramsTexto={seccion.paramsTexto}
+            params={seccion.params}
+            onFamiliaChange={seccion.cambiarFamilia}
+            onParamChange={seccion.cambiarParam}
+          />
 
           <Card>
             <CardHeader>
@@ -167,8 +127,7 @@ export default function CompresionAceroPage() {
           {!resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Elegí un perfil del catálogo y completá longitudes, material y carga con valores
-                positivos.
+                Completá la sección, las longitudes, el material y la carga con valores positivos.
               </CardContent>
             </Card>
           ) : (

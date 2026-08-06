@@ -8,8 +8,8 @@ const base = { fyPa: FY, ePa: E } as const;
 
 describe("corte G2: resistencia del alma", () => {
   it("aplica Vn = 0,6·Fy·Aw·Cv1 con Aw = d·tw", () => {
-    const p = propiedades("PNI", 200);
-    const r = calcularCorte({ ...base, familia: "PNI", altura: 200 });
+    const p = propiedades("PNI", { altura: 200 });
+    const r = calcularCorte({ ...base, familia: "PNI", params: { altura: 200 } });
 
     expect(r.awM2).toBeCloseTo(p.hM * p.twM, 9);
     expect(r.vnKN).toBeCloseTo((0.6 * FY * r.awM2 * r.cv1) / 1000, 6);
@@ -23,8 +23,8 @@ describe("corte G2: resistencia del alma", () => {
    * coeficiente general.
    */
   it("usa Ωv = 1,50 en almas robustas de perfiles I, y 1,67 en el resto", () => {
-    const perfilI = calcularCorte({ ...base, familia: "HEB", altura: 200 });
-    const canal = calcularCorte({ ...base, familia: "PNC", altura: 200 });
+    const perfilI = calcularCorte({ ...base, familia: "HEB", params: { altura: 200 } });
+    const canal = calcularCorte({ ...base, familia: "PNC", params: { altura: 200 } });
 
     expect(perfilI.almaRobusta).toBe(true);
     expect(perfilI.omegaV).toBe(1.5);
@@ -37,11 +37,9 @@ describe("corte G2: resistencia del alma", () => {
 
   it("todos los perfiles I del catálogo tienen alma robusta con Fy = 250 MPa", () => {
     for (const familia of ["PNI", "HEB"] as const) {
-      for (const altura of [100, 200, 300].filter(
-        (a) => !(familia === "PNI" && a === 100) || true
-      )) {
-        if (familia === "PNI" && altura === 100) continue;
-        const r = calcularCorte({ ...base, familia, altura });
+      // El PNI arranca en 80, el HEB en 100: se prueban alturas que existan en las dos.
+      for (const altura of [200, 300]) {
+        const r = calcularCorte({ ...base, familia, params: { altura } });
         expect(r.esbeltezAlma).toBeLessThanOrEqual(2.24 * Math.sqrt(E / FY));
         expect(r.almaRobusta).toBe(true);
       }
@@ -49,25 +47,25 @@ describe("corte G2: resistencia del alma", () => {
   });
 
   it("el 2PNC aporta las dos almas", () => {
-    const simple = calcularCorte({ ...base, familia: "PNC", altura: 180 });
-    const doble = calcularCorte({ ...base, familia: "2PNC", altura: 180 });
+    const simple = calcularCorte({ ...base, familia: "PNC", params: { altura: 180 } });
+    const doble = calcularCorte({ ...base, familia: "2PNC-almas", params: { altura: 180 } });
 
     expect(doble.awM2).toBeCloseTo(2 * simple.awM2, 9);
     expect(doble.vnKN).toBeCloseTo(2 * simple.vnKN, 6);
   });
 
   it("los rigidizadores suben kv y nunca lo bajan de 5,34", () => {
-    const sin = calcularCorte({ ...base, familia: "PNC", altura: 300 });
+    const sin = calcularCorte({ ...base, familia: "PNC", params: { altura: 300 } });
     const juntos = calcularCorte({
       ...base,
       familia: "PNC",
-      altura: 300,
+      params: { altura: 300 },
       separacionRigidizadoresM: 0.2,
     });
     const lejos = calcularCorte({
       ...base,
       familia: "PNC",
-      altura: 300,
+      params: { altura: 300 },
       separacionRigidizadoresM: 10,
     });
 
@@ -80,24 +78,24 @@ describe("corte G2: resistencia del alma", () => {
   it("Cv1 nunca pasa de 1 y baja al crecer la esbeltez del alma", () => {
     // Un alma muy esbelta se fuerza bajando Fy… no: se fuerza subiendo Fy, que
     // es lo que corre el límite 1,10·√(kv·E/Fy) hacia abajo.
-    const normal = calcularCorte({ ...base, familia: "PNC", altura: 300 });
-    const aceroAlto = calcularCorte({ ...base, familia: "PNC", altura: 300, fyPa: 690e6 });
+    const normal = calcularCorte({ ...base, familia: "PNC", params: { altura: 300 } });
+    const aceroAlto = calcularCorte({ ...base, familia: "PNC", params: { altura: 300 }, fyPa: 690e6 });
 
     expect(normal.cv1).toBeLessThanOrEqual(1);
     expect(aceroAlto.cv1).toBeLessThanOrEqual(normal.cv1);
   });
 
   it("verifica contra el corte requerido cuando se lo pasa", () => {
-    const sinCarga = calcularCorte({ ...base, familia: "PNI", altura: 240 });
+    const sinCarga = calcularCorte({ ...base, familia: "PNI", params: { altura: 240 } });
     expect(sinCarga.verifica).toBeNull();
 
     const admisible = sinCarga.admisibleKN;
     expect(
-      calcularCorte({ ...base, familia: "PNI", altura: 240, vRequeridoKN: admisible * 0.5 })
+      calcularCorte({ ...base, familia: "PNI", params: { altura: 240 }, vRequeridoKN: admisible * 0.5 })
         .verifica
     ).toBe(true);
     expect(
-      calcularCorte({ ...base, familia: "PNI", altura: 240, vRequeridoKN: admisible * 1.2 })
+      calcularCorte({ ...base, familia: "PNI", params: { altura: 240 }, vRequeridoKN: admisible * 1.2 })
         .verifica
     ).toBe(false);
   });

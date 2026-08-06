@@ -8,7 +8,7 @@ const E = 200e9;
 
 const base = {
   familia: "HEB" as const,
-  altura: 200,
+  params: { altura: 200 },
   lcxM: 4,
   lcyM: 4,
   lbM: 4,
@@ -26,7 +26,7 @@ describe("flexo-compresión H1.1", () => {
       mryKNm: 10,
     });
 
-    const comun = { familia: base.familia, altura: base.altura, fyPa: FY, ePa: E };
+    const comun = { familia: base.familia, params: base.params, fyPa: FY, ePa: E };
     expect(r.pcKN).toBeCloseTo(
       calcularCompresion({ ...comun, lcxM: 4, lcyM: 4 }).admisibleKN,
       9

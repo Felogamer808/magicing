@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   alturasDisponibles,
-  componerDoblePNC,
+  componerDoblePNCAlmas,
   familias,
+  parametrosDe,
   propiedades,
   type Familia,
 } from "./perfiles";
@@ -15,7 +16,7 @@ import {
 
 describe("PNI: contraste contra el catálogo", () => {
   it("PNI80", () => {
-    const p = propiedades("PNI", 80);
+    const p = propiedades("PNI", { altura: 80 } );
     expect(p.hM).toBeCloseTo(0.08, 6);
     expect(p.bM).toBeCloseTo(0.042, 6);
     expect(p.twM).toBeCloseTo(0.0039, 6);
@@ -37,7 +38,7 @@ describe("PNI: contraste contra el catálogo", () => {
       { altura: 140, area: 18.2e-4, ix: 573e-8, sx: 81.9e-6, zx: 95.4e-6, iy: 35.2e-8, j: 4.32e-8 },
     ];
     for (const e of esperado) {
-      const p = propiedades("PNI", e.altura);
+      const p = propiedades("PNI", { altura: e.altura });
       expect(p.areaM2).toBeCloseTo(e.area, 8);
       expect(p.ixM4).toBeCloseTo(e.ix, 12);
       expect(p.sxM3).toBeCloseTo(e.sx, 10);
@@ -58,7 +59,7 @@ describe("coherencia interna del catálogo", () => {
     describe(familia, () => {
       for (const altura of alturasDisponibles(familia)) {
         it(`${familia}${altura}`, () => {
-          const p = propiedades(familia, altura);
+          const p = propiedades(familia, { altura } );
 
           // r = √(I/A), por definición del radio de giro. Se compara en relativo
           // porque las tablas publican r con tres cifras significativas: el PNI280
@@ -98,10 +99,87 @@ describe("coherencia interna del catálogo", () => {
     });
   }
 
-  it("todas las familias declaran alturas", () => {
+  it("cada familia declara los parámetros que necesita", () => {
     for (const familia of familias) {
-      expect(alturasDisponibles(familia).length).toBeGreaterThan(0);
+      const parametros = parametrosDe(familia);
+      expect(parametros.length).toBeGreaterThan(0);
+      // Los desplegables de altura tienen que traer opciones; los tubos no usan
+      // catálogo y se definen por dimensiones, así que no declaran ninguna.
+      for (const p of parametros) {
+        if (p.tipo === "lista") expect(p.opciones?.length ?? 0).toBeGreaterThan(0);
+        expect(p.porDefecto).toBeGreaterThanOrEqual(0);
+      }
+      const deCatalogo = parametros.some((p) => p.tipo === "lista");
+      expect(alturasDisponibles(familia).length > 0).toBe(deCatalogo);
     }
+  });
+});
+
+describe("secciones de geometría libre", () => {
+  it("el tubo redondo cumple las relaciones de la corona circular", () => {
+    const p = propiedades("tubo-redondo", { diametro: 168.3, espesor: 6 });
+    const dExt = 0.1683;
+    const dInt = dExt - 2 * 0.006;
+
+    expect(p.areaM2).toBeCloseTo((Math.PI / 4) * (dExt ** 2 - dInt ** 2), 9);
+    expect(p.ixM4).toBeCloseTo((Math.PI / 64) * (dExt ** 4 - dInt ** 4), 12);
+    // Sección de revolución: los dos ejes son iguales.
+    expect(p.iyM4).toBeCloseTo(p.ixM4, 15);
+    expect(p.ryM).toBeCloseTo(p.rxM, 12);
+    // En la sección circular cerrada, J es el momento polar: el doble del axial.
+    expect(p.jM4).toBeCloseTo(2 * p.ixM4, 12);
+    expect(p.esCerrada).toBe(true);
+    expect(p.cwM6).toBe(0);
+  });
+
+  it("el tubo rectangular distingue los dos ejes según el lado", () => {
+    const p = propiedades("tubo-rectangular", { alto: 200, ancho: 100, espesor: 6 });
+
+    expect(p.ixM4).toBeGreaterThan(p.iyM4);
+    expect(p.rxM).toBeGreaterThan(p.ryM);
+    expect(p.esCerrada).toBe(true);
+
+    // Un tubo cuadrado tiene que dar los dos ejes iguales.
+    const cuadrado = propiedades("tubo-rectangular", { alto: 150, ancho: 150, espesor: 6 });
+    expect(cuadrado.iyM4).toBeCloseTo(cuadrado.ixM4, 15);
+  });
+
+  it("rechaza espesores imposibles en lugar de devolver un área negativa", () => {
+    expect(() => propiedades("tubo-redondo", { diametro: 100, espesor: 60 })).toThrow();
+    expect(() => propiedades("tubo-rectangular", { alto: 100, ancho: 50, espesor: 30 })).toThrow();
+  });
+});
+
+/**
+ * Las dos formas de componer dos PNC. Comparten `Ix` —los dos perfiles están a
+ * la misma altura en ambas— y se separan en el eje débil y, sobre todo, en la
+ * torsión: al cerrarse, el cajón pasa a resistir por Bredt.
+ */
+describe("2PNC: soldado por las almas contra cajón", () => {
+  const almas = propiedades("2PNC-almas", { altura: 180 });
+  const cajon = propiedades("2PNC-cajon", { altura: 180 });
+
+  it("comparten el eje fuerte", () => {
+    expect(cajon.ixM4).toBeCloseTo(almas.ixM4, 12);
+    expect(cajon.zxM3).toBeCloseTo(almas.zxM3, 10);
+    expect(cajon.areaM2).toBeCloseTo(almas.areaM2, 10);
+  });
+
+  it("el cajón es mucho más rígido en el eje débil", () => {
+    // El brazo de Steiner pasa de ys a b − ys: en el PNC180, de 19,2 a 50,8 mm.
+    expect(cajon.iyM4).toBeGreaterThan(almas.iyM4);
+    expect(cajon.ryM).toBeGreaterThan(almas.ryM);
+  });
+
+  it("cerrar la sección multiplica la constante de torsión", () => {
+    // Dos secciones abiertas suman sus J; una cerrada resiste por circulación,
+    // y la diferencia es de dos órdenes o más.
+    expect(cajon.jM4 / almas.jM4).toBeGreaterThan(100);
+    expect(cajon.esCerrada).toBe(true);
+    expect(almas.esCerrada).toBe(false);
+    // Al cerrarse el alabeo deja de importar.
+    expect(cajon.cwM6).toBe(0);
+    expect(almas.cwM6).toBeGreaterThan(0);
   });
 });
 
@@ -117,12 +195,12 @@ describe("PNC: constante de torsión contra el catálogo", () => {
 
   for (const [altura, valorIt] of Object.entries(itCatalogo)) {
     it(`PNC${altura}`, () => {
-      expect(propiedades("PNC", Number(altura)).jM4).toBeCloseTo(valorIt / 1e8, 12);
+      expect(propiedades("PNC", { altura: Number(altura) } ).jM4).toBeCloseTo(valorIt / 1e8, 12);
     });
   }
 
   it("PNC80 usa los módulos plásticos del catálogo", () => {
-    const p = propiedades("PNC", 80);
+    const p = propiedades("PNC", { altura: 80 } );
     expect(p.zxM3).toBeCloseTo(32.3e-6, 10);
     expect(p.zyM3).toBeCloseTo(11.9e-6, 10);
   });
@@ -130,7 +208,7 @@ describe("PNC: constante de torsión contra el catálogo", () => {
 
 describe("HEB: contraste contra el catálogo", () => {
   it("HEB300", () => {
-    const p = propiedades("HEB", 300);
+    const p = propiedades("HEB", { altura: 300 } );
     expect(p.areaM2).toBeCloseTo(149.1e-4, 8);
     expect(p.ixM4).toBeCloseTo(25170e-8, 11);
     expect(p.sxM3).toBeCloseTo(1678e-6, 9);
@@ -149,8 +227,8 @@ describe("HEB: contraste contra el catálogo", () => {
 
 describe("2PNC compuesto a partir del PNC simple", () => {
   it("duplica el eje fuerte y deja rx igual al del perfil simple", () => {
-    const simple = propiedades("PNC", 180);
-    const doble = componerDoblePNC(180, 0);
+    const simple = propiedades("PNC", { altura: 180 } );
+    const doble = componerDoblePNCAlmas(180, 0);
 
     expect(doble.areaM2).toBeCloseTo(2 * simple.areaM2, 10);
     expect(doble.ixM4).toBeCloseTo(2 * simple.ixM4, 12);
@@ -162,8 +240,8 @@ describe("2PNC compuesto a partir del PNC simple", () => {
   });
 
   it("separar los perfiles solo hace crecer el eje débil", () => {
-    const juntos = componerDoblePNC(180, 0);
-    const separados = componerDoblePNC(180, 0.1);
+    const juntos = componerDoblePNCAlmas(180, 0);
+    const separados = componerDoblePNCAlmas(180, 0.1);
 
     expect(separados.iyM4).toBeGreaterThan(juntos.iyM4);
     expect(separados.ryM).toBeGreaterThan(juntos.ryM);
@@ -174,7 +252,7 @@ describe("2PNC compuesto a partir del PNC simple", () => {
   // Los tres errores que traía la columna 2PNC180 de la planilla. Se dejan como
   // test para que no vuelvan a colarse si alguien recarga la tabla desde el Excel.
   describe("errores de la planilla que no se replican", () => {
-    const p = componerDoblePNC(180, 0);
+    const p = componerDoblePNCAlmas(180, 0);
 
     it("Iy no es igual a Ix: son ejes distintos", () => {
       // La planilla ponía 2,76e-5 en los dos, y de ahí rx = ry.
@@ -197,7 +275,7 @@ describe("2PNC compuesto a partir del PNC simple", () => {
 
   it("el área coincide con la de la planilla dentro del 2 %", () => {
     // Único valor de la columna 2PNC180 que sí era razonable: 5664,87 mm².
-    const p = componerDoblePNC(180, 0);
+    const p = componerDoblePNCAlmas(180, 0);
     expect(p.areaM2).toBeGreaterThan(0.98 * 5664.87e-6);
     expect(p.areaM2).toBeLessThan(1.02 * 5664.87e-6);
   });

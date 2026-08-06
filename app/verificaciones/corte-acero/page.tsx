@@ -2,15 +2,18 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
+import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
+import { AvisoFueraDeAlcance } from "@/components/verificaciones/AvisoFueraDeAlcance";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
 import { calcularCorte } from "@/lib/calc/aisc/corte";
-import { alturasDisponibles, familias, type Familia } from "@/lib/calc/aisc/perfiles";
+import { SeccionFueraDeAlcance } from "@/lib/calc/aisc/flexion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -18,10 +21,7 @@ const meta = registroVerificaciones.find((v) => v.id === "corte-acero")!;
 
 export default function CorteAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
-
-  const [familia, setFamilia] = useCampo<Familia>("familiaCorte", "PNI");
-  const [altura, setAltura] = useCampo("alturaCorte", "200");
-  const [separacion, setSeparacion] = useCampo("separacionCorte", "0");
+  const seccion = useSeccionAcero("PNI");
 
   const [conRigidizadores, setConRigidizadores] = useCampo("conRigidizadores", "No");
   const [aRigidizadores, setARigidizadores] = useCampo("aRigidizadores", "1.5");
@@ -29,33 +29,33 @@ export default function CorteAceroPage() {
   const [e, setE] = useCampo("eCorte", "200000");
   const [vRequerido, setVRequerido] = useCampo("vRequerido", "80");
 
-  const alturas = useMemo(() => alturasDisponibles(familia).map(String), [familia]);
-
-  const resultado = useMemo(() => {
-    const n = {
-      altura: aNumero(altura),
-      separacion: aNumero(separacion),
-      a: aNumero(aRigidizadores),
-      fy: aNumero(fy),
-      e: aNumero(e),
-      v: aNumero(vRequerido),
-    };
-    if (!alturas.includes(String(n.altura))) return null;
-    if (![n.fy, n.e, n.v].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (!Number.isFinite(n.separacion) || n.separacion < 0) return null;
+  const { resultado, fueraDeAlcance } = useMemo(() => {
+    const n = { a: aNumero(aRigidizadores), fy: aNumero(fy), e: aNumero(e), v: aNumero(vRequerido) };
     const usaRigidizadores = conRigidizadores === "Sí";
-    if (usaRigidizadores && (!Number.isFinite(n.a) || n.a <= 0)) return null;
+    if (!seccion.completos || ![n.fy, n.e, n.v].every((x) => Number.isFinite(x) && x > 0)) {
+      return { resultado: null, fueraDeAlcance: null };
+    }
+    if (usaRigidizadores && (!Number.isFinite(n.a) || n.a <= 0)) {
+      return { resultado: null, fueraDeAlcance: null };
+    }
 
-    return calcularCorte({
-      familia,
-      altura: n.altura,
-      separacionM: n.separacion,
-      fyPa: n.fy * 1e6,
-      ePa: n.e * 1e6,
-      separacionRigidizadoresM: usaRigidizadores ? n.a : undefined,
-      vRequeridoKN: n.v,
-    });
-  }, [familia, altura, separacion, conRigidizadores, aRigidizadores, fy, e, vRequerido, alturas]);
+    try {
+      return {
+        resultado: calcularCorte({
+          familia: seccion.familia,
+          params: seccion.params,
+          fyPa: n.fy * 1e6,
+          ePa: n.e * 1e6,
+          separacionRigidizadoresM: usaRigidizadores ? n.a : undefined,
+          vRequeridoKN: n.v,
+        }),
+        fueraDeAlcance: null,
+      };
+    } catch (error) {
+      if (error instanceof SeccionFueraDeAlcance) return { resultado: null, fueraDeAlcance: error };
+      return { resultado: null, fueraDeAlcance: null };
+    }
+  }, [seccion.familia, seccion.params, seccion.completos, conRigidizadores, aRigidizadores, fy, e, vRequerido]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -79,42 +79,13 @@ export default function CorteAceroPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Perfil</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoSeleccion
-                id="familiaCorte"
-                etiqueta="Familia"
-                valor={familia}
-                opciones={familias}
-                onChange={(v) => {
-                  setFamilia(v as Familia);
-                  const disponibles = alturasDisponibles(v as Familia);
-                  if (!disponibles.includes(aNumero(altura))) setAltura(String(disponibles[0]));
-                }}
-              />
-              <CampoSeleccion
-                id="alturaCorte"
-                etiqueta="Altura"
-                valor={altura}
-                opciones={alturas}
-                onChange={setAltura}
-              />
-              {familia === "2PNC" && (
-                <div className="col-span-full">
-                  <CampoNumerico
-                    id="separacionCorte"
-                    etiqueta="Separación entre dorsos de alma"
-                    sufijo="m"
-                    valor={separacion}
-                    onChange={setSeparacion}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SelectorSeccionAcero
+            familia={seccion.familia}
+            paramsTexto={seccion.paramsTexto}
+            params={seccion.params}
+            onFamiliaChange={seccion.cambiarFamilia}
+            onParamChange={seccion.cambiarParam}
+          />
 
           <Card>
             <CardHeader>
@@ -159,10 +130,12 @@ export default function CorteAceroPage() {
         </div>
 
         <div className="space-y-6">
-          {!resultado ? (
+          {fueraDeAlcance ? (
+            <AvisoFueraDeAlcance error={fueraDeAlcance} />
+          ) : !resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Elegí un perfil del catálogo y completá material y corte con valores positivos.
+                Completá la sección, el material y el corte con valores positivos.
               </CardContent>
             </Card>
           ) : (

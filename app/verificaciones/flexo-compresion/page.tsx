@@ -2,15 +2,17 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
+import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
+import { AvisoFueraDeAlcance } from "@/components/verificaciones/AvisoFueraDeAlcance";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
 import { calcularFlexoCompresion } from "@/lib/calc/aisc/flexo-compresion";
-import { alturasDisponibles, familias, type Familia } from "@/lib/calc/aisc/perfiles";
+import { SeccionFueraDeAlcance } from "@/lib/calc/aisc/flexion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -18,10 +20,7 @@ const meta = registroVerificaciones.find((v) => v.id === "flexo-compresion")!;
 
 export default function FlexoCompresionPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
-
-  const [familia, setFamilia] = useCampo<Familia>("familiaFC", "HEB");
-  const [altura, setAltura] = useCampo("alturaFC", "200");
-  const [separacion, setSeparacion] = useCampo("separacionFC", "0");
+  const seccion = useSeccionAcero("HEB");
 
   const [lcx, setLcx] = useCampo("lcxFC", "4");
   const [lcy, setLcy] = useCampo("lcyFC", "4");
@@ -34,42 +33,42 @@ export default function FlexoCompresionPage() {
   const [mrx, setMrx] = useCampo("mrx", "40");
   const [mry, setMry] = useCampo("mry", "10");
 
-  const alturas = useMemo(() => alturasDisponibles(familia).map(String), [familia]);
-
-  const resultado = useMemo(() => {
+  const { resultado, fueraDeAlcance } = useMemo(() => {
     const n = {
-      altura: aNumero(altura),
-      separacion: aNumero(separacion),
-      lcx: aNumero(lcx),
-      lcy: aNumero(lcy),
-      lb: aNumero(lb),
-      cb: aNumero(cb),
-      fy: aNumero(fy),
-      e: aNumero(e),
-      p: aNumero(pRequerida),
-      mrx: aNumero(mrx),
-      mry: aNumero(mry),
+      lcx: aNumero(lcx), lcy: aNumero(lcy), lb: aNumero(lb), cb: aNumero(cb),
+      fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida),
+      mrx: aNumero(mrx), mry: aNumero(mry),
     };
-    if (!alturas.includes(String(n.altura))) return null;
-    if (![n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e, n.p].every((x) => Number.isFinite(x) && x > 0))
-      return null;
-    if (![n.mrx, n.mry, n.separacion].every((x) => Number.isFinite(x) && x >= 0)) return null;
+    const positivos = [n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e, n.p];
+    if (!seccion.completos || !positivos.every((x) => Number.isFinite(x) && x > 0)) {
+      return { resultado: null, fueraDeAlcance: null };
+    }
+    if (![n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) {
+      return { resultado: null, fueraDeAlcance: null };
+    }
 
-    return calcularFlexoCompresion({
-      familia,
-      altura: n.altura,
-      separacionM: n.separacion,
-      lcxM: n.lcx,
-      lcyM: n.lcy,
-      lbM: n.lb,
-      cb: n.cb,
-      fyPa: n.fy * 1e6,
-      ePa: n.e * 1e6,
-      pRequeridaKN: n.p,
-      mrxKNm: n.mrx,
-      mryKNm: n.mry,
-    });
-  }, [familia, altura, separacion, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry, alturas]);
+    try {
+      return {
+        resultado: calcularFlexoCompresion({
+          familia: seccion.familia,
+          params: seccion.params,
+          lcxM: n.lcx,
+          lcyM: n.lcy,
+          lbM: n.lb,
+          cb: n.cb,
+          fyPa: n.fy * 1e6,
+          ePa: n.e * 1e6,
+          pRequeridaKN: n.p,
+          mrxKNm: n.mrx,
+          mryKNm: n.mry,
+        }),
+        fueraDeAlcance: null,
+      };
+    } catch (error) {
+      if (error instanceof SeccionFueraDeAlcance) return { resultado: null, fueraDeAlcance: error };
+      return { resultado: null, fueraDeAlcance: null };
+    }
+  }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -93,42 +92,13 @@ export default function FlexoCompresionPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Perfil</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoSeleccion
-                id="familiaFC"
-                etiqueta="Familia"
-                valor={familia}
-                opciones={familias}
-                onChange={(v) => {
-                  setFamilia(v as Familia);
-                  const disponibles = alturasDisponibles(v as Familia);
-                  if (!disponibles.includes(aNumero(altura))) setAltura(String(disponibles[0]));
-                }}
-              />
-              <CampoSeleccion
-                id="alturaFC"
-                etiqueta="Altura"
-                valor={altura}
-                opciones={alturas}
-                onChange={setAltura}
-              />
-              {familia === "2PNC" && (
-                <div className="col-span-full">
-                  <CampoNumerico
-                    id="separacionFC"
-                    etiqueta="Separación entre dorsos de alma"
-                    sufijo="m"
-                    valor={separacion}
-                    onChange={setSeparacion}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SelectorSeccionAcero
+            familia={seccion.familia}
+            paramsTexto={seccion.paramsTexto}
+            params={seccion.params}
+            onFamiliaChange={seccion.cambiarFamilia}
+            onParamChange={seccion.cambiarParam}
+          />
 
           <Card>
             <CardHeader>
@@ -158,10 +128,12 @@ export default function FlexoCompresionPage() {
         </div>
 
         <div className="space-y-6">
-          {!resultado ? (
+          {fueraDeAlcance ? (
+            <AvisoFueraDeAlcance error={fueraDeAlcance} />
+          ) : !resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Elegí un perfil y completá longitudes y material con valores positivos. Los
+                Completá la sección, las longitudes y el material con valores positivos. Los
                 momentos pueden ser cero.
               </CardContent>
             </Card>

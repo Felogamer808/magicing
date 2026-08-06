@@ -7,17 +7,15 @@
  * para un perfil por vez y leía las propiedades con HLOOKUP.
  */
 
-import { propiedades, type Familia } from "./perfiles";
+import { designacion, propiedades, type Familia, type ParametrosPerfil } from "./perfiles";
 
 /** Coeficiente de seguridad para compresión, AISC 360-16 art. E1. */
 export const OMEGA_C = 1.67;
 
 export interface DatosCompresion {
   familia: Familia;
-  /** Altura nominal del perfil, en mm (la del catálogo: 80, 100, …). */
-  altura: number;
-  /** Separación entre dorsos de alma, solo para 2PNC. En metros. */
-  separacionM?: number;
+  /** Parámetros de la sección, en mm: altura de catálogo, o dimensiones y espesor. */
+  params: ParametrosPerfil;
   /** Longitud efectiva de pandeo respecto del eje fuerte, Lc = K·L, en metros. */
   lcxM: number;
   /** Longitud efectiva de pandeo respecto del eje débil, en metros. */
@@ -105,7 +103,7 @@ function pandeoEnEje(lcM: number, rM: number, areaM2: number, fyPa: number, ePa:
 }
 
 export function calcularCompresion(datos: DatosCompresion): ResultadoCompresion {
-  const p = propiedades(datos.familia, datos.altura, datos.separacionM ?? 0);
+  const p = propiedades(datos.familia, datos.params);
 
   const ejeFuerte = pandeoEnEje(datos.lcxM, p.rxM, p.areaM2, datos.fyPa, datos.ePa);
   const ejeDebil = pandeoEnEje(datos.lcyM, p.ryM, p.areaM2, datos.fyPa, datos.ePa);
@@ -118,7 +116,7 @@ export function calcularCompresion(datos: DatosCompresion): ResultadoCompresion 
   const requerida = datos.pRequeridaKN;
 
   return {
-    designacion: `${datos.familia}${datos.altura}`,
+    designacion: designacion(datos.familia, datos.params),
     areaM2: p.areaM2,
     ejeFuerte,
     ejeDebil,

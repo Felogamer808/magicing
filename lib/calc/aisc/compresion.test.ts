@@ -54,13 +54,13 @@ describe("compresión de un perfil completo", () => {
   it("aplica Pn = Fcr·Ag y el coeficiente ASD Ωc = 1,67", () => {
     const r = calcularCompresion({
       familia: "PNI",
-      altura: 140,
+      params: { altura: 140 },
       lcxM: 3.6,
       lcyM: 1.5,
       fyPa: FY,
       ePa: E,
     });
-    const p = propiedades("PNI", 140);
+    const p = propiedades("PNI", { altura: 140 } );
 
     expect(r.ejeFuerte.esbeltez).toBeCloseTo(3.6 / p.rxM, 6);
     expect(r.ejeFuerte.pnKN).toBeCloseTo((r.ejeFuerte.fcrPa * p.areaM2) / 1000, 6);
@@ -72,7 +72,7 @@ describe("compresión de un perfil completo", () => {
     // El PNI tiene ry muy chico: con longitudes parecidas manda siempre el débil.
     const r = calcularCompresion({
       familia: "PNI",
-      altura: 140,
+      params: { altura: 140 },
       lcxM: 3.6,
       lcyM: 3.6,
       fyPa: FY,
@@ -87,7 +87,7 @@ describe("compresión de un perfil completo", () => {
   it("avisa cuando la esbeltez pasa de 200, como sugiere la nota de E2", () => {
     const corto = calcularCompresion({
       familia: "HEB",
-      altura: 200,
+      params: { altura: 200 },
       lcxM: 3,
       lcyM: 3,
       fyPa: FY,
@@ -95,7 +95,7 @@ describe("compresión de un perfil completo", () => {
     });
     const largo = calcularCompresion({
       familia: "PNI",
-      altura: 80,
+      params: { altura: 80 },
       lcxM: 6,
       lcyM: 6,
       fyPa: FY,
@@ -110,7 +110,7 @@ describe("compresión de un perfil completo", () => {
   it("verifica contra la carga requerida cuando se la pasa", () => {
     const base = {
       familia: "HEB" as const,
-      altura: 200,
+      params: { altura: 200 },
       lcxM: 3,
       lcyM: 3,
       fyPa: FY,
@@ -128,17 +128,51 @@ describe("compresión de un perfil completo", () => {
     ).toBeCloseTo(0.5, 6);
   });
 
+  /**
+   * E3 es pandeo por flexión y vale igual para secciones cerradas: no se le pone
+   * guarda, a diferencia de F2 y G2. Lo que sí puede gobernar en tubos de pared
+   * fina es el pandeo local del art. E7, que todavía no está.
+   */
+  it("resuelve tubos, que en E3 no tienen restricción de alcance", () => {
+    const redondo = calcularCompresion({
+      familia: "tubo-redondo",
+      params: { diametro: 168.3, espesor: 6 },
+      lcxM: 4,
+      lcyM: 4,
+      fyPa: FY,
+      ePa: E,
+    });
+    const rectangular = calcularCompresion({
+      familia: "tubo-rectangular",
+      params: { alto: 200, ancho: 100, espesor: 6 },
+      lcxM: 4,
+      lcyM: 4,
+      fyPa: FY,
+      ePa: E,
+    });
+
+    // El tubo redondo tiene el mismo radio de giro en los dos ejes: ninguno gobierna
+    // por geometría, y con longitudes iguales las dos resistencias coinciden.
+    expect(redondo.ejeFuerte.admisibleKN).toBeCloseTo(redondo.ejeDebil.admisibleKN, 6);
+    expect(redondo.admisibleKN).toBeGreaterThan(0);
+    expect(redondo.designacion).toBe("Ø168,3×6");
+
+    // El rectangular es más flexible en el eje corto, y ahí manda.
+    expect(rectangular.gobierna).toBe("débil");
+    expect(rectangular.designacion).toBe("□200×100×6");
+  });
+
   it("separar los dos PNC sube la resistencia del eje débil", () => {
     const comun = {
-      familia: "2PNC" as const,
-      altura: 180,
+      familia: "2PNC-almas" as const,
+      params: { altura: 180 },
       lcxM: 3.6,
       lcyM: 3.6,
       fyPa: FY,
       ePa: E,
     };
     const juntos = calcularCompresion(comun);
-    const separados = calcularCompresion({ ...comun, separacionM: 0.12 });
+    const separados = calcularCompresion({ ...comun, params: { altura: 180, separacion: 120 } });
 
     expect(separados.ejeDebil.admisibleKN).toBeGreaterThan(juntos.ejeDebil.admisibleKN);
     expect(separados.ejeFuerte.admisibleKN).toBeCloseTo(juntos.ejeFuerte.admisibleKN, 6);

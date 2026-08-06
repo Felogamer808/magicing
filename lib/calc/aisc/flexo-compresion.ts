@@ -13,12 +13,11 @@
 
 import { calcularCompresion } from "./compresion";
 import { calcularFlexion, calcularFlexionEjeDebil } from "./flexion";
-import { type Familia } from "./perfiles";
+import { type Familia, type ParametrosPerfil } from "./perfiles";
 
 export interface DatosFlexoCompresion {
   familia: Familia;
-  altura: number;
-  separacionM?: number;
+  params: ParametrosPerfil;
   /** Longitud efectiva de pandeo, eje fuerte, en metros. */
   lcxM: number;
   /** Longitud efectiva de pandeo, eje débil, en metros. */
@@ -62,8 +61,7 @@ export function calcularFlexoCompresion(
 ): ResultadoFlexoCompresion {
   const comun = {
     familia: datos.familia,
-    altura: datos.altura,
-    separacionM: datos.separacionM,
+    params: datos.params,
     fyPa: datos.fyPa,
     ePa: datos.ePa,
   };

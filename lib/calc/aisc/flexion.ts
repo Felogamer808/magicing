@@ -10,15 +10,35 @@
  * pandeo lateral-torsional, porque ya se está flexionando por el eje flexible.
  */
 
-import { propiedades, type Familia, type PropiedadesSeccion } from "./perfiles";
+import {
+  designacion,
+  propiedades,
+  type Familia,
+  type ParametrosPerfil,
+  type PropiedadesSeccion,
+} from "./perfiles";
 
 /** Coeficiente de seguridad para flexión, AISC 360-16 art. F1. */
 export const OMEGA_B = 1.67;
 
+/**
+ * Se lanza cuando la sección queda fuera del alcance del artículo. Lleva el
+ * artículo que sí correspondería, para poder decirlo en pantalla en lugar de
+ * devolver un número que no significa nada.
+ */
+export class SeccionFueraDeAlcance extends Error {
+  constructor(
+    readonly articuloAplicable: string,
+    mensaje: string
+  ) {
+    super(mensaje);
+    this.name = "SeccionFueraDeAlcance";
+  }
+}
+
 export interface DatosFlexion {
   familia: Familia;
-  altura: number;
-  separacionM?: number;
+  params: ParametrosPerfil;
   /** Longitud sin arriostrar del ala comprimida, Lb, en metros. */
   lbM: number;
   /** Factor de modificación por diagrama de momentos, Cb. Conservador: 1. */
@@ -102,8 +122,19 @@ function compacidad(p: PropiedadesSeccion, fyPa: number, ePa: number): Compacida
 }
 
 export function calcularFlexion(datos: DatosFlexion): ResultadoFlexion {
-  const p = propiedades(datos.familia, datos.altura, datos.separacionM ?? 0);
+  const p = propiedades(datos.familia, datos.params);
   const { fyPa, ePa, lbM, cb } = datos;
+
+  // F2 es para perfiles I y canales. Una sección cerrada tiene alabeo nulo, así
+  // que las ecs. F2-6 y F2-7 ni siquiera están definidas para ella: se va a otro
+  // artículo en lugar de forzar el cálculo.
+  if (p.esCerrada) {
+    const articulo = datos.familia === "tubo-redondo" ? "F8" : "F7";
+    throw new SeccionFueraDeAlcance(
+      articulo,
+      `El artículo F2 cubre perfiles I y canales. Una sección cerrada como esta se verifica por el artículo ${articulo}, todavía no implementado.`
+    );
+  }
 
   const hoM = p.hM - p.tfM;
   const compacta = compacidad(p, fyPa, ePa);
@@ -151,7 +182,7 @@ export function calcularFlexion(datos: DatosFlexion): ResultadoFlexion {
   const requerido = datos.mRequeridoKNm;
 
   return {
-    designacion: `${datos.familia}${datos.altura}`,
+    designacion: designacion(datos.familia, datos.params),
     mpKNm: mpNm / 1000,
     lpM,
     lrM,
@@ -172,8 +203,16 @@ export function calcularFlexion(datos: DatosFlexion): ResultadoFlexion {
 export function calcularFlexionEjeDebil(
   datos: Omit<DatosFlexion, "lbM" | "cb">
 ): ResultadoFlexionEjeDebil {
-  const p = propiedades(datos.familia, datos.altura, datos.separacionM ?? 0);
+  const p = propiedades(datos.familia, datos.params);
   const { fyPa, ePa } = datos;
+
+  if (p.esCerrada) {
+    const articulo = datos.familia === "tubo-redondo" ? "F8" : "F7";
+    throw new SeccionFueraDeAlcance(
+      articulo,
+      `El artículo F6 cubre perfiles I y canales. Una sección cerrada como esta se verifica por el artículo ${articulo}, todavía no implementado.`
+    );
+  }
 
   const compacta = compacidad(p, fyPa, ePa);
 
@@ -207,7 +246,7 @@ export function calcularFlexionEjeDebil(
   const requerido = datos.mRequeridoKNm;
 
   return {
-    designacion: `${datos.familia}${datos.altura}`,
+    designacion: designacion(datos.familia, datos.params),
     mpKNm: mpNm / 1000,
     limitadoPorSy: tope < plastico,
     estado,

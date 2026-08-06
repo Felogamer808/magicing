@@ -87,6 +87,13 @@ imagen con el path relativo al capítulo.
   de inline). Es cosmético, no altera el contenido.
 - 5 de las 40 tablas no se parsearon a HTML y quedaron como imagen; el archivo
   igual las referencia.
+- **Hay ecuaciones que se perdieron y de las que sólo queda la etiqueta.**
+  Confirmada así la **(7.14)** en `07-...els.md`: aparece `(7.14)` suelto, sin
+  fórmula. Es `s_r,max = 1,3·(h − x)` (verificado contra el PDF del BOE, pág.
+  117). Si una etiqueta aparece sin ecuación al lado, no reconstruirla de
+  memoria: está el PDF original en
+  `Escritorio/0. Bibliografia/Normas/Código Estructural Español/anejo_19._proyecto_de_estructuras_de_hormigon._reglas_generales.pdf`,
+  y la numeración de página del `<!-- pag N -->` coincide con la del PDF.
 - Este anejo remite en varios puntos al articulado principal del Código
   Estructural (Artículos 1-100), que **no** está incluido acá.
 

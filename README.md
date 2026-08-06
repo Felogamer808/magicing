@@ -53,7 +53,8 @@ medianería · zapata combinada · losa de fundación · pilotes · cabezal de 2
 **Contención** — muro de contención: vuelco, deslizamiento y tensión del suelo, en muro libre
 o apuntalado por contrapiso y losa.
 
-**Estado límite de servicio** — fisuración: abertura característica por separación media.
+**Estado límite de servicio** — fisuración: abertura característica por el método del Anejo 19
+(art. 7.3.4), con área eficaz, cuantía eficaz y fibra neutra de la sección fisurada.
 
 **Acciones** — viento (CIRSOC 102): velocidad de cálculo, presión dinámica y carga por nivel.
 
@@ -90,6 +91,22 @@ involucrados coincidían.
    viga plana con `ρl = 0,3 %` la planilla devolvía **43 % más resistencia** que la norma, o sea
    podía no pedir estribos donde el articulado sí los pide. Es el único de los siete donde el
    error de la planilla iba del lado inseguro.
+
+## Norma de referencia
+
+El motor implementa el **Anejo 19 del Código Estructural** (RD 470/2021), la
+transposición española del Eurocódigo 2. El articulado está disponible como skill
+del repositorio y cada fórmula del código cita su artículo, ecuación y página.
+
+La planilla original decía seguir el Eurocódigo pero arrastraba coeficientes de la
+**EHE-08**, derogada. La auditoría completa está en `AUDITORIA.md`: seis
+hallazgos, todos corregidos. Los que iban del lado inseguro eran el mínimo del
+cortante sin estribos, el agotamiento de bielas `V_Rd,max`, la interacción
+torsión+cortante que no se comprobaba, y el perímetro crítico de punzonamiento.
+
+Por eso **algunos resultados ya no coinciden con la planilla**, y es a propósito:
+donde difieren, manda el articulado. Cada test que cambió de valor esperado
+explica por qué el número nuevo es el correcto.
 
 ## Pendientes
 

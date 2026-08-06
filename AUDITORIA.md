@@ -3,8 +3,8 @@
 Fecha: 2026-08-05. Contrastado contra el Anejo 19 del Código Estructural
 (RD 470/2021), vía la skill `codigo-estructural-hormigon`.
 
-Corregidos los hallazgos 0, 1, 2, 3 y 5. Queda abierto sólo el 4, que no es un
-error de transcripción sino un cambio de método completo y necesita decisión.
+**Los seis hallazgos están corregidos.** Lo que queda pendiente es auditar los
+módulos que todavía no se revisaron, listados abajo.
 
 Impacto medido de las correcciones sobre los casos de referencia:
 
@@ -15,6 +15,7 @@ Impacto medido de las correcciones sobre los casos de referencia:
 | Interacción torsión+cortante, caso de referencia | no se comprobaba | 1,284 → **no verifica** |
 | Punzonamiento, zapata 3×3 H = 0,6 | aprovechamiento 0,34 en 2d | 0,57 en el crítico (0,94·d) |
 | Bielas y nudos del cabezal | no se comprobaban | σ biela 6,66 / 10,56 MPa |
+| Fisuración, zona x (43 cm, 7φ16/m) | 0,215 mm ✅ (EHE-08) | 0,473 mm ❌ (Anejo 19) |
 
 ## Qué se auditó y qué no
 
@@ -110,7 +111,7 @@ comprobando. Hay que iterar `a` y quedarse con el mínimo.
 Lo que sí está bien: `β = 1,15` para pilar interior es el valor simplificado del
 art. 6.4.3(6), y aplicarlo sobre una zapata de carga centrada es conservador.
 
-## Hallazgo 4 — Fisuración implementa el método de la EHE-08 🔶 requiere decisión
+## Hallazgo 4 — Fisuración implementaba el método de la EHE-08 ✅ CORREGIDO
 
 `fisuracion.ts` calcula:
 
@@ -130,12 +131,36 @@ w_k = s_r,max · (ε_sm − ε_cm)
 ```
 
 No es un coeficiente distinto: es **otro método completo**, con otra área eficaz
-y otro piso para la deformación media (0,6 en vez de 0,4). No se puede decir a
-priori cuál da más sin correr los dos sobre casos concretos.
+y otro piso para la deformación media (0,6 en vez de 0,4).
 
-No lo toco porque cambiarlo es rehacer el módulo, y porque los dos métodos son
-formulaciones calibradas y publicadas — no es un error de transcripción como los
-anteriores. Pero la página dice "EC2" y está calculando con la norma derogada.
+Migrado al art. 7.3.4. De paso se dejaron de aproximar dos cosas que el método
+nuevo obliga a calcular igual: la fibra neutra `x` de la sección fisurada (hace
+falta para `hc,ef`) y con ella el brazo mecánico real `z = d − x/3`, en vez del
+`0,8·d` que se usaba antes.
+
+**El impacto es muy desparejo, y conviene entender por qué:**
+
+| Caso de referencia | EHE-08 | Anejo 19 |
+|---|---|---|
+| Zona 1 — losa 18 cm, φ8/15 + φ10/20 | 0,1218 mm ✅ | 0,1204 mm ✅ |
+| Zona x — sección 43 cm, 7φ16/m | 0,2146 mm ✅ | **0,4727 mm ❌** |
+
+La zona 1 casi no se mueve. La zona x más que se duplica **y deja de verificar**,
+y no por el cambio de método sino por un escalón del propio articulado: sus
+barras quedan a 142,9 mm y el límite `5(c + φ/2)` es 140 mm. Por 3 mm cruza a la
+ec. (7.14), donde la separación de fisuras la fija el canto —`1,3·(h − x)` =
+462 mm— en vez de la adherencia —la (7.11) daría 203 mm—. Las dos expresiones no
+empalman: es una discontinuidad conocida del EC2, no un error de implementación.
+
+Consecuencia práctica: en esa sección conviene **repartir el mismo acero en más
+barras más finas**. Pasando de 7φ16 a 10φ16 vuelve a la (7.11) y la abertura cae
+a menos de la mitad. La página avisa en pantalla cuando el cálculo entra en esa
+rama, porque si no el salto parece arbitrario.
+
+**Nota metodológica:** la ec. (7.14) no sobrevivió al OCR de la skill —quedó sólo
+la etiqueta— así que se verificó contra el PDF del BOE (pág. 117) antes de
+programarla. Queda anotado en la SKILL.md para la próxima vez que aparezca una
+etiqueta sin fórmula.
 
 ## Hallazgo 5 — Cabezal: faltan las comprobaciones de nudos y bielas ✅ CORREGIDO
 

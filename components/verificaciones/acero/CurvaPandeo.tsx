@@ -58,7 +58,7 @@ export function CurvaPandeo({ fyPa, ePa, esbeltezFuerte, esbeltezDebil, gobierna
         <circle cx={x(esb)} cy={y(rel)} r={manda ? 4 : 3}
                 className={manda ? "fill-destructive" : "fill-muted-foreground"} />
         <text x={x(esb)} y={y(rel) - 8} textAnchor="middle"
-              className={`text-[9px] ${manda ? "fill-destructive font-medium" : "fill-muted-foreground"}`}>
+              className={`text-[10.5px] ${manda ? "fill-destructive font-medium" : "fill-muted-foreground"}`}>
           {etiqueta} {fmt(esb)}
         </text>
       </g>
@@ -72,23 +72,23 @@ export function CurvaPandeo({ fyPa, ePa, esbeltezFuerte, esbeltezDebil, gobierna
         {/* Ejes. */}
         <line x1={IZQ} y1={TOP - 6} x2={IZQ} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
         <line x1={IZQ} y1={BASE} x2={DER} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
-        <text x={IZQ - 6} y={y(1) + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">1,0</text>
-        <text x={IZQ - 6} y={BASE + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">0</text>
-        <text x={IZQ - 38} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[9px]">Fcr/Fy</text>
-        <text x={DER} y={ALTO - 6} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={IZQ - 6} y={y(1) + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">1,0</text>
+        <text x={IZQ - 6} y={BASE + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">0</text>
+        <text x={IZQ - 38} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[10.5px]">Fcr/Fy</text>
+        <text x={DER} y={ALTO - 6} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           esbeltez Lc/r
         </text>
 
         {/* Frontera entre pandeo inelástico y elástico. */}
         <line x1={x(limite)} y1={TOP - 6} x2={x(limite)} y2={BASE + 6}
               className="stroke-primary/70" strokeWidth={1} strokeDasharray="5 3" />
-        <text x={x(limite)} y={TOP - 9} textAnchor="middle" className="fill-primary text-[9px]">
+        <text x={x(limite)} y={TOP - 9} textAnchor="middle" className="fill-primary text-[10.5px]">
           4,71·√(E/Fy) = {fmt(limite)}
         </text>
-        <text x={x(limite) - 6} y={BASE - 6} textAnchor="end" className="fill-muted-foreground text-[8px]">
+        <text x={x(limite) - 6} y={BASE - 6} textAnchor="end" className="fill-muted-foreground text-[9.5px]">
           inelástico
         </text>
-        <text x={x(limite) + 6} y={BASE - 6} className="fill-muted-foreground text-[8px]">
+        <text x={x(limite) + 6} y={BASE - 6} className="fill-muted-foreground text-[9.5px]">
           elástico
         </text>
 

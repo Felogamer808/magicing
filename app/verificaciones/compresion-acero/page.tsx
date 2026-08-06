@@ -66,7 +66,7 @@ export default function CompresionAceroPage() {
   }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, fy, e, pRequerida]);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>

@@ -71,7 +71,7 @@ export function ArmadoMuroDiagrama({
         <line x1={xMuro + px(espesorMuroM)} y1={yCoronacion} x2={ANCHO - 8} y2={yCoronacion}
               className="stroke-foreground/25" strokeWidth={1} />
         <text x={ANCHO - 8} y={yCoronacion - 5} textAnchor="end"
-              className="fill-muted-foreground text-[9px]">terreno</text>
+              className="fill-muted-foreground text-[10.5px]">terreno</text>
 
         {/*
           Hastial: la armadura va contra la cara del trasdós, que es la que se
@@ -83,7 +83,7 @@ export function ArmadoMuroDiagrama({
               L${xMuro + px(espesorMuroM) + px(talonM) * 0.55} ${Y_BASE - rec}`}
           fill="none" className={color(hastial)} strokeWidth={2.2} strokeLinejoin="round" />
         <text x={xMuro + px(espesorMuroM) + 6} y={(yCoronacion + yTopZapata) / 2}
-              className={hastial.verifica ? "fill-primary text-[9px]" : "fill-destructive text-[9px] font-medium"}>
+              className={hastial.verifica ? "fill-primary text-[10.5px]" : "fill-destructive text-[10.5px] font-medium"}>
           hastial {rotulo(hastial)}
         </text>
 
@@ -92,7 +92,7 @@ export function ArmadoMuroDiagrama({
               x2={xZapata + px(anchoZapataM) - rec} y2={yTopZapata + rec}
               className={color(talon)} strokeWidth={2.2} />
         <text x={xZapata + px(anchoZapataM) + 6} y={yTopZapata + rec + 3}
-              className={talon.verifica ? "fill-primary text-[9px]" : "fill-destructive text-[9px] font-medium"}>
+              className={talon.verifica ? "fill-primary text-[10.5px]" : "fill-destructive text-[10.5px] font-medium"}>
           talón {rotulo(talon)}
         </text>
 
@@ -103,14 +103,14 @@ export function ArmadoMuroDiagrama({
                   x2={xMuro + px(espesorMuroM)} y2={Y_BASE - rec}
                   className={color(puntera)} strokeWidth={2.2} />
             <text x={xZapata - 6} y={Y_BASE + 16} textAnchor="start"
-                  className={puntera.verifica ? "fill-primary text-[9px]" : "fill-destructive text-[9px] font-medium"}>
+                  className={puntera.verifica ? "fill-primary text-[10.5px]" : "fill-destructive text-[10.5px] font-medium"}>
               puntera {rotulo(puntera)}
             </text>
           </>
         )}
 
         {/* Leyenda de caras, que es lo que el dibujo viene a fijar. */}
-        <text x={8} y={16} className="fill-muted-foreground text-[9px]">
+        <text x={8} y={16} className="fill-muted-foreground text-[10.5px]">
           hastial: cara interior · talón: arriba · puntera: abajo
         </text>
       </svg>

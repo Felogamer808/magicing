@@ -66,7 +66,7 @@ export function LosaDiagrama({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full max-w-md text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         <defs>
           <marker id={arrowId} markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
             <path d="M0 0 L6 3 L0 6 Z" fill="currentColor" />
@@ -84,7 +84,7 @@ export function LosaDiagrama({
           y={(y0 + y1) / 2}
           textAnchor="middle"
           className="fill-current font-mono"
-          fontSize="9"
+          fontSize="10.5"
           transform={`rotate(-90 ${x0 - 24} ${(y0 + y1) / 2})`}
         >
           e = {fmtM(eM, 2)}
@@ -109,13 +109,13 @@ export function LosaDiagrama({
           <circle key={`px-${i}`} cx={x} cy={yPosX} r={rPosX} fill="currentColor" />
         ))}
 
-        <text x={x1 - 2} y={y0 - 8} textAnchor="end" className="fill-current font-mono" fontSize="8" opacity="0.8">
+        <text x={x1 - 2} y={y0 - 8} textAnchor="end" className="fill-current font-mono" fontSize="9.5" opacity="0.8">
           negativa (superior)
         </text>
-        <text x={x1 - 2} y={y1 + 14} textAnchor="end" className="fill-current font-mono" fontSize="8" opacity="0.8">
+        <text x={x1 - 2} y={y1 + 14} textAnchor="end" className="fill-current font-mono" fontSize="9.5" opacity="0.8">
           positiva (inferior)
         </text>
-        <text x={x0 + 2} y={y1 + 14} className="fill-current font-mono" fontSize="8" opacity="0.7">
+        <text x={x0 + 2} y={y1 + 14} className="fill-current font-mono" fontSize="9.5" opacity="0.7">
           ● X (interior) · ○ Y (exterior)
         </text>
       </svg>

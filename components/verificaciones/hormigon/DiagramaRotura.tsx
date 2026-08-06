@@ -70,7 +70,7 @@ export function DiagramaRotura({
         <line x1={xSeccion - 8} y1={yX} x2={xTen + anchoTen + 8} y2={yX}
               className="stroke-destructive" strokeWidth={1.1} strokeDasharray="5 3" />
         <text x={xSeccion + anchoSeccion / 2} y={BASE + 13} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           sección
         </text>
         {/* Armadura traccionada. */}
@@ -83,52 +83,52 @@ export function DiagramaRotura({
                  className="fill-primary/25 stroke-primary" strokeWidth={1} />
         <polygon points={`${xDef},${yX} ${xDef - (anchoDef * Math.min(deformacionAcero, 0.02)) / 0.02},${yD} ${xDef},${yD}`}
                  className="fill-destructive/20 stroke-destructive" strokeWidth={1} />
-        <text x={xDef + anchoDef + 3} y={TOP + 4} className="fill-primary text-[9px]">3,5 ‰</text>
+        <text x={xDef + anchoDef + 3} y={TOP + 4} className="fill-primary text-[10.5px]">3,5 ‰</text>
         <text x={xDef - (anchoDef * Math.min(deformacionAcero, 0.02)) / 0.02 - 3} y={yD + 3}
               textAnchor="end"
-              className={`text-[9px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
           {fmt(deformacionAcero * 1000, 2)} ‰
         </text>
         <text x={xDef + anchoDef / 2} y={BASE + 13} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">deformaciones</text>
+              className="fill-muted-foreground text-[10.5px]">deformaciones</text>
 
         {/* --- Tensiones y resultantes --- */}
         <rect x={xTen} y={TOP} width={anchoTen} height={yBloque - TOP}
               className="fill-primary/30 stroke-primary" strokeWidth={1} />
-        <text x={xTen + anchoTen + 4} y={(TOP + yBloque) / 2 + 3} className="fill-primary text-[9px]">
+        <text x={xTen + anchoTen + 4} y={(TOP + yBloque) / 2 + 3} className="fill-primary text-[10.5px]">
           fcd
         </text>
         {/* Resultante de compresión, en el centro del bloque. */}
         <line x1={xTen} y1={(TOP + yBloque) / 2} x2={xTen + anchoTen + 26} y2={(TOP + yBloque) / 2}
               className="stroke-primary" strokeWidth={1.6} />
-        <text x={xTen + anchoTen + 30} y={(TOP + yBloque) / 2 + 3} className="fill-primary text-[9px]">C</text>
+        <text x={xTen + anchoTen + 30} y={(TOP + yBloque) / 2 + 3} className="fill-primary text-[10.5px]">C</text>
         {/* Resultante de tracción. */}
         <line x1={xTen} y1={yD} x2={xTen + anchoTen + 26} y2={yD}
               className="stroke-destructive" strokeWidth={1.6} />
-        <text x={xTen + anchoTen + 30} y={yD + 3} className="fill-destructive text-[9px]">T</text>
+        <text x={xTen + anchoTen + 30} y={yD + 3} className="fill-destructive text-[10.5px]">T</text>
         {/* Brazo mecánico. */}
         <line x1={xTen + anchoTen + 18} y1={(TOP + yBloque) / 2} x2={xTen + anchoTen + 18} y2={yD}
               className="stroke-foreground/60" strokeWidth={1} />
         <text x={xTen + anchoTen + 22} y={((TOP + yBloque) / 2 + yD) / 2}
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           z = {fmt(zM * 100)} cm
         </text>
         <text x={xTen + anchoTen / 2} y={BASE + 13} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">tensiones</text>
+              className="fill-muted-foreground text-[10.5px]">tensiones</text>
 
         {/* Cotas de x y del bloque. */}
-        <text x={xSeccion - 6} y={yX + 3} textAnchor="end" className="fill-destructive text-[9px]">
+        <text x={xSeccion - 6} y={yX + 3} textAnchor="end" className="fill-destructive text-[10.5px]">
           x = {fmt(xM * 100)}
         </text>
-        <text x={xSeccion - 6} y={yBloque - 3} textAnchor="end" className="fill-primary text-[9px]">
+        <text x={xSeccion - 6} y={yBloque - 3} textAnchor="end" className="fill-primary text-[10.5px]">
           0,8x
         </text>
-        <text x={xSeccion - 6} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={xSeccion - 6} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           d = {fmt(dM * 100)}
         </text>
 
         <text x={ANCHO - 4} y={12} textAnchor="end"
-              className={`text-[9px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
           {fluye ? "el acero fluye antes que rompa el hormigón" : "sobrearmada: el acero no llega a fluir"}
         </text>
       </svg>

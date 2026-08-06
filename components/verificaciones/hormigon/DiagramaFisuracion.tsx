@@ -80,7 +80,7 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         <rect x={xIzq} y={TOP} width={anchoSeccion} height={yX - TOP}
               className="fill-primary/30" />
         <text x={xIzq + anchoSeccion / 2} y={(TOP + yX) / 2 + 3} textAnchor="middle"
-              className="fill-foreground text-[9px]">comprimido</text>
+              className="fill-foreground text-[10.5px]">comprimido</text>
 
         {/* Área eficaz de tracción: la franja que gobierna la fisuración. */}
         <rect x={xIzq} y={yEficaz} width={anchoSeccion} height={BASE - yEficaz}
@@ -91,7 +91,7 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         {/* Fibra neutra. */}
         <line x1={xIzq - 10} y1={yX} x2={xDer + 10} y2={yX}
               className="stroke-primary" strokeWidth={1.2} strokeDasharray="5 3" />
-        <text x={xIzq - 12} y={yX + 3} textAnchor="end" className="fill-primary text-[9px]">
+        <text x={xIzq - 12} y={yX + 3} textAnchor="end" className="fill-primary text-[10.5px]">
           x = {fmt(xM * 100)} cm
         </text>
 
@@ -103,7 +103,7 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
             : xIzq + anchoSeccion * 0.12 + (i * paso) / (n1 - 1);
           return <circle key={i} cx={cx} cy={yD} r={2.8} className="fill-foreground" />;
         })}
-        <text x={xIzq - 12} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={xIzq - 12} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           {n1}⌀{diametro1Mm}
         </text>
 
@@ -112,20 +112,20 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
               className="stroke-destructive" strokeWidth={1.2} />
         <line x1={xDer + 12} y1={yEficaz} x2={xDer + 20} y2={yEficaz} className="stroke-destructive" strokeWidth={1.2} />
         <line x1={xDer + 12} y1={BASE} x2={xDer + 20} y2={BASE} className="stroke-destructive" strokeWidth={1.2} />
-        <text x={xDer + 24} y={(yEficaz + BASE) / 2 - 3} className="fill-destructive text-[9px]">
+        <text x={xDer + 24} y={(yEficaz + BASE) / 2 - 3} className="fill-destructive text-[10.5px]">
           hc,ef = {fmt(hcEfM * 100)} cm
         </text>
-        <text x={xDer + 24} y={(yEficaz + BASE) / 2 + 9} className="fill-muted-foreground text-[9px]">
+        <text x={xDer + 24} y={(yEficaz + BASE) / 2 + 9} className="fill-muted-foreground text-[10.5px]">
           manda {manda.nombre}
         </text>
 
         {/* Cuantía eficaz y tensión del acero: lo que alimenta la separación de fisuras. */}
-        <text x={xIzq} y={BASE + 16} className="fill-muted-foreground text-[9px]">
+        <text x={xIzq} y={BASE + 16} className="fill-muted-foreground text-[10.5px]">
           ρp,ef = {fmt(rhoPEf * 100, 2)} % · σs = {fmt(sigmaSMPa, 0)} MPa · sr,máx = {fmt(srMaxMm, 0)} mm
         </text>
 
         {/* Abertura de fisura contra su límite. */}
-        <text x={xBarra} y={TOP + 2} className="fill-muted-foreground text-[9px]">abertura wk</text>
+        <text x={xBarra} y={TOP + 2} className="fill-muted-foreground text-[10.5px]">abertura wk</text>
         <rect x={xBarra} y={TOP + 8} width={wAdmMm * escalaW} height={13}
               className="fill-emerald-600/15" />
         <rect x={xBarra} y={TOP + 8} width={Math.max(wkMm * escalaW, 1)} height={13}
@@ -134,14 +134,14 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         <line x1={xBarra + wAdmMm * escalaW} y1={TOP + 4} x2={xBarra + wAdmMm * escalaW} y2={TOP + 25}
               className="stroke-emerald-700" strokeWidth={1} strokeDasharray="3 2" />
         <text x={xBarra} y={TOP + 36}
-              className={`text-[10px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
           {fmt(wkMm, 3)} mm
         </text>
-        <text x={xBarra} y={TOP + 48} className="fill-muted-foreground text-[9px]">
+        <text x={xBarra} y={TOP + 48} className="fill-muted-foreground text-[10.5px]">
           límite {fmt(wAdmMm, 1)} mm
         </text>
 
-        <text x={xIzq} y={ALTO - 6} className="fill-muted-foreground text-[9px]">
+        <text x={xIzq} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">
           La fisuración la gobierna la franja rayada, no el hormigón traccionado entero.
         </text>
       </svg>

@@ -82,7 +82,7 @@ export function CroquisGeometriaCabezal() {
 
       {/* Nd bien arriba, para no pisar el rótulo del pilar. */}
       <path d={`M${xc} 8 L${xc} 30`} stroke="currentColor" strokeWidth="1.6" markerEnd="url(#croquis-flecha)" />
-      <text x={xc + 7} y="22" className="fill-current font-mono" fontSize="9">
+      <text x={xc + 7} y="22" className="fill-current font-mono" fontSize="10.5">
         Nd
       </text>
 
@@ -127,7 +127,7 @@ export function CroquisArmaduraPrincipalCabezal() {
 
       {/* tirante */}
       <path d={`M${xc - dx - 10} ${yBot - 8} L${xc + dx + 10} ${yBot - 8}`} stroke="currentColor" strokeWidth="2.6" />
-      <text x={xc} y={yBot - 12} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+      <text x={xc} y={yBot - 12} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
         Td
       </text>
 

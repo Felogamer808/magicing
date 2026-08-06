@@ -65,7 +65,7 @@ export function DiagramaFlechas({
 
           return (
             <g key={f.etiqueta}>
-              <text x={X_ETIQUETA} y={y + 11} textAnchor="end" className="fill-foreground text-[10px]">
+              <text x={X_ETIQUETA} y={y + 11} textAnchor="end" className="fill-foreground text-[11.5px]">
                 {f.etiqueta}
               </text>
 
@@ -74,7 +74,7 @@ export function DiagramaFlechas({
                     className="fill-emerald-600/10" />
               <line x1={xLimite} y1={y - 3} x2={xLimite} y2={y + 19}
                     className="stroke-emerald-700/60" strokeWidth={1} strokeDasharray="3 2" />
-              <text x={xLimite + 4} y={y + 11} className="fill-muted-foreground text-[9px]">
+              <text x={xLimite + 4} y={y + 11} className="fill-muted-foreground text-[10.5px]">
                 {fmt(f.limiteMm)} · {f.referencia}
               </text>
 
@@ -83,7 +83,7 @@ export function DiagramaFlechas({
                     strokeWidth={1} />
               <text x={f.valorMm >= 0 ? xBarra + anchoBarra + 4 : xBarra - 4} y={y + 12}
                     textAnchor={f.valorMm >= 0 ? "start" : "end"}
-                    className={`text-[10px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
+                    className={`text-[11.5px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
                 {fmt(f.valorMm)}
               </text>
             </g>
@@ -93,10 +93,10 @@ export function DiagramaFlechas({
         {/* Eje de flecha nula: a su izquierda la pieza queda levantada. */}
         <line x1={X_CERO} y1={8} x2={X_CERO} y2={filas.length * ALTO_FILA + 10}
               className="stroke-foreground/50" strokeWidth={1.2} />
-        <text x={X_CERO - 2} y={alto - 6} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={X_CERO - 2} y={alto - 6} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           ← contraflecha
         </text>
-        <text x={X_CERO + 2} y={alto - 6} className="fill-muted-foreground text-[9px]">
+        <text x={X_CERO + 2} y={alto - 6} className="fill-muted-foreground text-[10.5px]">
           flecha (mm) →
         </text>
       </svg>

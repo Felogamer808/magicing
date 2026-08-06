@@ -156,7 +156,7 @@ function CasoApuntalado({
 }) {
   return (
     <g>
-      <text x={x + 6} y={12} textAnchor="middle" className="fill-current font-mono" fontSize="9" opacity="0.75">
+      <text x={x + 6} y={12} textAnchor="middle" className="fill-current font-mono" fontSize="10.5" opacity="0.75">
         {titulo}
       </text>
       <LineaTerreno x0={x + APOYOS_ANCHO_MURO} x1={x + 40} y={APOYOS_Y_TOP} />
@@ -233,7 +233,7 @@ export function CroquisSueloMuro() {
       {[104, 122, 140, 158, 176].map((x) => (
         <path key={x} d={`M${x} 10 L${x} 22`} stroke="currentColor" strokeWidth="1" markerEnd="url(#croquis-flecha)" opacity="0.85" />
       ))}
-      <text x={188} y={16} className="fill-current font-mono" fontSize="9">
+      <text x={188} y={16} className="fill-current font-mono" fontSize="10.5">
         q
       </text>
 
@@ -245,7 +245,7 @@ export function CroquisSueloMuro() {
       {/* rozamiento en la base */}
       <path d="M62 104 L118 104" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 2" opacity="0.7" />
       <path d="M70 104 L100 104" stroke="currentColor" strokeWidth="1.3" markerEnd="url(#croquis-flecha)" />
-      <text x="104" y="112" className="fill-current font-mono" fontSize="9">
+      <text x="104" y="112" className="fill-current font-mono" fontSize="10.5">
         tan φ · N + c · A
       </text>
 

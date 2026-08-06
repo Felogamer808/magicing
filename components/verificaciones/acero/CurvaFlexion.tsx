@@ -77,14 +77,14 @@ export function CurvaFlexion({
         {/* Mp como techo. */}
         <line x1={IZQ} y1={y(mpKNm)} x2={DER} y2={y(mpKNm)}
               className="stroke-muted-foreground/60" strokeWidth={1} strokeDasharray="4 3" />
-        <text x={IZQ - 6} y={y(mpKNm) + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={IZQ - 6} y={y(mpKNm) + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           Mp
         </text>
-        <text x={IZQ - 6} y={BASE + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">0</text>
-        <text x={IZQ - 46} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[9px]">
+        <text x={IZQ - 6} y={BASE + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">0</text>
+        <text x={IZQ - 46} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[10.5px]">
           Mn (kN·m)
         </text>
-        <text x={DER} y={ALTO - 6} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={DER} y={ALTO - 6} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           Lb sin arriostrar (m)
         </text>
 
@@ -93,7 +93,7 @@ export function CurvaFlexion({
           <g key={c.t}>
             <line x1={x(c.v)} y1={TOP - 6} x2={x(c.v)} y2={BASE + 5}
                   className="stroke-foreground/40" strokeWidth={1} strokeDasharray="3 2" />
-            <text x={x(c.v)} y={BASE + 14} textAnchor="middle" className="fill-muted-foreground text-[9px]">
+            <text x={x(c.v)} y={BASE + 14} textAnchor="middle" className="fill-muted-foreground text-[10.5px]">
               {c.t} {fmt(c.v, 1)}
             </text>
           </g>
@@ -108,7 +108,7 @@ export function CurvaFlexion({
                   className="stroke-destructive" strokeWidth={1} strokeDasharray="3 2" />
             <circle cx={x(lbM)} cy={y(mnKNm)} r={4} className="fill-destructive" />
             <text x={x(lbM)} y={y(mnKNm) - 8} textAnchor="middle"
-                  className="fill-destructive text-[9px] font-medium">
+                  className="fill-destructive text-[10.5px] font-medium">
               {fmt(mnKNm, 0)} kN·m
             </text>
           </>

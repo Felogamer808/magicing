@@ -92,7 +92,7 @@ export function SeccionVigaDiagrama({
     <div className="flex flex-col items-center gap-3">
       <svg
         viewBox={`0 0 ${viewW} ${viewH}`}
-        className="h-auto w-full max-w-xs text-primary"
+        className="h-auto w-full text-primary"
         fill="none"
         aria-hidden="true"
       >
@@ -117,7 +117,7 @@ export function SeccionVigaDiagrama({
           y={y0 - 18}
           textAnchor="middle"
           className="fill-current font-mono"
-          fontSize="9"
+          fontSize="10.5"
         >
           b = {fmtM(bM)}
         </text>
@@ -137,7 +137,7 @@ export function SeccionVigaDiagrama({
           y={(y0 + y1) / 2}
           textAnchor="middle"
           className="fill-current font-mono"
-          fontSize="9"
+          fontSize="10.5"
           transform={`rotate(-90 ${PAD_LEFT - 22} ${(y0 + y1) / 2})`}
         >
           h = {fmtM(hM)}
@@ -176,7 +176,7 @@ export function SeccionVigaDiagrama({
           <path d={`M${x1} ${y0} L${x1 + 12} ${y0}`} />
           <path d={`M${x1} ${yCentroidePos} L${x1 + 12} ${yCentroidePos}`} />
         </g>
-        <text x={x1 + 14} y={(y0 + yCentroidePos) / 2 + 3} className="fill-current font-mono" fontSize="8">
+        <text x={x1 + 14} y={(y0 + yCentroidePos) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
           d
         </text>
 

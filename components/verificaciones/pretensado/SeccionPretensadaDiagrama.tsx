@@ -99,7 +99,7 @@ export function SeccionPretensadaDiagrama({
           strokeDasharray="5 3"
         />
         <text x={xCentro + px(bSimpleM) / 2 + 11} y={yBase - px(ygSimpleM) + 3}
-              className="fill-primary text-[9px]">
+              className="fill-primary text-[10.5px]">
           G premold.
         </text>
 
@@ -115,7 +115,7 @@ export function SeccionPretensadaDiagrama({
               strokeDasharray="2 3"
             />
             <text x={xCentro + px(bCompuestaM) / 2 + 11} y={yBase - px(ygCompuestaM) + 3}
-                  className="fill-muted-foreground text-[9px]">
+                  className="fill-muted-foreground text-[10.5px]">
               G compuesta
             </text>
           </>
@@ -132,7 +132,7 @@ export function SeccionPretensadaDiagrama({
               className="stroke-primary" strokeWidth={1.2} />
         <text x={xCentro - px(bSimpleM) / 2 + 14}
               y={(yBase - px(ygSimpleM) + yTorones) / 2 + 3}
-              className="fill-primary text-[9px]">
+              className="fill-primary text-[10.5px]">
           e = {fmt(excentricidadM)} m
         </text>
 
@@ -141,11 +141,11 @@ export function SeccionPretensadaDiagrama({
         <line x1={36} y1={yTopCompuesta} x2={44} y2={yTopCompuesta} className="stroke-muted-foreground" strokeWidth={1} />
         <line x1={36} y1={yBase} x2={44} y2={yBase} className="stroke-muted-foreground" strokeWidth={1} />
         <text x={34} y={(yTopCompuesta + yBase) / 2} textAnchor="end"
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           {fmt(hCompuestaM, 2)} m
         </text>
 
-        <text x={xCentro} y={yBase + 16} textAnchor="middle" className="fill-muted-foreground text-[9px]">
+        <text x={xCentro} y={yBase + 16} textAnchor="middle" className="fill-muted-foreground text-[10.5px]">
           {torones} {torones === 1 ? "torón" : "torones"}
         </text>
       </svg>

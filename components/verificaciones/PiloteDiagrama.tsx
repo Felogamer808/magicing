@@ -78,7 +78,7 @@ export function PiloteDiagrama({ diametroM, longitudM, numeroBarras, diametroBar
           </marker>
         </defs>
 
-        <text x={x1 + 20} y={y0 + h / 2} className="fill-current font-mono" fontSize="8" transform={`rotate(-90 ${x1 + 20} ${y0 + h / 2})`} textAnchor="middle">
+        <text x={x1 + 20} y={y0 + h / 2} className="fill-current font-mono" fontSize="9.5" transform={`rotate(-90 ${x1 + 20} ${y0 + h / 2})`} textAnchor="middle">
           L = {fmtM(longitudM)}
         </text>
       </svg>

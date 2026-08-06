@@ -88,7 +88,7 @@ export function DiagramaBielasTirante({
               className="stroke-foreground" strokeWidth={1.8} />
         <polygon points={`${xCentro},${yTop - 26} ${xCentro - 5},${yTop - 35} ${xCentro + 5},${yTop - 35}`}
                  className="fill-foreground" />
-        <text x={xCentro + 8} y={yTop - 40} className="fill-foreground text-[9px]">
+        <text x={xCentro + 8} y={yTop - 40} className="fill-foreground text-[10.5px]">
           Nd = {fmt(ndPilarKN, 0)} kN
         </text>
 
@@ -104,10 +104,10 @@ export function DiagramaBielasTirante({
                      className="fill-primary" />
           </g>
         ))}
-        <text x={xPiloteIzq} y={yBase + 58} textAnchor="middle" className="fill-primary text-[9px]">
+        <text x={xPiloteIzq} y={yBase + 58} textAnchor="middle" className="fill-primary text-[10.5px]">
           {fmt(ndPorPiloteKN, 0)} kN
         </text>
-        <text x={xPiloteDer} y={yBase + 58} textAnchor="middle" className="fill-primary text-[9px]">
+        <text x={xPiloteDer} y={yBase + 58} textAnchor="middle" className="fill-primary text-[10.5px]">
           {fmt(ndPorPiloteKN, 0)} kN
         </text>
 
@@ -119,7 +119,7 @@ export function DiagramaBielasTirante({
                 className="stroke-primary" strokeWidth={5} strokeLinecap="round" opacity={0.5} />
         ))}
         <text x={(xCentro + xPiloteIzq) / 2 - 34} y={(yNudoSuperior + yTirante) / 2}
-              className="fill-primary text-[9px]">
+              className="fill-primary text-[10.5px]">
           biela {fmt(anguloGrados)}°
         </text>
 
@@ -127,7 +127,7 @@ export function DiagramaBielasTirante({
         <line x1={xPiloteIzq} y1={yTirante} x2={xPiloteDer} y2={yTirante}
               className="stroke-destructive" strokeWidth={5} strokeLinecap="round" />
         <text x={xCentro} y={yTirante + 18} textAnchor="middle"
-              className="fill-destructive text-[10px] font-medium">
+              className="fill-destructive text-[11.5px] font-medium">
           tirante Td = {fmt(tdKN, 0)} kN
         </text>
 
@@ -143,17 +143,17 @@ export function DiagramaBielasTirante({
         <line x1={xCentro - desplazamientoNudo} y1={yTirante + 30} x2={xPiloteIzq} y2={yTirante + 30}
               className="stroke-muted-foreground" strokeWidth={1} />
         <text x={(xCentro - desplazamientoNudo + xPiloteIzq) / 2} y={yTirante + 42} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           v + a/4 = {fmt(brazoHorizontalM * 100)} cm
         </text>
         <line x1={xIzqCabezal - 12} y1={yNudoSuperior} x2={xIzqCabezal - 12} y2={yTirante}
               className="stroke-muted-foreground" strokeWidth={1} />
         <text x={xIzqCabezal - 15} y={(yNudoSuperior + yTirante) / 2} textAnchor="end"
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           0,85·d
         </text>
 
-        <text x={MARGEN_X - 34} y={ALTO - 6} className="fill-muted-foreground text-[9px]">
+        <text x={MARGEN_X - 34} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">
           Td = Nd,pilote · (v + a/4) / (0,85·d): cuanto más plana la biela, más tira el tirante.
         </text>
       </svg>

@@ -30,7 +30,7 @@ export function AvisoCombinacion({ idVerificacion }: AvisoCombinacionProps) {
     >
       <Icono className={cn("mt-0.5 h-4 w-4 shrink-0", destacado ? "text-primary" : "text-muted-foreground")} />
       <div className="space-y-0.5">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em]">
+        <p className="font-mono text-[12.5px] font-medium uppercase tracking-[0.08em]">
           {combinacion.etiqueta}
         </p>
         <p className="text-sm text-muted-foreground">{combinacion.detalle}</p>

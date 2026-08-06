@@ -76,7 +76,7 @@ function Senal({
       <g>
         <line x1={x} y1={y - largo} x2={x} y2={y - 3} className="stroke-primary" strokeWidth={1.1} />
         <polygon points={`${x},${y} ${x - 3},${y - 6} ${x + 3},${y - 6}`} className="fill-primary" />
-        <text x={x} y={y - largo - 4} textAnchor="middle" className="fill-primary text-[9px]">
+        <text x={x} y={y - largo - 4} textAnchor="middle" className="fill-primary text-[10.5px]">
           {texto}
         </text>
       </g>
@@ -93,7 +93,7 @@ function Senal({
         className="fill-primary"
       />
       <text x={xFin + signo * 3} y={y + 3} textAnchor={hacia === "derecha" ? "start" : "end"}
-            className="fill-primary text-[9px]">
+            className="fill-primary text-[10.5px]">
         {texto}
       </text>
     </g>
@@ -128,18 +128,18 @@ export function PredimensionadoMuro({ alturaTotalM, onAplicar }: Props) {
         <line x1={xIzq - 26} y1={yCoronacion} x2={xIzq - 26} y2={yBase}
               className="stroke-muted-foreground" strokeWidth={1} />
         <text x={xIzq - 30} y={(yCoronacion + yBase) / 2} textAnchor="end"
-              className="fill-muted-foreground text-[9px]">H = {fmt(alturaTotalM)} m</text>
+              className="fill-muted-foreground text-[10.5px]">H = {fmt(alturaTotalM)} m</text>
 
         {/* Cota del ancho de zapata. */}
         <line x1={xIzq} y1={yBase + 16} x2={xIzq + px(p.anchoZapataM)} y2={yBase + 16}
               className="stroke-muted-foreground" strokeWidth={1} />
         <text x={xIzq + px(p.anchoZapataM) / 2} y={yBase + 28} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           A = 0,5 a 0,8·h → {fmt(p.anchoZapataM)} m
         </text>
 
         <text x={xIzq + px(p.anchoZapataM) + 8} y={yTopZapata + px(p.cantoZapataM) / 2 + 3}
-              className="fill-muted-foreground text-[9px]">
+              className="fill-muted-foreground text-[10.5px]">
           canto 0,1·h = {fmt(p.cantoZapataM)} m
         </text>
 

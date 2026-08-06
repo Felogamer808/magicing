@@ -162,11 +162,11 @@ export function CroquisMomentosLosa() {
       {/* paño en planta */}
       <rect x="30" y="24" width="104" height="76" stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.35" />
       <path d="M38 62 L126 62" stroke="currentColor" strokeWidth="1.2" markerStart="url(#croquis-flecha)" markerEnd="url(#croquis-flecha)" />
-      <text x="82" y="58" textAnchor="middle" className="fill-current font-mono" fontSize="9">
+      <text x="82" y="58" textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
         X
       </text>
       <path d="M82 32 L82 92" stroke="currentColor" strokeWidth="1.2" markerStart="url(#croquis-flecha)" markerEnd="url(#croquis-flecha)" />
-      <text x="90" y="86" className="fill-current font-mono" fontSize="9">
+      <text x="90" y="86" className="fill-current font-mono" fontSize="10.5">
         Y
       </text>
 

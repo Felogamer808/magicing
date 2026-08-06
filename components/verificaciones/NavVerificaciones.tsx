@@ -50,7 +50,7 @@ export function NavVerificaciones({ onNavegar }: NavVerificacionesProps) {
                   className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground/60"
                 >
                   <span>{item.nombre}</span>
-                  <Badge variant="outline" className="shrink-0 text-[10px]">
+                  <Badge variant="outline" className="shrink-0 text-[11.5px]">
                     Pronto
                   </Badge>
                 </div>

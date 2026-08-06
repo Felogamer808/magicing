@@ -68,7 +68,7 @@ export function DiagramaPresionSuelo({ distribucion, lM, sigmaAdmisibleKPa, etiq
         <line x1={xNucleoIzq} y1={Y_BASE - 26} x2={xNucleoDer} y2={Y_BASE - 26}
               className="stroke-emerald-700" strokeWidth={2} />
         <text x={(xNucleoIzq + xNucleoDer) / 2} y={Y_BASE - 30} textAnchor="middle"
-              className="fill-emerald-700 text-[9px]">núcleo central</text>
+              className="fill-emerald-700 text-[10.5px]">núcleo central</text>
 
         {/* Resultante vertical, con su excentricidad. */}
         <line x1={xResultante} y1={Y_BASE - 52} x2={xResultante} y2={Y_BASE - 22}
@@ -76,13 +76,13 @@ export function DiagramaPresionSuelo({ distribucion, lM, sigmaAdmisibleKPa, etiq
         <polygon points={`${xResultante},${Y_BASE - 22} ${xResultante - 4},${Y_BASE - 30} ${xResultante + 4},${Y_BASE - 30}`}
                  className="fill-foreground" />
         <text x={xResultante} y={Y_BASE - 56} textAnchor="middle"
-              className="fill-foreground text-[9px]">N · e = {fmt(excentricidadM * 100, 1)} cm</text>
+              className="fill-foreground text-[10.5px]">N · e = {fmt(excentricidadM * 100, 1)} cm</text>
 
         {/* Presión admisible del terreno. */}
         <line x1={IZQ} y1={y(sigmaAdmisibleKPa)} x2={DER} y2={y(sigmaAdmisibleKPa)}
               className="stroke-destructive/70" strokeWidth={1} strokeDasharray="4 3" />
         <text x={DER} y={y(sigmaAdmisibleKPa) + 11} textAnchor="end"
-              className="fill-destructive text-[9px]">
+              className="fill-destructive text-[10.5px]">
           σadm {fmt(sigmaAdmisibleKPa)} kPa
         </text>
 
@@ -97,24 +97,24 @@ export function DiagramaPresionSuelo({ distribucion, lM, sigmaAdmisibleKPa, etiq
             <line x1={x(0)} y1={Y_BASE} x2={x(xInicioContacto)} y2={Y_BASE}
                   className="stroke-destructive" strokeWidth={2.4} strokeDasharray="4 3" />
             <text x={x(xInicioContacto / 2)} y={Y_BASE + 14} textAnchor="middle"
-                  className="fill-destructive text-[9px]">
+                  className="fill-destructive text-[10.5px]">
               despegue {fmt((lM - longitudContactoM) * 100, 0)} cm
             </text>
           </>
         )}
 
         <text x={x(lM) - 3} y={y(sigmaMaxKPa) + 12} textAnchor="end"
-              className={`text-[10px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
           {fmt(sigmaMaxKPa)} kPa
         </text>
         {!hayDespegue && (
           <text x={x(0) + 3} y={y(sigmaMinKPa) + 12}
-                className="fill-muted-foreground text-[10px] tabular-nums">
+                className="fill-muted-foreground text-[11.5px] tabular-nums">
             {fmt(sigmaMinKPa)} kPa
           </text>
         )}
 
-        <text x={IZQ} y={ALTO - 6} className="fill-muted-foreground text-[9px]">
+        <text x={IZQ} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">
           {etiqueta} · L = {fmt(lM, 2)} m
         </text>
       </svg>

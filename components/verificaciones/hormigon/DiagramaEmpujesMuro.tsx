@@ -38,7 +38,8 @@ interface Props {
   empujePasivoKN: number;
 }
 
-const ANCHO = 460;
+/** Ancho holgado a la derecha: ahí van los rótulos de los empujes. */
+const ANCHO = 500;
 const ALTO = 250;
 const Y_BASE = ALTO - 44;
 const X_MURO = 210;
@@ -117,7 +118,7 @@ export function DiagramaEmpujesMuro({
         <polygon points={`${X_MURO + px(espesorMuroM) + 4},${py(alturaSueloActivoM / 3)} ${X_MURO + px(espesorMuroM) + 13},${py(alturaSueloActivoM / 3) - 4} ${X_MURO + px(espesorMuroM) + 13},${py(alturaSueloActivoM / 3) + 4}`}
                  className="fill-destructive" />
         <text x={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 30} y={py(alturaSueloActivoM / 3) + 3}
-              className="fill-destructive text-[9px]">
+              className="fill-destructive text-[10.5px]">
           Ea = {fmt(empujeSueloKN, 0)} kN · h/3
         </text>
 
@@ -128,7 +129,7 @@ export function DiagramaEmpujesMuro({
                   width={pp(presionSobrecarga)} height={Y_BASE - yCoronacion}
                   className="fill-amber-500/25 stroke-amber-600" strokeWidth={1.2} />
             <text x={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 30}
-                  y={py(alturaSueloActivoM * 0.72) + 3} className="fill-amber-700 text-[9px]">
+                  y={py(alturaSueloActivoM * 0.72) + 3} className="fill-amber-700 text-[10.5px]">
               Eq = {fmt(empujeSobrecargaKN, 0)} kN · h/2
             </text>
           </>
@@ -142,7 +143,7 @@ export function DiagramaEmpujesMuro({
               className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1.2} />
             <text x={xBordeZapata - pp(presionPasivaBase) - 4}
                   y={py(alturaSueloPasivoM / 3) + 3} textAnchor="end"
-                  className="fill-emerald-700 text-[9px]">
+                  className="fill-emerald-700 text-[10.5px]">
               Ep = {fmt(empujePasivoKN, 0)} kN
             </text>
           </>
@@ -152,15 +153,15 @@ export function DiagramaEmpujesMuro({
         <circle cx={xBordeZapata} cy={Y_BASE} r={3.5}
                 className="fill-foreground" />
         <text x={xBordeZapata} y={Y_BASE + 15} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">puntera</text>
+              className="fill-muted-foreground text-[10.5px]">puntera</text>
 
         <line x1={6} y1={Y_BASE} x2={ANCHO - 6} y2={Y_BASE}
               className="stroke-foreground/50" strokeWidth={1.2} />
 
-        <text x={8} y={16} className="fill-muted-foreground text-[9px]">
+        <text x={8} y={16} className="fill-muted-foreground text-[10.5px]">
           ka = {fmt(ka, 3)} · kp = {fmt(kp, 2)} · γ = {fmt(gammaKNm3, 0)} kN/m³
         </text>
-        <text x={8} y={ALTO - 6} className="fill-muted-foreground text-[9px]">
+        <text x={8} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">
           El triángulo empuja al tercio inferior y el rectángulo a media altura: por eso pesan
           distinto en el vuelco.
         </text>

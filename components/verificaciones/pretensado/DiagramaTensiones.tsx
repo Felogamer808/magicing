@@ -68,14 +68,14 @@ export function DiagramaTensiones({ situacion, hM, escalaMPa }: Props) {
         <rect x={X_SECCION} y={yTop} width={ANCHO_SECCION} height={yBot - yTop}
               className="fill-primary/10 stroke-foreground/50" strokeWidth={1.2} />
         <text x={X_SECCION + ANCHO_SECCION / 2} y={yBot + 13}
-              className="fill-muted-foreground text-[9px]" textAnchor="middle">
+              className="fill-muted-foreground text-[10.5px]" textAnchor="middle">
           h = {fmt(hM)} m
         </text>
 
         {/* Eje de tensión nula. */}
         <line x1={X_CERO} y1={yTop - 12} x2={X_CERO} y2={yBot + 12}
               className="stroke-foreground/60" strokeWidth={1.2} />
-        <text x={X_CERO} y={yTop - 15} className="fill-muted-foreground text-[9px]" textAnchor="middle">0</text>
+        <text x={X_CERO} y={yTop - 15} className="fill-muted-foreground text-[10.5px]" textAnchor="middle">0</text>
 
         {/* Trapecio de tensiones. */}
         <polygon points={trapecio} className="fill-primary/25 stroke-primary" strokeWidth={1.5} />
@@ -88,20 +88,20 @@ export function DiagramaTensiones({ situacion, hM, escalaMPa }: Props) {
 
         <text x={xSup + (situacion.sigmaSupMPa >= 0 ? 5 : -5)} y={yTop + 3}
               textAnchor={situacion.sigmaSupMPa >= 0 ? "start" : "end"}
-              className={`text-[10px] tabular-nums ${situacion.verificaSup ? "fill-foreground" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] tabular-nums ${situacion.verificaSup ? "fill-foreground" : "fill-destructive font-medium"}`}>
           {fmt(situacion.sigmaSupMPa)}
         </text>
         <text x={xInf + (situacion.sigmaInfMPa >= 0 ? 5 : -5)} y={yBot + 3}
               textAnchor={situacion.sigmaInfMPa >= 0 ? "start" : "end"}
-              className={`text-[10px] tabular-nums ${situacion.verificaInf ? "fill-foreground" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] tabular-nums ${situacion.verificaInf ? "fill-foreground" : "fill-destructive font-medium"}`}>
           {fmt(situacion.sigmaInfMPa)}
         </text>
 
         {/* Referencias de las fibras. */}
-        <text x={X_SECCION + ANCHO_SECCION + 6} y={yTop + 3} className="fill-muted-foreground text-[9px]">sup</text>
-        <text x={X_SECCION + ANCHO_SECCION + 6} y={yBot + 3} className="fill-muted-foreground text-[9px]">inf</text>
+        <text x={X_SECCION + ANCHO_SECCION + 6} y={yTop + 3} className="fill-muted-foreground text-[10.5px]">sup</text>
+        <text x={X_SECCION + ANCHO_SECCION + 6} y={yBot + 3} className="fill-muted-foreground text-[10.5px]">inf</text>
 
-        <text x={ANCHO - 2} y={ALTO - 4} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={ANCHO - 2} y={ALTO - 4} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           compresión ← MPa → tracción
         </text>
       </svg>

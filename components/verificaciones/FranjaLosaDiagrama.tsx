@@ -32,7 +32,7 @@ export function FranjaLosaDiagrama({ longitudM, HM, posicionesColumnasM }: Franj
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full max-w-sm text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         {xsCol.map((xc, i) => (
           <path key={i} d={`M${xc} ${y0 - 30} L${xc} ${y0}`} stroke="currentColor" strokeWidth="3" opacity="0.8" />
         ))}
@@ -51,7 +51,7 @@ export function FranjaLosaDiagrama({ longitudM, HM, posicionesColumnasM }: Franj
         ))}
 
         {posicionesColumnasM.map((p, i) => (
-          <text key={i} x={xsCol[i]} y={y0 + h + 22} textAnchor="middle" className="fill-current font-mono" fontSize="8">
+          <text key={i} x={xsCol[i]} y={y0 + h + 22} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
             {fmtM(p)}
           </text>
         ))}

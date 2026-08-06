@@ -41,7 +41,7 @@ export function DiagramaMuro({
   const hSueloPx = Math.min(alturaSueloActivoM * escala, muroH + zapH);
 
   return (
-    <svg viewBox={`0 0 ${x0 + zapW + 70} ${yBase + 34}`} className="h-auto w-full max-w-sm text-primary" fill="none" aria-hidden="true">
+    <svg viewBox={`0 0 ${x0 + zapW + 70} ${yBase + 34}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       {/* terreno del lado activo (derecha) */}
       <path d={`M${xMuro + muroW} ${yBase - hSueloPx} L${x0 + zapW + 56} ${yBase - hSueloPx}`} stroke="currentColor" strokeWidth="1.2" opacity="0.6" />
       {Array.from({ length: 10 }).map((_, i) => (
@@ -73,10 +73,10 @@ export function DiagramaMuro({
         <path d={`M${x0 - 16} ${yBase} L${x0 - 4} ${yBase}`} />
         <path d={`M${x0 - 10} 24 L${x0 - 10} ${yBase}`} />
       </g>
-      <text x={x0 - 22} y={(24 + yBase) / 2} textAnchor="middle" className="fill-current font-mono" fontSize="8" transform={`rotate(-90 ${x0 - 22} ${(24 + yBase) / 2})`}>
+      <text x={x0 - 22} y={(24 + yBase) / 2} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" transform={`rotate(-90 ${x0 - 22} ${(24 + yBase) / 2})`}>
         H = {fmt(totalH)} m
       </text>
-      <text x={x0 + zapW / 2} y={yBase + 20} textAnchor="middle" className="fill-current font-mono" fontSize="8">
+      <text x={x0 + zapW / 2} y={yBase + 20} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
         A = {fmt(anchoZapataM)} m
       </text>
 
@@ -87,13 +87,13 @@ export function DiagramaMuro({
       */}
       {punteraM > 0 && (
         <text x={x0 + (punteraM * escala) / 2} y={24 + muroH - 4} textAnchor="middle"
-              className="fill-current font-mono" fontSize="7" opacity="0.75">
+              className="fill-current font-mono" fontSize="8.5" opacity="0.75">
           p {fmt(punteraM)}
         </text>
       )}
       {talonM > 0 && (
         <text x={xMuro + muroW + (talonM * escala) / 2} y={24 + muroH - 4} textAnchor="middle"
-              className="fill-current font-mono" fontSize="7" opacity="0.75">
+              className="fill-current font-mono" fontSize="8.5" opacity="0.75">
           t {fmt(talonM)}
         </text>
       )}

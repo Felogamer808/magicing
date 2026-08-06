@@ -30,7 +30,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle }: ResultadoCheckPr
         variant={verifica ? "default" : "destructive"}
         aria-live="polite"
         className={cn(
-          "shrink-0 rounded-sm border font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-300",
+          "shrink-0 rounded-sm border font-mono text-[12.5px] uppercase tracking-[0.08em] transition-colors duration-300",
           verifica
             ? "-rotate-2 border-emerald-700 bg-emerald-600 text-white [a]:hover:bg-emerald-600"
             : "border-destructive/40"

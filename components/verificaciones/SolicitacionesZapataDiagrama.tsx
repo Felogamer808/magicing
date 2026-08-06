@@ -66,7 +66,7 @@ export function SolicitacionesZapataDiagrama({
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${W} ${alto}`} className="h-auto w-full max-w-md text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${W} ${alto}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         <defs>
           <marker id={flecha} markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
             <path d="M0 0 L7 3.5 L0 7 Z" fill="currentColor" />
@@ -75,7 +75,7 @@ export function SolicitacionesZapataDiagrama({
 
         {/* Carga vertical bajando por el pilar */}
         <path d={`M${centro} ${yPilarTop - 26} L${centro} ${yPilarTop - 2}`} stroke="currentColor" strokeWidth="2" markerEnd={`url(#${flecha})`} />
-        <text x={centro + 8} y={yPilarTop - 14} className="fill-current font-mono" fontSize="9">
+        <text x={centro + 8} y={yPilarTop - 14} className="fill-current font-mono" fontSize="10.5">
           Nk {fmt(nkKN)} kN
         </text>
 
@@ -89,7 +89,7 @@ export function SolicitacionesZapataDiagrama({
               markerEnd={`url(#${flecha})`}
               opacity="0.85"
             />
-            <text x={centro} y={yPilarTop + 16} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+            <text x={centro} y={yPilarTop + 16} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
               Mk {fmt(mkKNm)} kN·m
             </text>
           </g>
@@ -113,10 +113,10 @@ export function SolicitacionesZapataDiagrama({
           return <path key={t} d={`M${x} ${yBase + h} L${x} ${yBase + 2}`} stroke="currentColor" strokeWidth="1" markerEnd={`url(#${flecha})`} opacity="0.75" />;
         })}
 
-        <text x={x0} y={yBase + MAX_PRESION_PX + 20} textAnchor="start" className="fill-current font-mono" fontSize="9">
+        <text x={x0} y={yBase + MAX_PRESION_PX + 20} textAnchor="start" className="fill-current font-mono" fontSize="10.5">
           σmín {fmt(sigmaMinKPa)}
         </text>
-        <text x={x1} y={yBase + MAX_PRESION_PX + 20} textAnchor="end" className="fill-current font-mono" fontSize="9">
+        <text x={x1} y={yBase + MAX_PRESION_PX + 20} textAnchor="end" className="fill-current font-mono" fontSize="10.5">
           σmáx {fmt(sigmaMaxKPa)}
         </text>
         <text x={centro} y={yBase + MAX_PRESION_PX + 34} textAnchor="middle" className="fill-current font-mono" fontSize="7.5" opacity="0.7">
@@ -124,7 +124,7 @@ export function SolicitacionesZapataDiagrama({
         </text>
 
         {/* Cota del ancho */}
-        <text x={centro} y={yZapata + altoZapata / 2 + 3} textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.8">
+        <text x={centro} y={yZapata + altoZapata / 2 + 3} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.8">
           A = {fmt(anchoM, 2)} m
         </text>
       </svg>

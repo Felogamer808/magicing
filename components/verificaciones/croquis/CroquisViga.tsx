@@ -35,7 +35,7 @@ export function CroquisGeometriaViga() {
         <path d="M156 34 L152 34" />
         <path d="M156 26 L156 34" markerEnd="url(#croquis-flecha)" />
       </g>
-      <text x="160" y="32" className="fill-current font-mono" fontSize="10">
+      <text x="160" y="32" className="fill-current font-mono" fontSize="11.5">
         recubrim.
       </text>
     </Croquis>
@@ -87,7 +87,7 @@ export function CroquisArmaduraFlexion({ numero, cara }: CroquisArmaduraProps) {
         y={inferior ? 120 : 12}
         textAnchor="middle"
         className="fill-current font-mono"
-        fontSize="8"
+        fontSize="9.5"
       >
         {inferior ? "Mmax+" : "Mmax−"}
       </text>
@@ -132,7 +132,7 @@ export function CroquisRamasEstribo({ ramas }: CroquisRamasProps) {
         <path key={i} d={`M${x} 32 L${x} 88`} stroke="currentColor" strokeWidth="1.8" />
       ))}
 
-      <text x={(x0 + x1) / 2} y="112" textAnchor="middle" className="fill-current font-mono" fontSize="10">
+      <text x={(x0 + x1) / 2} y="112" textAnchor="middle" className="fill-current font-mono" fontSize="11.5">
         {nReal} {nReal === 1 ? "rama" : "ramas"}
       </text>
 
@@ -140,7 +140,7 @@ export function CroquisRamasEstribo({ ramas }: CroquisRamasProps) {
       <g stroke="currentColor" strokeWidth="1.4">
         <path d="M40 60 L26 60" markerEnd="url(#croquis-flecha)" />
       </g>
-      <text x="30" y="52" className="fill-current font-mono" fontSize="10">
+      <text x="30" y="52" className="fill-current font-mono" fontSize="11.5">
         Vd
       </text>
     </Croquis>

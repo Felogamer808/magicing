@@ -67,10 +67,10 @@ export function CroquisPilarZapata() {
     >
       {/* zapata de fondo, en gris, sólo para dar la referencia de A y B */}
       <rect x={cx - 62} y={cy - 34} width={124} height={68} stroke="currentColor" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
-      <text x={cx} y={cy + 46} textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.6">
+      <text x={cx} y={cy + 46} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.6">
         A
       </text>
-      <text x={cx - 72} y={cy + 3} textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.6">
+      <text x={cx - 72} y={cy + 3} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.6">
         B
       </text>
 
@@ -106,7 +106,7 @@ export function CroquisCargasZapata() {
 
       {/* axil */}
       <path d={`M${cx} 10 L${cx} 30`} stroke="currentColor" strokeWidth="1.8" markerEnd="url(#croquis-flecha)" />
-      <text x={cx + 7} y="22" className="fill-current font-mono" fontSize="9">
+      <text x={cx + 7} y="22" className="fill-current font-mono" fontSize="10.5">
         Nk
       </text>
 
@@ -117,13 +117,13 @@ export function CroquisCargasZapata() {
         strokeWidth="1.3"
         markerEnd="url(#croquis-flecha)"
       />
-      <text x={cx + 42} y="44" className="fill-current font-mono" fontSize="9">
+      <text x={cx + 42} y="44" className="fill-current font-mono" fontSize="10.5">
         Mk
       </text>
 
       {/* presión resultante, trapecial por el momento */}
       <path d={`M${cx - 58} 96 L${cx + 58} 96 L${cx + 58} 118 L${cx - 58} 104 Z`} fill="currentColor" fillOpacity="0.14" stroke="currentColor" strokeWidth="0.8" opacity="0.85" />
-      <text x={cx} y="126" textAnchor="middle" className="fill-current font-mono" fontSize="8">
+      <text x={cx} y="126" textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
         σ del terreno
       </text>
     </Croquis>
@@ -187,7 +187,7 @@ export function CroquisZapataCorrida() {
         <path d={`M${cx + 56} 84 L${cx + 74} 72`} />
         <path d={`M${cx + 74} 54 L${cx + 74} 72`} />
       </g>
-      <text x={cx + 78} y="50" className="fill-current font-mono" fontSize="8">
+      <text x={cx + 78} y="50" className="fill-current font-mono" fontSize="9.5">
         1 m
       </text>
     </Croquis>
@@ -218,7 +218,7 @@ export function CroquisPosicionPilares({ cantidad = 2 }: { cantidad?: number }) 
         <g key={x}>
           <rect x={x - 9} y={yTop - 26} width={18} height={26} stroke="currentColor" strokeWidth="1.3" fill="var(--color-muted)" fillOpacity="0.65" />
           <path d={`M${x} ${yTop - 44} L${x} ${yTop - 30}`} stroke="currentColor" strokeWidth="1.5" markerEnd="url(#croquis-flecha)" />
-          <text x={x + 6} y={yTop - 36} className="fill-current font-mono" fontSize="8">
+          <text x={x + 6} y={yTop - 36} className="fill-current font-mono" fontSize="9.5">
             Nk{i + 1}
           </text>
         </g>

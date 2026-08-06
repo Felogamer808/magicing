@@ -34,7 +34,7 @@ export function ZapataCombinadaDiagrama({ AM, HM, posicionCol1M, posicionCol2M }
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full max-w-sm text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         {/* momento cualitativo: sagging (+) bajo columnas, hogging (-) al medio */}
         <path
           d={`M${x0} ${y0 - 8} L${xCol1} ${y0 + 6} Q${(xCol1 + xCol2) / 2} ${y0 - 26} ${xCol2} ${y0 + 6} L${x1} ${y0 - 8}`}
@@ -51,10 +51,10 @@ export function ZapataCombinadaDiagrama({ AM, HM, posicionCol1M, posicionCol2M }
         {/* zapata */}
         <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
 
-        <text x={xCol1} y={y0 + h + 14} textAnchor="middle" className="fill-current font-mono" fontSize="8">
+        <text x={xCol1} y={y0 + h + 14} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
           {fmtM(posicionCol1M)}
         </text>
-        <text x={xCol2} y={y0 + h + 14} textAnchor="middle" className="fill-current font-mono" fontSize="8">
+        <text x={xCol2} y={y0 + h + 14} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
           {fmtM(posicionCol2M)}
         </text>
       </svg>

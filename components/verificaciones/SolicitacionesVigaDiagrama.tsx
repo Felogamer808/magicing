@@ -60,7 +60,7 @@ export function SolicitacionesVigaDiagrama({
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${W} ${alto}`} className="h-auto w-full max-w-lg text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${W} ${alto}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         <defs>
           <marker id={flecha} markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
             <path d="M0 0 L7 3.5 L0 7 Z" fill="currentColor" />
@@ -76,7 +76,7 @@ export function SolicitacionesVigaDiagrama({
               strokeWidth="1.5"
               markerEnd={`url(#${flecha})`}
             />
-            <text x={centro} y={yTorsor - 8} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+            <text x={centro} y={yTorsor - 8} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
               Td {fmt(torsorKNm)} kN·m
             </text>
           </g>
@@ -94,7 +94,7 @@ export function SolicitacionesVigaDiagrama({
         {[x0 - 34, x1 + 34].map((x) => (
           <g key={x}>
             <path d={`M${x} ${yBaseApoyo} L${x} ${yViga + 2}`} stroke="currentColor" strokeWidth="1.6" markerEnd={`url(#${flecha})`} />
-            <text x={x} y={yEtiquetaCorte} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+            <text x={x} y={yEtiquetaCorte} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
               Vd {fmt(cortanteKN)}
             </text>
             <text x={x} y={yEtiquetaCorte + 11} textAnchor="middle" className="fill-current font-mono" fontSize="7.5" opacity="0.65">
@@ -130,14 +130,14 @@ export function SolicitacionesVigaDiagrama({
 
         {/* Centrado en la zona de momento negativo, no en el apoyo: ahí se
             solapaba con la etiqueta del cortante. */}
-        <text x={(x0 + xInflexIzq) / 2} y={yEje - hNeg - 8} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+        <text x={(x0 + xInflexIzq) / 2} y={yEje - hNeg - 8} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
           Mmax− {fmt(momentoNegativoKNm)}
         </text>
         <text x={(x0 + xInflexIzq) / 2} y={yEje - hNeg - 19} textAnchor="middle" className="fill-current font-mono" fontSize="7.5" opacity="0.65">
           tracciona arriba · kN·m
         </text>
 
-        <text x={centro} y={yEje + hPos + 20} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+        <text x={centro} y={yEje + hPos + 20} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
           Mmax+ {fmt(momentoPositivoKNm)}
         </text>
         <text x={centro} y={yEje + hPos + 31} textAnchor="middle" className="fill-current font-mono" fontSize="7.5" opacity="0.65">

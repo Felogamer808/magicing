@@ -109,7 +109,7 @@ export default function FlexionAceroPage() {
   const advertencia = resultado && "advertencia" in resultado ? resultado.advertencia : undefined;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Vigas · Estructuras metálicas</p>

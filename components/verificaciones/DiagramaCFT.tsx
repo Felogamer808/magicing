@@ -33,7 +33,7 @@ export function DiagramaCFT({ dMm, tMm, numeroBarras, diametroBarraMm }: Diagram
         const a = (2 * Math.PI * i) / n - Math.PI / 2;
         return <circle key={i} cx={cx + rBarras * Math.cos(a)} cy={cy + rBarras * Math.sin(a)} r={rBarra} fill="currentColor" />;
       })}
-      <text x={cx} y={cy + 3} textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.75">
+      <text x={cx} y={cy + 3} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.75">
         D {fmt(dMm, 0)}
       </text>
     </svg>

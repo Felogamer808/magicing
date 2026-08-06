@@ -61,9 +61,9 @@ export function DiagramaInteraccion({
         {/* Quiebre en Pr/Pc = 0,2, que es donde cambia la ecuación. */}
         <line x1={IZQ} y1={y(0.2)} x2={x(0.9)} y2={y(0.2)}
               className="stroke-muted-foreground/50" strokeWidth={0.8} strokeDasharray="3 2" />
-        <text x={IZQ - 5} y={y(0.2) + 3} textAnchor="end" className="fill-muted-foreground text-[8px]">0,2</text>
-        <text x={IZQ - 5} y={y(1) + 3} textAnchor="end" className="fill-muted-foreground text-[8px]">1,0</text>
-        <text x={x(1)} y={BASE + 12} textAnchor="middle" className="fill-muted-foreground text-[8px]">1,0</text>
+        <text x={IZQ - 5} y={y(0.2) + 3} textAnchor="end" className="fill-muted-foreground text-[9.5px]">0,2</text>
+        <text x={IZQ - 5} y={y(1) + 3} textAnchor="end" className="fill-muted-foreground text-[9.5px]">1,0</text>
+        <text x={x(1)} y={BASE + 12} textAnchor="middle" className="fill-muted-foreground text-[9.5px]">1,0</text>
 
         <polyline points={envolvente.join(" ")} fill="none" className="stroke-primary" strokeWidth={1.8} />
 
@@ -75,12 +75,12 @@ export function DiagramaInteraccion({
         <circle cx={x(terminoFlexion)} cy={y(relacionAxial)} r={4.5}
                 className={verifica ? "fill-emerald-600" : "fill-destructive"} />
 
-        <text x={IZQ - 40} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[9px]">Pr/Pc</text>
-        <text x={DER} y={LADO - 6} textAnchor="end" className="fill-muted-foreground text-[9px]">
+        <text x={IZQ - 40} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[10.5px]">Pr/Pc</text>
+        <text x={DER} y={LADO - 6} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           ΣMr/Mc
         </text>
         <text x={IZQ + 4} y={TOP + 2}
-              className={`text-[9px] ${verifica ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${verifica ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
           {ecuacion} = {fmt(interaccion)}
         </text>
       </svg>

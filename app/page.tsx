@@ -8,7 +8,7 @@ import { registroSecciones, verificacionesDeSeccion } from "@/lib/verificaciones
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-10 px-6 py-16">
       <div className="flex items-center justify-end">
         <TemaToggle />
       </div>

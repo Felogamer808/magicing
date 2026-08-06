@@ -88,7 +88,7 @@ export function AccionesElementosMuro({
                     points={`${xHastial + px(espesorMuroM)},${yCoronacion} ${xHastial + px(espesorMuroM) + 30},${yTopZapata} ${xHastial + px(espesorMuroM)},${yTopZapata}`}
                     className="fill-destructive/25 stroke-destructive" strokeWidth={1} />
                   <text x={xHastial + px(espesorMuroM) + 33} y={(yCoronacion + yTopZapata) / 2}
-                        className="fill-destructive text-[9px]">Ea</text>
+                        className="fill-destructive text-[10.5px]">Ea</text>
                   <MomentoCurvo x={xHastial} y={yTopZapata} etiqueta="Mh" sentido={-1} />
                 </>
               )}
@@ -108,7 +108,7 @@ export function AccionesElementosMuro({
                     );
                   })}
                   <text x={xHastial + px(espesorMuroM) + px(talonM) / 2} y={yTopZapata - 32}
-                        textAnchor="middle" className="fill-destructive text-[9px]">Wt</text>
+                        textAnchor="middle" className="fill-destructive text-[10.5px]">Wt</text>
                   {/*
                     El momento del talón se rotula por debajo de la zapata y
                     desplazado: puesto sobre el arranque pisaba el nombre de la
@@ -127,17 +127,17 @@ export function AccionesElementosMuro({
                     className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1} />
                   {/* Al costado del triángulo: debajo pisaba la leyenda del pie. */}
                   <text x={xZapata - 4} y={Y_BASE + 20} textAnchor="end"
-                        className="fill-emerald-700 text-[9px]">σ</text>
+                        className="fill-emerald-700 text-[10.5px]">σ</text>
                   <MomentoCurvo x={xHastial} y={yTopZapata + px(cantoZapataM) / 2} etiqueta="Mp" sentido={1} />
                 </>
               )}
 
               <text x={ox + ANCHO_PANEL / 2} y={16} textAnchor="middle"
-                    className="fill-foreground text-[10px] font-medium">
+                    className="fill-foreground text-[11.5px] font-medium">
                 {destacado}
               </text>
               <text x={ox + ANCHO_PANEL / 2} y={ALTO - 6} textAnchor="middle"
-                    className="fill-muted-foreground text-[8px]">
+                    className="fill-muted-foreground text-[9.5px]">
                 {["tracción cara interior", "tracción arriba", "tracción abajo"][i]}
               </text>
             </g>
@@ -169,7 +169,7 @@ function MomentoCurvo({
         className="fill-foreground" />
       <text x={x + (etiquetaDebajo ? r + 6 : 0)} y={etiquetaDebajo ? y + 3 : y - r - 3 * sentido}
             textAnchor={etiquetaDebajo ? "start" : "middle"}
-            className="fill-foreground text-[9px] font-medium">
+            className="fill-foreground text-[10.5px] font-medium">
         {etiqueta}
       </text>
     </g>

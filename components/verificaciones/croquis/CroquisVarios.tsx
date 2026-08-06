@@ -93,7 +93,7 @@ export function CroquisGeometriaViento() {
       <rect x="126" y="46" width="68" height="46" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.35" />
       <CotaH x0={126} x1={194} y={110} texto="a" />
       <CotaV x={116} y0={46} y1={92} texto="b" />
-      <text x="160" y="36" textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.7">
+      <text x="160" y="36" textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.7">
         planta
       </text>
     </Croquis>

@@ -27,7 +27,7 @@ export function Croquis({ viewBox, children, nota, ancho = "max-w-[15rem]" }: Cr
         </defs>
         {children}
       </svg>
-      {nota && <p className="text-center text-[11px] leading-snug text-muted-foreground">{nota}</p>}
+      {nota && <p className="text-center text-[12.5px] leading-snug text-muted-foreground">{nota}</p>}
     </div>
   );
 }
@@ -44,7 +44,7 @@ export function CotaH({ x0, x1, y, texto }: { x0: number; x1: number; y: number;
         y={y - 6}
         textAnchor="middle"
         className="fill-current font-mono"
-        fontSize="10"
+        fontSize="11.5"
         stroke="none"
       >
         {texto}
@@ -66,7 +66,7 @@ export function CotaV({ x, y0, y1, texto }: { x: number; y0: number; y1: number;
         y={ym}
         textAnchor="middle"
         className="fill-current font-mono"
-        fontSize="10"
+        fontSize="11.5"
         stroke="none"
         transform={`rotate(-90 ${x - 6} ${ym})`}
       >
@@ -93,7 +93,7 @@ export function Referencia({
   return (
     <g>
       <path d={`M${x} ${y} L${hacia[0]} ${hacia[1]}`} stroke="currentColor" strokeWidth="0.7" opacity="0.6" />
-      <text x={x} y={y - 3} textAnchor={anclaje} className="fill-current font-mono" fontSize="8">
+      <text x={x} y={y - 3} textAnchor={anclaje} className="fill-current font-mono" fontSize="9.5">
         {texto}
       </text>
     </g>

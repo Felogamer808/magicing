@@ -215,7 +215,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
         </g>
         {figura}
       </svg>
-      <figcaption className="font-mono text-[11px] text-muted-foreground tabular-nums">
+      <figcaption className="font-mono text-[12.5px] text-muted-foreground tabular-nums">
         {cotas}
       </figcaption>
     </figure>

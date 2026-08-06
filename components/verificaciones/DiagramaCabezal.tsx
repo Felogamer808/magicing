@@ -30,7 +30,7 @@ export function DiagramaCabezal({
   const yBase = y0 + hPx;
 
   return (
-    <svg viewBox={`0 0 ${W + 48} ${yBase + 72}`} className="h-auto w-full max-w-md text-primary" fill="none" aria-hidden="true">
+    <svg viewBox={`0 0 ${W + 48} ${yBase + 72}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       {/* pilar */}
       <rect x={cx - pilarW / 2} y={y0 - 32} width={pilarW} height={32} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
       {/* cabezal */}
@@ -40,7 +40,7 @@ export function DiagramaCabezal({
       <path d={`M${cx} ${y0} L${cx + dxPilote} ${yBase}`} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" opacity="0.75" />
       {/* tirante */}
       <path d={`M${cx - dxPilote} ${yBase - 8} L${cx + dxPilote} ${yBase - 8}`} stroke="currentColor" strokeWidth="3" />
-      <text x={cx} y={yBase - 12} textAnchor="middle" className="fill-current font-mono" fontSize="8">Td</text>
+      <text x={cx} y={yBase - 12} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">Td</text>
       {/* pilotes */}
       {[-1, 1].map((s) => (
         <rect key={s} x={cx + s * dxPilote - piloteW / 2} y={yBase} width={piloteW} height={44} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
@@ -51,7 +51,7 @@ export function DiagramaCabezal({
         <path d={`M${cx - dxPilote} ${yBase + 48} L${cx - dxPilote} ${yBase + 60}`} />
         <path d={`M${cx + dxPilote} ${yBase + 48} L${cx + dxPilote} ${yBase + 60}`} />
       </g>
-      <text x={cx} y={yBase + 68} textAnchor="middle" className="fill-current font-mono" fontSize="8">
+      <text x={cx} y={yBase + 68} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
         s = {fmt(separacionPilotesM)} m
       </text>
     </svg>

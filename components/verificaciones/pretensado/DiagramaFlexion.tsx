@@ -64,14 +64,14 @@ export function DiagramaFlexion({
         <rect x={xIzq} y={yTop} width={anchoSeccion} height={px(aM)}
               className="fill-primary/40 stroke-primary" strokeWidth={1} />
         <text x={xIzq + anchoSeccion / 2} y={yTop + px(aM) / 2 + 3} textAnchor="middle"
-              className="fill-foreground text-[9px]">
+              className="fill-foreground text-[10.5px]">
           a = {fmt(aM * 100)} cm
         </text>
 
         {/* Fibra neutra. */}
         <line x1={xIzq - 8} y1={yC} x2={xDer + 8} y2={yC}
               className="stroke-destructive" strokeWidth={1.2} strokeDasharray="5 3" />
-        <text x={xDer + 11} y={yC + 3} className="fill-destructive text-[9px]">
+        <text x={xDer + 11} y={yC + 3} className="fill-destructive text-[10.5px]">
           c = {fmt(cM * 100)} cm
         </text>
 
@@ -79,7 +79,7 @@ export function DiagramaFlexion({
         <line x1={xIzq - 6} y1={yDp} x2={xDer + 6} y2={yDp}
               className="stroke-primary" strokeWidth={1} />
         <circle cx={xIzq + anchoSeccion / 2} cy={yDp} r={3} className="fill-primary" />
-        <text x={xDer + 11} y={yDp + 3} className="fill-primary text-[9px]">
+        <text x={xDer + 11} y={yDp + 3} className="fill-primary text-[10.5px]">
           Tp · dp = {fmt(dpM * 100)} cm
         </text>
 
@@ -88,7 +88,7 @@ export function DiagramaFlexion({
           <>
             <circle cx={xIzq + anchoSeccion / 2 - 14} cy={yDs} r={2.4} className="fill-muted-foreground" />
             <circle cx={xIzq + anchoSeccion / 2 + 14} cy={yDs} r={2.4} className="fill-muted-foreground" />
-            <text x={xDer + 11} y={yDs + 3} className="fill-muted-foreground text-[9px]">
+            <text x={xDer + 11} y={yDs + 3} className="fill-muted-foreground text-[10.5px]">
               Ts · ds = {fmt(dsM * 100)} cm
             </text>
           </>
@@ -99,13 +99,13 @@ export function DiagramaFlexion({
               className="stroke-foreground/30" strokeWidth={0.8} />
         <polygon points={`${xIzq - 18},${yTop} ${xIzq - 6},${yTop} ${xIzq - 18},${yC}`}
                  className="fill-primary/25" />
-        <text x={xIzq - 20} y={yTop + 8} textAnchor="end" className="fill-muted-foreground text-[8px]">
+        <text x={xIzq - 20} y={yTop + 8} textAnchor="end" className="fill-muted-foreground text-[9.5px]">
           0,003
         </text>
 
         {/* Lectura de ductilidad. */}
         <text x={xIzq} y={ALTO - 8}
-              className={`text-[10px] ${controladaPorTraccion ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] ${controladaPorTraccion ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
           εt = {fmt(deformacionNeta * 1000, 2)} ‰ —{" "}
           {controladaPorTraccion ? "controlada por tracción (φ = 0,9)" : "sobrearmada, φ reducido"}
         </text>

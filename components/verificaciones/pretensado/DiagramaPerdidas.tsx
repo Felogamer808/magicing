@@ -67,7 +67,7 @@ export function DiagramaPerdidas({
         <line x1={20} y1={y(admisibleMPa)} x2={ANCHO - 8} y2={y(admisibleMPa)}
               className="stroke-destructive/70" strokeWidth={1} strokeDasharray="4 3" />
         <text x={ANCHO - 8} y={y(admisibleMPa) - 4} textAnchor="end"
-              className="fill-destructive text-[9px]">
+              className="fill-destructive text-[10.5px]">
           admisible {fmt(admisibleMPa)} MPa
         </text>
 
@@ -77,9 +77,9 @@ export function DiagramaPerdidas({
               className={tensionTrasTesadoMPa <= admisibleMPa ? "fill-primary/35 stroke-primary" : "fill-destructive/25 stroke-destructive"}
               strokeWidth={1.2} />
         <text x={xDe(0) + anchoColumna / 2} y={y(tensionTrasTesadoMPa) - 5} textAnchor="middle"
-              className="fill-foreground text-[10px] tabular-nums">{fmt(tensionTrasTesadoMPa)}</text>
+              className="fill-foreground text-[11.5px] tabular-nums">{fmt(tensionTrasTesadoMPa)}</text>
         <text x={xDe(0) + anchoColumna / 2} y={BASE + 12} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">tesado</text>
+              className="fill-muted-foreground text-[10.5px]">tesado</text>
 
         {/* Tramos de pérdida. */}
         {barras.map((b) => {
@@ -95,11 +95,11 @@ export function DiagramaPerdidas({
               <line x1={xDe(b.i)} y1={y(b.desde)} x2={xDe(b.i) - (paso - anchoColumna)} y2={y(b.desde)}
                     className="stroke-muted-foreground/50" strokeWidth={0.8} strokeDasharray="2 2" />
               <text x={xDe(b.i) + anchoColumna / 2} y={arriba - 4} textAnchor="middle"
-                    className="fill-foreground text-[9px] tabular-nums">
+                    className="fill-foreground text-[10.5px] tabular-nums">
                 {b.valor < 0 ? "+" : "−"}{fmt(Math.abs(b.valor))}
               </text>
               <text x={xDe(b.i) + anchoColumna / 2} y={BASE + 12} textAnchor="middle"
-                    className="fill-muted-foreground text-[9px]">{b.etiqueta}</text>
+                    className="fill-muted-foreground text-[10.5px]">{b.etiqueta}</text>
             </g>
           );
         })}
@@ -109,14 +109,14 @@ export function DiagramaPerdidas({
               height={BASE - y(tensionEfectivaMPa)}
               className="fill-primary/35 stroke-primary" strokeWidth={1.2} />
         <text x={xDe(tramos.length + 1) + anchoColumna / 2} y={y(tensionEfectivaMPa) - 5}
-              textAnchor="middle" className="fill-foreground text-[10px] tabular-nums">
+              textAnchor="middle" className="fill-foreground text-[11.5px] tabular-nums">
           {fmt(tensionEfectivaMPa)}
         </text>
         <text x={xDe(tramos.length + 1) + anchoColumna / 2} y={BASE + 12} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">efectiva</text>
+              className="fill-muted-foreground text-[10.5px]">efectiva</text>
 
         <line x1={20} y1={BASE} x2={ANCHO - 8} y2={BASE} className="stroke-foreground/40" strokeWidth={1} />
-        <text x={20} y={ALTO - 6} className="fill-muted-foreground text-[9px]">Tensión en el cordón (MPa)</text>
+        <text x={20} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">Tensión en el cordón (MPa)</text>
       </svg>
     </figure>
   );

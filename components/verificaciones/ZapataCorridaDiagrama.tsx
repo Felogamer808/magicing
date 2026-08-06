@@ -56,7 +56,7 @@ export function ZapataCorridaDiagrama({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full max-w-xs text-primary" fill="none" aria-hidden="true">
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
         <defs>
           <marker id={arrowId} markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
             <path d="M0 0 L6 3 L0 6 Z" fill="currentColor" />
@@ -69,7 +69,7 @@ export function ZapataCorridaDiagrama({
           <path d={`M${x1} ${y0 - 16} L${x1} ${y0 - 4}`} />
           <path d={`M${x0} ${y0 - 10} L${x1} ${y0 - 10}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
         </g>
-        <text x={(x0 + x1) / 2} y={y0 - 18} textAnchor="middle" className="fill-current font-mono" fontSize="9">
+        <text x={(x0 + x1) / 2} y={y0 - 18} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
           A = {fmtM(AM)}
         </text>
 
@@ -84,7 +84,7 @@ export function ZapataCorridaDiagrama({
           y={(y0 + y1) / 2}
           textAnchor="middle"
           className="fill-current font-mono"
-          fontSize="9"
+          fontSize="10.5"
           transform={`rotate(-90 ${PAD_LEFT - 22} ${(y0 + y1) / 2})`}
         >
           H = {fmtM(HM)}

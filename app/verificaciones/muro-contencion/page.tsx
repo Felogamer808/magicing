@@ -9,6 +9,11 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
+import {
+  CroquisApoyosMuro,
+  CroquisGeometriaMuro,
+  CroquisSueloMuro,
+} from "@/components/verificaciones/croquis/CroquisMuro";
 import { calcularMuroContencion } from "@/lib/calc/ec2/muro-contencion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -94,6 +99,9 @@ export default function MuroContencionPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Suelo</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <CroquisSueloMuro />
+              </div>
               <CampoNumerico id="gamma" etiqueta="γ" sufijo="kN/m³" valor={gamma} onChange={setGamma} />
               <CampoNumerico id="phi" etiqueta="φ" sufijo="°" valor={phi} onChange={setPhi} />
               <CampoNumerico id="c" etiqueta="Cohesión c" sufijo="kPa" valor={c} onChange={setC} />
@@ -104,6 +112,9 @@ export default function MuroContencionPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <CroquisGeometriaMuro />
+              </div>
               <CampoNumerico id="anchoZap" etiqueta="A zapata" sufijo="m" valor={anchoZap} onChange={setAnchoZap} />
               <CampoNumerico id="cantoZap" etiqueta="H zapata" sufijo="m" valor={cantoZap} onChange={setCantoZap} />
               <CampoNumerico id="altMuro" etiqueta="H muro" sufijo="m" valor={altMuro} onChange={setAltMuro} />
@@ -123,9 +134,12 @@ export default function MuroContencionPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Posición de los apoyos</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="l1Caso2" etiqueta="L1 (caso 2)" sufijo="m" valor={l1Caso2} onChange={setL1Caso2} />
-              <CampoNumerico id="l1Caso3" etiqueta="L1 (caso 3)" sufijo="m" valor={l1Caso3} onChange={setL1Caso3} />
-              <CampoNumerico id="l2Caso3" etiqueta="L2 (caso 3)" sufijo="m" valor={l2Caso3} onChange={setL2Caso3} />
+              <div className="col-span-2 sm:col-span-3">
+                <CroquisApoyosMuro />
+              </div>
+              <CampoNumerico id="l1Caso2" etiqueta="L1 · altura del contrapiso" sufijo="m" valor={l1Caso2} onChange={setL1Caso2} />
+              <CampoNumerico id="l1Caso3" etiqueta="L1 · altura del contrapiso" sufijo="m" valor={l1Caso3} onChange={setL1Caso3} />
+              <CampoNumerico id="l2Caso3" etiqueta="L2 · contrapiso a losa" sufijo="m" valor={l2Caso3} onChange={setL2Caso3} />
             </CardContent>
           </Card>
         </div>

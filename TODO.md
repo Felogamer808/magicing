@@ -11,16 +11,19 @@ sus campos. Hecho en **vigas — flexión y cortante** (materiales, geometría,
 armadura positiva y negativa, ramas del estribo), que es la implementación de
 referencia en `components/verificaciones/croquis/`.
 
-Faltan 13 páginas, en este orden de prioridad por cuánto se presta a confusión
+Hecho también en **muro de contención** (suelo, geometría y posición de los
+apoyos). De paso las etiquetas dejaron de decir sólo "L1" y "L2": ahora nombran
+lo que miden, y el croquis dibuja los dos casos apuntalados juntos porque `L1` no
+significa lo mismo en uno que en otro.
+
+Faltan 12 páginas, en este orden de prioridad por cuánto se presta a confusión
 cada parámetro:
 
-1. **Muro de contención** — `L1` y `L2` de los casos apuntalados son hoy opacos:
-   hay que dibujar dónde apoya el contrapiso y dónde la losa superior.
-2. **Losas** — que se vea que la armadura en X va por dentro, apoyada sobre la de
+1. **Losas** — que se vea que la armadura en X va por dentro, apoyada sobre la de
    Y, y que por eso tienen distinto canto útil.
-3. **Cabezal de pilotes** — separación entre pilotes, ancho del pilar, armaduras
-   secundaria y de reparto.
-4. Zapatas (medianería, corrida, combinada), pilotes, uniones, sección mixta,
+2. **Cabezal de pilotes** — separación entre pilotes, ancho del pilar, armaduras
+   secundaria y de reparto, y la inclinación de la biela.
+3. Zapatas (medianería, corrida, combinada), pilotes, uniones, sección mixta,
    viento, fisuración.
 
 ## Funcionalidad pendiente

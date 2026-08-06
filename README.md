@@ -30,8 +30,28 @@ trabajo (`CLAUDE.md`), la documentación (`ARCHITECTURE.md`, `API.md`,
 Al empezar en cualquier máquina:
 
 ```bash
-git pull
+npm run empezar
 ```
+
+Eso trae lo que haya en GitHub (`git pull --rebase --autostash`, así que no
+molesta si hay trabajo a medio hacer), instala lo que falte si cambiaron las
+dependencias, y activa el hook de envío automático.
+
+Del otro lado no hace falta acordarse de nada: el hook `.githooks/post-commit`
+manda el commit a GitHub apenas se cierra. Alcanza con commitear.
+
+El hook se activa por máquina, no viaja activado en el clon — Git nunca ejecuta
+hooks de un repositorio recién clonado, porque sería correr código ajeno sin que
+nadie lo pida. Por eso `npm run empezar` lo activa: en una computadora nueva,
+correrlo una vez deja todo listo.
+
+Si el envío falla, es porque la otra computadora subió algo primero. El commit
+local está a salvo; se resuelve con `npm run empezar` y después `git push`.
+
+Lo que sigue siendo manual es lo que necesita criterio: **cuándo** cerrar un
+avance y **con qué mensaje**. Este historial se lee para saber qué pasó, y un
+commit automático cada cinco minutos lo llenaría de ruido y subiría estados a
+medio hacer, con los tests en rojo.
 
 El proyecto vive **fuera de OneDrive** a propósito. Tenerlo adentro parecía
 cómodo pero rompía de tres formas: OneDrive sincroniza `.git` sin entender las
@@ -69,7 +89,17 @@ en los tests.
 
 ## Estructura
 
+La navegación tiene dos niveles: primero el **material** (sección) y dentro de él
+el **tipo de elemento** (categoría). Los dos hacen falta porque el nombre de
+categoría no es único entre materiales — "Vigas" existe en hormigón armado y en
+metálicas —, así que agrupar solo por categoría las mezclaría.
+
+Secciones abiertas: hormigón armado, estructuras metálicas y acciones. Previstas:
+hormigón pretensado, madera y mampostería.
+
 ```
+app/page.tsx                       Portada: elección de sección
+app/secciones/<id>/page.tsx        Índice de verificaciones de una sección
 app/verificaciones/<id>/page.tsx   Formulario + resultados de cada verificación
 components/verificaciones/         Diagramas SVG y piezas de UI compartidas
 lib/calc/ec2/                      Motor de cálculo Eurocódigo 2
@@ -93,7 +123,13 @@ cortante, armadura secundaria y de piel, anclaje y flecha).
 
 **Losas** — armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.
 
-**Pilares** — sección mixta CFT: tubo circular relleno de hormigón (AISC 360).
+**Estructuras metálicas** — compresión con pandeo por flexión en los dos ejes (AISC 360 art. E3) ·
+flexión respecto del eje fuerte, con plastificación y pandeo lateral-torsional (art. F2) · sección
+mixta CFT: tubo circular relleno de hormigón · soldaduras y chapa de base.
+
+El catálogo de perfiles (`lib/calc/aisc/perfiles.ts`) cubre PNI y PNC 80–300 (DIN 1025-1 y
+1026-1) y HEB 100–300 (EN 10365). El **2PNC no se tabula: se compone** a partir del PNC simple,
+porque su inercia débil depende de la separación entre perfiles, que es un dato de proyecto.
 
 **Cimentaciones** — zapata aislada (con punzonamiento y cortante) · zapata corrida · zapata de
 medianería · zapata combinada · losa de fundación · pilotes · cabezal de 2 pilotes.
@@ -132,6 +168,13 @@ involucrados coincidían.
    el resultado más conservador que el de la planilla.
 6. **Viento** — los topes de la presión interior estaban escritos como comparaciones encadenadas
    (`-0,2 < x < 0`), que Excel evalúa de izquierda a derecha y por lo tanto nunca se cumplen.
+8. **Perfiles 2PNC (planilla AISC 360.xlsx)** — la única columna de perfil doble traía tres
+   valores puestos a mano: `Iy` igual a `Ix` (y por lo tanto `ry = rx`), lo que **sobrestima la
+   capacidad a compresión** porque hace desaparecer el pandeo por el eje débil; `J` del mismo
+   orden que `Ix`, cuando en secciones abiertas va tres órdenes por debajo; y `Zx` tomado como
+   1,09·`Sx` en lugar del módulo plástico tabulado. Los tres están cubiertos por tests de
+   regresión en `lib/calc/aisc/perfiles.test.ts`.
+
 7. **Vigas, cortante sin armadura transversal** — la hoja mezclaba dos normas: `C_Rd,c = 0,15/γc`
    (que no es de ninguna; el articulado dice `0,18/γc` y parece un 0,18 mal transcripto) con
    `v_min = 0,075/γc·k^1,5·√fck`, que es el mínimo de la **EHE-08**, la norma anterior. El Anejo 19

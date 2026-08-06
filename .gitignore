@@ -55,3 +55,9 @@ desktop.ini
 # localmente pero no puede subirse al repositorio. La del Código Estructural sí
 # va versionada, porque es texto legal oficial.
 .claude/skills/jimenez-montoya/
+
+# ANSI/AISC 360-16 es una norma con copyright del American Institute of Steel
+# Construction, no legislación: mismo criterio que Jiménez Montoya. Los scripts
+# de scripts/normas/ sí se versionan; el texto que producen, no.
+scripts/normas/salida/
+.claude/skills/aisc-360/

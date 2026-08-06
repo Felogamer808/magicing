@@ -6,7 +6,7 @@ import { ArrowRight, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { agruparPorCategoria, registroVerificaciones } from "@/lib/verificaciones/registry";
+import { agruparPorCategoria, verificacionesDeSeccion } from "@/lib/verificaciones/registry";
 
 /** Quita tildes para que "fisuracion" encuentre "Fisuración". */
 function normalizar(texto: string) {
@@ -16,25 +16,26 @@ function normalizar(texto: string) {
     .replace(/[̀-ͯ]/g, "");
 }
 
-export function IndiceVerificaciones() {
+export function IndiceVerificaciones({ seccion }: { seccion: string }) {
   const [consulta, setConsulta] = useState("");
 
   const { categorias, total } = useMemo(() => {
     const q = normalizar(consulta.trim());
     const coincide = (t: string) => normalizar(t).includes(q);
+    const deLaSeccion = verificacionesDeSeccion(seccion);
 
     const filtradas = q
-      ? registroVerificaciones.filter(
+      ? deLaSeccion.filter(
           (v) =>
             coincide(v.nombre) ||
             coincide(v.categoria) ||
             coincide(v.descripcion) ||
             v.normasDisponibles.some(coincide)
         )
-      : registroVerificaciones;
+      : deLaSeccion;
 
     return { categorias: agruparPorCategoria(filtradas), total: filtradas.length };
-  }, [consulta]);
+  }, [consulta, seccion]);
 
   return (
     <>

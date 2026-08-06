@@ -1,81 +1,85 @@
-import { IndiceVerificaciones } from "@/components/IndiceVerificaciones";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TemaToggle } from "@/components/TemaToggle";
+import { registroSecciones, verificacionesDeSeccion } from "@/lib/verificaciones/registry";
 
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 py-16">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <span className="flex h-5 w-5 items-center justify-center border border-primary font-mono text-[11px] text-primary">
-            §
-          </span>
-          MagicIng
-        </div>
+      <div className="flex items-center justify-end">
         <TemaToggle />
       </div>
 
-      <div className="drafting-marks flex flex-col gap-8 border border-border bg-card/60 px-6 py-8 sm:px-10 sm:py-10">
-        <div className="space-y-3">
-          <p className="spec-label">EC2 · CIRSOC 201 · Cálculo estructural</p>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Verificaciones estructurales
-          </h1>
-          <p className="max-w-2xl text-muted-foreground">
-            Elegí una verificación del índice para calcular. Cada una indica la norma
-            aplicada y muestra el detalle de fórmulas para poder auditar el resultado.
-          </p>
-        </div>
-
-        <svg
-          viewBox="0 0 600 130"
-          className="h-auto w-full max-w-xl text-primary"
-          fill="none"
-          aria-hidden="true"
-        >
-          {/* carga distribuida */}
-          <g stroke="currentColor" strokeWidth="1.5" opacity="0.8">
-            <path d="M40 10 L560 10" />
-            {Array.from({ length: 15 }).map((_, i) => {
-              const x = 40 + i * 37.14;
-              return <path key={x} d={`M${x} 10 L${x} 32`} markerEnd="url(#arrow)" />;
-            })}
-          </g>
-
-          {/* viga */}
-          <path d="M40 46 L560 46" stroke="currentColor" strokeWidth="3" />
-
-          {/* apoyo articulado */}
-          <path d="M40 46 L26 70 L54 70 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-          <path d="M20 70 L60 70" stroke="currentColor" strokeWidth="1.5" />
-          <g stroke="currentColor" strokeWidth="1" opacity="0.6">
-            <path d="M22 70 L16 76 M32 70 L26 76 M42 70 L36 76 M52 70 L46 76" />
-          </g>
-
-          {/* apoyo móvil */}
-          <circle cx="560" cy="58" r="6" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M540 70 L580 70" stroke="currentColor" strokeWidth="1.5" />
-          <g stroke="currentColor" strokeWidth="1" opacity="0.6">
-            <path d="M542 70 L536 76 M552 70 L546 76 M562 70 L556 76 M572 70 L566 76" />
-          </g>
-
-          {/* curva de momento */}
-          <path
-            d="M40 96 Q300 132 560 96"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeDasharray="4 3"
-            opacity="0.6"
-          />
-
-          <defs>
-            <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto">
-              <path d="M0 0 L3 5 L6 0" fill="none" stroke="currentColor" strokeWidth="1.2" />
-            </marker>
-          </defs>
-        </svg>
+      <div className="drafting-marks flex flex-col items-center gap-6 border border-border bg-card/60 px-6 py-14 text-center sm:px-10 sm:py-20">
+        <span className="flex h-12 w-12 items-center justify-center border border-primary font-mono text-2xl text-primary">
+          §
+        </span>
+        <h1 className="font-[family-name:var(--font-display)] text-6xl font-semibold tracking-tight sm:text-8xl">
+          MagicIng
+        </h1>
+        <p className="spec-label">Cálculo estructural</p>
+        <p className="max-w-xl text-muted-foreground">
+          Verificaciones con el detalle de fórmulas a la vista, para poder auditar cada
+          resultado. Elegí una sección para empezar.
+        </p>
       </div>
 
-      <IndiceVerificaciones />
+      <div className="space-y-3">
+        <h2 className="spec-label">Secciones</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {registroSecciones.map((seccion) => {
+            const cantidad = verificacionesDeSeccion(seccion.id).length;
+
+            const contenido = (
+              <Card
+                className={
+                  seccion.disponible
+                    ? "h-full transition-colors hover:border-primary/40 hover:ring-primary/20"
+                    : "h-full opacity-60"
+                }
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-lg">{seccion.nombre}</CardTitle>
+                    {seccion.disponible ? (
+                      <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <Badge variant="outline" className="shrink-0">
+                        Próximamente
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{seccion.descripcion}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {seccion.normasDisponibles.map((norma) => (
+                      <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
+                        {norma}
+                      </Badge>
+                    ))}
+                    {seccion.disponible && (
+                      <span className="text-xs text-muted-foreground">
+                        {cantidad} {cantidad === 1 ? "verificación" : "verificaciones"}
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+
+            return seccion.disponible ? (
+              <Link key={seccion.id} href={seccion.ruta} className="block">
+                {contenido}
+              </Link>
+            ) : (
+              <div key={seccion.id}>{contenido}</div>
+            );
+          })}
+        </div>
+      </div>
     </main>
   );
 }

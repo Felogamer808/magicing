@@ -21,6 +21,9 @@ interface Props {
 
 export interface DimensionesPropuestas {
   anchoZapataM: number;
+  /** Extremos de la horquilla 0,5–0,8·h para el ancho de zapata. */
+  anchoZapataMinM: number;
+  anchoZapataMaxM: number;
   cantoZapataM: number;
   alturaMuroM: number;
   espesorMuroM: number;
@@ -35,17 +38,52 @@ const fmt = (n: number, d = 2) =>
 /** Redondeo a 5 cm, que es como se construye. */
 const aMultiplo = (m: number) => Math.round(m / 0.05) * 0.05;
 
+/**
+ * Proporciones de referencia para un muro en ménsula, en función de la altura
+ * total h:
+ *
+ *   hastial (alzado)   0,1·h        · mínimo constructivo de 25 cm
+ *   zapata, ancho      0,5 a 0,8·h  · se toma 0,6·h, en el medio de la horquilla
+ *   zapata, canto      0,1·h        · igual que el hastial
+ *
+ * El ancho de zapata es el que más varía: con suelo bueno y poca sobrecarga se
+ * va al extremo bajo, y con suelo flojo hay que ir al alto. Por eso se devuelven
+ * también los dos límites, para poder moverse dentro de la horquilla si el
+ * vuelco no verifica.
+ */
 export function proponerDimensiones(alturaTotalM: number): DimensionesPropuestas {
   const h = alturaTotalM;
+  const espesor = Math.max(aMultiplo(0.1 * h), 0.25);
   return {
-    // La zapata ronda 0,5·H de ancho; menos que eso suele no verificar a vuelco.
-    anchoZapataM: Math.max(aMultiplo(0.5 * h), 0.6),
-    // Canto de zapata y espesor del alzado, del orden de H/12, con mínimos
-    // constructivos de 25 cm para poder armar y hormigonar.
-    cantoZapataM: Math.max(aMultiplo(h / 12), 0.25),
-    alturaMuroM: aMultiplo(h - Math.max(aMultiplo(h / 12), 0.25)),
-    espesorMuroM: Math.max(aMultiplo(h / 12), 0.25),
+    anchoZapataM: Math.max(aMultiplo(0.6 * h), 0.6),
+    anchoZapataMinM: Math.max(aMultiplo(0.5 * h), 0.6),
+    anchoZapataMaxM: Math.max(aMultiplo(0.8 * h), 0.6),
+    cantoZapataM: espesor,
+    alturaMuroM: aMultiplo(h - espesor),
+    espesorMuroM: espesor,
   };
+}
+
+/** Flecha con rótulo, para señalar una parte del muro sin tapar el dibujo. */
+function Senal({
+  x, y, hacia, texto,
+}: { x: number; y: number; hacia: "izquierda" | "derecha"; texto: string }) {
+  const signo = hacia === "derecha" ? 1 : -1;
+  const largo = 26;
+  const xFin = x + signo * largo;
+  return (
+    <g>
+      <line x1={xFin} y1={y} x2={x + signo * 3} y2={y} className="stroke-primary" strokeWidth={1.1} />
+      <polygon
+        points={`${x},${y} ${x + signo * 6},${y - 3} ${x + signo * 6},${y + 3}`}
+        className="fill-primary"
+      />
+      <text x={xFin + signo * 3} y={y + 3} textAnchor={hacia === "derecha" ? "start" : "end"}
+            className="fill-primary text-[9px]">
+        {texto}
+      </text>
+    </g>
+  );
 }
 
 export function PredimensionadoMuro({ alturaTotalM, onAplicar }: Props) {
@@ -83,21 +121,25 @@ export function PredimensionadoMuro({ alturaTotalM, onAplicar }: Props) {
               className="stroke-muted-foreground" strokeWidth={1} />
         <text x={xIzq + px(p.anchoZapataM) / 2} y={yBase + 28} textAnchor="middle"
               className="fill-muted-foreground text-[9px]">
-          A ≈ 0,5·H = {fmt(p.anchoZapataM)} m
+          A = 0,5 a 0,8·h → {fmt(p.anchoZapataM)} m
         </text>
 
         <text x={xIzq + px(p.anchoZapataM) + 8} y={yTopZapata + px(p.cantoZapataM) / 2 + 3}
               className="fill-muted-foreground text-[9px]">
-          canto ≈ H/12 = {fmt(p.cantoZapataM)} m
+          canto 0,1·h = {fmt(p.cantoZapataM)} m
         </text>
-        <text x={xIzq + px(puntera) + px(p.espesorMuroM) + 8} y={yCoronacion + 12}
-              className="fill-muted-foreground text-[9px]">
-          espesor ≈ H/12 = {fmt(p.espesorMuroM)} m
-        </text>
-        <text x={xIzq + px(puntera) / 2} y={yTopZapata - 6} textAnchor="middle"
-              className="fill-muted-foreground text-[9px]">
-          puntera ≈ A/3
-        </text>
+
+        {/* Las tres partes, señaladas con su flecha. */}
+        <Senal
+          x={xIzq + px(puntera) + px(p.espesorMuroM)} y={yCoronacion + px(p.alturaMuroM) * 0.35}
+          hacia="derecha" texto={`hastial · 0,1·h = ${fmt(p.espesorMuroM)} m`} />
+        <Senal
+          x={xIzq + px(puntera) / 2} y={yTopZapata + px(p.cantoZapataM) / 2}
+          hacia="izquierda" texto="puntera" />
+        <Senal
+          x={xIzq + px(puntera) + px(p.espesorMuroM) + (px(p.anchoZapataM) - px(puntera) - px(p.espesorMuroM)) / 2}
+          y={yTopZapata + px(p.cantoZapataM) / 2}
+          hacia="derecha" texto="talón" />
       </svg>
 
       <button
@@ -108,8 +150,9 @@ export function PredimensionadoMuro({ alturaTotalM, onAplicar }: Props) {
         Cargar estas dimensiones
       </button>
       <p className="text-xs text-muted-foreground">
-        Es un punto de partida, no un resultado: son proporciones que suelen verificar. Hay que
-        correr vuelco, deslizamiento y tensión igual, y ajustar desde ahí.
+        Es un punto de partida, no un resultado. El ancho de zapata es el que más se mueve: la
+        horquilla va de {fmt(p.anchoZapataMinM)} a {fmt(p.anchoZapataMaxM)} m, y si el vuelco no
+        verifica hay que ir hacia el extremo alto. Correr las tres comprobaciones igual.
       </p>
     </div>
   );

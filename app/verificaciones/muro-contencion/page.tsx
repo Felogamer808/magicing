@@ -9,6 +9,8 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/DiagramaEmpujesMuro";
 import { PredimensionadoMuro } from "@/components/verificaciones/hormigon/PredimensionadoMuro";
+import { AccionesElementosMuro } from "@/components/verificaciones/hormigon/AccionesElementosMuro";
+import { PanelAyuda } from "@/components/verificaciones/PanelAyuda";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
 import {
@@ -108,7 +110,8 @@ export default function MuroContencionPage() {
               <CampoNumerico id="phi" etiqueta="φ" sufijo="°" valor={phi} onChange={setPhi} />
               <CampoNumerico id="c" etiqueta="Cohesión c" sufijo="kPa" valor={c} onChange={setC} />
               <CampoNumerico id="sigmaAdm" etiqueta="σ adm." sufijo="kN/m²" valor={sigmaAdm} onChange={setSigmaAdm} />
-              <div className="col-span-2 space-y-1.5 text-xs text-muted-foreground">
+              <div className="col-span-2">
+                <PanelAyuda titulo="Qué es cada parámetro del suelo">
                 <p>
                   <strong className="text-foreground">γ — peso específico.</strong> Cuánto pesa un
                   metro cúbico de relleno. Multiplica todo el empuje: el doble de γ es el doble de
@@ -131,6 +134,7 @@ export default function MuroContencionPage() {
                   presión tolera el terreno de apoyo sin asentar de más. No sale de los otros tres:
                   es un dato del estudio de suelos. Es la que limita el ancho de zapata.
                 </p>
+                </PanelAyuda>
               </div>
             </CardContent>
           </Card>
@@ -165,7 +169,8 @@ export default function MuroContencionPage() {
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
               <CampoNumerico id="sobrecarga" etiqueta="Sobrecarga" sufijo="kN/m²" valor={sobrecarga} onChange={setSobrecarga} />
-              <div className="col-span-2 space-y-1.5 text-xs text-muted-foreground sm:col-span-3">
+              <div className="col-span-2 sm:col-span-3">
+                <PanelAyuda titulo="Qué es cada dato del terreno y la sobrecarga">
                 <p>
                   <strong className="text-foreground">h activo.</strong> Altura de tierra retenida
                   por detrás, medida desde la base de la zapata. Es la que genera el empuje que
@@ -183,6 +188,7 @@ export default function MuroContencionPage() {
                   acceso—. Se traduce en un empuje horizontal ka·q constante en toda la altura, por
                   eso su diagrama es el rectángulo ámbar y no un triángulo.
                 </p>
+                </PanelAyuda>
               </div>
             </CardContent>
           </Card>
@@ -227,6 +233,13 @@ export default function MuroContencionPage() {
                     empujeSueloKN={resultado.r.empujes.empujeSueloKN}
                     empujeSobrecargaKN={resultado.r.empujes.empujeSobrecargaKN}
                     empujePasivoKN={resultado.r.empujes.empujePasivoKN}
+                  />
+                  <AccionesElementosMuro
+                    alturaMuroM={aNumero(altMuro)}
+                    espesorMuroM={aNumero(espMuro)}
+                    anchoZapataM={aNumero(anchoZap)}
+                    cantoZapataM={aNumero(cantoZap)}
+                    punteraM={Math.max(aNumero(anchoZap) / 3, 0.1)}
                   />
                 </CardContent>
               </Card>

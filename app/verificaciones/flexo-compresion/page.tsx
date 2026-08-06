@@ -10,6 +10,7 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
+import { DiagramaInteraccion } from "@/components/verificaciones/acero/DiagramaInteraccion";
 import { calcularFlexoCompresion } from "@/lib/calc/aisc/flexo-compresion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -143,6 +144,20 @@ export default function FlexoCompresionPage() {
                       Axial {fmt(resultado.terminos.axial, 3)} · Flexión x{" "}
                       {fmt(resultado.terminos.flexionX, 3)} · Flexión y{" "}
                       {fmt(resultado.terminos.flexionY, 3)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <DiagramaInteraccion
+                      relacionAxial={resultado.relacionAxial}
+                      terminoFlexion={resultado.terminos.flexionX + resultado.terminos.flexionY}
+                      interaccion={resultado.interaccion}
+                      ecuacion={resultado.ecuacion}
+                      verifica={resultado.verifica}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      El punto tiene que caer dentro de la envolvente. El quiebre en Pr/Pc = 0,2 es
+                      donde la norma cambia de ecuación: arriba el momento entra afectado por 8/9,
+                      abajo la axial cuenta a la mitad.
                     </p>
                   </div>
                 </CardContent>

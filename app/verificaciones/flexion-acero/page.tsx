@@ -10,6 +10,7 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
+import { CurvaFlexion } from "@/components/verificaciones/acero/CurvaFlexion";
 import { OMEGA_B } from "@/lib/calc/aisc/flexion";
 import {
   calcularFlexionSegunSeccion,
@@ -220,6 +221,31 @@ export default function FlexionAceroPage() {
                     )}
                   </div>
                   {advertencia && <p className="text-xs text-destructive">{advertencia}</p>}
+                  {/*
+                    F8 no depende de Lb —el tubo redondo no pandea lateralmente—, así
+                    que la curva no tendría nada que mostrar y se omite.
+                  */}
+                  {resultado.articulo !== "F8" && (
+                    <>
+                      <CurvaFlexion
+                        familia={seccion.familia}
+                        params={seccion.params}
+                        cb={aNumero(cb)}
+                        fyPa={aNumero(fy) * 1e6}
+                        ePa={aNumero(e) * 1e6}
+                        lbM={aNumero(lb)}
+                        lpM={resultado.lpM}
+                        lrM={resultado.lrM}
+                        mpKNm={resultado.mpKNm}
+                        mnKNm={resultado.mnKNm}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Verde: hasta Lp manda la plastificación. Ámbar: entre Lp y Lr el pandeo
+                        lateral-torsional va comiendo resistencia. Rojo: pasada Lr, régimen
+                        elástico. El punto rojo es la longitud cargada.
+                      </p>
+                    </>
+                  )}
                   {noCompacta && (
                     <p className="text-xs text-destructive">
                       La sección no es compacta con este Fy: el artículo F2 no la cubre y el

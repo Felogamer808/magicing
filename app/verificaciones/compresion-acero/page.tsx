@@ -10,6 +10,7 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
+import { CurvaPandeo } from "@/components/verificaciones/acero/CurvaPandeo";
 import { calcularCompresion, OMEGA_C, type PandeoEnUnEje } from "@/lib/calc/aisc/compresion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -160,6 +161,17 @@ export default function CompresionAceroPage() {
                       superarla en barras dimensionadas a compresión.
                     </p>
                   )}
+                  <CurvaPandeo
+                    fyPa={aNumero(fy) * 1e6}
+                    ePa={aNumero(e) * 1e6}
+                    esbeltezFuerte={resultado.ejeFuerte.esbeltez}
+                    esbeltezDebil={resultado.ejeDebil.esbeltez}
+                    gobierna={resultado.gobierna}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    La línea vertical separa el pandeo inelástico del elástico. Cada eje del perfil
+                    cae en un punto de la curva; gobierna el de menor resistencia, marcado en rojo.
+                  </p>
                 </CardContent>
               </Card>
 

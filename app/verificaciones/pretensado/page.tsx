@@ -8,6 +8,11 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { DiagramaFlechas } from "@/components/verificaciones/pretensado/DiagramaFlechas";
+import { DiagramaFlexion } from "@/components/verificaciones/pretensado/DiagramaFlexion";
+import { DiagramaPerdidas } from "@/components/verificaciones/pretensado/DiagramaPerdidas";
+import { DiagramaTensiones } from "@/components/verificaciones/pretensado/DiagramaTensiones";
+import { SeccionPretensadaDiagrama } from "@/components/verificaciones/pretensado/SeccionPretensadaDiagrama";
 import { calcularPretensado } from "@/lib/calc/aci/pretensado";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -116,6 +121,24 @@ export default function PretensadoPage() {
       hC, bC, aC, iC, ygC, perimC, recPas, recPret, cargaMuerta, sobrecarga, ev, torones,
       diamPas, nPas, pInst, pDif, hr]);
 
+  /*
+   * Escala común a los tres diagramas de tensión: sin ella cada uno se dibujaría
+   * con su propio zoom y no se podrían comparar entre sí, que es justamente lo
+   * que interesa al pasar de transferencia a servicio.
+   */
+  const escalaTension = useMemo(() => {
+    if (!resultado) return 1;
+    const valores = resultado.tensiones.flatMap((t) => [
+      Math.abs(t.sigmaSupMPa),
+      Math.abs(t.sigmaInfMPa),
+      Math.abs(t.admisibleTraccionMPa),
+      Math.abs(t.admisibleCompresionMPa),
+    ]);
+    return Math.max(...valores) * 1.1;
+  }, [resultado]);
+
+  const escalaCanto = aNumero(hC) || 1;
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -155,6 +178,21 @@ export default function PretensadoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Sección simple (premoldeado)</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              {resultado && (
+                <div className="col-span-full">
+                  <SeccionPretensadaDiagrama
+                    hSimpleM={aNumero(hS)}
+                    bSimpleM={aNumero(bS)}
+                    hCompuestaM={aNumero(hC)}
+                    bCompuestaM={aNumero(bC)}
+                    ygSimpleM={aNumero(ygS)}
+                    ygCompuestaM={aNumero(ygC)}
+                    recPretensadoM={aNumero(recPret)}
+                    torones={Math.round(aNumero(torones))}
+                    excentricidadM={resultado.propiedades.excentricidadM}
+                  />
+                </div>
+              )}
               <CampoNumerico id="luz" etiqueta="Luz de cálculo" sufijo="m" valor={luz} onChange={setLuz} />
               <div />
               <CampoNumerico id="hS" etiqueta="h" sufijo="m" valor={hS} onChange={setHS} />
@@ -238,22 +276,40 @@ export default function PretensadoPage() {
               </Card>
 
               <Card>
-                <CardHeader><CardTitle className="text-base">Tensiones en servicio</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Tensiones en servicio</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <p className="text-xs text-muted-foreground">
+                    La banda verde es el rango admisible de cada situación. El trapecio es el
+                    diagrama de tensiones entre las dos fibras: en transferencia el pretensado
+                    tracciona arriba, y con las cargas de servicio se invierte.
+                  </p>
                   {resultado.tensiones.map((t) => (
-                    <ResultadoCheck
-                      key={t.nombre}
-                      etiqueta={t.nombre}
-                      verifica={t.verifica}
-                      detalle={`σ = ${fmt(t.sigmaMPa, 2)} MPa · admisible ${fmt(t.admisibleMPa, 2)} MPa · art. ${t.articulo}`}
-                    />
+                    <div key={t.nombre} className="space-y-2">
+                      <ResultadoCheck
+                        etiqueta={t.nombre}
+                        verifica={t.verifica}
+                        detalle={`P = ${fmt(t.fuerzaKN, 0)} kN · M = ${fmt(t.momentoKNm, 1)} kN·m · banda ${fmt(t.admisibleCompresionMPa, 1)} a ${fmt(t.admisibleTraccionMPa, 2)} MPa · art. ${t.articulo}`}
+                      />
+                      <DiagramaTensiones situacion={t} hM={escalaCanto} escalaMPa={escalaTension} />
+                    </div>
                   ))}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Pérdidas de pretensado</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <DiagramaPerdidas
+                    tensionTrasTesadoMPa={resultado.perdidas.tensionTrasTesadoMPa}
+                    esMPa={resultado.perdidas.esMPa}
+                    shMPa={resultado.perdidas.shMPa}
+                    crMPa={resultado.perdidas.crMPa}
+                    reMPa={resultado.perdidas.reMPa}
+                    tensionEfectivaMPa={resultado.perdidas.tensionEfectivaMPa}
+                    admisibleMPa={resultado.perdidas.tensionAdmisibleMPa}
+                  />
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -273,7 +329,26 @@ export default function PretensadoPage() {
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Flexión y flechas</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <DiagramaFlexion
+                    hM={aNumero(hC)}
+                    bM={aNumero(bC)}
+                    dpM={resultado.propiedades.dpM}
+                    dsM={resultado.propiedades.dsM}
+                    aM={resultado.flexion.aM}
+                    cM={resultado.flexion.cM}
+                    deformacionNeta={resultado.flexion.deformacionNeta}
+                    controladaPorTraccion={resultado.flexion.controladaPorTraccion}
+                    hayPasiva={aNumero(nPas) > 0}
+                  />
+                  <DiagramaFlechas
+                    instantaneaMm={resultado.deformaciones.instantaneaMm}
+                    activaMm={resultado.deformaciones.activaMm}
+                    totalMm={resultado.deformaciones.totalMm}
+                    limiteInstantaneaMm={resultado.deformaciones.limiteInstantaneaMm}
+                    limiteActivaMm={resultado.deformaciones.limiteActivaMm}
+                    limiteTotalMm={resultado.deformaciones.limiteTotalMm}
+                  />
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

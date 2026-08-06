@@ -82,14 +82,29 @@ export interface DatosPretensado {
   psiSobrecarga?: number;
 }
 
-export interface VerificacionTension {
+/**
+ * Estado tensional de la sección en un instante y una posición concretos.
+ *
+ * Se agrupan las dos fibras en lugar de listarlas sueltas porque en pretensado
+ * se leen juntas: el diagrama de tensiones es una recta entre ellas, y lo que
+ * interesa es que ninguno de los dos extremos se salga de la banda admisible.
+ * No se presupone cuál está traccionada —eso depende de la etapa— así que a
+ * cada fibra se le aplican los dos límites.
+ */
+export interface SituacionTension {
   nombre: string;
-  /** Tensión actuante, en MPa. Positiva = tracción. */
-  sigmaMPa: number;
-  /** Tensión admisible, en MPa. */
-  admisibleMPa: number;
-  /** Cómo se compara: la tracción no debe superar, la compresión no debe bajar. */
-  tipo: "tracción" | "compresión";
+  /** Momento actuante en esta situación, en kN·m. */
+  momentoKNm: number;
+  /** Fuerza de pretensado vigente, en kN. */
+  fuerzaKN: number;
+  sigmaSupMPa: number;
+  sigmaInfMPa: number;
+  /** Límite de tracción, positivo. */
+  admisibleTraccionMPa: number;
+  /** Límite de compresión, negativo. */
+  admisibleCompresionMPa: number;
+  verificaSup: boolean;
+  verificaInf: boolean;
   verifica: boolean;
   articulo: string;
 }
@@ -118,7 +133,7 @@ export interface ResultadoPretensado {
   };
   /** Fuerza de pretensado inicial y final, en kN. */
   fuerzas: { poKN: number; piKN: number; pfKN: number };
-  tensiones: VerificacionTension[];
+  tensiones: SituacionTension[];
   armaduraActiva: {
     apRequeridoPermanenteMm2: number;
     apRequeridoTemporalMm2: number;
@@ -266,68 +281,67 @@ export function calcularPretensado(datos: DatosPretensado): ResultadoPretensado 
   const tensionPorMomento = (momentoKNm: number, sxM3: number, fibra: "sup" | "inf") =>
     ((fibra === "sup" ? -1 : 1) * momentoKNm) / sxM3 / 1000;
 
-  const sinVerificar: Omit<VerificacionTension, "verifica">[] = [
+  const situaciones: Omit<
+    SituacionTension,
+    "verificaSup" | "verificaInf" | "verifica"
+  >[] = [
     {
-      nombre: "Tracción en fibra superior, apoyo, tras pérdidas instantáneas",
-      sigmaMPa: tensionPorPretensado(piKN, "sup"),
-      admisibleMPa: 0.5 * Math.sqrt(fci),
-      tipo: "tracción",
+      nombre: "Transferencia · apoyo",
+      momentoKNm: 0,
+      fuerzaKN: piKN,
+      sigmaSupMPa: tensionPorPretensado(piKN, "sup"),
+      sigmaInfMPa: tensionPorPretensado(piKN, "inf"),
+      admisibleTraccionMPa: 0.5 * Math.sqrt(fci),
+      // En el extremo la norma admite más compresión que en el vano.
+      admisibleCompresionMPa: -0.7 * fci,
       articulo: "24.5.3",
     },
     {
-      nombre: "Compresión en fibra inferior, apoyo, tras pérdidas instantáneas",
-      sigmaMPa: tensionPorPretensado(piKN, "inf"),
-      admisibleMPa: -0.7 * fci,
-      tipo: "compresión",
-      articulo: "24.5.3",
-    },
-    {
-      nombre: "Tracción en fibra superior, centro, tras pérdidas instantáneas",
-      sigmaMPa:
+      nombre: "Transferencia · centro de vano",
+      momentoKNm: momentoPesoPropioKNm,
+      fuerzaKN: piKN,
+      sigmaSupMPa:
         tensionPorPretensado(piKN, "sup") +
         tensionPorMomento(momentoPesoPropioKNm, sxSupSimpleM3, "sup"),
-      admisibleMPa: 0.5 * Math.sqrt(fci),
-      tipo: "tracción",
-      articulo: "24.5.3",
-    },
-    {
-      nombre: "Compresión en fibra inferior, centro, tras pérdidas instantáneas",
-      sigmaMPa:
+      sigmaInfMPa:
         tensionPorPretensado(piKN, "inf") +
         tensionPorMomento(momentoPesoPropioKNm, sxInfSimpleM3, "inf"),
-      admisibleMPa: -0.6 * fci,
-      tipo: "compresión",
+      admisibleTraccionMPa: 0.5 * Math.sqrt(fci),
+      admisibleCompresionMPa: -0.6 * fci,
       articulo: "24.5.3",
     },
     {
-      nombre: "Tracción en fibra inferior, centro, cargas de larga duración",
-      sigmaMPa:
-        tensionPorPretensado(pfKN, "inf") +
-        tensionPorMomento(momentoLargaDuracionKNm, sxInfCompuestaM3, "inf"),
-      admisibleMPa: 0.62 * Math.sqrt(fc),
-      tipo: "tracción",
-      articulo: "24.5.2 (clase U)",
-    },
-    {
-      nombre: "Compresión en fibra superior, centro, cargas de larga duración",
-      sigmaMPa:
+      nombre: "Servicio · centro de vano, larga duración",
+      momentoKNm: momentoLargaDuracionKNm,
+      fuerzaKN: pfKN,
+      sigmaSupMPa:
         tensionPorPretensado(pfKN, "sup") +
         tensionPorMomento(momentoLargaDuracionKNm, sxSupCompuestaM3, "sup"),
-      admisibleMPa: -0.6 * fcSitu,
-      tipo: "compresión",
-      articulo: "24.5.4",
+      sigmaInfMPa:
+        tensionPorPretensado(pfKN, "inf") +
+        tensionPorMomento(momentoLargaDuracionKNm, sxInfCompuestaM3, "inf"),
+      admisibleTraccionMPa: 0.62 * Math.sqrt(fc),
+      admisibleCompresionMPa: -0.6 * fcSitu,
+      articulo: "24.5.2 (clase U)",
     },
   ];
 
   /*
-   * El sentido de la comparación depende del signo: una tracción no debe superar
-   * su admisible, una compresión no debe bajar del suyo, que es negativo.
+   * A cada fibra se le aplican los dos límites, sin presuponer cuál está
+   * traccionada: en transferencia se tracciona arriba y en servicio abajo, y con
+   * poco pretensado puede no traccionarse ninguna.
    */
-  const tensiones: VerificacionTension[] = sinVerificar.map((t) => ({
-    ...t,
-    verifica:
-      t.tipo === "tracción" ? t.sigmaMPa <= t.admisibleMPa : t.sigmaMPa >= t.admisibleMPa,
-  }));
+  const dentroDeBanda = (
+    sigma: number,
+    traccion: number,
+    compresion: number
+  ) => sigma <= traccion && sigma >= compresion;
+
+  const tensiones: SituacionTension[] = situaciones.map((s) => {
+    const verificaSup = dentroDeBanda(s.sigmaSupMPa, s.admisibleTraccionMPa, s.admisibleCompresionMPa);
+    const verificaInf = dentroDeBanda(s.sigmaInfMPa, s.admisibleTraccionMPa, s.admisibleCompresionMPa);
+    return { ...s, verificaSup, verificaInf, verifica: verificaSup && verificaInf };
+  });
 
   // --- Armadura activa necesaria, tabla 20.3.2.5.1 --------------------------
   const sigmaPermanente = Math.min(0.74 * fpu, 0.82 * fpy, 0.7 * fpu);

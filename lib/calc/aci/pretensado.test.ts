@@ -107,14 +107,15 @@ describe("viga: contraste contra la planilla", () => {
   });
 
   it("reproduce las tensiones en las fibras", () => {
-    // Celdas C90 a C92 de la planilla.
-    expect(r.tensiones[0].sigmaMPa).toBeCloseTo(6.4930516756756749, 6);
-    expect(r.tensiones[1].sigmaMPa).toBeCloseTo(-13.63347805405405, 6);
-    expect(r.tensiones[2].sigmaMPa).toBeCloseTo(3.9290732972972964, 6);
-    // Y sus admisibles, celdas D90 a D92.
-    expect(r.tensiones[0].admisibleMPa).toBeCloseTo(3.1622776601683795, 9);
-    expect(r.tensiones[1].admisibleMPa).toBeCloseTo(-28, 9);
-    expect(r.tensiones[4].admisibleMPa).toBeCloseTo(4.3840620433565949, 9);
+    // Celdas C90 a C92 de la planilla, agrupadas por situación.
+    expect(r.tensiones[0].sigmaSupMPa).toBeCloseTo(6.4930516756756749, 6);
+    expect(r.tensiones[0].sigmaInfMPa).toBeCloseTo(-13.63347805405405, 6);
+    expect(r.tensiones[1].sigmaSupMPa).toBeCloseTo(3.9290732972972964, 6);
+    // Y sus admisibles, celdas D90 a D94.
+    expect(r.tensiones[0].admisibleTraccionMPa).toBeCloseTo(3.1622776601683795, 9);
+    expect(r.tensiones[0].admisibleCompresionMPa).toBeCloseTo(-28, 9);
+    expect(r.tensiones[1].admisibleCompresionMPa).toBeCloseTo(-24, 9);
+    expect(r.tensiones[2].admisibleTraccionMPa).toBeCloseTo(4.3840620433565949, 9);
   });
 
   it("reproduce el área de pretensado necesaria", () => {
@@ -160,8 +161,8 @@ describe("losa: contraste contra la planilla", () => {
   });
 
   it("reproduce las tensiones y las cuatro pérdidas", () => {
-    expect(r.tensiones[0].sigmaMPa).toBeCloseTo(2.1378269617706223, 6);
-    expect(r.tensiones[1].sigmaMPa).toBeCloseTo(-9.263916834339371, 6);
+    expect(r.tensiones[0].sigmaSupMPa).toBeCloseTo(2.1378269617706223, 6);
+    expect(r.tensiones[0].sigmaInfMPa).toBeCloseTo(-9.263916834339371, 6);
     expect(r.perdidas.esMPa).toBeCloseTo(30.416692352697751, 5);
     expect(r.perdidas.shMPa).toBeCloseTo(15.963237317118802, 6);
     expect(r.perdidas.crMPa).toBeCloseTo(39.158322108755797, 5);
@@ -239,19 +240,33 @@ describe("coherencia del modelo", () => {
     const muchos = calcularPretensado({ ...VIGA, toronesInf: 10 });
 
     expect(muchos.flexion.mnKNm).toBeGreaterThan(pocos.flexion.mnKNm);
-    // El pretensado comprime la fibra inferior: más torones, menos tracción.
-    expect(muchos.tensiones[4].sigmaMPa).toBeLessThan(pocos.tensiones[4].sigmaMPa);
+    // El pretensado comprime la fibra inferior: más torones, menos tracción en
+    // servicio, que es la situación donde esa fibra trabaja a tracción.
+    expect(muchos.tensiones[2].sigmaInfMPa).toBeLessThan(pocos.tensiones[2].sigmaInfMPa);
   });
 
-  it("las tensiones de tracción y compresión se comparan en el sentido correcto", () => {
+  it("cada fibra se compara contra los dos límites de su situación", () => {
     const r = calcularPretensado(VIGA);
     for (const t of r.tensiones) {
-      const esperado = t.tipo === "tracción" ? t.sigmaMPa <= t.admisibleMPa : t.sigmaMPa >= t.admisibleMPa;
-      expect(t.verifica).toBe(esperado);
-      // Los admisibles de compresión son negativos y los de tracción positivos.
-      if (t.tipo === "compresión") expect(t.admisibleMPa).toBeLessThan(0);
-      else expect(t.admisibleMPa).toBeGreaterThan(0);
+      const dentro = (s: number) =>
+        s <= t.admisibleTraccionMPa && s >= t.admisibleCompresionMPa;
+      expect(t.verificaSup).toBe(dentro(t.sigmaSupMPa));
+      expect(t.verificaInf).toBe(dentro(t.sigmaInfMPa));
+      expect(t.verifica).toBe(t.verificaSup && t.verificaInf);
+      // La banda siempre tiene la compresión por debajo de cero y la tracción por encima.
+      expect(t.admisibleCompresionMPa).toBeLessThan(0);
+      expect(t.admisibleTraccionMPa).toBeGreaterThan(0);
     }
+  });
+
+  it("en transferencia se tracciona arriba y en servicio abajo", () => {
+    const r = calcularPretensado(VIGA);
+    // El pretensado excéntrico levanta la pieza: arriba tracción, abajo compresión.
+    expect(r.tensiones[0].sigmaSupMPa).toBeGreaterThan(0);
+    expect(r.tensiones[0].sigmaInfMPa).toBeLessThan(0);
+    // Con las cargas de servicio se invierte.
+    expect(r.tensiones[2].sigmaSupMPa).toBeLessThan(0);
+    expect(r.tensiones[2].sigmaInfMPa).toBeGreaterThan(0);
   });
 
   it("una luz mayor aumenta momentos y flechas", () => {

@@ -11,17 +11,10 @@ import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularSeccionMixta } from "@/lib/calc/aisc/seccion-mixta";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "secciones-mixtas")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 function DiagramaCFT({ dMm, tMm, numeroBarras, diametroBarraMm }: { dMm: number; tMm: number; numeroBarras: number; diametroBarraMm: number }) {
   const R = 70;

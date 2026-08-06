@@ -13,17 +13,10 @@ import { ZapataDiagrama } from "@/components/verificaciones/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataAislada } from "@/lib/calc/ec2/zapata-aislada";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapatas")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function ZapataAisladaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");

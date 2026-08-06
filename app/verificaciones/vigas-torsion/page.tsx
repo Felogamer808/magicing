@@ -15,20 +15,10 @@ import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/ec2/vigas-flexion-cortante";
 import { calcularVigaConTorsion } from "@/lib/calc/ec2/vigas-torsion";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
-
-const describirCapas = (capas: number[]) =>
-  capas.length <= 1 ? `1 fila de ${capas[0]}` : `${capas.length} filas: ${capas.join("+")}`;
 
 export default function VigasTorsionPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");

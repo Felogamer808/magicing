@@ -12,17 +12,10 @@ import { ZapataCombinadaDiagrama } from "@/components/verificaciones/ZapataCombi
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCombinada } from "@/lib/calc/ec2/zapata-combinada";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-combinada")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 export default function ZapataCombinadaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");

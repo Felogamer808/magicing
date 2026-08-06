@@ -11,17 +11,10 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/aisc/uniones";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "soldaduras")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 /** Convierte "0.18, 0.127" en [0.18, 0.127]. */
 function parsearDistancias(texto: string): number[] {

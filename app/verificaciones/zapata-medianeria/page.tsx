@@ -13,17 +13,10 @@ import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/ZapataMedi
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-medianeria")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 function TarjetaLado({
   titulo,

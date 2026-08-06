@@ -12,17 +12,10 @@ import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { calcularLosa, calcularMomentoResistenteLosa, type ResultadoDireccionLosa } from "@/lib/calc/ec2/losa";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
-
-function aNumero(texto: string): number {
-  const n = Number(texto.replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-const fmt = (n: number, decimales = 2) =>
-  n.toLocaleString("es-AR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
 function TarjetaDireccion({
   titulo,

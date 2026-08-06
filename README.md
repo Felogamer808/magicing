@@ -124,10 +124,9 @@ cortante, armadura secundaria y de piel, anclaje y flecha).
 **Losas** — armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.
 
 **Estructuras metálicas** — compresión con pandeo por flexión en los dos ejes (AISC 360 art. E3) ·
-flexión, con plastificación y pandeo lateral-torsional en el eje fuerte (art. F2) y pandeo local
-del ala en el débil (art. F6) · corte en el alma, con y sin rigidizadores (art. G2) ·
-flexo-compresión biaxial (art. H1) · sección mixta CFT: tubo circular relleno de hormigón ·
-soldaduras y chapa de base.
+flexión en secciones abiertas (arts. F2 y F6) y cerradas (arts. F7 y F8) · corte en secciones
+abiertas (art. G2) y cerradas (arts. G4 y G5) · flexo-compresión biaxial (art. H1) · sección mixta
+CFT: tubo circular relleno de hormigón · soldaduras y chapa de base.
 
 El catálogo (`lib/calc/aisc/perfiles.ts`) tiene dos clases de familia. Las **de catálogo** —PNI y
 PNC 80–300, HEB 100–300— se eligen por altura y están transcritas del catálogo de ArcelorMittal
@@ -143,9 +142,16 @@ eje fuerte es idéntico en las dos —los perfiles están a la misma altura—, 
 más inercia débil y una constante de torsión dos órdenes mayor, porque pasa a resistir por Bredt.
 
 Esa diferencia decide qué artículo aplica. Una sección cerrada tiene alabeo nulo, así que las ecs.
-F2-6 y F2-7 ni siquiera están definidas para ella: le corresponden F7 y F8 en flexión, y G4 y G5 en
-corte. Mientras no estén implementados, la página lo dice y no muestra ningún número, en lugar de
-calcular con un artículo que no corresponde.
+F2-6 y F2-7 ni siquiera están definidas para ella. El capítulo F y el G no son un artículo cada uno
+sino una familia, y cuál corresponde lo dice la forma de la sección:
+
+| | Sección abierta | Rectangular o cajón | Redonda |
+|---|---|---|---|
+| **Flexión** | F2 | F7 | F8 |
+| **Corte** | G2 | G4 | G5 |
+
+Esa decisión vive en un solo lugar (`lib/calc/aisc/seleccion-articulo.ts`), para que ninguna página
+la repita —ni la repita mal—. Las páginas muestran en pantalla por qué artículo salió el resultado.
 
 Dos detalles del capítulo G que es fácil pasar por alto y que la herramienta aplica: el
 coeficiente de seguridad al corte **no** es 1,67 para todos —las almas robustas de perfiles I

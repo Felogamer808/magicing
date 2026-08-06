@@ -12,7 +12,10 @@
  */
 
 import { calcularCompresion } from "./compresion";
-import { calcularFlexion, calcularFlexionEjeDebil } from "./flexion";
+import {
+  calcularFlexionSegunSeccion,
+  momentoAdmisibleEjeDebil,
+} from "./seleccion-articulo";
 import { type Familia, type ParametrosPerfil } from "./perfiles";
 
 export interface DatosFlexoCompresion {
@@ -53,6 +56,8 @@ export interface ResultadoFlexoCompresion {
   verifica: boolean;
   /** Eje de compresión que gobierna, informativo. */
   gobiernaCompresion: "fuerte" | "débil";
+  /** Artículo del capítulo F del que salió Mcx. */
+  articuloFlexion: "F2" | "F7" | "F8";
   zonaFlexion: string;
 }
 
@@ -71,12 +76,11 @@ export function calcularFlexoCompresion(
     lcxM: datos.lcxM,
     lcyM: datos.lcyM,
   });
-  const flexionX = calcularFlexion({ ...comun, lbM: datos.lbM, cb: datos.cb });
-  const flexionY = calcularFlexionEjeDebil(comun);
+  const flexionX = calcularFlexionSegunSeccion({ ...comun, lbM: datos.lbM, cb: datos.cb });
+  const mcyKNm = momentoAdmisibleEjeDebil({ ...comun, lbM: datos.lbM, cb: datos.cb });
 
   const pcKN = compresion.admisibleKN;
   const mcxKNm = flexionX.admisibleKNm;
-  const mcyKNm = flexionY.admisibleKNm;
 
   const relacionAxial = datos.pRequeridaKN / pcKN;
   const flexionTotal = datos.mrxKNm / mcxKNm + datos.mryKNm / mcyKNm;
@@ -113,6 +117,14 @@ export function calcularFlexoCompresion(
     },
     verifica: interaccion <= 1,
     gobiernaCompresion: compresion.gobierna,
-    zonaFlexion: flexionX.zona,
+    articuloFlexion: flexionX.articulo,
+    // Qué gobierna la flexión: la zona de pandeo lateral-torsional en F2, el
+    // estado límite más chico en F7, la clase de pared en F8.
+    zonaFlexion:
+      flexionX.articulo === "F2"
+        ? flexionX.zona
+        : flexionX.articulo === "F7"
+          ? flexionX.gobierna
+          : `pared ${flexionX.clase}`,
   };
 }

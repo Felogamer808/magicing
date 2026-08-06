@@ -32,6 +32,7 @@ export interface DatosCorte {
 }
 
 export interface ResultadoCorte {
+  articulo: "G2";
   designacion: string;
   /** Área del alma, Aw = d·tw con d la altura total (art. G2.1). */
   awM2: number;
@@ -103,6 +104,7 @@ export function calcularCorte(datos: DatosCorte): ResultadoCorte {
   const requerido = datos.vRequeridoKN;
 
   return {
+    articulo: "G2",
     designacion: designacion(datos.familia, datos.params),
     awM2,
     esbeltezAlma,

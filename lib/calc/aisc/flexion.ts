@@ -59,6 +59,7 @@ export interface Compacidad {
 }
 
 export interface ResultadoFlexion {
+  articulo: "F2";
   designacion: string;
   /** Momento plástico Mp = Fy·Zx, en kN·m (ec. F2-1). */
   mpKNm: number;
@@ -182,6 +183,7 @@ export function calcularFlexion(datos: DatosFlexion): ResultadoFlexion {
   const requerido = datos.mRequeridoKNm;
 
   return {
+    articulo: "F2",
     designacion: designacion(datos.familia, datos.params),
     mpKNm: mpNm / 1000,
     lpM,

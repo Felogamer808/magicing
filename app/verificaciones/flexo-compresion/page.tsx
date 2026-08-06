@@ -5,14 +5,12 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { AvisoFueraDeAlcance } from "@/components/verificaciones/AvisoFueraDeAlcance";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/SelectorSeccionAcero";
 import { calcularFlexoCompresion } from "@/lib/calc/aisc/flexo-compresion";
-import { SeccionFueraDeAlcance } from "@/lib/calc/aisc/flexion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -33,40 +31,32 @@ export default function FlexoCompresionPage() {
   const [mrx, setMrx] = useCampo("mrx", "40");
   const [mry, setMry] = useCampo("mry", "10");
 
-  const { resultado, fueraDeAlcance } = useMemo(() => {
+  const resultado = useMemo(() => {
     const n = {
       lcx: aNumero(lcx), lcy: aNumero(lcy), lb: aNumero(lb), cb: aNumero(cb),
       fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida),
       mrx: aNumero(mrx), mry: aNumero(mry),
     };
     const positivos = [n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e, n.p];
-    if (!seccion.completos || !positivos.every((x) => Number.isFinite(x) && x > 0)) {
-      return { resultado: null, fueraDeAlcance: null };
-    }
-    if (![n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) {
-      return { resultado: null, fueraDeAlcance: null };
-    }
+    if (!seccion.completos || !positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
+    if (![n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) return null;
 
     try {
-      return {
-        resultado: calcularFlexoCompresion({
-          familia: seccion.familia,
-          params: seccion.params,
-          lcxM: n.lcx,
-          lcyM: n.lcy,
-          lbM: n.lb,
-          cb: n.cb,
-          fyPa: n.fy * 1e6,
-          ePa: n.e * 1e6,
-          pRequeridaKN: n.p,
-          mrxKNm: n.mrx,
-          mryKNm: n.mry,
-        }),
-        fueraDeAlcance: null,
-      };
-    } catch (error) {
-      if (error instanceof SeccionFueraDeAlcance) return { resultado: null, fueraDeAlcance: error };
-      return { resultado: null, fueraDeAlcance: null };
+      return calcularFlexoCompresion({
+        familia: seccion.familia,
+        params: seccion.params,
+        lcxM: n.lcx,
+        lcyM: n.lcy,
+        lbM: n.lb,
+        cb: n.cb,
+        fyPa: n.fy * 1e6,
+        ePa: n.e * 1e6,
+        pRequeridaKN: n.p,
+        mrxKNm: n.mrx,
+        mryKNm: n.mry,
+      });
+    } catch {
+      return null;
     }
   }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]);
 
@@ -128,9 +118,7 @@ export default function FlexoCompresionPage() {
         </div>
 
         <div className="space-y-6">
-          {fueraDeAlcance ? (
-            <AvisoFueraDeAlcance error={fueraDeAlcance} />
-          ) : !resultado ? (
+          {!resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, las longitudes y el material con valores positivos. Los
@@ -170,9 +158,15 @@ export default function FlexoCompresionPage() {
                     filas={[
                       { etiqueta: "Pc = Pn/Ωc  (cap. E)", valor: `${fmt(resultado.pcKN, 1)} kN` },
                       { etiqueta: "Gobierna el pandeo por el eje", valor: resultado.gobiernaCompresion },
-                      { etiqueta: "Mcx = Mnx/Ωb  (art. F2)", valor: `${fmt(resultado.mcxKNm, 1)} kN·m` },
-                      { etiqueta: "Zona de pandeo lateral-torsional", valor: resultado.zonaFlexion },
-                      { etiqueta: "Mcy = Mny/Ωb  (art. F6)", valor: `${fmt(resultado.mcyKNm, 1)} kN·m` },
+                      {
+                        etiqueta: `Mcx = Mnx/Ωb  (art. ${resultado.articuloFlexion})`,
+                        valor: `${fmt(resultado.mcxKNm, 1)} kN·m`,
+                      },
+                      { etiqueta: "Gobierna la flexión", valor: resultado.zonaFlexion },
+                      {
+                        etiqueta: `Mcy = Mny/Ωb  (art. ${resultado.articuloFlexion === "F2" ? "F6" : resultado.articuloFlexion})`,
+                        valor: `${fmt(resultado.mcyKNm, 1)} kN·m`,
+                      },
                       { etiqueta: "Pr/Pc", valor: fmt(resultado.relacionAxial, 4) },
                       { etiqueta: "Ecuación aplicada", valor: resultado.ecuacion },
                       { etiqueta: "Interacción", valor: fmt(resultado.interaccion, 4) },

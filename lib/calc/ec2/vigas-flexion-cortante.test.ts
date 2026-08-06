@@ -112,24 +112,44 @@ describe("cortante (bloque VIGA)", () => {
     expect(r.rhoL).toBeCloseTo(0.00096813332930348, 6);
   });
 
-  it("reproduce VRd,c y VRd,c,min", () => {
-    expect(r.vRdC).toBeCloseTo(129.600094002281, 3);
-    expect(r.vRdCMin).toBeCloseTo(310.217854753575, 3);
+  // Estos cuatro tests ya no reproducen la planilla, y es a propósito. La hoja
+  // calculaba VRd,c con C_Rd,c = 0,15/γc y el mínimo con 0,075/γc·k^1,5·√fck:
+  // el segundo es el mínimo de la EHE-08 (la norma anterior) y el primero no es
+  // de ninguna norma, parece un 0,18 mal transcripto. Se unificó contra el
+  // Anejo 19, art. 6.2.2, ec. (6.2.a) y (6.2.b), pág. 76.
+  //
+  // Con la cuantía baja de este caso (ρl = 0,097 %) manda el mínimo, así que el
+  // cambio pesa: VRd,c adoptado baja de 310,2 a 217,2 kN y los estribos tienen
+  // que tomar 93 kN más. La separación necesaria pasa de 14,4 a 12,8 cm.
+  it("aplica C_Rd,c = 0,18/γc y v_min = 0,035·k^1,5·√fck (Anejo 19, 6.2.2)", () => {
+    expect(r.vRdC).toBeCloseTo(155.520112802738, 3);
+    expect(r.vRdCMin).toBeCloseTo(217.152498327503, 3);
   });
 
   it("reproduce el cortante a resistir por estribos y las áreas necesarias", () => {
-    expect(r.vEdEstribos).toBeCloseTo(765.782145246425, 3);
-    expect(r.a90NecCm2PorM).toBeCloseTo(32.7761575606242, 3);
+    expect(r.vEdEstribos).toBeCloseTo(858.847501672497, 3);
+    expect(r.a90NecCm2PorM).toBeCloseTo(36.7594376678864, 3);
     expect(r.a90MinCm2PorM).toBeCloseTo(8.68940446145067, 3);
-    expect(r.a90Cm2PorM).toBeCloseTo(32.7761575606242, 3);
+    expect(r.a90Cm2PorM).toBeCloseTo(36.7594376678864, 3);
   });
 
   it("reproduce la separación adoptada y el área real (6 ramas φ10 cada 10 cm)", () => {
     expect(r.aEstriboCm2).toBeCloseTo(4.71238898038469, 6);
-    expect(r.separacionNecM).toBeCloseTo(0.143774906246055, 6);
+    expect(r.separacionNecM).toBeCloseTo(0.128195350074724, 6);
     expect(r.separacionMaxM).toBeCloseTo(0.3894, 6);
     expect(r.separacionAdoptadaM).toBeCloseTo(0.1, 6);
     expect(r.areaRealCm2PorM).toBeCloseTo(47.1238898038469, 3);
+  });
+
+  it("el mínimo manda sólo con cuantías bajas, como pide el articulado", () => {
+    // Con ρl alta el término principal supera al mínimo y la (6.2.a) gobierna.
+    const conCuantiaAlta = calcularCortante(materiales, geometria, d, 120, {
+      vd: 1076,
+      diametroEstriboMm: 10,
+      numeroRamas: 6,
+    });
+    expect(conCuantiaAlta.vRdC).toBeGreaterThan(conCuantiaAlta.vRdCMin);
+    expect(r.vRdCMin).toBeGreaterThan(r.vRdC);
   });
 });
 

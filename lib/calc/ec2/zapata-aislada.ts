@@ -1,3 +1,4 @@
+import { factorEscalaK, tensionCortanteResistente } from "./cortante";
 import type { MaterialesDerivados } from "./types";
 
 export interface GeometriaZapataAislada {
@@ -86,18 +87,6 @@ export interface ResultadoZapataAislada {
   direccionA: ResultadoArmadoDireccion;
   direccionB: ResultadoArmadoDireccion;
   punzonamiento: ResultadoPunzonamiento;
-}
-
-/** EC2 6.2.2 / 6.4.4: coeficiente de escala por tamaño, k = min(1+√(200/d), 2), d en mm. */
-export function factorEscalaK(dM: number): number {
-  return Math.min(1 + Math.sqrt(200 / (dM * 1000)), 2);
-}
-
-/** EC2 6.2.2: resistencia a cortante sin armadura transversal, por unidad de ancho (MPa). */
-export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: number): number {
-  const CRdC = 0.18 / 1.5;
-  const vMin = 0.035 * k ** 1.5 * Math.sqrt(fckMPa);
-  return Math.max(CRdC * k * (100 * Math.min(rhoL, 0.02) * fckMPa) ** (1 / 3), vMin);
 }
 
 export interface ResultadoCorteUnidireccional {

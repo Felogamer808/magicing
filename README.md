@@ -83,6 +83,13 @@ involucrados coincidían.
    el resultado más conservador que el de la planilla.
 6. **Viento** — los topes de la presión interior estaban escritos como comparaciones encadenadas
    (`-0,2 < x < 0`), que Excel evalúa de izquierda a derecha y por lo tanto nunca se cumplen.
+7. **Vigas, cortante sin armadura transversal** — la hoja mezclaba dos normas: `C_Rd,c = 0,15/γc`
+   (que no es de ninguna; el articulado dice `0,18/γc` y parece un 0,18 mal transcripto) con
+   `v_min = 0,075/γc·k^1,5·√fck`, que es el mínimo de la **EHE-08**, la norma anterior. El Anejo 19
+   pide `v_min = 0,035·k^(3/2)·√fck`. Importa porque con cuantías bajas manda el mínimo: en una
+   viga plana con `ρl = 0,3 %` la planilla devolvía **43 % más resistencia** que la norma, o sea
+   podía no pedir estribos donde el articulado sí los pide. Es el único de los siete donde el
+   error de la planilla iba del lado inseguro.
 
 ## Pendientes
 

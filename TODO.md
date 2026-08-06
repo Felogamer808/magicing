@@ -61,27 +61,6 @@ Decidido no hacerlas todavía, no olvidado:
 - Del índice siguen en "Próximamente": vigas con torsión ya está hecha, pero
   quedan las que nunca se portaron desde la planilla.
 
-## A decidir: coeficientes del cortante sin armadura transversal
-
-El mismo artículo (Anejo 19, art. 6.2.2, ec. 6.2.a y 6.2.b, pág. 76) está
-implementado con dos juegos de coeficientes distintos:
-
-| | `vigas-flexion-cortante.ts` (de la planilla) | `zapata-aislada.ts` (del articulado) |
-|---|---|---|
-| C_Rd,c | `0,15/1,5` = 0,10 | `0,18/1,5` = 0,12 |
-| v_min | `0,075/1,5 · k^1,5 · √fck` | `0,035 · k^1,5 · √fck` |
-
-El articulado dice **0,18/γc** y **0,035·k^(3/2)·√fck**. El `0,075/γc` de la
-planilla es el mínimo de la **EHE-08**, la norma anterior; el `0,15/γc` no es de
-ninguna de las dos y parece un 0,18 mal transcripto.
-
-Mezclar ambos importa: con cuantías bajas manda el mínimo, y ahí la planilla
-devuelve hasta **+43 %** de resistencia respecto de la norma — en esa dirección
-el error no es conservador.
-
-Pendiente de decisión del usuario: unificar contra el articulado, o dejar el
-criterio de la planilla y documentarlo como criterio de oficina.
-
 ## Advertencia vigente
 
 Cinco cálculos **no existían en la planilla** y se construyeron con el método

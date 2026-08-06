@@ -1,5 +1,5 @@
 import type { MaterialesDerivados } from "./types";
-import { factorEscalaK, tensionCortanteResistente } from "./zapata-aislada";
+import { factorEscalaK, tensionCortanteResistente } from "./cortante";
 
 export interface ColumnaCombinada {
   /** Distancia desde el borde izquierdo de la zapata (x=0) al centro del pilar (m) */

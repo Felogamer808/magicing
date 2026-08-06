@@ -7,6 +7,7 @@ import type {
   ResultadoCortante,
   ResultadoFlexion,
 } from "./types";
+import { factorEscalaK, tensionCortanteBase, tensionCortanteMinima } from "./cortante";
 
 /** Recubrimiento de estribo asumido (m), fijo según el criterio de oficina de la planilla original. */
 const DIAMETRO_ESTRIBO_CALADO_M = 0.006;
@@ -158,11 +159,17 @@ export function calcularCortante(
   const vRdMax = 0.3 * fcd * b * d * 1000;
   const verificaVRdMax = vd <= vRdMax;
 
-  const k = Math.min(1 + Math.sqrt(200 / (d * 1000)), 2);
+  const k = factorEscalaK(d);
   const rhoL = Math.min(asNegativaRealCm2 / (100 ** 2 * b * d), 0.02);
 
-  const vRdC = ((0.15 / 1.5) * k * (100 * rhoL * fck) ** (1 / 3) * b * d * 1000);
-  const vRdCMin = (0.075 / 1.5) * k ** 1.5 * Math.sqrt(fck) * b * d * 1000;
+  // La planilla traía C_Rd,c = 0,15/γc y v_min = 0,075/γc·k^1,5·√fck. El segundo
+  // es el mínimo de la EHE-08, la norma anterior, y el primero no es de ninguna
+  // de las dos. Con cuantías bajas manda el mínimo, y ahí esa mezcla devolvía
+  // hasta un 43 % más de resistencia que el articulado: se unifica contra el
+  // Anejo 19, art. 6.2.2, ec. (6.2.a) y (6.2.b), pág. 76, que es lo que ya
+  // usaban las cimentaciones.
+  const vRdC = tensionCortanteBase(k, rhoL, fck) * b * d * 1000;
+  const vRdCMin = tensionCortanteMinima(k, fck) * b * d * 1000;
 
   const vEdEstribos = Math.max(vd - Math.max(vRdC, vRdCMin), 0);
 

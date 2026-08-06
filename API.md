@@ -50,6 +50,19 @@ Complementos en `vigas-complementos.ts`: `calcularArmaduraSecundaria`,
 `DatosFlexion` acepta `asAdicionalCm2` y `DatosCortante` acepta
 `a90AdicionalCm2PorM`: así la torsión suma su aporte sin duplicar el cálculo.
 
+### Cortante sin armadura transversal — `cortante.ts`
+
+Anejo 19, art. 6.2.2, ec. (6.2.a) y (6.2.b). Lo usan tanto las vigas como las
+cimentaciones, y vive aparte justamente porque estuvo duplicado y las dos copias
+se fueron con coeficientes distintos.
+
+| Función | Devuelve (MPa, salvo `factorEscalaK`) |
+|---|---|
+| `factorEscalaK(dM)` | k = 1 + √(200/d) ≤ 2 |
+| `tensionCortanteBase(k, rhoL, fck)` | término principal, C_Rd,c = 0,18/γc |
+| `tensionCortanteMinima(k, fck)` | v_min = 0,035·k^(3/2)·√fck |
+| `tensionCortanteResistente(k, rhoL, fck)` | el mayor de los dos |
+
 ### Losas
 
 | Función | Devuelve |
@@ -69,8 +82,7 @@ Complementos en `vigas-complementos.ts`: `calcularArmaduraSecundaria`,
 | `calcularPilote(materiales, geometria, geotecnia, armadura, carga)` | `pilote.ts` |
 | `calcularCabezalDosPilotes(materiales, geometria, datos)` | `cabezal-pilotes.ts` |
 
-Compartidas y reutilizables desde `zapata-aislada.ts`: `factorEscalaK`,
-`tensionCortanteResistente`, `calcularCorteUnidireccional`,
+Compartidas y reutilizables desde `zapata-aislada.ts`: `calcularCorteUnidireccional`,
 `calcularArmadoDesdePresion`, `calcularArmadoDireccion`.
 
 `calcularVigaSobreTerreno` (en `zapata-combinada.ts`) es el motor común de zapata

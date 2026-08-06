@@ -66,21 +66,25 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(r.flexionNegativa.verificaAs).toBe(false);
   });
 
+  // El cortante ya no reproduce la planilla: se unificó contra el Anejo 19,
+  // art. 6.2.2 (ver la nota en vigas-flexion-cortante.test.ts). Acá la cuantía
+  // es alta (ρl = 0,76 %), así que pasa a mandar el término principal en vez del
+  // mínimo y el efecto neto es chico: VRd,c adoptado baja de 68,74 a 68,45 kN.
   it("reproduce el cortante y suma At a la armadura transversal", () => {
     expect(r.cortante.k).toBeCloseTo(1.55619967815515, 9);
     expect(r.cortante.rhoL).toBeCloseTo(0.00759278966934888, 9);
-    expect(r.cortante.vRdC).toBeCloseTo(57.0389322992922, 6);
-    expect(r.cortante.vRdCMin).toBeCloseTo(68.7427874437413, 6);
-    expect(r.cortante.vEdEstribos).toBeCloseTo(336.257212556259, 6);
-    expect(r.cortante.a90NecCm2PorM).toBeCloseTo(14.4477619900429, 6);
+    expect(r.cortante.vRdC).toBeCloseTo(68.4467187591506, 6);
+    expect(r.cortante.vRdCMin).toBeCloseTo(48.1199512106189, 6);
+    expect(r.cortante.vEdEstribos).toBeCloseTo(336.553281240849, 6);
+    expect(r.cortante.a90NecCm2PorM).toBeCloseTo(14.4604829956539, 6);
     expect(r.cortante.a90MinCm2PorM).toBeCloseTo(1.93097876921126, 6);
-    // A90 = max(nec, min) + At = 14.44776 + 4.93101
-    expect(r.cortante.a90Cm2PorM).toBeCloseTo(19.3787684835494, 6);
+    // A90 = max(nec, min) + At = 14.46048 + 4.93101
+    expect(r.cortante.a90Cm2PorM).toBeCloseTo(19.3914894891604, 6);
   });
 
   it("reproduce el estribado adoptado (6 ramas φ8 cada 15 cm)", () => {
     expect(r.cortante.aEstriboCm2).toBeCloseTo(3.0159289474462, 6);
-    expect(r.cortante.separacionNecM).toBeCloseTo(0.15563057838306, 6);
+    expect(r.cortante.separacionNecM).toBeCloseTo(0.155528483210744, 6);
     expect(r.cortante.separacionMaxM).toBeCloseTo(0.3879, 6);
     expect(r.cortante.separacionAdoptadaM).toBeCloseTo(0.15, 9);
     expect(r.cortante.areaRealCm2PorM).toBeCloseTo(20.1061929829747, 6);
@@ -99,6 +103,6 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(sinTorsion.torsion.alCm2).toBeCloseTo(0, 9);
     // Sin el aporte de torsión, el As necesario vuelve al de flexión pura.
     expect(sinTorsion.flexionPositiva.asNecCm2).toBeCloseTo(8.38177231145141, 6);
-    expect(sinTorsion.cortante.a90Cm2PorM).toBeCloseTo(14.4477619900429, 6);
+    expect(sinTorsion.cortante.a90Cm2PorM).toBeCloseTo(14.4604829956539, 6);
   });
 });

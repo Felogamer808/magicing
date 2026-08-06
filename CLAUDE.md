@@ -11,6 +11,12 @@ propósito. El detalle vive en documentos que se leen sólo cuando hacen falta:
 | Firma de las funciones de cálculo | `API.md` |
 | Convenciones de estilo, nombres, unidades | `STYLEGUIDE.md` |
 | Qué falta y qué se decidió no hacer | `TODO.md` |
+| Qué dice la norma (articulado, fórmulas, coeficientes) | skill `codigo-estructural-hormigon` |
+
+La skill trae el Anejo 19 del Código Estructural (RD 470/2021), que es la
+transposición española del EC2: misma formulación y casi la misma numeración.
+**Ante cualquier coeficiente o fórmula, consultarla antes que la memoria**, y
+citar apartado y página.
 
 No hay base de datos: la persistencia es `localStorage` (ver `ARCHITECTURE.md`).
 

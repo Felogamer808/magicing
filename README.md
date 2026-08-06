@@ -19,6 +19,39 @@ npm run dev
 | `npm run build` | Build de producción |
 | `npm run lint` | ESLint |
 
+## Trabajar desde otra computadora
+
+El repositorio se basta solo: un clon limpio pasa los tests y compila sin ningún
+paso extra. Todo lo necesario está versionado, incluidas las instrucciones de
+trabajo (`CLAUDE.md`), la documentación (`ARCHITECTURE.md`, `API.md`,
+`STYLEGUIDE.md`, `TODO.md`) y el articulado de la norma como skill.
+
+**Desde el navegador**, sin instalar nada: entrar a la cuenta de Claude, abrir
+Claude Code en la web y elegir el repositorio `magicing`. Hace falta que la
+cuenta de GitHub esté conectada, porque el repositorio es **privado**.
+
+**Con Claude Code instalado en esa computadora**, si se quiere además levantar el
+servidor de desarrollo y ver la página:
+
+```bash
+gh auth login
+git clone https://github.com/Felogamer808/magicing.git
+cd magicing
+npm install
+```
+
+Dos cosas que **no** viajan con el repositorio, a propósito:
+
+- La skill `jimenez-montoya` está en `.gitignore` por derechos de autor. En otra
+  computadora no va a estar disponible; el articulado
+  (`codigo-estructural-hormigon`) sí, porque es texto legal oficial.
+- `.claude/settings.local.json` guarda los permisos concedidos en cada máquina,
+  así que la primera sesión en una computadora nueva vuelve a preguntar.
+
+Las planillas de Excel y los PDF de normas tampoco están versionados, pero no
+hacen falta para editar la aplicación: los valores que salieron de ellos ya están
+en los tests.
+
 ## Estructura
 
 ```

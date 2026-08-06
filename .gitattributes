@@ -1,0 +1,4 @@
+# Los hooks los ejecuta sh, que no tolera finales de línea de Windows: con CRLF
+# el intérprete lee "#!/bin/sh\r" y falla. Se guardan y se sacan siempre con LF,
+# sin importar el core.autocrlf de cada máquina.
+.githooks/** text eol=lf

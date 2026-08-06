@@ -1,0 +1,26 @@
+#!/bin/sh
+# Envía el avance a GitHub apenas se cierra un commit, para que la otra
+# computadora lo tenga con un solo `npm run empezar`.
+#
+# Se activa por máquina con `git config core.hooksPath .githooks`, cosa que
+# `npm run empezar` ya hace solo. Git nunca activa hooks de un clon por su
+# cuenta: sería ejecutar código ajeno sin que nadie lo pida.
+
+rama=$(git symbolic-ref --quiet --short HEAD) || {
+  echo "post-commit: HEAD desprendido, no se envía nada."
+  exit 0
+}
+
+echo "Enviando \"$rama\" a GitHub..."
+
+if ! git push origin "$rama"; then
+  printf '\n'
+  printf '  El commit quedó guardado acá, pero no se pudo enviar.\n'
+  printf '  Casi siempre es porque la otra computadora subió algo primero.\n'
+  printf '  Se resuelve trayendo eso y volviendo a enviar:\n\n'
+  printf '      npm run empezar\n'
+  printf '      git push\n\n'
+fi
+
+# El commit ya está hecho: un push fallido no debe hacerlo parecer roto.
+exit 0

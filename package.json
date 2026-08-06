@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "empezar": "git config core.hooksPath .githooks && git pull --rebase --autostash && npm install",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

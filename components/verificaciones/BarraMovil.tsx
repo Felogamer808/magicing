@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
 import { NavVerificaciones } from "@/components/verificaciones/NavVerificaciones";
 
@@ -29,22 +30,17 @@ export function BarraMovil() {
           <Link
             href="/"
             onClick={() => setAbierto(false)}
-            className="mb-6 flex items-center gap-2 px-2 text-sm font-semibold tracking-tight"
+            className="mb-6 block px-2"
+            aria-label="MagicIng — inicio"
           >
-            <span className="flex h-5 w-5 items-center justify-center border border-primary font-mono text-[11px] text-primary">
-              §
-            </span>
-            MagicIng
+            <Logo className="h-7 w-auto" titulo="" />
           </Link>
           <NavVerificaciones onNavegar={() => setAbierto(false)} />
         </SheetContent>
       </Sheet>
 
-      <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-        <span className="flex h-5 w-5 items-center justify-center border border-primary font-mono text-[11px] text-primary">
-          §
-        </span>
-        MagicIng
+      <Link href="/" aria-label="MagicIng — inicio">
+        <Logo className="h-7 w-auto" titulo="" />
       </Link>
 
       <div className="ml-auto">

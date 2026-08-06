@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!--
+    Icono de pestaña: la varita sola, sin la palabra.
+    A 16 px el logotipo completo sería ilegible, así que se queda la parte que
+    identifica la marca. Los trazos van más gruesos que en el logotipo grande
+    porque a ese tamaño un trazo fino desaparece.
+  -->
+  <rect width="120" height="120" rx="24" fill="#111"/>
+  <g transform="translate(44 100) scale(0.5) rotate(12)" fill="#fff">
+    <path fill-rule="evenodd"
+          d="M-13 -139 A13 13 0 0 1 13 -139 L13 -13 A13 13 0 0 1 -13 -13 Z
+             M-13 -50 H13 V-38 H-13 Z"/>
+    <path transform="translate(0 -178)"
+          d="M0 -38 L9.5 -13.1 L36.1 -11.7 L15.4 5 L22.3 30.7 L0 16.2 L-22.3 30.7 L-15.4 5 L-36.1 -11.7 L-9.5 -13.1 Z"
+          fill="none" stroke="#fff" stroke-width="15" stroke-linejoin="round"/>
+  </g>
+</svg>

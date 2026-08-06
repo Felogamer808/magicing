@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { IndiceVerificaciones } from "@/components/IndiceVerificaciones";
+import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
 import { buscarSeccion, registroSecciones } from "@/lib/verificaciones/registry";
 
@@ -28,10 +29,11 @@ export default async function PaginaSeccion({ params }: PageProps<"/secciones/[s
       <div className="flex items-center justify-between gap-2">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm font-semibold tracking-tight transition-colors hover:text-primary"
+          className="flex items-center gap-2 transition-colors hover:text-primary"
+          aria-label="Volver al inicio de MagicIng"
         >
           <ArrowLeft className="h-4 w-4" />
-          MagicIng
+          <Logo className="h-7 w-auto" titulo="" />
         </Link>
         <TemaToggle />
       </div>

@@ -87,6 +87,19 @@ Las planillas de Excel y los PDF de normas tampoco están versionados, pero no
 hacen falta para editar la aplicación: los valores que salieron de ellos ya están
 en los tests.
 
+## Logotipo
+
+`components/Logo.tsx` dibuja la palabra con la varita en el lugar de la "I" de "ING". Va en SVG y
+no como imagen: escala sin perder filo, hereda el color del texto —así funciona en tema claro y
+oscuro, y sale en negro al imprimir— y pesa unos cientos de bytes.
+
+La palabra se arma con dos bloques de texto anclados por lados opuestos a la varita, así el dibujo
+no depende de las métricas exactas de la tipografía. Las separaciones a los dos lados son
+distintas a propósito: la varita está inclinada 12°, y a la altura de las mayúsculas su punta ya se
+corrió unos 27 px hacia la derecha.
+
+El único uso del corte redondeado (Fredoka) es este; el resto del sitio no lo carga.
+
 ## Estructura
 
 La navegación tiene dos niveles: primero el **material** (sección) y dentro de él

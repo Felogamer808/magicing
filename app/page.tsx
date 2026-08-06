@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
 import { registroSecciones, verificacionesDeSeccion } from "@/lib/verificaciones/registry";
 
@@ -13,12 +14,8 @@ export default function Home() {
       </div>
 
       <div className="drafting-marks flex flex-col items-center gap-6 border border-border bg-card/60 px-6 py-14 text-center sm:px-10 sm:py-20">
-        <span className="flex h-12 w-12 items-center justify-center border border-primary font-mono text-2xl text-primary">
-          §
-        </span>
-        <h1 className="font-[family-name:var(--font-display)] text-6xl font-semibold tracking-tight sm:text-8xl">
-          MagicIng
-        </h1>
+        <h1 className="sr-only">MagicIng</h1>
+        <Logo className="h-28 w-auto max-w-full sm:h-40" titulo="" />
         <p className="spec-label">Cálculo estructural</p>
         <p className="max-w-xl text-muted-foreground">
           Verificaciones con el detalle de fórmulas a la vista, para poder auditar cada

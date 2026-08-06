@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { Fredoka, IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import { scriptTemaInicial } from "@/components/TemaToggle";
 import "./globals.css";
 
@@ -30,6 +30,18 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+/**
+ * Corte redondeado, usado solo por el logotipo. No entra en el cuerpo del sitio:
+ * su trabajo es que la palabra "MagicIng" tenga el mismo trazo grueso y las
+ * mismas terminaciones romas que la varita dibujada al lado.
+ */
+const logo = Fredoka({
+  variable: "--font-logo",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["600"],
+});
+
 const descripcion =
   "Verificaciones estructurales según Eurocódigo 2, AISC 360 y CIRSOC: vigas, losas, cimentaciones, muros, viento y uniones, con el detalle de fórmulas a la vista.";
 
@@ -53,7 +65,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} ${logo.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

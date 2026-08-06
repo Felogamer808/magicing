@@ -6,60 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { LosaDiagrama } from "@/components/verificaciones/LosaDiagrama";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { calcularLosa, calcularMomentoResistenteLosa, type ResultadoDireccionLosa } from "@/lib/calc/ec2/losa";
+import { TarjetaDireccionLosa } from "@/components/verificaciones/TarjetaDireccionLosa";
+import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/ec2/losa";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
-
-function TarjetaDireccion({
-  titulo,
-  r,
-  diametroMm,
-  separacionM,
-  nota,
-}: {
-  titulo: string;
-  r: ResultadoDireccionLosa;
-  diametroMm: number;
-  separacionM: number;
-  nota?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <ResultadoCheck
-          etiqueta={`Armado φ${fmt(diametroMm, 0)}/${fmt(separacionM * 100, 0)} cm`}
-          verifica={r.verificaAs}
-          detalle={`As real ${fmt(r.asRealCm2PorM)} cm²/m / As nec ${fmt(r.asNecCm2PorM)} cm²/m`}
-        />
-        {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
-        <PanelFormulas
-          titulo="Ver cálculo"
-          filas={[
-            { etiqueta: "d", valor: `${fmt(r.dM, 3)} m` },
-            { etiqueta: "μ", valor: fmt(r.mu, 5) },
-            { etiqueta: "ω", valor: fmt(r.omega, 5) },
-            { etiqueta: "As por momento", valor: `${fmt(r.asCalculadoCm2PorM)} cm²/m` },
-            { etiqueta: "As mín. mecánico", valor: `${fmt(r.asMinMecanicoCm2PorM)} cm²/m` },
-            { etiqueta: "As mín. geométrico", valor: `${fmt(r.asMinGeometricoCm2PorM)} cm²/m` },
-            { etiqueta: "Separación necesaria", valor: `${fmt(r.separacionNecM * 100, 1)} cm` },
-            { etiqueta: "Separación máxima", valor: `${fmt(r.separacionMaxM * 100, 0)} cm` },
-            { etiqueta: "Anclaje lb,neta", valor: `${fmt(r.lbNetaMm, 0)} mm` },
-          ]}
-        />
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function LosasPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -211,26 +166,26 @@ export default function LosasPage() {
             </Card>
           ) : (
             <>
-              <TarjetaDireccion
+              <TarjetaDireccionLosa
                 titulo="Positivo — dirección X"
                 r={resultado.losa.positivo.x}
                 diametroMm={resultado.v.phiPosX}
                 separacionM={resultado.v.sPosX}
                 nota="Como en la planilla, el armado en X computa la malla general de Y más el refuerzo propio en X."
               />
-              <TarjetaDireccion
+              <TarjetaDireccionLosa
                 titulo="Positivo — dirección Y"
                 r={resultado.losa.positivo.y}
                 diametroMm={resultado.v.phiPosY}
                 separacionM={resultado.v.sPosY}
               />
-              <TarjetaDireccion
+              <TarjetaDireccionLosa
                 titulo="Negativo — dirección X"
                 r={resultado.losa.negativo.x}
                 diametroMm={resultado.v.phiNegX}
                 separacionM={resultado.v.sNegX}
               />
-              <TarjetaDireccion
+              <TarjetaDireccionLosa
                 titulo="Negativo — dirección Y"
                 r={resultado.losa.negativo.y}
                 diametroMm={resultado.v.phiNegY}

@@ -8,6 +8,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { DiagramaCabezal } from "@/components/verificaciones/DiagramaCabezal";
 import { calcularCabezalDosPilotes } from "@/lib/calc/ec2/cabezal-pilotes";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
@@ -15,49 +16,6 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "cabezales")!;
-
-function DiagramaCabezal({
-  ladoXM, hM, anchoPilarM, diametroPiloteM, separacionPilotesM,
-}: { ladoXM: number; hM: number; anchoPilarM: number; diametroPiloteM: number; separacionPilotesM: number }) {
-  const W = 280;
-  const escala = W / ladoXM;
-  const x0 = 24;
-  const y0 = 44;
-  const hPx = Math.max(hM * escala, 30);
-  const cx = x0 + W / 2;
-  const pilarW = Math.min(anchoPilarM * escala, W * 0.6);
-  const piloteW = Math.min(diametroPiloteM * escala, W * 0.3);
-  const dxPilote = (separacionPilotesM / 2) * escala;
-  const yBase = y0 + hPx;
-
-  return (
-    <svg viewBox={`0 0 ${W + 48} ${yBase + 72}`} className="h-auto w-full max-w-md text-primary" fill="none" aria-hidden="true">
-      {/* pilar */}
-      <rect x={cx - pilarW / 2} y={y0 - 32} width={pilarW} height={32} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
-      {/* cabezal */}
-      <rect x={x0} y={y0} width={W} height={hPx} stroke="currentColor" strokeWidth="2.2" fill="var(--color-muted)" fillOpacity="0.35" />
-      {/* bielas comprimidas */}
-      <path d={`M${cx} ${y0} L${cx - dxPilote} ${yBase}`} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" opacity="0.75" />
-      <path d={`M${cx} ${y0} L${cx + dxPilote} ${yBase}`} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" opacity="0.75" />
-      {/* tirante */}
-      <path d={`M${cx - dxPilote} ${yBase - 8} L${cx + dxPilote} ${yBase - 8}`} stroke="currentColor" strokeWidth="3" />
-      <text x={cx} y={yBase - 12} textAnchor="middle" className="fill-current font-mono" fontSize="8">Td</text>
-      {/* pilotes */}
-      {[-1, 1].map((s) => (
-        <rect key={s} x={cx + s * dxPilote - piloteW / 2} y={yBase} width={piloteW} height={44} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
-      ))}
-      {/* cota s */}
-      <g stroke="currentColor" strokeWidth="1" opacity="0.7">
-        <path d={`M${cx - dxPilote} ${yBase + 54} L${cx + dxPilote} ${yBase + 54}`} />
-        <path d={`M${cx - dxPilote} ${yBase + 48} L${cx - dxPilote} ${yBase + 60}`} />
-        <path d={`M${cx + dxPilote} ${yBase + 48} L${cx + dxPilote} ${yBase + 60}`} />
-      </g>
-      <text x={cx} y={yBase + 68} textAnchor="middle" className="fill-current font-mono" fontSize="8">
-        s = {fmt(separacionPilotesM)} m
-      </text>
-    </svg>
-  );
-}
 
 export default function CabezalPilotesPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");

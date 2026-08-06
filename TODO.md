@@ -35,17 +35,21 @@ cada parámetro:
 
 ## Deuda técnica
 
-Ver el informe de análisis para el detalle. Por impacto:
+Pendiente, aprobado pero todavía sin hacer:
 
-- **Andamiaje duplicado en las 16 páginas.** `aNumero` y `fmt` están copiados
-  íntegros en cada una, y el bloque de validación `useMemo` está repetido con
-  variantes (357 llamadas a `aNumero()`). Es el mayor consumo de contexto del
-  proyecto.
-- **Componentes definidos dentro de páginas** en 6 de 16 (`DiagramaCabezal`,
-  `DiagramaMuro`, `DiagramaCFT`, `TarjetaDireccion`, `TarjetaLado`,
-  `CampoSeleccion`), mientras las otras 10 los importan. Hay que unificar.
-- **`zod` declarado y sin usar** en `package.json`.
-- **`components/ui/tabs.tsx` huérfano**, no lo importa nadie.
+- **Bloque de validación repetido en las 16 páginas.** Cada `useMemo` de cálculo
+  arranca convirtiendo todos sus campos con `aNumero()` y descartando el
+  resultado si alguno no es finito o no es positivo (357 llamadas en total). Es
+  lo que más pesa hoy al leer una página, y encaja con el pendiente de
+  "errores de validación que nombren el campo": un helper que sepa qué campo
+  falló resuelve las dos cosas de una vez.
+
+Ya resuelto (queda anotado para no volver a proponerlo):
+
+- `aNumero`, `fmt` y `describirCapas` viven en `lib/verificaciones/formato.ts`.
+- Los seis componentes que se definían dentro de una página están en
+  `components/verificaciones/`.
+- Se fueron `zod` (declarado y nunca importado) y `components/ui/tabs.tsx`.
 
 ## Verificaciones fuera de alcance por ahora
 

@@ -9,6 +9,7 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { TarjetaLadoZapata } from "@/components/verificaciones/TarjetaLadoZapata";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/ZapataMedianeriaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
@@ -17,45 +18,6 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-medianeria")!;
-
-function TarjetaLado({
-  titulo,
-  resultado,
-}: {
-  titulo: string;
-  resultado: ReturnType<typeof calcularZapataMedianeria>["ladoLimite"];
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <ResultadoCheck
-          etiqueta="Armadura suficiente"
-          verifica={resultado.verificaAs}
-          detalle={`As real ${fmt(resultado.asRealCm2)} cm² / As nec ${fmt(resultado.asNecCm2)} cm²`}
-        />
-        <ResultadoCheck
-          etiqueta="Cortante (EC2 6.2.2)"
-          verifica={resultado.verificaCorte}
-          detalle={`Vd ${fmt(resultado.vEdKN)} kN / VRd,c ${fmt(resultado.vRdCKN)} kN`}
-        />
-        <PanelFormulas
-          titulo="Ver cálculo"
-          filas={[
-            { etiqueta: "Vuelo", valor: `${fmt(resultado.lM, 3)} m` },
-            { etiqueta: "σ en el borde", valor: `${fmt(resultado.sigmaMaxKPa)} kN/m²` },
-            { etiqueta: "σ en sección crítica", valor: `${fmt(resultado.sigmaCriticaKPa)} kN/m²` },
-            { etiqueta: "Td", valor: `${fmt(resultado.tdKN)} kN` },
-            { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.asMinMecanicoCm2)} cm²` },
-            { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.asMinGeometricoCm2)} cm²` },
-          ]}
-        />
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function ZapataMedianeriaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -311,8 +273,8 @@ export default function ZapataMedianeriaPage() {
                 </CardContent>
               </Card>
 
-              <TarjetaLado titulo="Armado — lado límite (vuelo corto)" resultado={resultado.zapata.ladoLimite} />
-              <TarjetaLado titulo="Armado — lado interior (vuelo largo)" resultado={resultado.zapata.ladoInterior} />
+              <TarjetaLadoZapata titulo="Armado — lado límite (vuelo corto)" resultado={resultado.zapata.ladoLimite} />
+              <TarjetaLadoZapata titulo="Armado — lado interior (vuelo largo)" resultado={resultado.zapata.ladoInterior} />
 
               <Card>
                 <CardHeader>

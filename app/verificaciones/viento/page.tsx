@@ -3,12 +3,11 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
 import {
   calcularViento,
   generarNiveles,
@@ -20,26 +19,6 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "viento")!;
-
-function CampoSeleccion({
-  id, etiqueta, valor, opciones, onChange,
-}: { id: string; etiqueta: string; valor: string; opciones: string[]; onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{etiqueta}</Label>
-      <Select value={valor} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {opciones.map((o) => (
-            <SelectItem key={o} value={o}>{o}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
 
 export default function VientoPage() {
   const [norma, setNorma] = useCampo("norma", "CIRSOC 102");

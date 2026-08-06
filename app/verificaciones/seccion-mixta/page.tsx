@@ -9,36 +9,13 @@ import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { DiagramaCFT } from "@/components/verificaciones/DiagramaCFT";
 import { calcularSeccionMixta } from "@/lib/calc/aisc/seccion-mixta";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "secciones-mixtas")!;
-
-function DiagramaCFT({ dMm, tMm, numeroBarras, diametroBarraMm }: { dMm: number; tMm: number; numeroBarras: number; diametroBarraMm: number }) {
-  const R = 70;
-  const cx = 86;
-  const cy = 86;
-  const rInt = R * (1 - (2 * tMm) / dMm);
-  const rBarras = rInt * 0.72;
-  const rBarra = Math.max(2.5, Math.min(6, (diametroBarraMm / dMm) * R * 1.6));
-  const n = Math.max(1, Math.min(numeroBarras, 24));
-
-  return (
-    <svg viewBox="0 0 172 172" className="h-auto w-full max-w-[190px] text-primary" fill="none" aria-hidden="true">
-      <circle cx={cx} cy={cy} r={R} stroke="currentColor" strokeWidth="2.5" fill="var(--color-muted)" fillOpacity="0.3" />
-      <circle cx={cx} cy={cy} r={rInt} stroke="currentColor" strokeWidth="1.5" opacity="0.7" />
-      {Array.from({ length: n }).map((_, i) => {
-        const a = (2 * Math.PI * i) / n - Math.PI / 2;
-        return <circle key={i} cx={cx + rBarras * Math.cos(a)} cy={cy + rBarras * Math.sin(a)} r={rBarra} fill="currentColor" />;
-      })}
-      <text x={cx} y={cy + 3} textAnchor="middle" className="fill-current font-mono" fontSize="8" opacity="0.75">
-        D {fmt(dMm, 0)}
-      </text>
-    </svg>
-  );
-}
 
 export default function SeccionMixtaPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");

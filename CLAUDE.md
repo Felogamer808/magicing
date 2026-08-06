@@ -27,6 +27,10 @@ No hay base de datos: la persistencia es `localStorage` (ver `ARCHITECTURE.md`).
 
 ## Forma de trabajar
 
+0. **Traer los cambios antes de tocar nada.** El proyecto se edita desde más de
+   una computadora, así que al empezar una sesión: `git pull`. Si hay cambios que
+   bajar, decir qué llegó antes de seguir. Si el pull no es limpio, parar y
+   avisar: nunca resolver un conflicto sin preguntar.
 1. **Decir primero qué archivos voy a inspeccionar**, y limitarme a esos.
 2. **No recorrer el proyecto entero** salvo que sea indispensable. Para ubicar
    algo, usar `ARCHITECTURE.md` o `grep`, no lecturas completas.

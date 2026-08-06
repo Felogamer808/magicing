@@ -26,6 +26,21 @@ paso extra. Todo lo necesario está versionado, incluidas las instrucciones de
 trabajo (`CLAUDE.md`), la documentación (`ARCHITECTURE.md`, `API.md`,
 `STYLEGUIDE.md`, `TODO.md`) y el articulado de la norma como skill.
 
+**Git es el único mecanismo de sincronización, y los cambios no viajan solos.**
+Al empezar en cualquier máquina:
+
+```bash
+git pull
+```
+
+El proyecto vive **fuera de OneDrive** a propósito. Tenerlo adentro parecía
+cómodo pero rompía de tres formas: OneDrive sincroniza `.git` sin entender las
+operaciones atómicas de Git y genera copias en conflicto que corrompen el
+repositorio; `node_modules` son ~36.000 archivos con binarios compilados para un
+sistema operativo concreto, que no sirven en otra máquina; y `.next` es caché de
+compilación local que, a medio sincronizar, tira 500 en todas las páginas. Si el
+proyecto vuelve a quedar dentro de una carpeta sincronizada, esto se rompe.
+
 **Desde el navegador**, sin instalar nada: entrar a la cuenta de Claude, abrir
 Claude Code en la web y elegir el repositorio `magicing`. Hace falta que la
 cuenta de GitHub esté conectada, porque el repositorio es **privado**.

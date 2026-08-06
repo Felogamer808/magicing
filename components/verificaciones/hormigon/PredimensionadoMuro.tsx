@@ -67,9 +67,23 @@ export function proponerDimensiones(alturaTotalM: number): DimensionesPropuestas
 /** Flecha con rótulo, para señalar una parte del muro sin tapar el dibujo. */
 function Senal({
   x, y, hacia, texto,
-}: { x: number; y: number; hacia: "izquierda" | "derecha"; texto: string }) {
-  const signo = hacia === "derecha" ? 1 : -1;
+}: { x: number; y: number; hacia: "izquierda" | "derecha" | "arriba"; texto: string }) {
   const largo = 26;
+
+  // Vertical: el talón sale por arriba porque a su derecha ya está la cota del canto.
+  if (hacia === "arriba") {
+    return (
+      <g>
+        <line x1={x} y1={y - largo} x2={x} y2={y - 3} className="stroke-primary" strokeWidth={1.1} />
+        <polygon points={`${x},${y} ${x - 3},${y - 6} ${x + 3},${y - 6}`} className="fill-primary" />
+        <text x={x} y={y - largo - 4} textAnchor="middle" className="fill-primary text-[9px]">
+          {texto}
+        </text>
+      </g>
+    );
+  }
+
+  const signo = hacia === "derecha" ? 1 : -1;
   const xFin = x + signo * largo;
   return (
     <g>
@@ -138,8 +152,8 @@ export function PredimensionadoMuro({ alturaTotalM, onAplicar }: Props) {
           hacia="izquierda" texto="puntera" />
         <Senal
           x={xIzq + px(puntera) + px(p.espesorMuroM) + (px(p.anchoZapataM) - px(puntera) - px(p.espesorMuroM)) / 2}
-          y={yTopZapata + px(p.cantoZapataM) / 2}
-          hacia="derecha" texto="talón" />
+          y={yTopZapata}
+          hacia="arriba" texto="talón" />
       </svg>
 
       <button

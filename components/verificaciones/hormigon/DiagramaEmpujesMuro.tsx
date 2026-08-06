@@ -27,6 +27,8 @@ interface Props {
   anchoZapataM: number;
   cantoZapataM: number;
   alturaSueloPasivoM: number;
+  /** Vuelo de la puntera. Fija dónde apoya el alzado sobre la zapata. */
+  punteraM: number;
   ka: number;
   kp: number;
   gammaKNm3: number;
@@ -46,7 +48,7 @@ const fmt = (n: number, d = 1) =>
 
 export function DiagramaEmpujesMuro({
   alturaTotalM, alturaSueloActivoM, alturaMuroM, espesorMuroM, anchoZapataM, cantoZapataM,
-  alturaSueloPasivoM, ka, kp, gammaKNm3, sobrecargaKPa,
+  alturaSueloPasivoM, punteraM, ka, kp, gammaKNm3, sobrecargaKPa,
   empujeSueloKN, empujeSobrecargaKN, empujePasivoKN,
 }: Props) {
   /*
@@ -67,7 +69,13 @@ export function DiagramaEmpujesMuro({
   const anchoDiagrama = 118;
   const pp = (kPa: number) => (kPa / presionMax) * anchoDiagrama;
 
-  // El alzado apoya sobre la zapata, no sobre la base.
+  /*
+   * El alzado apoya donde lo pone la puntera, no en una fracción fija del ancho:
+   * con puntera nula queda al ras del borde delantero, y con puntera grande se
+   * corre hacia atrás. `X_MURO` es la cara delantera del alzado, así que la
+   * zapata arranca una puntera más a la izquierda.
+   */
+  const xBordeZapata = X_MURO - px(punteraM);
   const yTopZapata = py(cantoZapataM);
   const yCoronacionMuro = py(cantoZapataM + alturaMuroM);
   // El diagrama de empujes se dibuja desde donde arranca el suelo retenido.
@@ -78,7 +86,7 @@ export function DiagramaEmpujesMuro({
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Empujes sobre el muro: suelo ${fmt(empujeSueloKN, 0)} kN, sobrecarga ${fmt(empujeSobrecargaKN, 0)} kN, pasivo ${fmt(empujePasivoKN, 0)} kN`}>
         {/* Zapata y alzado. */}
-        <rect x={X_MURO - px(anchoZapataM) * 0.35} y={yTopZapata}
+        <rect x={xBordeZapata} y={yTopZapata}
               width={px(anchoZapataM)} height={px(cantoZapataM)}
               className="fill-primary/10 stroke-foreground/60" strokeWidth={1.3} />
         <rect x={X_MURO} y={yCoronacionMuro} width={px(espesorMuroM)} height={px(alturaMuroM)}
@@ -89,7 +97,7 @@ export function DiagramaEmpujesMuro({
               x2={ANCHO - 10} y2={yCoronacion}
               className="stroke-foreground/40" strokeWidth={1} />
         {/* Terreno delantero, que da el empuje pasivo. */}
-        <line x1={10} y1={py(alturaSueloPasivoM)} x2={X_MURO - px(anchoZapataM) * 0.35}
+        <line x1={10} y1={py(alturaSueloPasivoM)} x2={xBordeZapata}
               y2={py(alturaSueloPasivoM)} className="stroke-foreground/40" strokeWidth={1} />
 
         {/*
@@ -130,9 +138,9 @@ export function DiagramaEmpujesMuro({
         {empujePasivoKN > 0 && (
           <>
             <polygon
-              points={`${X_MURO - px(anchoZapataM) * 0.35},${py(alturaSueloPasivoM)} ${X_MURO - px(anchoZapataM) * 0.35 - pp(presionPasivaBase)},${Y_BASE} ${X_MURO - px(anchoZapataM) * 0.35},${Y_BASE}`}
+              points={`${xBordeZapata},${py(alturaSueloPasivoM)} ${xBordeZapata - pp(presionPasivaBase)},${Y_BASE} ${xBordeZapata},${Y_BASE}`}
               className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1.2} />
-            <text x={X_MURO - px(anchoZapataM) * 0.35 - pp(presionPasivaBase) - 4}
+            <text x={xBordeZapata - pp(presionPasivaBase) - 4}
                   y={py(alturaSueloPasivoM / 3) + 3} textAnchor="end"
                   className="fill-emerald-700 text-[9px]">
               Ep = {fmt(empujePasivoKN, 0)} kN
@@ -141,9 +149,9 @@ export function DiagramaEmpujesMuro({
         )}
 
         {/* Punto de vuelco: la puntera. */}
-        <circle cx={X_MURO - px(anchoZapataM) * 0.35} cy={Y_BASE} r={3.5}
+        <circle cx={xBordeZapata} cy={Y_BASE} r={3.5}
                 className="fill-foreground" />
-        <text x={X_MURO - px(anchoZapataM) * 0.35} y={Y_BASE + 15} textAnchor="middle"
+        <text x={xBordeZapata} y={Y_BASE + 15} textAnchor="middle"
               className="fill-muted-foreground text-[9px]">puntera</text>
 
         <line x1={6} y1={Y_BASE} x2={ANCHO - 6} y2={Y_BASE}

@@ -247,6 +247,7 @@ export default function MuroContencionPage() {
                     anchoZapataM={aNumero(anchoZap)}
                     cantoZapataM={aNumero(cantoZap)}
                     alturaSueloPasivoM={aNumero(hPas)}
+                    punteraM={aNumero(puntera)}
                     ka={resultado.r.empujes.ka}
                     kp={resultado.r.empujes.kp}
                     gammaKNm3={aNumero(gamma)}

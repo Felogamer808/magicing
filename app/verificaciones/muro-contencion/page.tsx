@@ -98,6 +98,7 @@ export default function MuroContencionPage() {
               alturaMuroM={resultado.n.altMuro}
               espesorMuroM={resultado.n.espMuro}
               alturaSueloActivoM={resultado.n.hAct}
+              punteraM={resultado.n.puntera}
             />
           </CardContent>
         </Card>

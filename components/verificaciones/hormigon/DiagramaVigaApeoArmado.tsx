@@ -14,6 +14,8 @@ interface DiagramaVigaApeoArmadoProps {
   recubrimientoM: number;
   numeroTirante: number;
   diametroTiranteMm: number;
+  /** Segunda capa del tirante, si se puso, para dibujarla y anotarla */
+  segundaCapaTirante: { numero: number; diametroMm: number } | null;
   alturaRepartoTiranteM: number;
   /** El anclaje recto no entra: hay que cerrar el tirante con horquillas */
   requiereHorquillas: boolean;
@@ -54,6 +56,7 @@ export function DiagramaVigaApeoArmado({
   recubrimientoM,
   numeroTirante,
   diametroTiranteMm,
+  segundaCapaTirante,
   alturaRepartoTiranteM,
   requiereHorquillas,
   mallaHorizontalSeparacionM,
@@ -81,6 +84,9 @@ export function DiagramaVigaApeoArmado({
   // para que se entienda que no es una única capa pegada al borde.
   const altoRepartoPx = Math.min(alturaRepartoTiranteM * escalaV, hPx * 0.45);
   const yTiranteSup = yTiranteInf - Math.max(altoRepartoPx, 8);
+  // La segunda capa va apoyada sobre la primera: se dibuja pegada abajo, no a
+  // media altura, para que no se confunda con el reparto en 0,12·L.
+  const ySegundaCapa = segundaCapaTirante ? yTiranteInf - 6 : 0;
 
   const anchoPilarPx = Math.max(anchoPilarApeadoM * escala, 12);
   const apoyoIzqPx = Math.max(anchoApoyoIzqM * escala, 10);
@@ -153,6 +159,11 @@ export function DiagramaVigaApeoArmado({
       <path d={`M${x0 + rec} ${yTiranteInf} L${x0 + W - rec} ${yTiranteInf}`} stroke="currentColor" strokeWidth="3.2" />
       <path d={`M${x0 + rec} ${yTiranteSup} L${x0 + W - rec} ${yTiranteSup}`} stroke="currentColor" strokeWidth="3.2" />
 
+      {/* segunda capa, apoyada sobre la primera */}
+      {segundaCapaTirante && (
+        <path d={`M${x0 + rec} ${ySegundaCapa} L${x0 + W - rec} ${ySegundaCapa}`} stroke="currentColor" strokeWidth="3.2" />
+      )}
+
       {/* horquillas de extremo */}
       {requiereHorquillas && (
         <g stroke="currentColor" strokeWidth="3.2">
@@ -173,8 +184,11 @@ export function DiagramaVigaApeoArmado({
 
     <ul className="space-y-1 font-mono text-xs text-muted-foreground">
       <li>
-        Tirante {numeroTirante}Ø{fmt(diametroTiranteMm, 0)} corrido de apoyo a apoyo, repartido en{" "}
-        {fmt(alturaRepartoTiranteM)} m de altura.
+        Tirante {numeroTirante}Ø{fmt(diametroTiranteMm, 0)}
+        {segundaCapaTirante
+          ? ` en primera capa más ${segundaCapaTirante.numero}Ø${fmt(segundaCapaTirante.diametroMm, 0)} en segunda capa encima`
+          : ""}
+        , corrido de apoyo a apoyo, repartido en {fmt(alturaRepartoTiranteM)} m de altura.
       </li>
       <li>
         {cuelgue
@@ -188,7 +202,7 @@ export function DiagramaVigaApeoArmado({
       </li>
       <li>
         {requiereHorquillas
-          ? "Horquillas en los dos extremos: el anclaje recto no entra en el apoyo."
+          ? "Horquillas en los dos extremos: el anclaje recto no entra en el apoyo. Se dibujan en alzado para que se vean, pero se doblan en planta (Montoya fig. 24.25b), girando 180° en horizontal."
           : "El anclaje recto entra en el apoyo: no hacen falta horquillas."}
       </li>
     </ul>

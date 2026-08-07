@@ -60,7 +60,9 @@ export function DiagramaVigaApeoModelo({
   const W = 340;
   const escala = W / luzM;
   const x0 = 46;
-  const y0 = 62;
+  // La etiqueta de Nd va 66 px por encima de y0: con y0 = 62 la fila de texto
+  // caía en coordenada negativa y a 390 px se recortaba el "Nd = … kN".
+  const y0 = 80;
   // Se acota el canto dibujado: una viga muy esbelta desaparecería y una muy
   // maciza se comería la hoja. La relación real va escrita al lado.
   const hPx = Math.min(Math.max(hM * escala, 34), 150);
@@ -84,7 +86,7 @@ export function DiagramaVigaApeoModelo({
   // La última fila de texto es la de h y L/h: va abajo y alineada a la izquierda
   // porque a la derecha del dibujo no entra sin salirse del viewBox, y un texto
   // que se sale del viewBox se corta en pantalla en vez de achicar el dibujo.
-  const alto = yCota + 50;
+  const alto = yCota + 54;
 
   return (
     <svg

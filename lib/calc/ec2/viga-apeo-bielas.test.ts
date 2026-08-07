@@ -155,7 +155,9 @@ describe("tirante", () => {
     expect(r.tirante.aprovechamiento).toBeCloseTo(0.853, 2);
     expect(r.tirante.bNecM).toBeCloseTo(0.499, 9);
     expect(r.tirante.verificaBNec).toBe(true);
-    expect(r.tirante.separacionMm).toBeCloseTo(50.14, 1);
+    // Separación LIBRE, de cara a cara de barra, que es la que acota el
+    // art. 8.2(2). Entre ejes daría 50,14 mm y no es lo que pide la norma.
+    expect(r.tirante.separacionMm).toBeCloseTo(25.14, 1);
   });
 
   it("el tirante se reparte en 0,12·luz", () => {
@@ -194,17 +196,158 @@ describe("tirante", () => {
 });
 
 describe("anclaje del tirante", () => {
-  it("lb y lb neta con la misma expresión que el resto del proyecto", () => {
-    expect(r.anclaje.lbMm).toBe(1138);
-    expect(r.anclaje.lbNetaMm).toBeCloseTo(970.5, 0);
+  /**
+   *   fctm  = 0,3·30^(2/3)                    = 2,8965 MPa   (tabla A19.3.1)
+   *   fctd  = 1,00·0,7·2,8965/1,5             = 1,3517 MPa   (ec. 3.16)
+   *   fbd   = 2,25·1,0·1,0·1,3517             = 3,0413 MPa   (ec. 8.2)
+   *   σsd   = 10·1456,1/39,27                 = 370,7 MPa
+   *   lb,rqd= (25/4)·(370,7/3,0413)           = 761,8 mm     (ec. 8.3)
+   */
+  it("la adherencia sale del hormigón, no de una regla de m·φ²", () => {
+    expect(r.anclaje.fctdMPa).toBeCloseTo(1.3517, 3);
+    expect(r.anclaje.eta1).toBe(1);
+    expect(r.anclaje.eta2).toBe(1);
+    expect(r.anclaje.fbdMPa).toBeCloseTo(3.0413, 3);
+    expect(r.anclaje.sigmaSdMPa).toBeCloseTo(370.7, 0);
+    expect(r.anclaje.lbRqdMm).toBeCloseTo(761.8, 0);
   });
 
-  it("el apoyo de 0,40 m con 0,30 m de voladizo no da para anclar recto", () => {
-    // Art. 6.5.4(7): la longitud se cuenta desde la cara interior del apoyo.
-    expect(r.anclaje.disponibleIzqM).toBeCloseTo(0.65, 9);
-    expect(r.anclaje.verificaAnclajeIzq).toBe(false);
-    // Art. 9.7(3): hay que doblar, poner cercos en U o dispositivos de anclaje.
+  it("armar de más acorta el anclaje, porque σsd baja", () => {
+    const masAcero = calcularVigaApeoBielas(materiales, geometria, {
+      ...datos,
+      tirante: { numero: 10, diametroMm: 25 },
+    });
+    expect(masAcero.anclaje.sigmaSdMPa).toBeLessThan(r.anclaje.sigmaSdMPa);
+    expect(masAcero.anclaje.lbRqdMm).toBeLessThan(r.anclaje.lbRqdMm);
+  });
+
+  it("con cd chico doblar no bonifica: α1 y α2 se quedan en 1,00", () => {
+    // cd = mín(a/2; c1; c) = mín(25,14/2; 62) = 12,57 mm (fig. A19.8.3), muy por
+    // debajo de 3φ = 75 mm, así que la tabla A19.8.2 no da el 0,7 de la barra
+    // doblada. La horquilla acá sirve por geometría, no por coeficiente.
+    expect(r.anclaje.cdMm).toBeCloseTo(12.57, 1);
+    expect(r.anclaje.horquilla.alfa1).toBe(1);
+    expect(r.anclaje.horquilla.alfa2).toBe(1);
+    expect(r.anclaje.horquilla.lbdMm).toBeCloseTo(r.anclaje.recto.lbdMm, 9);
+  });
+
+  it("lb,min no manda acá, pero está calculada", () => {
+    // máx(0,3·761,8; 10·25; 100) = 250 mm, muy por debajo de lbd.
+    expect(r.anclaje.recto.lbMinMm).toBeCloseTo(250, 9);
+    expect(r.anclaje.recto.lbdMm).toBeCloseTo(r.anclaje.recto.lbdBrutaMm, 9);
+  });
+
+  it("los dos criterios de arranque dan longitudes distintas", () => {
+    // Anejo 19 art. 6.5.4(7): desde la cara interior del apoyo → b/2 + voladizo.
+    expect(r.anclaje.disponibleIzqM).toBeCloseTo(0.45, 9);
+    // Montoya §24.7.3.e: desde el EJE de apoyo → medio ancho de placa menos.
+    expect(r.anclaje.disponibleMontoyaIzqM).toBeCloseTo(0.25, 9);
+    expect(r.anclaje.recto.verificaIzq).toBe(false);
+    expect(r.anclaje.recto.verificaIzqMontoya).toBe(false);
+  });
+
+  it("la horquilla casi triplica el desarrollo, pero no alcanza en este caso", () => {
+    // Mandril de tabla 7φ = 175 mm (φ25 > 16), radio del eje (175+25)/2 = 100 mm,
+    // codo de 180° = π·100 = 314,2 mm. Con 250 mm desde el eje de apoyo:
+    // 2·(250 − 100) + 314,2 = 614,2 mm < 761,8 mm.
+    expect(r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm).toBe(175);
+    expect(r.anclaje.geometriaHorquilla.desarrolloCodoMm).toBeCloseTo(314.16, 2);
+    expect(r.anclaje.geometriaHorquilla.ramaIdaIzqMm).toBeCloseTo(150, 9);
+    expect(r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm).toBeCloseTo(614.16, 2);
+    expect(r.anclaje.horquilla.verificaIzq).toBe(true); // por el Anejo sí entra
+    expect(r.anclaje.horquilla.verificaIzqMontoya).toBe(false); // por Montoya no
+    expect(r.anclaje.bastaConHorquilla).toBe(false);
+    // Art. 9.7(3): si no entra ni recto ni doblado, queda el dispositivo.
     expect(r.anclaje.requiereAnclajeMecanico).toBe(true);
+    expect(r.anclaje.formaRecomendada).toBe("dispositivo mecánico");
+  });
+
+  it("la horquilla cabe en el ancho de la viga", () => {
+    // mandril + 2φ = 175 + 50 = 225 mm contra 500 − 100 − 24 = 376 mm libres.
+    expect(r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM).toBeCloseTo(0.225, 9);
+    expect(r.anclaje.geometriaHorquilla.anchoLibreM).toBeCloseTo(0.376, 9);
+    expect(r.anclaje.geometriaHorquilla.cabeEnElAncho).toBe(true);
+    expect(r.anclaje.geometriaHorquilla.numeroHorquillas).toBe(4);
+  });
+
+  it("con la rama de vuelta larga hay que comprobar el hormigón del codo", () => {
+    // Art. 8.3(3): la exención vale sólo si tras el codo quedan ≤ 5φ.
+    expect(r.anclaje.geometriaHorquilla.exentaDeComprobarMandril).toBe(false);
+    expect(r.anclaje.geometriaHorquilla.mandrilAdoptadoMm).toBeGreaterThan(175);
+  });
+
+  it("con voladizos generosos el anclaje recto entra y no hacen falta horquillas", () => {
+    const holgado = calcularVigaApeoBielas(
+      materiales,
+      { ...geometria, voladizoIzqM: 1, voladizoDerM: 1 },
+      datos
+    );
+    expect(holgado.anclaje.verificaRecto).toBe(true);
+    expect(holgado.anclaje.formaRecomendada).toBe("recta");
+    expect(holgado.anclaje.requiereAnclajeMecanico).toBe(false);
+  });
+
+  it("la adherencia mala alarga el anclaje un 43 %", () => {
+    const mala = calcularVigaApeoBielas(materiales, geometria, {
+      ...datos,
+      condicionAdherencia: "mala",
+    });
+    expect(mala.anclaje.eta1).toBe(0.7);
+    expect(mala.anclaje.lbRqdMm).toBeCloseTo(r.anclaje.lbRqdMm / 0.7, 6);
+  });
+});
+
+describe("segunda capa del tirante", () => {
+  const dosCapas = calcularVigaApeoBielas(materiales, geometria, {
+    ...datos,
+    tiranteSegundaCapa: { numero: 8, diametroMm: 25 },
+  });
+
+  it("suma área y sube el baricentro, así que d baja", () => {
+    // sep. libre mínima = máx(φ; dg+5; 20) = máx(25; 25; 20) = 25 mm (art. 8.2(2))
+    // capa 1 a 0,062 + 0,0125 = 0,0745 m del borde
+    // capa 2 a 0,062 + 0,025 + 0,025 + 0,0125 = 0,1245 m
+    // baricentro = 0,0995 m (áreas iguales) → d = 2 − 0,0995 = 1,9005 m
+    expect(dosCapas.tirante.capas.separacionLibreMinimaMm).toBeCloseTo(25, 9);
+    expect(dosCapas.tirante.capas.capas).toHaveLength(2);
+    expect(dosCapas.tirante.capas.capas[1].brazoDesdeElBordeM).toBeCloseTo(0.1245, 9);
+    expect(dosCapas.tirante.capas.baricentroDesdeElBordeM).toBeCloseTo(0.0995, 9);
+    expect(dosCapas.modelo.dM).toBeCloseTo(1.9005, 9);
+    expect(dosCapas.modelo.dM).toBeLessThan(r.modelo.dM);
+    expect(dosCapas.tirante.asRealCm2).toBeCloseTo(2 * r.tirante.asRealCm2, 6);
+  });
+
+  it("tolera una descarga que con una sola capa no entra", () => {
+    const descargaGrande = { ...datos, ndPilarKN: 4000 };
+    const unaCapa = calcularVigaApeoBielas(materiales, geometria, descargaGrande);
+    const conSegunda = calcularVigaApeoBielas(materiales, geometria, {
+      ...descargaGrande,
+      tiranteSegundaCapa: { numero: 8, diametroMm: 25 },
+    });
+    expect(unaCapa.tirante.verificaAs).toBe(false);
+    expect(conSegunda.tirante.verificaAs).toBe(true);
+  });
+
+  it("las dos capas tienen que entrar en la franja de reparto de Montoya", () => {
+    // 0,12·5,00 = 0,60 m: con 0,087 m ocupados sobra de sobra.
+    expect(dosCapas.tirante.capas.alturaOcupadaM).toBeCloseTo(0.087, 9);
+    expect(dosCapas.tirante.capas.verificaDentroDelReparto).toBe(true);
+  });
+
+  it("la separación que se comprueba es la libre, no la de ejes", () => {
+    // 8Ø25 en 376 mm de ancho libre: (376 − 8·25)/7 = 25,14 mm de cara a cara.
+    // Medida entre ejes daría 50,14 mm y aprobaría cualquier cosa.
+    expect(r.tirante.capas.capas[0].separacionLibreMm).toBeCloseTo(25.14, 1);
+    expect(r.tirante.capas.capas[0].verificaSeparacion).toBe(true);
+  });
+
+  it("una capa demasiado poblada no entra en el ancho", () => {
+    const apretada = calcularVigaApeoBielas(materiales, geometria, {
+      ...datos,
+      tirante: { numero: 12, diametroMm: 25 },
+    });
+    expect(apretada.tirante.capas.capas[0].verificaSeparacion).toBe(false);
+    expect(apretada.tirante.verificaBNec).toBe(false);
   });
 });
 

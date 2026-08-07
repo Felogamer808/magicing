@@ -11,7 +11,11 @@ import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
 import { DiagramaVigaApeoModelo } from "@/components/verificaciones/hormigon/DiagramaVigaApeoModelo";
 import { DiagramaVigaApeoArmado } from "@/components/verificaciones/hormigon/DiagramaVigaApeoArmado";
-import { calcularVigaApeoBielas, type TransmisionCarga } from "@/lib/calc/ec2/viga-apeo-bielas";
+import {
+  calcularVigaApeoBielas,
+  type CondicionAdherencia,
+  type TransmisionCarga,
+} from "@/lib/calc/ec2/viga-apeo-bielas";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
@@ -24,6 +28,16 @@ const TRANSMISIONES = [
   "Indirecta (pilar arranca del alma)",
   "Colgada (carga entrando por la cara inferior)",
 ] as const;
+
+// Art. 8.4.2(2) y figura A19.8.2: la barra del tirante va al fondo del
+// encofrado, así que salvo hormigonado desde abajo o pieza muy alta la
+// condición es buena. Se deja elegible porque cambia el anclaje un 43 %.
+const ADHERENCIAS = ["Buena (fondo del encofrado)", "Mala"] as const;
+
+const ADHERENCIA_POR_ETIQUETA: Record<string, CondicionAdherencia> = {
+  [ADHERENCIAS[0]]: "buena",
+  [ADHERENCIAS[1]]: "mala",
+};
 
 const TIPO_POR_ETIQUETA: Record<string, TransmisionCarga> = {
   [TRANSMISIONES[0]]: "directa",
@@ -54,7 +68,11 @@ export default function VigaApeoBielasPage() {
 
   const [nTirante, setNTirante] = useCampo("nTirante", "8");
   const [phiTirante, setPhiTirante] = useCampo("phiTirante", "25");
+  const [nTirante2, setNTirante2] = useCampo("nTirante2", "0");
+  const [phiTirante2, setPhiTirante2] = useCampo("phiTirante2", "25");
   const [phiEstribo, setPhiEstribo] = useCampo("phiEstribo", "12");
+  const [dg, setDg] = useCampo("dg", "0.02");
+  const [adherencia, setAdherencia] = useCampo("adherencia", ADHERENCIAS[0]);
 
   const [phiMallaH, setPhiMallaH] = useCampo("phiMallaH", "12");
   const [sepMallaH, setSepMallaH] = useCampo("sepMallaH", "0.2");
@@ -67,6 +85,7 @@ export default function VigaApeoBielasPage() {
   const [cantoColgado, setCantoColgado] = useCampo("cantoColgado", "0.6");
 
   const tipo = TIPO_POR_ETIQUETA[transmision] ?? "directa";
+  const adh = ADHERENCIA_POR_ETIQUETA[adherencia] ?? "buena";
 
   const resultado = useMemo(() => {
     const n = {
@@ -77,6 +96,7 @@ export default function VigaApeoBielasPage() {
       voladizoIzq: aNumero(voladizoIzq), voladizoDer: aNumero(voladizoDer),
       nd: aNumero(nd), qd: aNumero(qd),
       nTirante: aNumero(nTirante), phiTirante: aNumero(phiTirante), phiEstribo: aNumero(phiEstribo),
+      nTirante2: aNumero(nTirante2), phiTirante2: aNumero(phiTirante2), dg: aNumero(dg),
       phiMallaH: aNumero(phiMallaH), sepMallaH: aNumero(sepMallaH),
       phiMallaV: aNumero(phiMallaV), sepMallaV: aNumero(sepMallaV),
       phiCuelgue: aNumero(phiCuelgue), sepCuelgue: aNumero(sepCuelgue),
@@ -86,10 +106,19 @@ export default function VigaApeoBielasPage() {
     if ([n.fck, n.fyk, n.luz, n.h, n.b, n.anchoPilar, n.anchoApoyoIzq, n.anchoApoyoDer, n.nd].some((x) => x <= 0)) return null;
     if ([n.nTirante, n.phiTirante, n.phiEstribo, n.phiMallaH, n.sepMallaH, n.phiMallaV, n.sepMallaV].some((x) => x <= 0)) return null;
     if (n.nTirante < 2) return null;
+    if (n.dg <= 0) return null;
+    // Segunda capa: se activa con 0 barras apagada, y si se activa pide dos
+    // barras como mínimo igual que la primera.
+    if (n.nTirante2 > 0 && (n.nTirante2 < 2 || n.phiTirante2 <= 0)) return null;
     // El pilar tiene que caer dentro de la luz, con su ancho completo apoyado.
     if (n.posCarga <= n.anchoPilar / 2 || n.posCarga >= n.luz - n.anchoPilar / 2) return null;
-    // El canto útil tiene que quedar positivo.
-    if (n.rg + n.phiEstribo / 1000 + n.phiTirante / 2000 >= n.h) return null;
+    // El canto útil tiene que quedar positivo, contando las dos capas.
+    const ocupaM =
+      n.rg +
+      n.phiEstribo / 1000 +
+      n.phiTirante / 1000 +
+      (n.nTirante2 > 0 ? Math.max(n.phiTirante, n.phiTirante2, n.dg * 1000 + 5, 20) / 1000 + n.phiTirante2 / 1000 : 0);
+    if (ocupaM >= n.h) return null;
     if (tipo !== "directa" && [n.phiCuelgue, n.sepCuelgue, n.ramasCuelgue].some((x) => x <= 0)) return null;
 
     const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
@@ -106,7 +135,11 @@ export default function VigaApeoBielasPage() {
         qdKNPorM: n.qd,
         transmision: tipo,
         tirante: { numero: n.nTirante, diametroMm: n.phiTirante },
+        tiranteSegundaCapa:
+          n.nTirante2 > 0 ? { numero: n.nTirante2, diametroMm: n.phiTirante2 } : undefined,
         diametroEstriboMm: n.phiEstribo,
+        tamanoMaximoAridoM: n.dg,
+        condicionAdherencia: adh,
         mallaHorizontal: { diametroMm: n.phiMallaH, separacionM: n.sepMallaH },
         mallaVertical: { diametroMm: n.phiMallaV, separacionM: n.sepMallaV },
         cuelgue:
@@ -124,6 +157,7 @@ export default function VigaApeoBielasPage() {
   }, [
     fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer,
     voladizoIzq, voladizoDer, nd, qd, tipo, nTirante, phiTirante, phiEstribo,
+    nTirante2, phiTirante2, dg, adh,
     phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue,
     ramasCuelgue, cantoColgado,
   ]);
@@ -184,6 +218,11 @@ export default function VigaApeoBielasPage() {
                 recubrimientoM={resultado.n.rg}
                 numeroTirante={resultado.n.nTirante}
                 diametroTiranteMm={resultado.n.phiTirante}
+                segundaCapaTirante={
+                  resultado.n.nTirante2 > 0
+                    ? { numero: resultado.n.nTirante2, diametroMm: resultado.n.phiTirante2 }
+                    : null
+                }
                 alturaRepartoTiranteM={resultado.r.tirante.alturaRepartoM}
                 requiereHorquillas={resultado.r.anclaje.requiereAnclajeMecanico}
                 mallaHorizontalSeparacionM={resultado.n.sepMallaH}
@@ -255,6 +294,23 @@ export default function VigaApeoBielasPage() {
               <CampoNumerico id="nTirante" etiqueta="Nº barras" valor={nTirante} onChange={setNTirante} />
               <CampoNumerico id="phiTirante" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiTirante} onChange={setPhiTirante} />
               <CampoNumerico id="phiEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstribo} onChange={setPhiEstribo} />
+              <CampoNumerico id="nTirante2" etiqueta="Nº barras 2ª capa" valor={nTirante2} onChange={setNTirante2} />
+              <CampoNumerico id="phiTirante2" etiqueta="φ 2ª capa" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiTirante2} onChange={setPhiTirante2} />
+              <CampoNumerico id="dg" etiqueta="Árido máx. dg" sufijo="m" valor={dg} onChange={setDg} />
+              <div className="col-span-2 sm:col-span-3">
+                <CampoSeleccion
+                  id="adherencia"
+                  etiqueta="Condición de adherencia"
+                  opciones={[...ADHERENCIAS]}
+                  valor={adherencia}
+                  onChange={setAdherencia}
+                />
+              </div>
+              <p className="col-span-2 font-mono text-xs text-muted-foreground sm:col-span-3">
+                Con 0 barras en la 2ª capa el tirante va en una sola fila. La segunda capa se
+                apoya sobre la primera dejando la separación libre mínima del art. 8.2(2), así
+                que sube el baricentro y baja el canto útil: es el precio de meter más acero.
+              </p>
             </CardContent>
           </Card>
 
@@ -344,8 +400,22 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Las barras entran en el ancho"
                     verifica={resultado.r.tirante.verificaBNec}
-                    detalle={`b nec ${fmt(resultado.r.tirante.bNecM, 3)} m / b = ${fmt(resultado.n.b)} m · separación ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
+                    detalle={`b nec ${fmt(resultado.r.tirante.bNecM, 3)} m / b = ${fmt(resultado.n.b)} m · separación libre ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
                   />
+                  {resultado.r.tirante.capas.capas.length > 1 && (
+                    <>
+                      <ResultadoCheck
+                        etiqueta="Las dos capas entran en la franja de reparto"
+                        verifica={resultado.r.tirante.capas.verificaDentroDelReparto}
+                        detalle={`ocupan ${fmt(resultado.r.tirante.capas.alturaOcupadaM, 3)} m de los ${fmt(resultado.r.tirante.alturaRepartoM, 3)} m de 0,12·L`}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Mismo número de barras por capa (pasa el vibrador)"
+                        verifica={resultado.r.tirante.capas.mismasBarrasPorCapa}
+                        detalle="art. 8.2(3): las barras de las dos capas, en la misma vertical"
+                      />
+                    </>
+                  )}
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -361,6 +431,13 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "As con fyd = fyk/γs", valor: `${fmt(resultado.r.tirante.asNecEc2Cm2)} cm²` },
                       { etiqueta: `As con fyd ≯ 400 MPa (Montoya §24.7.3.c)`, valor: `${fmt(resultado.r.tirante.asNecMontoyaCm2)} cm²` },
                       { etiqueta: "Altura de reparto del tirante (0,12·L)", valor: `${fmt(resultado.r.tirante.alturaRepartoM)} m` },
+                      { etiqueta: "Separación libre mínima, art. 8.2(2)", valor: `${fmt(resultado.r.tirante.capas.separacionLibreMinimaMm, 0)} mm` },
+                      ...resultado.r.tirante.capas.capas.map((c, i) => ({
+                        etiqueta: `Capa ${i + 1} — ${c.numero}Ø${fmt(c.diametroMm, 0)} a ${fmt(c.brazoDesdeElBordeM, 4)} m del borde`,
+                        valor: `${fmt(c.areaCm2)} cm² · libre ${fmt(c.separacionLibreMm, 0)} mm`,
+                      })),
+                      { etiqueta: "Baricentro de la armadura desde el borde", valor: `${fmt(resultado.r.tirante.capas.baricentroDesdeElBordeM, 4)} m` },
+                      { etiqueta: "Canto útil d = h − baricentro", valor: `${fmt(resultado.r.modelo.dM, 4)} m` },
                     ]}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -376,23 +453,127 @@ export default function VigaApeoBielasPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Anclaje del tirante</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <ResultadoCheck
-                    etiqueta="Anclaje recto en el apoyo izquierdo"
-                    verifica={resultado.r.anclaje.verificaAnclajeIzq}
-                    detalle={`disponible ${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm / lb,neta ${fmt(resultado.r.anclaje.lbNetaMm, 0)} mm`}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Anclaje recto en el apoyo derecho"
-                    verifica={resultado.r.anclaje.verificaAnclajeDer}
-                    detalle={`disponible ${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm / lb,neta ${fmt(resultado.r.anclaje.lbNetaMm, 0)} mm`}
-                  />
                   <p className="text-xs text-muted-foreground">
-                    {resultado.r.anclaje.requiereAnclajeMecanico
-                      ? "No entra el anclaje recto: hay que cerrar el tirante con horquillas, patillas o dispositivos de anclaje (art. 9.7(3)). Están dibujadas en el croquis de armado."
-                      : "Entra el anclaje recto, así que las horquillas no son obligatorias."}{" "}
-                    La longitud se mide desde la cara interior del apoyo, no desde su eje: el
-                    anclaje empieza donde empieza el nudo (art. 6.5.4(7)).
+                    Es la verificación que más apeos manda a rehacer. El tirante entra al nudo
+                    con toda su tracción y tiene que descargarla contra el hormigón del apoyo en
+                    los pocos centímetros que hay hasta el borde de la viga. No es la longitud de
+                    una viga a flexión, donde el momento decrece y la barra se va descargando
+                    sola: acá llega al apoyo con T entera.
                   </p>
+
+                  <ResultadoCheck
+                    etiqueta="Anclaje recto, apoyo izquierdo"
+                    verifica={resultado.r.anclaje.recto.verificaIzq && resultado.r.anclaje.recto.verificaIzqMontoya}
+                    detalle={`lbd ${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm · disponible ${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Anclaje recto, apoyo derecho"
+                    verifica={resultado.r.anclaje.recto.verificaDer && resultado.r.anclaje.recto.verificaDerMontoya}
+                    detalle={`lbd ${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm · disponible ${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
+                  />
+
+                  {!resultado.r.anclaje.verificaRecto && (
+                    <>
+                      <ResultadoCheck
+                        etiqueta="Con horquilla, apoyo izquierdo"
+                        verifica={resultado.r.anclaje.horquilla.verificaIzq && resultado.r.anclaje.horquilla.verificaIzqMontoya}
+                        detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm, 0)} mm`}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Con horquilla, apoyo derecho"
+                        verifica={resultado.r.anclaje.horquilla.verificaDer && resultado.r.anclaje.horquilla.verificaDerMontoya}
+                        detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleDerMm, 0)} mm`}
+                      />
+                      <ResultadoCheck
+                        etiqueta="La horquilla cabe en el ancho de la viga"
+                        verifica={resultado.r.anclaje.geometriaHorquilla.cabeEnElAncho}
+                        detalle={`ocupa ${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm de los ${fmt(resultado.r.anclaje.geometriaHorquilla.anchoLibreM * 1000, 0)} mm libres entre estribos`}
+                      />
+                    </>
+                  )}
+
+                  <PanelFormulas
+                    titulo="Ver cálculo de la longitud de anclaje"
+                    filas={[
+                      { etiqueta: "Tensión de la barra σsd = T/As,real", valor: `${fmt(resultado.r.anclaje.sigmaSdMPa, 1)} MPa` },
+                      { etiqueta: "fctd = αct·0,7·fctm/γc (ec. 3.16)", valor: `${fmt(resultado.r.anclaje.fctdMPa, 3)} MPa` },
+                      { etiqueta: "η1 por condición de adherencia · η2 por diámetro", valor: `${fmt(resultado.r.anclaje.eta1, 2)} · ${fmt(resultado.r.anclaje.eta2, 2)}` },
+                      { etiqueta: "fbd = 2,25·η1·η2·fctd (ec. 8.2)", valor: `${fmt(resultado.r.anclaje.fbdMPa, 3)} MPa` },
+                      { etiqueta: "lb,rqd = (φ/4)·(σsd/fbd) (ec. 8.3)", valor: `${fmt(resultado.r.anclaje.lbRqdMm, 0)} mm` },
+                      { etiqueta: "cd = mín(a/2; c1; c) (fig. A19.8.3)", valor: `${fmt(resultado.r.anclaje.cdMm, 1)} mm` },
+                      { etiqueta: "Recta: α1 · α2·α3·α5 (tabla A19.8.2)", valor: `${fmt(resultado.r.anclaje.recto.alfa1, 2)} · ${fmt(resultado.r.anclaje.recto.producto235, 2)}` },
+                      { etiqueta: "Recta: lbd = α·lb,rqd ≥ lb,min (ec. 8.4)", valor: `${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm (lb,min ${fmt(resultado.r.anclaje.recto.lbMinMm, 0)} mm)` },
+                      { etiqueta: "Horquilla: α1 · α2·α3·α5", valor: `${fmt(resultado.r.anclaje.horquilla.alfa1, 2)} · ${fmt(resultado.r.anclaje.horquilla.producto235, 2)}` },
+                      { etiqueta: "Horquilla: lbd", valor: `${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm` },
+                    ]}
+                  />
+
+                  <PanelFormulas
+                    titulo="Ver cómo se calcula la horquilla"
+                    filas={[
+                      { etiqueta: "Nº de horquillas (una cada dos barras)", valor: `${resultado.r.anclaje.geometriaHorquilla.numeroHorquillas}` },
+                      { etiqueta: "Mandril mínimo de tabla A19.8.1 (4φ si φ≤16; 7φ si no)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm, 0)} mm` },
+                      { etiqueta: "Tracción de una barra Fbt = σsd·Aφ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.fbtKN, 0)} kN` },
+                      { etiqueta: "ab = recubrimiento + φ/2 (barra de esquina)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.abMm, 0)} mm` },
+                      { etiqueta: "Mandril por rotura del hormigón, ec. (8.1)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilPorHormigonMm, 0)} mm` },
+                      {
+                        etiqueta: "¿Exenta de comprobar el hormigón? (art. 8.3(3))",
+                        valor: resultado.r.anclaje.geometriaHorquilla.exentaDeComprobarMandril
+                          ? "sí, la rama de vuelta no pasa de 5φ"
+                          : "no, hay que comprobarlo",
+                      },
+                      { etiqueta: "Mandril adoptado φm", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilAdoptadoMm, 0)} mm` },
+                      { etiqueta: "Desarrollo del codo de 180°: π·(φm+φ)/2", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloCodoMm, 0)} mm` },
+                      { etiqueta: "Rama de ida izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaDerMm, 0)} mm` },
+                      { etiqueta: "Desarrollo total 2·ida + codo, izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleDerMm, 0)} mm` },
+                      { etiqueta: "Rama de vuelta que falta, izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.ramaVueltaIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.ramaVueltaDerMm, 0)} mm` },
+                      { etiqueta: "Ancho que ocupa el lazo en planta: φm + 2φ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm` },
+                    ]}
+                  />
+
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p>
+                      <strong className="text-foreground">Cómo se calcula la horquilla.</strong>{" "}
+                      Primero sale lbd como en cualquier barra: la tensión real σsd = T/As,real
+                      dividida por la adherencia fbd da la longitud recta lb,rqd, y los α de la
+                      tabla A19.8.2 la corrigen. Ojo con un punto que engaña: doblar la barra
+                      sólo bonifica (α1 = 0,7) si cd &gt; 3φ, o sea si el codo tiene hormigón
+                      alrededor. Con recubrimientos y separaciones normales cd es chico y la
+                      horquilla exige la misma lbd que la barra recta.
+                    </p>
+                    <p>
+                      Entonces la horquilla no sirve por coeficiente sino por{" "}
+                      <strong className="text-foreground">geometría</strong>: Montoya la dibuja
+                      doblada en planta (fig. 24.25b), la barra entra, gira 180° en el plano
+                      horizontal y vuelve paralela a sí misma. En el mismo hueco físico se
+                      desarrolla 2·(rama de ida) + el arco del codo, casi el triple que recto.
+                      Doblada así el codo tampoco invade la biela comprimida, que es lo que
+                      pasaría si el giro fuera vertical.
+                    </p>
+                    <p>
+                      El mandril φm sale por el mayor de dos criterios: el de tabla —4φ hasta φ16
+                      y 7φ por encima, para no fisurar la barra al doblarla— y el de la ec. (8.1),
+                      que evita que el hormigón de adentro del codo reviente por la presión de
+                      contacto. El segundo sólo hay que comprobarlo si tras el codo queda más de
+                      5φ de barra (art. 8.3(3)); si la rama de vuelta es corta, la propia barra
+                      no llega a cargar el codo.
+                    </p>
+                    <p>
+                      Los dos criterios de arranque no coinciden y se comprueban por separado:
+                      el Anejo 19 art. 6.5.4(7) empieza a contar en la cara interior del apoyo y
+                      Montoya §24.7.3.e a partir del eje de apoyo, medio ancho de placa menos.
+                      Manda el peor. <strong className="text-foreground">VERIFICAR</strong>: la
+                      geometría de la horquilla (ramas, arco y ancho ocupado) es mi lectura de la
+                      fig. 24.25b, no una fórmula tabulada — contrastala antes de acotar un plano.
+                    </p>
+                    <p>
+                      {resultado.r.anclaje.formaRecomendada === "recta"
+                        ? "Entra el anclaje recto: las horquillas no son obligatorias."
+                        : resultado.r.anclaje.formaRecomendada === "horquilla"
+                          ? "Recto no entra pero la horquilla sí: hay que doblar el tirante en los dos extremos."
+                          : "No entra ni recto ni con horquilla: hay que ir a dispositivos de anclaje o placas soldadas (art. 9.7(3)), o agrandar el apoyo o el voladizo."}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -537,6 +718,13 @@ export default function VigaApeoBielasPage() {
                 estático: cualquier campo de esfuerzos en equilibrio y que no supere las
                 resistencias es del lado de la seguridad, pero sólo si la armadura se coloca
                 exactamente donde el modelo pone el tirante y se ancla de verdad.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                En el anclaje se toman α3 = α4 = α5 = 1,00: no se descuenta nada por confinamiento
+                de la armadura transversal, ni por barras transversales soldadas, ni por la presión
+                transversal del apoyo. Las tres son bonificaciones legítimas de la tabla A19.8.2,
+                pero exigen justificar armadura y presiones que esta pantalla no conoce, así que
+                quedan del lado seguro y a la vista.
               </p>
             </>
           )}

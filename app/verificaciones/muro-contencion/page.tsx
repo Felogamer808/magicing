@@ -11,6 +11,7 @@ import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/Diagra
 import { PredimensionadoMuro } from "@/components/verificaciones/hormigon/PredimensionadoMuro";
 import { AccionesElementosMuro } from "@/components/verificaciones/hormigon/AccionesElementosMuro";
 import { PanelAyuda } from "@/components/verificaciones/PanelAyuda";
+import { SeccionPlegable } from "@/components/verificaciones/SeccionPlegable";
 import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
 import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
 import {
@@ -19,6 +20,7 @@ import {
   CroquisSueloMuro,
 } from "@/components/verificaciones/croquis/CroquisMuro";
 import {
+  FS_MINIMO,
   areaPorMetroCm2,
   armarPieza,
   calcularMuroContencion,
@@ -375,6 +377,57 @@ export default function MuroContencionPage() {
                 </CardContent>
               </Card>
 
+              {/*
+                La estabilidad va antes que el armado: primero se define la
+                geometría —si el muro vuelca o desliza, el armado no importa— y
+                recién con la sección resuelta tiene sentido mirar las barras.
+              */}
+              <Card>
+                <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta="Vuelco"
+                    verifica={resultado.r.vuelco.verifica}
+                    comparacion={{
+                      real: { etiqueta: "FS", valor: fmt(resultado.r.vuelco.factorSeguridad) },
+                      limite: { etiqueta: "FS mín", valor: fmt(FS_MINIMO) },
+                    }}
+                    detalle={`M estab ${fmt(resultado.r.empujes.momentoEstabilizadorKNm)} / M volc ${fmt(resultado.r.empujes.momentoVolcadorKNm)} kN·m/m`}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Deslizamiento"
+                    verifica={resultado.r.deslizamientoSoloZapata.verifica}
+                    comparacion={{
+                      real: { etiqueta: "FS", valor: fmt(resultado.r.deslizamientoSoloZapata.factorSeguridad) },
+                      limite: { etiqueta: "FS mín", valor: fmt(FS_MINIMO) },
+                    }}
+                    detalle={`Fh adm ${fmt(resultado.r.deslizamientoSoloZapata.fhAdmKN)} / Fh máx ${fmt(resultado.r.deslizamientoSoloZapata.fhMaxKN)} kN/m`}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Tensión del suelo"
+                    verifica={resultado.r.tensionSueloCaso1.verifica}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: fmt(resultado.r.tensionSueloCaso1.sigmaKPa) },
+                      limite: { etiqueta: "σ adm", valor: fmt(resultado.n.sigmaAdm) },
+                      unidad: "kN/m²",
+                    }}
+                  />
+                  <PanelFormulas
+                    titulo="Ver cálculo"
+                    filas={[
+                      { etiqueta: "Ka = (1 − sen φ)/(1 + sen φ)", valor: fmt(resultado.r.empujes.ka, 3) },
+                      { etiqueta: "Kp = (1 + sen φ)/(1 − sen φ)", valor: fmt(resultado.r.empujes.kp, 3) },
+                      { etiqueta: "Empuje del suelo", valor: `${fmt(resultado.r.empujes.empujeSueloKN)} kN/m` },
+                      { etiqueta: "Empuje por sobrecarga", valor: `${fmt(resultado.r.empujes.empujeSobrecargaKN)} kN/m` },
+                      { etiqueta: "Empuje pasivo", valor: `${fmt(resultado.r.empujes.empujePasivoKN)} kN/m` },
+                      { etiqueta: "Peso alzado", valor: `${fmt(resultado.r.empujes.pesoMuroKN)} kN/m` },
+                      { etiqueta: "Peso zapata", valor: `${fmt(resultado.r.empujes.pesoZapataKN)} kN/m` },
+                      { etiqueta: "Peso suelo sobre zapata", valor: `${fmt(resultado.r.empujes.pesoSueloActivoKN)} kN/m` },
+                    ]}
+                  />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Momentos para armar</CardTitle>
@@ -449,7 +502,12 @@ export default function MuroContencionPage() {
                           key={p.calculo.nombre}
                           etiqueta={`${p.calculo.nombre} — cara ${p.calculo.cara}`}
                           verifica={p.verifica}
-                          detalle={`As real ${fmt(p.asRealCm2)} / nec ${fmt(p.calculo.asNecesarioCm2)} cm²/m · ⌀${p.diametroMm} hasta c/${fmt(p.separacionMaxMm, 0)} mm${p.calculo.mandaMinimo ? " · manda el mínimo" : ""}`}
+                          comparacion={{
+                            real: { etiqueta: "As real", valor: fmt(p.asRealCm2) },
+                            limite: { etiqueta: "As nec", valor: fmt(p.calculo.asNecesarioCm2) },
+                            unidad: "cm²/m",
+                          }}
+                          detalle={`⌀${p.diametroMm} hasta c/${fmt(p.separacionMaxMm, 0)} mm${p.calculo.mandaMinimo ? " · manda el mínimo" : ""}`}
                         />
                       ))}
 
@@ -491,52 +549,35 @@ export default function MuroContencionPage() {
                 </Card>
               )}
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <ResultadoCheck
-                    etiqueta="Vuelco (FS ≥ 1,5)"
-                    verifica={resultado.r.vuelco.verifica}
-                    detalle={`FS ${fmt(resultado.r.vuelco.factorSeguridad)} · M estab ${fmt(resultado.r.empujes.momentoEstabilizadorKNm)} / M volc ${fmt(resultado.r.empujes.momentoVolcadorKNm)} kN·m/m`}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Deslizamiento (FS ≥ 1,5)"
-                    verifica={resultado.r.deslizamientoSoloZapata.verifica}
-                    detalle={`FS ${fmt(resultado.r.deslizamientoSoloZapata.factorSeguridad)} · Fh adm ${fmt(resultado.r.deslizamientoSoloZapata.fhAdmKN)} / Fh máx ${fmt(resultado.r.deslizamientoSoloZapata.fhMaxKN)} kN/m`}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Tensión del suelo"
-                    verifica={resultado.r.tensionSueloCaso1.verifica}
-                    detalle={`σ ${fmt(resultado.r.tensionSueloCaso1.sigmaKPa)} / σ adm ${fmt(resultado.n.sigmaAdm)} kN/m²`}
-                  />
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "Ka = (1 − sen φ)/(1 + sen φ)", valor: fmt(resultado.r.empujes.ka, 3) },
-                      { etiqueta: "Kp = (1 + sen φ)/(1 − sen φ)", valor: fmt(resultado.r.empujes.kp, 3) },
-                      { etiqueta: "Empuje del suelo", valor: `${fmt(resultado.r.empujes.empujeSueloKN)} kN/m` },
-                      { etiqueta: "Empuje por sobrecarga", valor: `${fmt(resultado.r.empujes.empujeSobrecargaKN)} kN/m` },
-                      { etiqueta: "Empuje pasivo", valor: `${fmt(resultado.r.empujes.empujePasivoKN)} kN/m` },
-                      { etiqueta: "Peso alzado", valor: `${fmt(resultado.r.empujes.pesoMuroKN)} kN/m` },
-                      { etiqueta: "Peso zapata", valor: `${fmt(resultado.r.empujes.pesoZapataKN)} kN/m` },
-                      { etiqueta: "Peso suelo sobre zapata", valor: `${fmt(resultado.r.empujes.pesoSueloActivoKN)} kN/m` },
-                    ]}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Caso 2 — apoyo en contrapiso</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              {/*
+                Los casos apuntalados van al final y plegados: son hipótesis
+                particulares —el muro necesita que el contrapiso o la losa lo
+                sujeten— y abiertos competían en peso con la comprobación
+                principal aunque casi siempre no correspondan.
+              */}
+              <SeccionPlegable
+                titulo="Otros casos — muro apuntalado"
+                resumen="Si el muro solo no verifica, se lo puede apoyar en el contrapiso, o en el contrapiso y una losa superior. Cambian las reacciones y la tensión del suelo."
+              >
+                <div className="space-y-3">
+                  <p className="spec-label">Caso 2 — apoyo en contrapiso</p>
                   <ResultadoCheck
                     etiqueta="Deslizamiento con el contrapiso apuntalando"
                     verifica={resultado.r.deslizamientoApoyoContrapiso.verifica}
-                    detalle={`FS ${fmt(resultado.r.deslizamientoApoyoContrapiso.factorSeguridad)} · sólo pasa R1 = ${fmt(Math.abs(resultado.r.apoyoContrapiso.r1KN))} kN/m por rozamiento`}
+                    comparacion={{
+                      real: { etiqueta: "FS", valor: fmt(resultado.r.deslizamientoApoyoContrapiso.factorSeguridad) },
+                      limite: { etiqueta: "FS mín", valor: fmt(FS_MINIMO) },
+                    }}
+                    detalle={`Sólo pasa R1 = ${fmt(Math.abs(resultado.r.apoyoContrapiso.r1KN))} kN/m por rozamiento`}
                   />
                   <ResultadoCheck
                     etiqueta="Tensión del suelo"
                     verifica={resultado.r.tensionSueloCasos23.verifica}
-                    detalle={`σ ${fmt(resultado.r.tensionSueloCasos23.sigmaKPa)} / σ adm ${fmt(resultado.n.sigmaAdm)} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: fmt(resultado.r.tensionSueloCasos23.sigmaKPa) },
+                      limite: { etiqueta: "σ adm", valor: fmt(resultado.n.sigmaAdm) },
+                      unidad: "kN/m²",
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">Reacciones a llevar por el contrapiso</p>
@@ -544,12 +585,10 @@ export default function MuroContencionPage() {
                       R1 = {fmt(resultado.r.apoyoContrapiso.r1KN)} kN/m · R2 = {fmt(resultado.r.apoyoContrapiso.r2KN)} kN/m
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Caso 3 — contrapiso y losa superior</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+                <div className="space-y-3 border-t pt-6">
+                  <p className="spec-label">Caso 3 — contrapiso y losa superior</p>
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">Reacciones a llevar por las losas</p>
                     <p className="font-mono text-xs text-muted-foreground">
@@ -560,10 +599,14 @@ export default function MuroContencionPage() {
                   <ResultadoCheck
                     etiqueta="Tensión del suelo"
                     verifica={resultado.r.tensionSueloCasos23.verifica}
-                    detalle={`σ ${fmt(resultado.r.tensionSueloCasos23.sigmaKPa)} / σ adm ${fmt(resultado.n.sigmaAdm)} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: fmt(resultado.r.tensionSueloCasos23.sigmaKPa) },
+                      limite: { etiqueta: "σ adm", valor: fmt(resultado.n.sigmaAdm) },
+                      unidad: "kN/m²",
+                    }}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </SeccionPlegable>
 
               <p className="text-xs text-muted-foreground">
                 Al calcular el momento estabilizador, la planilla tomaba el peso del alzado con brazo A/2 en

@@ -78,6 +78,7 @@ export const COMBINACION_POR_VERIFICACION: Record<string, Combinacion> = {
   "vigas-flexion-cortante": ELU_MAYORADAS,
   "vigas-torsion": ELU_MAYORADAS,
   "vigas-apeo": ELU_MAYORADAS,
+  "vigas-apeo-bielas": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,

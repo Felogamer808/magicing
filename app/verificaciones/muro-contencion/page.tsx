@@ -175,12 +175,24 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
       valor: `${fmt(tension.nKN)} kN/m`,
     },
     {
+      etiqueta: "M estab σ",
+      formula: "Σ (peso · brazo) + (carga perm. + sobrec. uso) · brazo talón",
+      sustitucion: `igual que el del vuelco, más ${fmt(e.cargaUsoKN)} · ${fmt(e.brazoTalonM)} de la sobrecarga de uso`,
+      valor: `${fmt(tension.momentoEstabilizadorKNm)} kN·m/m`,
+    },
+    {
+      etiqueta: "d",
+      formula: "(M estab σ − M volc) / N",
+      sustitucion: `(${fmt(tension.momentoEstabilizadorKNm)} − ${fmt(e.momentoVolcadorKNm)}) / ${fmt(tension.nKN)}`,
+      valor: `${fmt(tension.brazoResultanteM, 3)} m desde la puntera`,
+    },
+    {
       etiqueta: "e",
-      formula: "A/2 − (M estab − M volc)/N",
-      sustitucion: `${fmt(n.anchoZap / 2)} − (momentos con la sobrecarga de uso incluida)`,
+      formula: "A/2 − d",
+      sustitucion: `${fmt(n.anchoZap / 2)} − ${fmt(tension.brazoResultanteM, 3)}`,
       valor: `${fmt(tension.excentricidadM, 3)} m  ${
-        tension.resultanteEnNucleo ? `≤ A/6 = ${fmt(n.anchoZap / 6, 3)}` : `> A/6 = ${fmt(n.anchoZap / 6, 3)}`
-      }`,
+        tension.resultanteEnNucleo ? "≤" : ">"
+      } A/6 = ${fmt(n.anchoZap / 6, 3)}`,
     },
     {
       etiqueta: "σ",
@@ -571,6 +583,52 @@ export default function MuroContencionPage() {
                     }}
                   />
                   <PanelFormulas titulo="Ver cálculo" filas={desarrolloCaso1(resultado.n, resultado.r)} />
+
+                  <PanelAyuda titulo="De dónde sale la tensión sobre el terreno">
+                    <p>
+                      No es <span className="font-mono">N/A</span>. Eso valdría si la carga
+                      estuviera centrada, y en un muro nunca lo está: el empuje la corre hacia la
+                      puntera. Hay que ubicar primero por dónde pasa la resultante.
+                    </p>
+                    <p>
+                      <strong className="text-foreground">Dónde cae la resultante.</strong> Se toman
+                      momentos respecto de la puntera. Lo que baja estabiliza y lo que empuja vuelca,
+                      así que la resultante pasa a una distancia{" "}
+                      <span className="font-mono">d = (M estab − M volc) / N</span> del borde
+                      delantero. Su separación del centro de la zapata es{" "}
+                      <span className="font-mono">e = A/2 − d</span>.
+                    </p>
+                    <p>
+                      <strong className="text-foreground">El momento no es el mismo que el del
+                      vuelco.</strong> Ahí la sobrecarga de uso es favorable y va con cero; acá pesa,
+                      porque para el terreno bajar es desfavorable. Por eso figuran dos momentos
+                      estabilizadores distintos en el desarrollo del cálculo.
+                    </p>
+                    <p>
+                      <strong className="text-foreground">Si e ≤ A/6</strong> —la resultante cae
+                      dentro del núcleo central— toda la base comprime y la ley es trapecial:{" "}
+                      <span className="font-mono">σ = N/A · (1 + 6e/A)</span>. El término{" "}
+                      <span className="font-mono">6e/A</span> es cuánto desnivela la excentricidad
+                      una presión que si no sería uniforme.
+                    </p>
+                    <p>
+                      <strong className="text-foreground">Si e &gt; A/6</strong>, esa fórmula daría
+                      tracción en el borde de atrás, y el terreno no tracciona: la zapata se despega.
+                      El contacto se reduce a <span className="font-mono">3d</span> y la ley pasa a
+                      ser triangular, con{" "}
+                      <span className="font-mono">σ = 2N / (3d)</span>. El pico sube bastante, así
+                      que usar la fórmula lineal en este caso queda del lado inseguro.
+                    </p>
+                    <p>
+                      Conviene que la resultante entre en el núcleo. Si se sale mucho —pasado{" "}
+                      <span className="font-mono">A/3</span>— la presión se dispara con cambios
+                      chicos de la excentricidad, y lo que corresponde es ensanchar la zapata o
+                      darle puntera, no seguir afinando.
+                    </p>
+                    <p className="text-[11px] opacity-70">
+                      Método: Jiménez Montoya, 15ª ed., §25.2.6, pág. 404.
+                    </p>
+                  </PanelAyuda>
                 </CardContent>
               </Card>
 

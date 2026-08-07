@@ -137,6 +137,14 @@ export interface ResultadoTensionSuelo {
   /** Excentricidad de la resultante respecto del centro de la zapata (m). */
   excentricidadM: number;
   /**
+   * Momento estabilizador que corresponde a esta comprobación (kN·m/m), tomado
+   * respecto de la puntera. No coincide con el del vuelco: acá las sobrecargas
+   * pesan las dos, porque bajar es desfavorable para el terreno.
+   */
+  momentoEstabilizadorKNm: number;
+  /** Distancia de la resultante a la puntera (m): (M estab − M volc)/N. */
+  brazoResultanteM: number;
+  /**
    * La resultante cae dentro del núcleo central, |e| ≤ A/6. Con esto toda la
    * base comprime y la ley es trapecial; sin esto, parte de la zapata se
    * despega y el pico crece bastante.
@@ -570,10 +578,14 @@ export function calcularMuroContencion(
       verifica: sigmaCaso1 <= sigmaAdmisibleKPa,
       excentricidadM,
       resultanteEnNucleo,
+      momentoEstabilizadorKNm: momentoEstabilizadorTensionKNm,
+      brazoResultanteM,
     },
     tensionSueloCasos23: {
       excentricidadM: EXCENTRICIDAD_CASOS_APUNTALADOS,
       resultanteEnNucleo: true,
+      momentoEstabilizadorKNm: momentoEstabilizadorTensionKNm,
+      brazoResultanteM: A / 2 - EXCENTRICIDAD_CASOS_APUNTALADOS,
       nKN: nTension,
       momentoKNm: momentoCasos23,
       sigmaKPa: sigmaCasos23,

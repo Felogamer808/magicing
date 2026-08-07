@@ -144,7 +144,17 @@ export default function PropiedadesGeometricasPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      {/*
+        Los datos ocupan una columna angosta y el dibujo la ancha, al lado, para
+        poder cambiar una dimensión y ver el contorno sin scrollear. Los
+        resultados pasan a la banda de abajo, a todo el ancho. Debajo de xl todo
+        se apila en una sola columna, en el orden en que se usa: datos, dibujo,
+        resultados.
+
+        El corte va en xl y no en lg porque a 1024 px las dos columnas dan 269 y
+        404: los campos quedan apretados y el dibujo sale más chico que apilado.
+      */}
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -201,42 +211,49 @@ export default function PropiedadesGeometricasPage() {
               })}
             </CardContent>
           </Card>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Dibujo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {estado.ok ? (
-                <>
-                  <DiagramaSeccion
-                    lleno={estado.datos.lleno}
-                    huecos={estado.datos.huecos}
-                    props={estado.datos.props}
-                  />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Punteado gris: ejes centroidales x-y, los de I<sub>x</sub> e I<sub>y</sub>.
-                    Verde: ejes principales, sólo se dibujan cuando están girados.
-                  </p>
-                </>
-              ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
-              )}
+        {/*
+          El layout de verificaciones topa los esquemas en 20rem de alto para que
+          un dibujo vertical no quede al triple que los demás. Acá el dibujo tiene
+          columna propia, así que el tope es lo único que impide que crezca:
+          subirlo a 32rem lo deja gobernado por el ancho de la columna, no por el
+          alto. Debajo de xl vuelve a valer el tope general.
+        */}
+        <Card className="self-start xl:[&_svg]:max-h-[32rem]">
+          <CardHeader>
+            <CardTitle className="text-base">Dibujo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {estado.ok ? (
+              <>
+                <DiagramaSeccion
+                  lleno={estado.datos.lleno}
+                  huecos={estado.datos.huecos}
+                  props={estado.datos.props}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Punteado gris: ejes centroidales x-y, los de I<sub>x</sub> e I<sub>y</sub>. Verde:
+                  ejes principales, sólo se dibujan cuando están girados.
+                </p>
+              </>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {!estado.ok ? (
+          <Card className="md:col-span-2 xl:col-span-3">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              {estado.motivo}
             </CardContent>
           </Card>
-        </div>
-
-        <div className="space-y-6">
-          {!estado.ok ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                {estado.motivo}
-              </CardContent>
-            </Card>
-          ) : (
-            <ResultadoPropiedades datos={estado.datos} />
-          )}
-        </div>
+        ) : (
+          <ResultadoPropiedades datos={estado.datos} />
+        )}
       </div>
     </main>
   );

@@ -27,7 +27,22 @@ interface Props {
   resultado: ResultadoViga;
 }
 
-const ANCHO = 320;
+/**
+ * Dos anchos de lienzo para el mismo dibujo. En el teléfono el lienzo es angosto
+ * de verdad —no un dibujo ancho metido en un scroll lateral— y de lg para arriba
+ * se usa uno más ancho. No alcanza con estirar el de 320: como el alto está
+ * topado por `.esquemas-acotados`, estirarlo sólo agrega margen a los costados.
+ * Ensanchando el viewBox el alto queda igual, el texto conserva su tamaño
+ * relativo y los diagramas ganan resolución horizontal, que es justo lo que se
+ * quiere leer en una viga.
+ *
+ * El corte va en lg porque con el tope de alto puesto el lienzo de 560 ocupa
+ * 521 px, y recién ahí el ancho disponible los alcanza: el layout de
+ * verificaciones se lleva 271 px en el menú lateral, así que a 768 quedan 417 y
+ * la variante ancha se dibujaría más chica que la angosta.
+ */
+const ANCHO_MOVIL = 320;
+const ANCHO_ESCRITORIO = 560;
 const IZQ = 30;
 const DER = 12;
 const ALTO_ESQUEMA = 74;
@@ -56,7 +71,32 @@ const num = (n: number, d = 1) =>
   });
 
 export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
-  const utilX = ANCHO - IZQ - DER;
+  return (
+    <figure className="w-full">
+      <Lienzo
+        ancho={ANCHO_MOVIL}
+        clase="h-auto w-full lg:hidden"
+        largoM={largoM}
+        nodos={nodos}
+        cargas={cargas}
+        resultado={resultado}
+      />
+      <Lienzo
+        ancho={ANCHO_ESCRITORIO}
+        clase="hidden h-auto w-full lg:block"
+        largoM={largoM}
+        nodos={nodos}
+        cargas={cargas}
+        resultado={resultado}
+      />
+    </figure>
+  );
+}
+
+// --------------------------------------------------------------------------
+
+function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { ancho: number; clase: string }) {
+  const utilX = ancho - IZQ - DER;
   const px = (x: number) => IZQ + (x / largoM) * utilX;
 
   const paneles = [
@@ -93,33 +133,32 @@ export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
   ];
 
   return (
-    <figure className="w-full">
-      <svg
-        viewBox={`0 0 ${ANCHO} ${ALTO}`}
-        className="h-auto w-full"
-        role="img"
-        aria-label={`Viga de ${num(largoM, 2)} metros con sus diagramas de cortante, momento flector y deformada`}
-      >
-        <Esquema largoM={largoM} nodos={nodos} cargas={cargas} px={px} />
+    <svg
+      viewBox={`0 0 ${ancho} ${ALTO}`}
+      className={clase}
+      role="img"
+      aria-label={`Viga de ${num(largoM, 2)} metros con sus diagramas de cortante, momento flector y deformada`}
+    >
+      <Esquema largoM={largoM} nodos={nodos} cargas={cargas} px={px} />
 
-        {paneles.map((panel, k) => (
-          <Panel
-            key={panel.clave}
-            titulo={panel.titulo}
-            unidad={panel.unidad}
-            valores={panel.valores}
-            xs={resultado.puntos.map((p) => p.xM)}
-            extremo={panel.extremo}
-            // El flector se dibuja invertido para que quede del lado traccionado.
-            invertido={panel.clave === "momento"}
-            trazo={panel.trazo}
-            relleno={panel.relleno}
-            top={ALTO_ESQUEMA + k * ALTO_PANEL}
-            px={px}
-          />
-        ))}
-      </svg>
-    </figure>
+      {paneles.map((panel, k) => (
+        <Panel
+          key={panel.clave}
+          titulo={panel.titulo}
+          unidad={panel.unidad}
+          valores={panel.valores}
+          xs={resultado.puntos.map((p) => p.xM)}
+          extremo={panel.extremo}
+          // El flector se dibuja invertido para que quede del lado traccionado.
+          invertido={panel.clave === "momento"}
+          trazo={panel.trazo}
+          relleno={panel.relleno}
+          top={ALTO_ESQUEMA + k * ALTO_PANEL}
+          ancho={ancho}
+          px={px}
+        />
+      ))}
+    </svg>
   );
 }
 
@@ -259,6 +298,7 @@ function Panel({
   trazo,
   relleno,
   top,
+  ancho,
   px,
 }: {
   titulo: string;
@@ -270,6 +310,7 @@ function Panel({
   trazo: string;
   relleno: string;
   top: number;
+  ancho: number;
   px: (x: number) => number;
 }) {
   const yCero = top + 52;
@@ -287,7 +328,7 @@ function Panel({
   const xe = px(extremo.xM);
   const ye = py(extremo.valor);
   // La etiqueta del máximo se corre para adentro cuando el máximo cae en un borde.
-  const anclaje = xe < 60 ? "start" : xe > ANCHO - 60 ? "end" : "middle";
+  const anclaje = xe < 60 ? "start" : xe > ancho - 60 ? "end" : "middle";
   const yRotulo = Math.min(
     top + ROTULO_MAX,
     Math.max(top + ROTULO_MIN, ye + (signo * extremo.valor > 0 ? 13 : -7))

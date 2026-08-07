@@ -142,12 +142,20 @@ import { calcularMuroContencion } from "./muro-contencion";
 // σadm=100 kPa, zapata 0.5x0.3, muro 3.2x0.15, suelo activo 3.2 m, pasivo 0,
 // sobrecarga 5 kN/m².
 //
-// OJO: la geometría y los pesos siguen siendo los de la planilla, pero todo lo
-// que pasa por ka o kp ya NO es paridad con Excel. La planilla topaba ka en 0,5
-// y ese piso se quitó a pedido, así que empujes, momento volcador, reacciones y
-// factores de seguridad quedaron recalculados desde las fórmulas de Rankine.
-// Lo que no depende de ka —pesos, momento estabilizador, tensión del suelo—
-// sigue contrastado contra la planilla y no se tocó.
+// OJO con qué es y qué no es paridad con Excel.
+//
+// Coinciden con la planilla: los coeficientes (ka topado en 0,5), los empujes,
+// el momento volcador y las reacciones de los apoyos.
+//
+// NO coinciden, y es a propósito:
+//   · el peso del suelo, que la planilla tomaba como ½·γ·h·(A−esp) —media altura
+//     total sobre las dos alas— cuando lo que gravita es γ·talón·(h−canto);
+//   · el reparto de las sobrecargas, que ahora distingue permanente de uso y no
+//     cuenta la variable del lado favorable;
+//   · la tensión del terreno, que se resuelve ubicando la resultante en vez de
+//     aplicar σ = N/A + M/W a ciegas.
+//
+// Los tres eran errores de la planilla, no criterios distintos.
 
 const suelo = { gammaKNm3: 18, phiGrados: 34, cKPa: 5, sigmaAdmisibleKPa: 100 };
 const geometria = {
@@ -157,7 +165,8 @@ const geometria = {
   espesorMuroM: 0.15,
   alturaSueloActivoM: 3.2,
   alturaSueloPasivoM: 0,
-  sobrecargaKPa: 5,
+  sobrecargaPermanenteKPa: 0,
+  sobrecargaUsoKPa: 5,
 };
 const apoyos = { l1Caso2M: 2, l1Caso3M: 0.95, l2Caso3M: 2.45 };
 
@@ -168,24 +177,25 @@ describe("muro de contención: empujes", () => {
   // copiado: si alguien vuelve a meter un tope, esto lo delata.
   it("usa los coeficientes de Rankine, sin topes", () => {
     const sen = Math.sin((34 * Math.PI) / 180);
-    expect(r.empujes.ka).toBeCloseTo((1 - sen) / (1 + sen), 12);
-    expect(r.empujes.kp).toBeCloseTo((1 + sen) / (1 - sen), 12);
-    // Recíprocos entre sí, que es lo que hace consistente al par.
-    expect(r.empujes.ka * r.empujes.kp).toBeCloseTo(1, 12);
+    expect(r.empujes.kaTeorico).toBeCloseTo((1 - sen) / (1 + sen), 12);
+    // Con φ = 34° el teórico da 0,283 y manda el piso.
+    expect(r.empujes.mandaPisoKa).toBe(true);
+    expect(r.empujes.ka).toBeCloseTo(0.5, 12);
+    expect(r.empujes.kp).toBeCloseTo(2, 12);
     expect(r.empujes.alturaTotalM).toBeCloseTo(3.5, 9);
   });
 
   it("reproduce los empujes activos y el momento volcador", () => {
     // ka = 0,282714919717773 con φ = 34°.
-    expect(r.empujes.empujeSueloKN).toBeCloseTo(26.055007, 6);
-    expect(r.empujes.empujeSobrecargaKN).toBeCloseTo(4.523439, 6);
-    expect(r.empujes.momentoVolcadorKNm).toBeCloseTo(35.029509, 6);
+    expect(r.empujes.empujeSueloKN).toBeCloseTo(46.08, 6);
+    expect(r.empujes.empujeSobrecargaKN).toBeCloseTo(8, 6);
+    expect(r.empujes.momentoVolcadorKNm).toBeCloseTo(61.952, 6);
   });
 
   it("reproduce los pesos estabilizadores", () => {
     expect(r.empujes.pesoMuroKN).toBeCloseTo(12, 6);
     expect(r.empujes.pesoZapataKN).toBeCloseTo(3.75, 6);
-    expect(r.empujes.pesoSueloActivoKN).toBeCloseTo(10.08, 6);
+    expect(r.empujes.pesoSueloActivoKN).toBeCloseTo(18.27, 6);
     expect(r.empujes.pesoSueloPasivoKN).toBeCloseTo(0, 9);
     expect(r.empujes.empujePasivoKN).toBeCloseTo(0, 9);
   });
@@ -198,68 +208,121 @@ describe("muro de contención: vuelco", () => {
   // sobre la zapata y con la otra hoja de muros de la planilla.
   it("reproduce el momento estabilizador con el brazo del alzado corregido", () => {
     // 12·0.075 + 3.75·0.25 + 10.08·0.325 = 0.9 + 0.9375 + 3.276
-    expect(r.empujes.momentoEstabilizadorKNm).toBeCloseTo(5.1135, 6);
+    expect(r.empujes.momentoEstabilizadorKNm).toBeCloseTo(7.77525, 6);
   });
 
   it("no verifica el vuelco: este muro necesita apuntalamiento", () => {
-    expect(r.vuelco.factorSeguridad).toBeCloseTo(5.1135 / 35.029509, 6);
+    expect(r.vuelco.factorSeguridad).toBeCloseTo(7.77525 / 61.952, 6);
     expect(r.vuelco.verifica).toBe(false);
   });
 });
 
 describe("muro de contención: deslizamiento", () => {
   it("reproduce el caso 1, sólo zapata", () => {
-    expect(r.deslizamientoSoloZapata.nKN).toBeCloseTo(26.83, 6);
-    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(20.5970635068823, 6);
-    expect(r.deslizamientoSoloZapata.fhMaxKN).toBeCloseTo(30.578446, 6);
-    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.673581113236596, 6);
+    expect(r.deslizamientoSoloZapata.nKN).toBeCloseTo(34.02, 6);
+    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(25.44678, 5);
+    expect(r.deslizamientoSoloZapata.fhMaxKN).toBeCloseTo(54.08, 6);
+    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.47054, 5);
     expect(r.deslizamientoSoloZapata.verifica).toBe(false);
   });
 
-  /*
-   * Con el piso de 0,5 este caso daba FS 0,891 y no verificaba. Al pasar a
-   * Rankine el empuje baja, R1 baja con él y el FS sube a 1,577, por encima del
-   * 1,5 exigido: el mismo muro que antes no pasaba, ahora pasa. Queda anotado
-   * porque es el ejemplo más claro de lo que cambió el criterio.
-   */
-  it("con apoyo en contrapiso el rozamiento alcanza para R1", () => {
-    expect(r.deslizamientoApoyoContrapiso.fhMaxKN).toBeCloseTo(13.063691, 6);
-    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(1.576664932645219, 6);
-    expect(r.deslizamientoApoyoContrapiso.verifica).toBe(true);
+  it("con apoyo en contrapiso sólo hay que pasar R1 por rozamiento, y no alcanza", () => {
+    expect(r.deslizamientoApoyoContrapiso.fhMaxKN).toBeCloseTo(23.104, 6);
+    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(1.101401, 5);
+    expect(r.deslizamientoApoyoContrapiso.verifica).toBe(false);
   });
 });
 
 describe("muro de contención: tensión del suelo", () => {
-  it("reproduce el caso 1", () => {
-    expect(r.tensionSueloCaso1.nKN).toBeCloseTo(30.83, 6);
-    expect(r.tensionSueloCaso1.momentoKNm).toBeCloseTo(98.304, 6);
-    expect(r.tensionSueloCaso1.sigmaKPa).toBeCloseTo(2420.956, 4);
+  /*
+   * Este muro vuelca (FS 0,146): la resultante se va fuera de la zapata, así que
+   * no hay superficie en contacto y no existe una tensión que calcular. Se
+   * devuelve infinito en vez de un número inventado, y la comprobación falla.
+   *
+   * La planilla daba acá 2.420,96 kN/m² aplicando la ley trapecial a una
+   * resultante que estaba fuera de la base, donde esa ley no vale.
+   */
+  it("sin contacto cuando la resultante se sale de la zapata", () => {
+    expect(r.tensionSueloCaso1.nKN).toBeCloseTo(35.77, 6);
+    expect(r.tensionSueloCaso1.resultanteEnNucleo).toBe(false);
+    expect(r.tensionSueloCaso1.excentricidadM).toBeCloseTo(1.748686, 6);
+    expect(r.tensionSueloCaso1.sigmaKPa).toBe(Infinity);
     expect(r.tensionSueloCaso1.verifica).toBe(false);
   });
 
   it("reproduce los casos 2 y 3, mucho menos exigidos al estar apuntalados", () => {
-    expect(r.tensionSueloCasos23.momentoKNm).toBeCloseTo(0.9249, 6);
-    expect(r.tensionSueloCasos23.sigmaKPa).toBeCloseTo(83.8576, 4);
+    expect(r.tensionSueloCasos23.momentoKNm).toBeCloseTo(1.0731, 6);
+    expect(r.tensionSueloCasos23.sigmaKPa).toBeCloseTo(97.2944, 4);
     expect(r.tensionSueloCasos23.verifica).toBe(true);
   });
 });
 
 describe("muro de contención: reacciones de los apoyos", () => {
   it("reproduce el caso 2, apoyo en contrapiso", () => {
-    expect(r.apoyoContrapiso.r2KN).toBeCloseTo(17.514755, 6);
-    expect(r.apoyoContrapiso.r1KN).toBeCloseTo(-13.063691, 6);
+    expect(r.apoyoContrapiso.r2KN).toBeCloseTo(30.976, 6);
+    expect(r.apoyoContrapiso.r1KN).toBeCloseTo(-23.104, 6);
   });
 
   it("reproduce el caso 3, contrapiso más losa superior", () => {
-    expect(r.apoyoContrapisoYLosa.r2KN).toBeCloseTo(2.440811, 6);
-    expect(r.apoyoContrapisoYLosa.r1KN).toBeCloseTo(28.137635, 6);
+    expect(r.apoyoContrapisoYLosa.r2KN).toBeCloseTo(4.31673469387755, 6);
+    expect(r.apoyoContrapisoYLosa.r1KN).toBeCloseTo(49.7632653061225, 6);
+  });
+});
+
+describe("muro de contención: reparto de las sobrecargas", () => {
+  /*
+   * La misma carga puesta como permanente o como de uso tiene que dar el mismo
+   * empuje —las dos empujan igual— pero distinto momento estabilizador, porque
+   * la variable es favorable ahí y va con cero.
+   */
+  const comoPermanente = calcularMuroContencion(
+    suelo,
+    { ...geometria, sobrecargaPermanenteKPa: 5, sobrecargaUsoKPa: 0 },
+    apoyos
+  );
+
+  it("las dos sobrecargas empujan lo mismo", () => {
+    expect(comoPermanente.empujes.empujeSobrecargaKN).toBeCloseTo(
+      r.empujes.empujeSobrecargaKN, 9
+    );
+  });
+
+  it("sólo la permanente estabiliza el vuelco", () => {
+    expect(r.empujes.cargaPermanenteKN).toBe(0);
+    expect(comoPermanente.empujes.cargaPermanenteKN).toBeCloseTo(5 * 0.35, 9);
+    expect(comoPermanente.vuelco.factorSeguridad).toBeGreaterThan(r.vuelco.factorSeguridad);
+  });
+
+  it("sólo la permanente suma peso contra el deslizamiento", () => {
+    expect(comoPermanente.deslizamientoSoloZapata.nKN).toBeGreaterThan(
+      r.deslizamientoSoloZapata.nKN
+    );
+  });
+
+  it("las dos pesan para la tensión del terreno, que es donde son desfavorables", () => {
+    expect(r.tensionSueloCaso1.nKN).toBeCloseTo(comoPermanente.tensionSueloCaso1.nKN, 9);
+  });
+});
+
+describe("muro de contención: peso del suelo sobre el talón", () => {
+  it("cuenta el ancho del talón y descuenta el canto de la zapata", () => {
+    // talón = 0,5 − 0,15 − 0 = 0,35 m; altura = 3,2 − 0,3 = 2,9 m.
+    expect(r.empujes.talonM).toBeCloseTo(0.35, 9);
+    expect(r.empujes.alturaSobreTalonM).toBeCloseTo(2.9, 9);
+    expect(r.empujes.pesoSueloActivoKN).toBeCloseTo(18 * 0.35 * 2.9, 9);
+  });
+
+  it("con puntera, el suelo del trasdós pesa menos porque el talón se acorta", () => {
+    const conPuntera = calcularMuroContencion(suelo, { ...geometria, punteraM: 0.15 }, apoyos);
+    expect(conPuntera.empujes.talonM).toBeCloseTo(0.2, 9);
+    expect(conPuntera.empujes.pesoSueloActivoKN).toBeLessThan(r.empujes.pesoSueloActivoKN);
   });
 });
 
 describe("muro de contención: un muro que sí verifica", () => {
   const robusto = calcularMuroContencion(
     suelo,
-    { ...geometria, anchoZapataM: 2.5, cantoZapataM: 0.4, espesorMuroM: 0.3, sobrecargaKPa: 0 },
+    { ...geometria, anchoZapataM: 2.5, cantoZapataM: 0.4, espesorMuroM: 0.3, sobrecargaUsoKPa: 0 },
     apoyos
   );
 

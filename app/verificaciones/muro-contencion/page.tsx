@@ -21,6 +21,7 @@ import {
 } from "@/components/verificaciones/croquis/CroquisMuro";
 import {
   FS_MINIMO,
+  KA_MINIMO,
   areaPorMetroCm2,
   armarPieza,
   calcularMuroContencion,
@@ -38,7 +39,7 @@ const meta = registroVerificaciones.find((v) => v.id === "muros-contencion")!;
 interface NumerosMuro {
   gamma: number; phi: number; c: number; sigmaAdm: number;
   anchoZap: number; cantoZap: number; altMuro: number; espMuro: number;
-  hAct: number; hPas: number; sobrecarga: number; puntera: number;
+  hAct: number; hPas: number; sobrecargaG: number; sobrecargaQ: number; puntera: number;
   l1Caso2: number; l1Caso3: number; l2Caso3: number;
 }
 
@@ -53,71 +54,142 @@ interface NumerosMuro {
  */
 function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
   const e = r.empujes;
-  const brazoSuelo = n.anchoZap - (n.anchoZap - n.espMuro) / 2;
-  const moduloResistente = n.anchoZap ** 2 / 6;
   const desliz = r.deslizamientoSoloZapata;
   const tension = r.tensionSueloCaso1;
+  const g = fmt(n.gamma, 0);
+  const A = fmt(n.anchoZap);
 
   return [
-    { etiqueta: "ka = (1 − sen φ)/(1 + sen φ)", valor: fmt(e.ka, 3) },
-    { etiqueta: "kp = (1 + sen φ)/(1 − sen φ)", valor: fmt(e.kp, 3) },
+    {
+      etiqueta: "ka",
+      formula: "(1 − sen φ)/(1 + sen φ)",
+      sustitucion: `(1 − sen ${fmt(n.phi, 0)}°)/(1 + sen ${fmt(n.phi, 0)}°) = ${fmt(e.kaTeorico, 3)}${
+        e.mandaPisoKa ? `, topado en ${fmt(KA_MINIMO, 2)}` : ""
+      }`,
+      valor: fmt(e.ka, 3),
+    },
+    { etiqueta: "kp", formula: "1 / ka", sustitucion: `1 / ${fmt(e.ka, 3)}`, valor: fmt(e.kp, 3) },
 
     {
-      etiqueta: `Ea = ½·γ·ka·h² = ½·${fmt(n.gamma, 0)}·${fmt(e.ka, 3)}·${fmt(n.hAct)}²`,
+      etiqueta: "Ea",
+      formula: "½ · γ · ka · h²",
+      sustitucion: `½ · ${g} · ${fmt(e.ka, 3)} · ${fmt(n.hAct)}²`,
       valor: `${fmt(e.empujeSueloKN)} kN/m`,
     },
     {
-      etiqueta: `Eq = q·ka·h = ${fmt(n.sobrecarga)}·${fmt(e.ka, 3)}·${fmt(n.hAct)}`,
+      etiqueta: "Eq",
+      formula: "ka · (qg + qq) · h",
+      sustitucion: `${fmt(e.ka, 3)} · (${fmt(n.sobrecargaG)} + ${fmt(n.sobrecargaQ)}) · ${fmt(n.hAct)}`,
       valor: `${fmt(e.empujeSobrecargaKN)} kN/m`,
     },
     ...(n.hPas > 0
       ? [
           {
-            etiqueta: `Ep = ½·γ·kp·hp² = ½·${fmt(n.gamma, 0)}·${fmt(e.kp, 3)}·${fmt(n.hPas)}²`,
+            etiqueta: "Ep",
+            formula: "½ · γ · kp · hp²",
+            sustitucion: `½ · ${g} · ${fmt(e.kp, 3)} · ${fmt(n.hPas)}²`,
             valor: `${fmt(e.empujePasivoKN)} kN/m`,
           },
         ]
       : []),
 
-    { etiqueta: `Peso alzado = 25·esp·h = 25·${fmt(n.espMuro)}·${fmt(n.altMuro)}`, valor: `${fmt(e.pesoMuroKN)} kN/m` },
-    { etiqueta: `Peso zapata = 25·canto·A = 25·${fmt(n.cantoZap)}·${fmt(n.anchoZap)}`, valor: `${fmt(e.pesoZapataKN)} kN/m` },
     {
-      etiqueta: `Peso suelo = ½·γ·h·(A − esp) = ½·${fmt(n.gamma, 0)}·${fmt(n.hAct)}·${fmt(n.anchoZap - n.espMuro)}`,
+      etiqueta: "Peso muro",
+      formula: "25 · esp · h",
+      sustitucion: `25 · ${fmt(n.espMuro)} · ${fmt(n.altMuro)}`,
+      valor: `${fmt(e.pesoMuroKN)} kN/m`,
+    },
+    {
+      etiqueta: "Peso zapata",
+      formula: "25 · canto · A",
+      sustitucion: `25 · ${fmt(n.cantoZap)} · ${A}`,
+      valor: `${fmt(e.pesoZapataKN)} kN/m`,
+    },
+    {
+      etiqueta: "Peso suelo",
+      formula: "γ · talón · (h − canto)",
+      sustitucion: `${g} · ${fmt(e.talonM)} · ${fmt(e.alturaSobreTalonM)}`,
       valor: `${fmt(e.pesoSueloActivoKN)} kN/m`,
+    },
+    {
+      etiqueta: "Carga perm.",
+      formula: "qg · talón",
+      sustitucion: `${fmt(n.sobrecargaG)} · ${fmt(e.talonM)}`,
+      valor: `${fmt(e.cargaPermanenteKN)} kN/m`,
+    },
+    {
+      etiqueta: "Sobrec. uso",
+      formula: "qq · talón",
+      sustitucion: `${fmt(n.sobrecargaQ)} · ${fmt(e.talonM)}  (no estabiliza: favorable)`,
+      valor: `${fmt(e.cargaUsoKN)} kN/m`,
     },
 
     {
-      etiqueta: `M volc = Ea·h/3 + Eq·h/2 = ${fmt(e.empujeSueloKN)}·${fmt(n.hAct / 3)} + ${fmt(e.empujeSobrecargaKN)}·${fmt(n.hAct / 2)}`,
+      etiqueta: "M volc",
+      formula: "Ea · h/3 + Eq · h/2",
+      sustitucion: `${fmt(e.empujeSueloKN)} · ${fmt(n.hAct / 3)} + ${fmt(e.empujeSobrecargaKN)} · ${fmt(n.hAct / 2)}`,
       valor: `${fmt(e.momentoVolcadorKNm)} kN·m/m`,
     },
     {
-      etiqueta: `M estab = Pa·esp/2 + Pz·A/2 + Ps·${fmt(brazoSuelo)} = ${fmt(e.pesoMuroKN)}·${fmt(n.espMuro / 2)} + ${fmt(e.pesoZapataKN)}·${fmt(n.anchoZap / 2)} + ${fmt(e.pesoSueloActivoKN)}·${fmt(brazoSuelo)}`,
+      etiqueta: "M estab",
+      formula: "Σ (peso · brazo) + carga perm. · brazo talón",
+      sustitucion: `${fmt(e.pesoMuroKN)} · ${fmt(n.puntera + n.espMuro / 2)} + ${fmt(e.pesoZapataKN)} · ${fmt(n.anchoZap / 2)} + ${fmt(e.pesoSueloActivoKN)} · ${fmt(e.brazoTalonM)} + ${fmt(e.cargaPermanenteKN)} · ${fmt(e.brazoTalonM)}`,
       valor: `${fmt(e.momentoEstabilizadorKNm)} kN·m/m`,
     },
     {
-      etiqueta: `FS vuelco = M estab / M volc = ${fmt(e.momentoEstabilizadorKNm)} / ${fmt(e.momentoVolcadorKNm)}`,
+      etiqueta: "FS vuelco",
+      formula: "M estab / M volc",
+      sustitucion: `${fmt(e.momentoEstabilizadorKNm)} / ${fmt(e.momentoVolcadorKNm)}`,
       valor: fmt(r.vuelco.factorSeguridad),
     },
 
     {
-      etiqueta: `Fh máx = Ea + Eq − Ep = ${fmt(e.empujeSueloKN)} + ${fmt(e.empujeSobrecargaKN)} − ${fmt(e.empujePasivoKN)}`,
+      etiqueta: "Fh máx",
+      formula: "Ea + Eq − Ep",
+      sustitucion: `${fmt(e.empujeSueloKN)} + ${fmt(e.empujeSobrecargaKN)} − ${fmt(e.empujePasivoKN)}`,
       valor: `${fmt(desliz.fhMaxKN)} kN/m`,
     },
     {
-      etiqueta: `Fh adm = N·tg φ + c·A = ${fmt(desliz.nKN)}·tg ${fmt(n.phi, 0)}° + ${fmt(n.c)}·${fmt(n.anchoZap)}`,
+      etiqueta: "N desliz",
+      formula: "pesos propios + carga perm.",
+      sustitucion: `${fmt(e.pesoMuroKN + e.pesoZapataKN + e.pesoSueloActivoKN + e.pesoSueloPasivoKN)} + ${fmt(e.cargaPermanenteKN)}`,
+      valor: `${fmt(desliz.nKN)} kN/m`,
+    },
+    {
+      etiqueta: "Fh adm",
+      formula: "N · tg φ + c · A",
+      sustitucion: `${fmt(desliz.nKN)} · tg ${fmt(n.phi, 0)}° + ${fmt(n.c)} · ${A}`,
       valor: `${fmt(desliz.fhAdmKN)} kN/m`,
     },
     {
-      etiqueta: `FS desliz = Fh adm / Fh máx = ${fmt(desliz.fhAdmKN)} / ${fmt(desliz.fhMaxKN)}`,
+      etiqueta: "FS desliz",
+      formula: "Fh adm / Fh máx",
+      sustitucion: `${fmt(desliz.fhAdmKN)} / ${fmt(desliz.fhMaxKN)}`,
       valor: fmt(desliz.factorSeguridad),
     },
 
     {
-      etiqueta: `M para σ = γ·h³/6 = ${fmt(n.gamma, 0)}·${fmt(n.hAct)}³/6`,
-      valor: `${fmt(tension.momentoKNm)} kN·m/m`,
+      etiqueta: "N tensión",
+      formula: "pesos propios + carga perm. + sobrec. uso",
+      sustitucion: `${fmt(e.pesoMuroKN + e.pesoZapataKN + e.pesoSueloActivoKN + e.pesoSueloPasivoKN)} + ${fmt(e.cargaPermanenteKN)} + ${fmt(e.cargaUsoKN)}`,
+      valor: `${fmt(tension.nKN)} kN/m`,
     },
     {
-      etiqueta: `σ = N/A + M/(A²/6) = ${fmt(tension.nKN)}/${fmt(n.anchoZap)} + ${fmt(tension.momentoKNm)}/${fmt(moduloResistente, 3)}`,
+      etiqueta: "e",
+      formula: "A/2 − (M estab − M volc)/N",
+      sustitucion: `${fmt(n.anchoZap / 2)} − (momentos con la sobrecarga de uso incluida)`,
+      valor: `${fmt(tension.excentricidadM, 3)} m  ${
+        tension.resultanteEnNucleo ? `≤ A/6 = ${fmt(n.anchoZap / 6, 3)}` : `> A/6 = ${fmt(n.anchoZap / 6, 3)}`
+      }`,
+    },
+    {
+      etiqueta: "σ",
+      formula: tension.resultanteEnNucleo
+        ? "N/A · (1 + 6e/A)   ley trapecial"
+        : "2N / (3d)   ley triangular, el terreno no tracciona",
+      sustitucion: tension.resultanteEnNucleo
+        ? `${fmt(tension.nKN)}/${A} · (1 + 6 · ${fmt(Math.abs(tension.excentricidadM), 3)}/${A})`
+        : `2 · ${fmt(tension.nKN)} / (3 · ${fmt(n.anchoZap / 2 - Math.abs(tension.excentricidadM), 3)})`,
       valor: `${fmt(tension.sigmaKPa)} kN/m²`,
     },
   ];
@@ -137,7 +209,8 @@ export default function MuroContencionPage() {
   const [espMuro, setEspMuro] = useCampo("espMuro", "0.15");
   const [hAct, setHAct] = useCampo("hAct", "3.2");
   const [hPas, setHPas] = useCampo("hPas", "0");
-  const [sobrecarga, setSobrecarga] = useCampo("sobrecarga", "5");
+  const [sobrecargaG, setSobrecargaG] = useCampo("sobrecargaG", "0");
+  const [sobrecargaQ, setSobrecargaQ] = useCampo("sobrecargaQ", "5");
   // Cero por defecto: el muro contra un límite de propiedad no lleva puntera.
   const [puntera, setPuntera] = useCampo("puntera", "0");
 
@@ -159,7 +232,8 @@ export default function MuroContencionPage() {
     const n: NumerosMuro = {
       gamma: aNumero(gamma), phi: aNumero(phi), c: aNumero(c), sigmaAdm: aNumero(sigmaAdm),
       anchoZap: aNumero(anchoZap), cantoZap: aNumero(cantoZap), altMuro: aNumero(altMuro),
-      espMuro: aNumero(espMuro), hAct: aNumero(hAct), hPas: aNumero(hPas), sobrecarga: aNumero(sobrecarga),
+      espMuro: aNumero(espMuro), hAct: aNumero(hAct), hPas: aNumero(hPas),
+      sobrecargaG: aNumero(sobrecargaG), sobrecargaQ: aNumero(sobrecargaQ),
       puntera: aNumero(puntera),
       l1Caso2: aNumero(l1Caso2), l1Caso3: aNumero(l1Caso3), l2Caso3: aNumero(l2Caso3),
     };
@@ -178,12 +252,13 @@ export default function MuroContencionPage() {
         {
           anchoZapataM: n.anchoZap, cantoZapataM: n.cantoZap, alturaMuroM: n.altMuro,
           espesorMuroM: n.espMuro, alturaSueloActivoM: n.hAct, alturaSueloPasivoM: n.hPas,
-          sobrecargaKPa: n.sobrecarga, punteraM: n.puntera,
+          sobrecargaPermanenteKPa: n.sobrecargaG, sobrecargaUsoKPa: n.sobrecargaQ,
+          punteraM: n.puntera,
         },
         { l1Caso2M: n.l1Caso2, l1Caso3M: n.l1Caso3, l2Caso3M: n.l2Caso3 }
       ),
     };
-  }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecarga, puntera, l1Caso2, l1Caso3, l2Caso3]);
+  }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecargaG, sobrecargaQ, puntera, l1Caso2, l1Caso3, l2Caso3]);
 
   /**
    * Armado de las tres piezas. Va aparte del resultado de estabilidad porque
@@ -390,7 +465,8 @@ export default function MuroContencionPage() {
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
-              <CampoNumerico id="sobrecarga" etiqueta="Sobrecarga" sufijo="kN/m²" valor={sobrecarga} onChange={setSobrecarga} />
+              <CampoNumerico id="sobrecargaG" etiqueta="Carga permanente" sufijo="kN/m²" valor={sobrecargaG} onChange={setSobrecargaG} />
+              <CampoNumerico id="sobrecargaQ" etiqueta="Sobrecarga de uso" sufijo="kN/m²" valor={sobrecargaQ} onChange={setSobrecargaQ} />
               <div className="col-span-2 sm:col-span-3">
                 <PanelAyuda titulo="Qué es cada dato del terreno y la sobrecarga">
                 <p>
@@ -441,7 +517,7 @@ export default function MuroContencionPage() {
                     ka={resultado.r.empujes.ka}
                     kp={resultado.r.empujes.kp}
                     gammaKNm3={aNumero(gamma)}
-                    sobrecargaKPa={aNumero(sobrecarga)}
+                    sobrecargaKPa={aNumero(sobrecargaG) + aNumero(sobrecargaQ)}
                     empujeSueloKN={resultado.r.empujes.empujeSueloKN}
                     empujeSobrecargaKN={resultado.r.empujes.empujeSobrecargaKN}
                     empujePasivoKN={resultado.r.empujes.empujePasivoKN}

@@ -5,8 +5,14 @@ import { ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Fila {
+  /** Nombre de la magnitud: "Fh adm". En las filas simples es todo el rótulo. */
   etiqueta: string;
+  /** Resultado, con su unidad. */
   valor: string;
+  /** Expresión simbólica: "N·tg φ + c·A". */
+  formula?: string;
+  /** La misma expresión con los números puestos. */
+  sustitucion?: string;
 }
 
 interface PanelFormulasProps {
@@ -37,13 +43,39 @@ export function PanelFormulas({ titulo, filas }: PanelFormulasProps) {
         cualquier regla nuestra.
       */}
       <CollapsibleContent hiddenUntilFound>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 pb-3 pt-1 text-sm">
-          {filas.map((fila) => (
-            <div key={fila.etiqueta} className="contents">
-              <dt className="text-muted-foreground">{fila.etiqueta}</dt>
-              <dd className="text-right font-mono tabular-nums">{fila.valor}</dd>
-            </div>
-          ))}
+        {/*
+          Dos formas de fila. La simple, de dos columnas, para lo que es un dato
+          y no una cuenta. Y el desarrollo en tres renglones alineados por el
+          igual —fórmula, sustitución, resultado— que es como se escribe a mano
+          una memoria de cálculo y permite rehacerla renglón por renglón.
+        */}
+        <dl className="space-y-2 pb-3 pt-1 text-sm">
+          {filas.map((fila) =>
+            fila.formula ? (
+              <div
+                key={fila.etiqueta}
+                className="grid grid-cols-[auto_1fr] gap-x-2 border-l-2 border-border/60 pl-3 font-mono text-[13px] leading-relaxed"
+              >
+                <dt className="text-muted-foreground">{fila.etiqueta}</dt>
+                <dd className="tabular-nums">= {fila.formula}</dd>
+
+                {fila.sustitucion && (
+                  <>
+                    <dt aria-hidden="true" />
+                    <dd className="tabular-nums text-muted-foreground">= {fila.sustitucion}</dd>
+                  </>
+                )}
+
+                <dt aria-hidden="true" />
+                <dd className="font-semibold tabular-nums">= {fila.valor}</dd>
+              </div>
+            ) : (
+              <div key={fila.etiqueta} className="grid grid-cols-2 gap-x-4">
+                <dt className="text-muted-foreground">{fila.etiqueta}</dt>
+                <dd className="text-right font-mono tabular-nums">{fila.valor}</dd>
+              </div>
+            )
+          )}
         </dl>
       </CollapsibleContent>
     </Collapsible>

@@ -371,6 +371,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     ruta: "/verificaciones/propiedades-geometricas",
     disponible: true,
   },
+  {
+    id: "formulario-vigas",
+    nombre: "Formulario de vigas",
+    seccion: "herramientas",
+    categoria: "Estática",
+    descripcion:
+      "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
+    normasDisponibles: ["Estática"],
+    ruta: "/verificaciones/formulario-vigas",
+    disponible: true,
+  },
 ];
 
 export function buscarSeccion(id: string) {

@@ -69,7 +69,7 @@ describe("armadura por metro de las piezas del muro", () => {
 describe("momentos en hastial, talón y puntera", () => {
   const base = {
     A: 2, hZap: 0.3, esp: 0.25, hMuro: 3.2,
-    hAct: 3.5, q: 5, gammaKNm3: 18, ka: 0.5, puntera: 0.6,
+    hAct: 3.5, qg: 0, qq: 5, gammaKNm3: 18, ka: 0.5, puntera: 0.6,
   };
 
   it("el hastial toma el empuje sobre su propia altura, no sobre la total", () => {
@@ -80,15 +80,16 @@ describe("momentos en hastial, talón y puntera", () => {
     const h = 3.2;
     const ea = (18 * 0.5 * h ** 2) / 2;
     const eq = 0.5 * 5 * h;
-    expect(m.hastialKNm).toBeCloseTo(1.5 * (ea * (h / 3) + eq * (h / 2)), 6);
+    // El empuje del terreno es permanente y va con γG; la sobrecarga de uso, con γQ.
+    expect(m.hastialKNm).toBeCloseTo(1.35 * (ea * (h / 3)) + 1.5 * (eq * (h / 2)), 6);
   });
 
   it("el momento del hastial crece con el cubo de la altura", () => {
     const bajo = calcularMomentosElementos({ ...base, hAct: 2.3, hMuro: 2 }, 200, 100);
     const alto = calcularMomentosElementos({ ...base, hAct: 4.3, hMuro: 4 }, 200, 100);
     // Sin sobrecarga el término dominante va con h³: al doble de altura, ocho veces.
-    const sinQBajo = calcularMomentosElementos({ ...base, q: 0, hAct: 2.3, hMuro: 2 }, 200, 100);
-    const sinQAlto = calcularMomentosElementos({ ...base, q: 0, hAct: 4.3, hMuro: 4 }, 200, 100);
+    const sinQBajo = calcularMomentosElementos({ ...base, qq: 0, hAct: 2.3, hMuro: 2 }, 200, 100);
+    const sinQAlto = calcularMomentosElementos({ ...base, qq: 0, hAct: 4.3, hMuro: 4 }, 200, 100);
     expect(sinQAlto.hastialKNm / sinQBajo.hastialKNm).toBeCloseTo((4 / 2) ** 3, 6);
     expect(alto.hastialKNm).toBeGreaterThan(bajo.hastialKNm);
   });
@@ -98,8 +99,10 @@ describe("momentos en hastial, talón y puntera", () => {
     // Talón = A − puntera − espesor = 2 − 0,6 − 0,25.
     expect(m.talonM).toBeCloseTo(1.15, 9);
 
-    const carga = 18 * (3.5 - 0.3) + 5 + 25 * 0.3;
-    expect(m.talonKNm).toBeCloseTo(1.5 * ((carga * 1.15 ** 2) / 2), 6);
+    // Tierra y peso propio de la losa son permanentes; la sobrecarga de uso no.
+    const cargaPermanente = 18 * (3.5 - 0.3) + 25 * 0.3;
+    expect(m.cargaSobreTalonKPa).toBeCloseTo(cargaPermanente + 5, 9);
+    expect(m.talonKNm).toBeCloseTo(((1.35 * cargaPermanente + 1.5 * 5) * 1.15 ** 2) / 2, 6);
   });
 
   it("sin puntera toda la zapata es talón y el momento de puntera es cero", () => {
@@ -128,12 +131,28 @@ describe("momentos en hastial, talón y puntera", () => {
     expect(larga.talonM).toBeLessThan(corta.talonM);
   });
 
-  it("los tres momentos salen mayorados con γf = 1,5", () => {
-    const m = calcularMomentosElementos(base, 200, 100);
-    const sinMayorar = calcularMomentosElementos({ ...base, gammaKNm3: 18 }, 200, 100);
-    // Comprobación directa sobre el talón, que es el más simple de invertir.
-    const carga = 18 * (3.5 - 0.3) + 5 + 25 * 0.3;
-    expect(sinMayorar.talonKNm / ((carga * m.talonM ** 2) / 2)).toBeCloseTo(1.5, 9);
+  /*
+   * Antes se mayoraba todo con 1,5, incluido el peso propio. Eso sobredimensiona:
+   * el peso de un muro se conoce con mucha más certeza que el camión que pueda
+   * llegar a estacionar arriba, y por eso la norma les da coeficientes distintos.
+   */
+  it("cada acción va con su coeficiente: γG las permanentes, γQ la de uso", () => {
+    const talon = 1.15;
+    const cargaPermanente = 18 * (3.5 - 0.3) + 25 * 0.3;
+
+    // Sin sobrecarga de uso, el único coeficiente que interviene es γG.
+    const soloPermanente = calcularMomentosElementos({ ...base, qq: 0 }, 200, 100);
+    expect(soloPermanente.talonKNm).toBeCloseTo(
+      (1.35 * cargaPermanente * talon ** 2) / 2, 6
+    );
+
+    // La misma carga puesta como permanente pesa menos que puesta como de uso.
+    const comoPermanente = calcularMomentosElementos({ ...base, qg: 5, qq: 0 }, 200, 100);
+    const comoUso = calcularMomentosElementos({ ...base, qg: 0, qq: 5 }, 200, 100);
+    expect(comoPermanente.talonKNm).toBeLessThan(comoUso.talonKNm);
+    expect(comoUso.talonKNm - comoPermanente.talonKNm).toBeCloseTo(
+      ((1.5 - 1.35) * 5 * talon ** 2) / 2, 6
+    );
   });
 });
 import { calcularMuroContencion } from "./muro-contencion";

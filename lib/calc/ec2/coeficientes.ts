@@ -64,3 +64,17 @@ export const GAMMA_F = 1.5;
  * no está entre las fuentes del proyecto, así que no se pudo comprobar acá.
  */
 export const GAMMA_G = 1.35;
+
+/**
+ * γQ para acciones variables desfavorables.
+ *
+ * Coincide en valor con GAMMA_F y no es lo mismo: aquél es el genérico que se le
+ * aplica a una carga agregada, sin saber qué parte es permanente y cuál variable.
+ * Éste se usa donde el reparto sí está hecho —el muro de contención separa la
+ * carga permanente de la sobrecarga de uso— y va acompañado de GAMMA_G sobre la
+ * parte permanente.
+ *
+ * SIN VERIFICAR CONTRA LA NORMA, por el mismo motivo que GAMMA_F: el Anejo 19
+ * remite al Anejo 18 para las acciones, y ése no está entre las fuentes.
+ */
+export const GAMMA_Q = 1.5;

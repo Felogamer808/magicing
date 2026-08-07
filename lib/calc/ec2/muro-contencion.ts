@@ -10,6 +10,8 @@
  *     abajo, y se reparten las reacciones entre ambos apoyos.
  */
 
+import { GAMMA_G, GAMMA_Q } from "./coeficientes";
+
 export interface SueloMuro {
   /** Peso específico del suelo (kN/m³) */
   gammaKNm3: number;
@@ -95,7 +97,8 @@ export interface ResultadoEmpujes {
  *
  * Un muro en ménsula son tres voladizos independientes, con cargas de sentidos
  * distintos, así que cada uno lleva su momento y su armadura en una cara
- * distinta. Los momentos van mayorados con γf = 1,5, listos para dimensionar.
+ * distinta. Los momentos vienen mayorados y listos para dimensionar, cada acción
+ * con el coeficiente que le toca: γG las permanentes, γQ la sobrecarga de uso.
  */
 export interface ResultadoMomentosElementos {
   /** Hastial: lo empuja el terreno y tracciona la cara interior. */
@@ -104,8 +107,10 @@ export interface ResultadoMomentosElementos {
   alturaHastialM: number;
   /** Empuje del terreno sobre el hastial, sin mayorar (kN/m). */
   empujeSueloHastialKN: number;
-  /** Empuje de las sobrecargas sobre el hastial, sin mayorar (kN/m). */
-  empujeSobrecargaHastialKN: number;
+  /** Empuje de la carga permanente sobre el hastial, sin mayorar (kN/m). */
+  empujeSobrecargaPermHastialKN: number;
+  /** Empuje de la sobrecarga de uso sobre el hastial, sin mayorar (kN/m). */
+  empujeSobrecargaUsoHastialKN: number;
   /** Talón: lo baja el peso de tierra que gravita encima; tracciona arriba. */
   talonKNm: number;
   talonM: number;
@@ -332,14 +337,16 @@ export function separacionParaAs(diametroMm: number, asCm2PorM: number): number 
   return (areaBarraCm2 * 1000) / asCm2PorM;
 }
 
-/** Coeficiente de mayoración de acciones para dimensionar la armadura. */
-const GAMMA_F = 1.5;
 /** Peso específico del hormigón armado (kN/m³). */
 const PESO_HORMIGON = 25;
 
 interface DatosMomentos {
   A: number; hZap: number; esp: number; hMuro: number;
-  hAct: number; q: number; gammaKNm3: number; ka: number; puntera: number;
+  hAct: number; gammaKNm3: number; ka: number; puntera: number;
+  /** Carga permanente en superficie (kN/m²), que va con γG. */
+  qg: number;
+  /** Sobrecarga de uso (kN/m²), que va con γQ. */
+  qq: number;
 }
 
 /**
@@ -353,48 +360,69 @@ interface DatosMomentos {
  * La puntera sí necesita esa distribución, porque es justamente la reacción la
  * que la levanta: se toma la presión lineal bajo la base y se le descuenta el
  * peso propio de la losa, que actúa en sentido contrario.
+ *
+ * Cada acción se mayora con el coeficiente que le corresponde y no todas con el
+ * mismo: γG sobre el peso propio, la tierra y la carga permanente, γQ sobre la
+ * sobrecarga de uso. Aplicar γQ a todo —como se hacía antes— sobredimensiona,
+ * porque el peso propio de un muro se conoce con mucha más certeza que el camión
+ * que pueda llegar a estacionar arriba.
+ *
+ * Para la puntera, `nTensionKN` y `momentoBaseKNm` tienen que venir YA mayorados:
+ * la reacción del terreno es consecuencia de las cargas de arriba, así que se
+ * arma el diagrama de presiones directamente en estado límite último.
  */
 export function calcularMomentosElementos(
   d: DatosMomentos,
-  nTensionKN: number,
-  momentoBaseKNm: number
+  nTensionMayoradaKN: number,
+  momentoBaseMayoradoKNm: number
 ): ResultadoMomentosElementos {
-  const { A, hZap, esp, hMuro, hAct, q, gammaKNm3, ka, puntera } = d;
+  const { A, hZap, esp, hMuro, hAct, qg, qq, gammaKNm3, ka, puntera } = d;
 
   // --- Hastial: voladizo desde la cara superior de la zapata ---------------
   const alturaHastialM = Math.max(Math.min(hAct - hZap, hMuro), 0);
   const empujeSuelo = (gammaKNm3 * ka * alturaHastialM ** 2) / 2;
-  const empujeSobrecarga = ka * q * alturaHastialM;
+  const empujeSobrecargaPerm = ka * qg * alturaHastialM;
+  const empujeSobrecargaUso = ka * qq * alturaHastialM;
   const hastialKNm =
-    GAMMA_F * (empujeSuelo * (alturaHastialM / 3) + empujeSobrecarga * (alturaHastialM / 2));
+    GAMMA_G *
+      (empujeSuelo * (alturaHastialM / 3) + empujeSobrecargaPerm * (alturaHastialM / 2)) +
+    GAMMA_Q * empujeSobrecargaUso * (alturaHastialM / 2);
 
   // --- Talón: lo que queda de zapata por detrás del hastial ----------------
   const talonM = Math.max(A - puntera - esp, 0);
   const alturaTierraSobreTalon = Math.max(hAct - hZap, 0);
-  const cargaBajaKPa =
-    gammaKNm3 * alturaTierraSobreTalon + q + PESO_HORMIGON * hZap;
-  const talonKNm = GAMMA_F * ((cargaBajaKPa * talonM ** 2) / 2);
+  /** Lo que baja sobre el talón y está siempre: tierra, carga permanente y losa. */
+  const cargaPermanenteKPa =
+    gammaKNm3 * alturaTierraSobreTalon + qg + PESO_HORMIGON * hZap;
+  const cargaBajaKPa = cargaPermanenteKPa + qq;
+  const cargaMayoradaKPa = GAMMA_G * cargaPermanenteKPa + GAMMA_Q * qq;
+  const talonKNm = (cargaMayoradaKPa * talonM ** 2) / 2;
 
   // --- Puntera: la levanta la reacción del terreno -------------------------
   // Distribución lineal bajo la base, medida desde el borde de la puntera.
-  const sigmaMedia = nTensionKN / A;
-  const sigmaGradiente = momentoBaseKNm / (A ** 2 / 6);
+  const sigmaMedia = nTensionMayoradaKN / A;
+  const sigmaGradiente = momentoBaseMayoradoKNm / (A ** 2 / 6);
   const sigmaPunteraBordeKPa = sigmaMedia + sigmaGradiente;
   const sigmaPunteraArranqueKPa =
     puntera > 0 ? sigmaMedia + sigmaGradiente * (1 - (2 * puntera) / A) : sigmaPunteraBordeKPa;
 
-  // Momento en el arranque del voladizo: trapecio de presiones menos peso propio.
+  /*
+   * Momento en el arranque del voladizo: trapecio de presiones menos peso propio.
+   * Las presiones ya vienen mayoradas; al peso propio, que descuenta, se le
+   * aplica γG acá.
+   */
   const rectangulo = sigmaPunteraArranqueKPa * puntera * (puntera / 2);
   const triangulo =
     ((sigmaPunteraBordeKPa - sigmaPunteraArranqueKPa) * puntera) / 2 * ((2 * puntera) / 3);
-  const pesoLosa = PESO_HORMIGON * hZap * puntera * (puntera / 2);
-  const punteraKNm = puntera > 0 ? GAMMA_F * Math.max(rectangulo + triangulo - pesoLosa, 0) : 0;
+  const pesoLosa = GAMMA_G * PESO_HORMIGON * hZap * puntera * (puntera / 2);
+  const punteraKNm = puntera > 0 ? Math.max(rectangulo + triangulo - pesoLosa, 0) : 0;
 
   return {
     hastialKNm,
     alturaHastialM,
     empujeSueloHastialKN: empujeSuelo,
-    empujeSobrecargaHastialKN: empujeSobrecarga,
+    empujeSobrecargaPermHastialKN: empujeSobrecargaPerm,
+    empujeSobrecargaUsoHastialKN: empujeSobrecargaUso,
     talonKNm,
     talonM,
     cargaSobreTalonKPa: cargaBajaKPa,
@@ -578,10 +606,31 @@ export function calcularMuroContencion(
   const momentoCasos23 = EXCENTRICIDAD_CASOS_APUNTALADOS * nTension;
   const sigmaCasos23 = nTension / A + momentoCasos23 / (A ** 2 / 6);
 
+  /*
+   * Para armar hace falta la reacción del terreno en estado límite último, no en
+   * servicio: la presión bajo la base es consecuencia de las cargas de arriba, y
+   * si se dimensiona la puntera con presiones sin mayorar queda corta.
+   *
+   * Se rehace el equilibrio con las acciones ya afectadas por su coeficiente:
+   * γG sobre pesos propios, tierra y carga permanente; γQ sobre la sobrecarga de
+   * uso. La excentricidad no es la misma que en servicio, porque las dos partes
+   * no se mayoran igual.
+   */
+  const nMayoradaKN = GAMMA_G * (pesoTotalKN + cargaPermanenteKN) + GAMMA_Q * cargaUsoKN;
+  const momentoEstabMayoradoKNm =
+    GAMMA_G * (momentoPesosKNm + cargaPermanenteKN * brazoTalonM) +
+    GAMMA_Q * cargaUsoKN * brazoTalonM;
+  const momentoVolcadorMayoradoKNm =
+    GAMMA_G * (empujeSueloKN * (hAct / 3) + ka * qg * hAct * (hAct / 2)) +
+    GAMMA_Q * ka * qq * hAct * (hAct / 2);
+  const brazoResultanteMayoradoM =
+    (momentoEstabMayoradoKNm - momentoVolcadorMayoradoKNm) / nMayoradaKN;
+  const momentoBaseMayoradoKNm = nMayoradaKN * (A / 2 - brazoResultanteMayoradoM);
+
   const momentos = calcularMomentosElementos(
-    { A, hZap, esp, hMuro, hAct, q, gammaKNm3, ka, puntera: geometria.punteraM ?? 0 },
-    nTension,
-    momentoCaso1
+    { A, hZap, esp, hMuro, hAct, qg, qq, gammaKNm3, ka, puntera },
+    nMayoradaKN,
+    momentoBaseMayoradoKNm
   );
 
   return {

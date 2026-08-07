@@ -30,7 +30,7 @@ import {
 } from "@/lib/calc/ec2/muro-contencion";
 import type { ResultadoMuroContencion } from "@/lib/calc/ec2/muro-contencion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { GAMMA_F } from "@/lib/calc/ec2/coeficientes";
+import { GAMMA_G, GAMMA_Q } from "@/lib/calc/ec2/coeficientes";
 import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -224,8 +224,6 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
 function desarrolloMomentos(n: NumerosMuro, r: ResultadoMuroContencion) {
   const m = r.momentos;
   const g = fmt(n.gamma, 0);
-  const q = n.sobrecargaG + n.sobrecargaQ;
-  const gf = fmt(GAMMA_F, 1);
 
   const filas = [
     {
@@ -241,28 +239,34 @@ function desarrolloMomentos(n: NumerosMuro, r: ResultadoMuroContencion) {
       valor: `${fmt(m.empujeSueloHastialKN)} kN/m`,
     },
     {
-      etiqueta: "Eq hastial",
-      formula: "ka · q · h",
-      sustitucion: `${fmt(r.empujes.ka, 3)} · ${fmt(q)} · ${fmt(m.alturaHastialM)}`,
-      valor: `${fmt(m.empujeSobrecargaHastialKN)} kN/m`,
+      etiqueta: "Eq,g hastial",
+      formula: "ka · qg · h",
+      sustitucion: `${fmt(r.empujes.ka, 3)} · ${fmt(n.sobrecargaG)} · ${fmt(m.alturaHastialM)}`,
+      valor: `${fmt(m.empujeSobrecargaPermHastialKN)} kN/m`,
+    },
+    {
+      etiqueta: "Eq,q hastial",
+      formula: "ka · qq · h",
+      sustitucion: `${fmt(r.empujes.ka, 3)} · ${fmt(n.sobrecargaQ)} · ${fmt(m.alturaHastialM)}`,
+      valor: `${fmt(m.empujeSobrecargaUsoHastialKN)} kN/m`,
     },
     {
       etiqueta: "M hastial",
-      formula: "γf · (Ea · h/3 + Eq · h/2)",
-      sustitucion: `${gf} · (${fmt(m.empujeSueloHastialKN)} · ${fmt(m.alturaHastialM / 3)} + ${fmt(m.empujeSobrecargaHastialKN)} · ${fmt(m.alturaHastialM / 2)})`,
+      formula: "γG · (Ea · h/3 + Eq,g · h/2) + γQ · Eq,q · h/2",
+      sustitucion: `${fmt(GAMMA_G, 2)} · (${fmt(m.empujeSueloHastialKN)} · ${fmt(m.alturaHastialM / 3)} + ${fmt(m.empujeSobrecargaPermHastialKN)} · ${fmt(m.alturaHastialM / 2)}) + ${fmt(GAMMA_Q, 2)} · ${fmt(m.empujeSobrecargaUsoHastialKN)} · ${fmt(m.alturaHastialM / 2)}`,
       valor: `${fmt(m.hastialKNm)} kN·m/m`,
     },
 
     {
       etiqueta: "Carga talón",
-      formula: "γ · (h − canto) + q + 25 · canto",
-      sustitucion: `${g} · ${fmt(r.empujes.alturaSobreTalonM)} + ${fmt(q)} + 25 · ${fmt(n.cantoZap)}`,
+      formula: "γ · (h − canto) + qg + qq + 25 · canto",
+      sustitucion: `${g} · ${fmt(r.empujes.alturaSobreTalonM)} + ${fmt(n.sobrecargaG)} + ${fmt(n.sobrecargaQ)} + 25 · ${fmt(n.cantoZap)}`,
       valor: `${fmt(m.cargaSobreTalonKPa)} kN/m²`,
     },
     {
       etiqueta: "M talón",
-      formula: "γf · carga · talón² / 2",
-      sustitucion: `${gf} · ${fmt(m.cargaSobreTalonKPa)} · ${fmt(m.talonM)}² / 2`,
+      formula: "(γG · carga perm. + γQ · qq) · talón² / 2",
+      sustitucion: `(${fmt(GAMMA_G, 2)} · ${fmt(m.cargaSobreTalonKPa - n.sobrecargaQ)} + ${fmt(GAMMA_Q, 2)} · ${fmt(n.sobrecargaQ)}) · ${fmt(m.talonM)}² / 2`,
       valor: `${fmt(m.talonKNm)} kN·m/m`,
     },
   ];
@@ -288,8 +292,8 @@ function desarrolloMomentos(n: NumerosMuro, r: ResultadoMuroContencion) {
     },
     {
       etiqueta: "M puntera",
-      formula: "γf · (trapecio de presiones − peso propio de la losa)",
-      sustitucion: `sobre un vuelo de ${fmt(m.punteraM)} m, descontando 25 · ${fmt(n.cantoZap)} · ${fmt(m.punteraM)}`,
+      formula: "trapecio de presiones (ELU) − γG · peso propio de la losa",
+      sustitucion: `presiones ya mayoradas sobre un vuelo de ${fmt(m.punteraM)} m, menos ${fmt(GAMMA_G, 2)} · 25 · ${fmt(n.cantoZap)} de peso propio`,
       valor: `${fmt(m.punteraKNm)} kN·m/m`,
     },
   ]);
@@ -734,9 +738,10 @@ export default function MuroContencionPage() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Momentos ya mayorados con γf = 1,5. El talón se resuelve del lado seguro:
-                    se cuentan las cargas que bajan y se desprecia la reacción del terreno, que
-                    iría a favor.
+                    Momentos ya mayorados, cada acción con su coeficiente: γG = 1,35 sobre el peso
+                    propio, la tierra y la carga permanente, y γQ = 1,50 sobre la sobrecarga de uso.
+                    El talón se resuelve del lado seguro: se cuentan las cargas que bajan y se
+                    desprecia la reacción del terreno, que iría a favor.
                   </p>
                 </CardContent>
               </Card>

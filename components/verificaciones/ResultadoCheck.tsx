@@ -1,12 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { fmt } from "@/lib/verificaciones/formato";
 
 /** Una de las dos magnitudes que se enfrentan en la comprobación. */
 interface MagnitudComparada {
   /** Símbolo o nombre corto: "σ", "FS", "As real". */
   etiqueta: string;
-  /** Valor ya formateado, sin unidad. */
-  valor: string;
+  valor: number;
 }
 
 interface ComparacionCheck {
@@ -16,6 +16,9 @@ interface ComparacionCheck {
   limite: MagnitudComparada;
   /** Unidad común a las dos, que por eso se escribe una sola vez. */
   unidad?: string;
+  /** Relación que hay que cumplir entre `real` y `limite` para que verifique. */
+  exige: "≤" | "≥";
+  decimales?: number;
 }
 
 interface ResultadoCheckProps {
@@ -23,15 +26,27 @@ interface ResultadoCheckProps {
   verifica: boolean;
   detalle?: string;
   /**
-   * Comparación principal de la verificación, en grande.
+   * Comparación principal de la verificación, escrita como desigualdad.
    *
    * Es opcional: sin ella el bloque se dibuja como siempre, con el detalle en
    * una línea chica. Se pasa cuando la comprobación se reduce a enfrentar dos
    * números —la tensión contra la admisible, el FS contra el mínimo— porque es
-   * lo primero que se busca al mirar el resultado y en una línea de texto
-   * corrido cuesta encontrarlo.
+   * lo primero que se busca al mirar el resultado.
    */
   comparacion?: ComparacionCheck;
+}
+
+/**
+ * Signo que corresponde a lo que efectivamente pasó, no al que se exige.
+ *
+ * Se muestra el real y no el exigido para que la línea sea una afirmación
+ * verdadera en los dos casos: cuando no verifica, leer "σ 111,13 > σ adm 80,00"
+ * dice por qué falla. Con el signo exigido, la línea diría algo falso.
+ */
+function signoReal(real: number, limite: number): string {
+  if (real > limite) return ">";
+  if (real < limite) return "<";
+  return "=";
 }
 
 export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: ResultadoCheckProps) {
@@ -59,8 +74,8 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
        */
       className={cn(
         "rounded-md border p-3 transition-colors duration-300",
-        verifica ? "border-emerald-600/30" : "border-destructive/30",
-        comparacion && (verifica ? "bg-emerald-600/[0.04]" : "bg-destructive/[0.04]")
+        verifica ? "border-emerald-600/40" : "border-destructive/40",
+        comparacion && (verifica ? "bg-emerald-600/[0.06]" : "bg-destructive/[0.06]")
       )}
     >
       {comparacion ? (
@@ -71,39 +86,34 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
           </div>
 
           {/*
-            Las dos magnitudes van una sobre otra y no separadas por una barra:
-            alineadas en columna, la diferencia entre ellas se ve sin leer.
+            La desigualdad completa en una línea: los símbolos en gris para que
+            los que resalten sean los números, que es lo que se compara.
           */}
-          <dl className="mt-2.5 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-2.5 gap-y-1">
-            {/*
-              Sin `uppercase`: la mayúscula de σ es Σ, que en cálculo es otra
-              cosa. Los símbolos se escriben como corresponde y se dejan tal cual.
-            */}
-            <dt className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground">
+          <p
+            className={cn(
+              "mt-2 flex flex-wrap items-baseline gap-x-2 font-mono text-lg font-semibold tabular-nums transition-colors duration-300",
+              verifica ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+            )}
+          >
+            <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">
               {comparacion.real.etiqueta}
-            </dt>
-            <dd
-              className={cn(
-                "justify-self-end font-mono text-xl font-semibold tabular-nums transition-colors duration-300",
-                verifica ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
-              )}
-            >
-              {comparacion.real.valor}
-            </dd>
-            <dd className="font-mono text-[11px] text-muted-foreground">{comparacion.unidad}</dd>
-
-            {/*
-              Sin `uppercase`: la mayúscula de σ es Σ, que en cálculo es otra
-              cosa. Los símbolos se escriben como corresponde y se dejan tal cual.
-            */}
-            <dt className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground">
+            </span>
+            <span>{fmt(comparacion.real.valor, comparacion.decimales)}</span>
+            <span className="px-0.5 text-base font-normal opacity-70">
+              {signoReal(comparacion.real.valor, comparacion.limite.valor)}
+            </span>
+            <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">
               {comparacion.limite.etiqueta}
-            </dt>
-            <dd className="justify-self-end font-mono text-base tabular-nums text-muted-foreground">
-              {comparacion.limite.valor}
-            </dd>
-            <dd className="font-mono text-[11px] text-muted-foreground">{comparacion.unidad}</dd>
-          </dl>
+            </span>
+            <span>{fmt(comparacion.limite.valor, comparacion.decimales)}</span>
+            {comparacion.unidad && (
+              <span className="text-[11px] font-normal opacity-70">{comparacion.unidad}</span>
+            )}
+          </p>
+
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+            se exige {comparacion.real.etiqueta} {comparacion.exige} {comparacion.limite.etiqueta}
+          </p>
 
           {detalle && (
             <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>

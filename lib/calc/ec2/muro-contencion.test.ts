@@ -147,15 +147,19 @@ import { calcularMuroContencion } from "./muro-contencion";
 // Coinciden con la planilla: los coeficientes (ka topado en 0,5), los empujes,
 // el momento volcador y las reacciones de los apoyos.
 //
-// NO coinciden, y es a propósito:
-//   · el peso del suelo, que la planilla tomaba como ½·γ·h·(A−esp) —media altura
-//     total sobre las dos alas— cuando lo que gravita es γ·talón·(h−canto);
+// NO coinciden, y es a propósito. Tres eran errores de la planilla:
+//   · el peso del suelo, que tomaba ½·γ·h·(A−esp) —media altura total sobre las
+//     dos alas— cuando lo que gravita es γ·talón·(h−canto);
 //   · el reparto de las sobrecargas, que ahora distingue permanente de uso y no
 //     cuenta la variable del lado favorable;
 //   · la tensión del terreno, que se resuelve ubicando la resultante en vez de
 //     aplicar σ = N/A + M/W a ciegas.
 //
-// Los tres eran errores de la planilla, no criterios distintos.
+// Y tres son criterios de Montoya §25.11.2, págs. 432-433, adoptados por ser más
+// conservadores que lo que hacía la planilla:
+//   · el vuelco exige 2,0 y no 1,5, que es despejar 0,9·M_estab ≥ 1,8·M_volc;
+//   · el rozamiento va con μ = tg(⅔·φ) y c* = mín(0,5·c ; 50 kPa);
+//   · el empuje pasivo no se cuenta, ni para vuelco ni para deslizamiento.
 
 const suelo = { gammaKNm3: 18, phiGrados: 34, cKPa: 5, sigmaAdmisibleKPa: 100 };
 const geometria = {
@@ -220,15 +224,16 @@ describe("muro de contención: vuelco", () => {
 describe("muro de contención: deslizamiento", () => {
   it("reproduce el caso 1, sólo zapata", () => {
     expect(r.deslizamientoSoloZapata.nKN).toBeCloseTo(34.02, 6);
-    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(25.44678, 5);
+    // Fh adm con μ = tg(⅔·φ) y c* = mín(0,5·c ; 50), Montoya §25.11.2 b).
+    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(15.457625, 5);
     expect(r.deslizamientoSoloZapata.fhMaxKN).toBeCloseTo(54.08, 6);
-    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.47054, 5);
+    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.285829, 5);
     expect(r.deslizamientoSoloZapata.verifica).toBe(false);
   });
 
   it("con apoyo en contrapiso sólo hay que pasar R1 por rozamiento, y no alcanza", () => {
     expect(r.deslizamientoApoyoContrapiso.fhMaxKN).toBeCloseTo(23.104, 6);
-    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(1.101401, 5);
+    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(0.669045, 5);
     expect(r.deslizamientoApoyoContrapiso.verifica).toBe(false);
   });
 });
@@ -316,6 +321,40 @@ describe("muro de contención: peso del suelo sobre el talón", () => {
     const conPuntera = calcularMuroContencion(suelo, { ...geometria, punteraM: 0.15 }, apoyos);
     expect(conPuntera.empujes.talonM).toBeCloseTo(0.2, 9);
     expect(conPuntera.empujes.pesoSueloActivoKN).toBeLessThan(r.empujes.pesoSueloActivoKN);
+  });
+});
+
+describe("muro de contención: el empuje pasivo no se cuenta", () => {
+  /*
+   * Montoya §25.11.2, pág. 433, lo dice para vuelco y para deslizamiento: el
+   * movimiento que hace falta para movilizarlo es mayor que el admisible en
+   * servicio, así que contar con él sería apoyarse en una resistencia que sólo
+   * aparece cuando el muro ya falló.
+   *
+   * Con puntera nula el suelo de delante tampoco pesa, así que este caso aísla
+   * el empuje: Ep existe y no tiene que mover ningún resultado.
+   */
+  const conPasivo = calcularMuroContencion(
+    suelo,
+    { ...geometria, alturaSueloPasivoM: 1 },
+    apoyos
+  );
+
+  it("se calcula y se informa", () => {
+    expect(conPasivo.empujes.empujePasivoKN).toBeCloseTo(18, 9);
+  });
+
+  it("pero no estabiliza el vuelco ni resiste el deslizamiento", () => {
+    expect(conPasivo.empujes.momentoEstabilizadorKNm).toBeCloseTo(
+      r.empujes.momentoEstabilizadorKNm, 9
+    );
+    expect(conPasivo.vuelco.factorSeguridad).toBeCloseTo(r.vuelco.factorSeguridad, 9);
+    expect(conPasivo.deslizamientoSoloZapata.fhMaxKN).toBeCloseTo(
+      r.deslizamientoSoloZapata.fhMaxKN, 9
+    );
+    expect(conPasivo.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(
+      r.deslizamientoSoloZapata.factorSeguridad, 9
+    );
   });
 });
 

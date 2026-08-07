@@ -174,8 +174,32 @@ export interface ResultadoMuroContencion {
   apoyoContrapisoYLosa: ResultadoApoyos;
 }
 
-/** Factor de seguridad exigido tanto a vuelco como a deslizamiento. */
-export const FS_MINIMO = 1.5;
+/**
+ * Vuelco. Montoya §25.11.2 a), pág. 432, no lo plantea como factor de seguridad
+ * sino con coeficientes parciales: 0,9·M_estabilizadores ≥ 1,8·M_volcadores.
+ * Despejado es el cociente que se pide acá. Los coeficientes vienen del CTE, que
+ * no está entre las fuentes del proyecto.
+ */
+export const FS_VUELCO_MINIMO = 1.8 / 0.9;
+
+/** Deslizamiento: F_estabilizadoras ≥ 1,5·F_deslizantes. Montoya §25.11.2 b), pág. 433. */
+export const FS_DESLIZAMIENTO_MINIMO = 1.5;
+
+/**
+ * Fracción de φ que se moviliza en el contacto hormigón-terreno.
+ *
+ * El rozamiento de la base contra el suelo no llega al ángulo que tiene el suelo
+ * consigo mismo: la superficie de contacto es otra. Montoya §25.11.2 b), pág. 433:
+ * μ = tg(2/3·φ). Con φ = 34° eso baja el coeficiente de 0,675 a 0,418.
+ */
+const FRACCION_PHI_ROZAMIENTO = 2 / 3;
+
+/**
+ * La cohesión se toma a la mitad y topada en 0,05 N/mm². Mismo apartado.
+ * Es el término del que menos hay que fiarse: desaparece si el terreno se satura.
+ */
+const FACTOR_COHESION = 0.5;
+const COHESION_MAXIMA_KPA = 50;
 
 /**
  * Piso del coeficiente de empuje activo.
@@ -186,8 +210,18 @@ export const FS_MINIMO = 1.5;
  */
 export const KA_MINIMO = 0.5;
 
-/** Brazo con el que se moviliza el empuje pasivo (m). */
-const BRAZO_EMPUJE_PASIVO_M = 0.9;
+/*
+ * El empuje pasivo de la puntera se calcula y se muestra, pero NO se cuenta ni
+ * en el vuelco ni en el deslizamiento. Montoya lo dice en los dos apartados de
+ * §25.11.2, pág. 433: "no se suele considerar porque el movimiento necesario
+ * para movilizarlo es grande". Para que aparezca, el muro tiene que desplazarse
+ * bastante más de lo que se admite en servicio, así que contar con él sería
+ * apoyarse en una resistencia que sólo existe cuando el muro ya falló.
+ *
+ * Con esto desaparece además el brazo fijo de 0,9 m con el que entraba al
+ * momento estabilizador, que no dependía de la altura del suelo pasivo y era
+ * un número sin justificación.
+ */
 
 /** Excentricidad relativa asumida para la tensión del suelo en los casos apuntalados. */
 const EXCENTRICIDAD_CASOS_APUNTALADOS = 0.03;
@@ -434,13 +468,17 @@ export function calcularMuroContencion(
   const cargaPermanenteKN = qg * talonM;
   const cargaUsoKN = qq * talonM;
 
-  /** Momento de todo lo que está siempre: pesos propios más el empuje pasivo. */
+  /**
+   * Momento de todo lo que está siempre: los pesos propios y nada más. El
+   * empuje pasivo queda afuera a propósito (ver la nota de arriba); el peso del
+   * suelo que lo genera sí cuenta, porque ése gravita sin necesidad de que el
+   * muro se mueva.
+   */
   const momentoPesosKNm =
     pesoMuroKN * brazoMuroM +
     pesoZapataKN * (A / 2) +
     pesoSueloActivoKN * brazoTalonM +
-    pesoSueloPasivoKN * brazoPunteraM +
-    empujePasivoKN * BRAZO_EMPUJE_PASIVO_M;
+    pesoSueloPasivoKN * brazoPunteraM;
 
   /*
    * Al vuelco sólo se le suma la carga permanente. La de uso es favorable acá, y
@@ -460,8 +498,12 @@ export function calcularMuroContencion(
    * acá la permanente sí suma peso vertical.
    */
   const nCaso1 = pesoTotalKN + cargaPermanenteKN;
-  const fhAdmCaso1 = nCaso1 * Math.tan(phi) + cKPa * A;
-  const fhMaxCaso1 = Math.abs(empujeSueloKN + empujeSobrecargaKN - empujePasivoKN);
+  /** Cohesión reducida: la mitad y topada, porque es el término menos confiable. */
+  const cohesionReducidaKPa = Math.min(FACTOR_COHESION * cKPa, COHESION_MAXIMA_KPA);
+  const fhAdmCaso1 =
+    nCaso1 * Math.tan(FRACCION_PHI_ROZAMIENTO * phi) + cohesionReducidaKPa * A;
+  /** Sin descontar el pasivo: no se cuenta como resistencia. */
+  const fhMaxCaso1 = empujeSueloKN + empujeSobrecargaKN;
 
   // Casos 2 y 3: reacciones de los apoyos.
   const r2Caso2 = momentoVolcadorKNm / apoyos.l1Caso2M;
@@ -556,20 +598,20 @@ export function calcularMuroContencion(
       kaTeorico,
       mandaPisoKa: ka > kaTeorico,
     },
-    vuelco: { factorSeguridad: fsVuelco, verifica: fsVuelco >= FS_MINIMO },
+    vuelco: { factorSeguridad: fsVuelco, verifica: fsVuelco >= FS_VUELCO_MINIMO },
     deslizamientoSoloZapata: {
       nKN: nCaso1,
       fhAdmKN: fhAdmCaso1,
       fhMaxKN: fhMaxCaso1,
       factorSeguridad: fhAdmCaso1 / fhMaxCaso1,
-      verifica: fhAdmCaso1 / fhMaxCaso1 >= FS_MINIMO,
+      verifica: fhAdmCaso1 / fhMaxCaso1 >= FS_DESLIZAMIENTO_MINIMO,
     },
     deslizamientoApoyoContrapiso: {
       nKN: nCaso1,
       fhAdmKN: fhAdmCaso1,
       fhMaxKN: fhMaxApoyo,
       factorSeguridad: fhAdmCaso1 / fhMaxApoyo,
-      verifica: fhAdmCaso1 / fhMaxApoyo >= FS_MINIMO,
+      verifica: fhAdmCaso1 / fhMaxApoyo >= FS_DESLIZAMIENTO_MINIMO,
     },
     tensionSueloCaso1: {
       nKN: nTension,

@@ -20,7 +20,8 @@ import {
   CroquisSueloMuro,
 } from "@/components/verificaciones/croquis/CroquisMuro";
 import {
-  FS_MINIMO,
+  FS_DESLIZAMIENTO_MINIMO,
+  FS_VUELCO_MINIMO,
   KA_MINIMO,
   areaPorMetroCm2,
   armarPieza,
@@ -145,8 +146,8 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
 
     {
       etiqueta: "Fh máx",
-      formula: "Ea + Eq − Ep",
-      sustitucion: `${fmt(e.empujeSueloKN)} + ${fmt(e.empujeSobrecargaKN)} − ${fmt(e.empujePasivoKN)}`,
+      formula: "Ea + Eq   (el pasivo no se cuenta)",
+      sustitucion: `${fmt(e.empujeSueloKN)} + ${fmt(e.empujeSobrecargaKN)}`,
       valor: `${fmt(desliz.fhMaxKN)} kN/m`,
     },
     {
@@ -157,8 +158,8 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
     },
     {
       etiqueta: "Fh adm",
-      formula: "N · tg φ + c · A",
-      sustitucion: `${fmt(desliz.nKN)} · tg ${fmt(n.phi, 0)}° + ${fmt(n.c)} · ${A}`,
+      formula: "N · tg(⅔·φ) + c* · A,  con c* = mín(0,5·c ; 50)",
+      sustitucion: `${fmt(desliz.nKN)} · tg ${fmt((2 / 3) * n.phi, 1)}° + ${fmt(Math.min(0.5 * n.c, 50))} · ${A}`,
       valor: `${fmt(desliz.fhAdmKN)} kN/m`,
     },
     {
@@ -557,7 +558,7 @@ export default function MuroContencionPage() {
                     verifica={resultado.r.vuelco.verifica}
                     comparacion={{
                       real: { etiqueta: "FS", valor: resultado.r.vuelco.factorSeguridad },
-                      limite: { etiqueta: "FS mín", valor: FS_MINIMO },
+                      limite: { etiqueta: "FS mín", valor: FS_VUELCO_MINIMO },
                       exige: "≥",
                     }}
                     detalle={`M estab ${fmt(resultado.r.empujes.momentoEstabilizadorKNm)} / M volc ${fmt(resultado.r.empujes.momentoVolcadorKNm)} kN·m/m`}
@@ -567,7 +568,7 @@ export default function MuroContencionPage() {
                     verifica={resultado.r.deslizamientoSoloZapata.verifica}
                     comparacion={{
                       real: { etiqueta: "FS", valor: resultado.r.deslizamientoSoloZapata.factorSeguridad },
-                      limite: { etiqueta: "FS mín", valor: FS_MINIMO },
+                      limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
                       exige: "≥",
                     }}
                     detalle={`Fh adm ${fmt(resultado.r.deslizamientoSoloZapata.fhAdmKN)} / Fh máx ${fmt(resultado.r.deslizamientoSoloZapata.fhMaxKN)} kN/m`}
@@ -787,7 +788,7 @@ export default function MuroContencionPage() {
                     verifica={resultado.r.deslizamientoApoyoContrapiso.verifica}
                     comparacion={{
                       real: { etiqueta: "FS", valor: resultado.r.deslizamientoApoyoContrapiso.factorSeguridad },
-                      limite: { etiqueta: "FS mín", valor: FS_MINIMO },
+                      limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
                       exige: "≥",
                     }}
                     detalle={`Sólo pasa R1 = ${fmt(Math.abs(resultado.r.apoyoContrapiso.r1KN))} kN/m por rozamiento`}

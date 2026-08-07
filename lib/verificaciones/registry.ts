@@ -17,6 +17,7 @@ export type IdVerificacion =
   | "vigas-flexion-cortante"
   | "vigas-torsion"
   | "vigas-apeo"
+  | "vigas-apeo-bielas"
   | "losas"
   | "secciones-mixtas"
   | "zapatas"
@@ -148,6 +149,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Verificación completa de viga: flexión, cortante, armadura secundaria y de piel, anclaje y flecha.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/vigas-apeo",
+    disponible: true,
+  },
+  {
+    id: "vigas-apeo-bielas",
+    nombre: "Vigas de apeo — bielas y tirantes",
+    seccion: "hormigon-armado",
+    categoria: "Vigas",
+    descripcion:
+      "Apeo de pilar resuelto como región D: clasificación B/D, tirante, bielas, nudos, tracción transversal, malla de piel, anclaje con horquillas y armadura de cuelgue.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/vigas-apeo-bielas",
     disponible: true,
   },
   {

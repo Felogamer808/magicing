@@ -9,6 +9,11 @@
  * Este módulo no cambia ningún valor: son los que ya usaba el código y que los
  * tests fijan contra la planilla original. Sólo les pone nombre.
  *
+ * Los de los materiales están verificados contra el Anejo 19. Los de las
+ * acciones no: el Anejo 19 no los trae —su art. 2.4.1 (1), pág. 19, remite al
+ * apartado 6 del Anejo 18— y ese anejo no está entre las fuentes del proyecto.
+ * Van con la referencia que aportó @nachoosuarez, atribuida, no comprobada acá.
+ *
  * El Ω de AISC vive en los módulos de `aisc/`, que siguen otro marco normativo y
  * no deben importar de acá aunque algún número coincida.
  */
@@ -28,25 +33,34 @@ export const GAMMA_C = 1.5;
 export const GAMMA_S = 1.15;
 
 /**
- * γ para acciones variables desfavorables, usado por las verificaciones que
- * reciben cargas características y mayoran por dentro: en zapatas y pilotes el
- * terreno se comprueba con Nk sin mayorar, pero el armado y el punzonamiento
- * necesitan Nd.
+ * γF — coeficiente único con el que zapatas y pilotes mayoran su carga vertical.
+ * Esas verificaciones reciben cargas características: el terreno se comprueba
+ * con Nk sin mayorar, pero el armado y el punzonamiento necesitan Nd.
  *
- * Coincide en valor con GAMMA_C y no es lo mismo: éste multiplica una acción.
+ * Se llama γF y no γQ a propósito. γQ es el de las acciones variables, y acá el
+ * 1,5 no multiplica una acción variable: multiplica `Nk`, que es una carga
+ * vertical característica agregada, con la parte permanente y la variable juntas
+ * (ver `CargasZapata`). Ponerle γQ afirmaría una separación G/Q que el motor no
+ * hace. Aplicarle 1,5 a todo queda del lado seguro, porque a la parte permanente
+ * le tocaría 1,35, pero eso es una simplificación conservadora y conviene que el
+ * nombre lo deje ver. γF es justamente el genérico de acción, que engloba a los
+ * dos.
  *
- * SIN VERIFICAR CONTRA LA NORMA: el Anejo 19 no trae los coeficientes de las
- * acciones. Su art. 2.4.1 (1), pág. 19, remite al apartado 6 del Anejo 18, que
- * no está entre las fuentes del proyecto. El valor es el que ya venía usando el
- * código; antes de apoyarse en él para algo nuevo, contrastarlo con el Anejo 18.
+ * Separar Nk en Ng y Nq es la mejora que haría posible usar γG y γQ acá; está
+ * anotada en TODO.md. Cambiaría resultados, así que no entra en un renombrado.
+ *
+ * Valor 1,5: coincide con el γQ de UNE-EN 1990, tabla A.1.2(B), pág. 47, según
+ * la referencia que aportó @nachoosuarez. No está entre las fuentes del
+ * proyecto, así que no se pudo comprobar acá.
  */
 export const GAMMA_F = 1.5;
 
 /**
- * γ para acciones permanentes desfavorables, que es el que corresponde cuando lo
- * que se mayora es un peso propio y no una carga variable (el cabezal lo aplica
- * a su propio peso).
+ * γG — coeficiente de las acciones permanentes desfavorables. Es el que
+ * corresponde cuando lo que se mayora es un peso propio y no una carga variable:
+ * el cabezal lo aplica al suyo.
  *
- * SIN VERIFICAR CONTRA LA NORMA, por el mismo motivo que GAMMA_F.
+ * UNE-EN 1990, tabla A.1.2(B), pág. 47. La referencia la aportó @nachoosuarez;
+ * no está entre las fuentes del proyecto, así que no se pudo comprobar acá.
  */
 export const GAMMA_G = 1.35;

@@ -31,14 +31,29 @@ const ANCHO = 320;
 const IZQ = 30;
 const DER = 12;
 const ALTO_ESQUEMA = 74;
-const ALTO_PANEL = 78;
+const ALTO_PANEL = 90;
 const ALTO = ALTO_ESQUEMA + 3 * ALTO_PANEL;
 
 /** Media altura útil de cada panel: cuánto puede subir o bajar la curva. */
-const AMPLITUD = 24;
+const AMPLITUD = 20;
 
+/**
+ * Franja donde puede caer la línea de base del rótulo del máximo. Existe porque
+ * el rótulo se cuelga del punto: con el máximo pegado a un borde del panel se
+ * salía del viewBox por abajo o se montaba sobre el título del panel de arriba,
+ * que es exactamente lo que pasa en la viga apoyada uniforme (el cortante máximo
+ * cae en x = 0, contra el título).
+ */
+const ROTULO_MIN = 24;
+const ROTULO_MAX = 86;
+
+// El aplastado del cero es para no rotular "−0,00", que se lee como un esfuerzo
+// negativo chiquito en vez de como la ausencia de esfuerzo.
 const num = (n: number, d = 1) =>
-  n.toLocaleString("es-AR", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+  (Math.abs(n) < 5e-9 ? 0 : n).toLocaleString("es-AR", {
+    maximumFractionDigits: d,
+    minimumFractionDigits: 0,
+  });
 
 export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
   const utilX = ANCHO - IZQ - DER;
@@ -257,7 +272,7 @@ function Panel({
   top: number;
   px: (x: number) => number;
 }) {
-  const yCero = top + 44;
+  const yCero = top + 52;
   const pico = Math.max(...valores.map(Math.abs), Math.abs(extremo.valor));
   // Una viga descargada da todo cero: sin este piso la escala se iría a infinito.
   const escala = pico < 1e-9 ? 0 : AMPLITUD / pico;
@@ -273,10 +288,14 @@ function Panel({
   const ye = py(extremo.valor);
   // La etiqueta del máximo se corre para adentro cuando el máximo cae en un borde.
   const anclaje = xe < 60 ? "start" : xe > ANCHO - 60 ? "end" : "middle";
+  const yRotulo = Math.min(
+    top + ROTULO_MAX,
+    Math.max(top + ROTULO_MIN, ye + (signo * extremo.valor > 0 ? 13 : -7))
+  );
 
   return (
     <g>
-      <text x={IZQ} y={top + 12} className="fill-foreground text-[9px] font-medium">
+      <text x={IZQ} y={top + 10} className="fill-foreground text-[9px] font-medium">
         {titulo}
       </text>
 
@@ -292,7 +311,7 @@ function Panel({
           <circle cx={xe} cy={ye} r={2.4} className={trazo.replace("stroke-", "fill-")} />
           <text
             x={xe}
-            y={ye + (signo * extremo.valor > 0 ? 12 : -6)}
+            y={yRotulo}
             textAnchor={anclaje}
             className="fill-foreground text-[8px] font-medium"
           >

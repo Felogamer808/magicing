@@ -287,6 +287,14 @@ function Dato({ etiqueta, valor }: { etiqueta: React.ReactNode; valor: string })
   );
 }
 
+/**
+ * Un extremo que en realidad vale cero sale del solver como −10⁻¹⁵ y se imprime
+ * "−0,00", que se lee como un momento negativo chiquito y no como la ausencia de
+ * momento. Se aplasta al formatear, no en el motor, donde el signo del cero es
+ * información legítima.
+ */
+const sinCeroNegativo = (n: number) => (Math.abs(n) < 5e-9 ? 0 : n);
+
 const NOMBRE_APOYO: Record<string, string> = {
   simple: "Apoyo simple",
   empotrado: "Empotramiento",
@@ -317,8 +325,8 @@ function ResultadoVigaPanel({
                 etiqueta={`${NOMBRE_APOYO[x.tipo]} en x = ${fmt(x.xM, 2)} m`}
                 valor={
                   x.tipo === "empotrado"
-                    ? `${fmt(x.rKN, 2)} kN · ${fmt(x.mKNm, 2)} kN·m`
-                    : `${fmt(x.rKN, 2)} kN`
+                    ? `${fmt(sinCeroNegativo(x.rKN), 2)} kN · ${fmt(sinCeroNegativo(x.mKNm), 2)} kN·m`
+                    : `${fmt(sinCeroNegativo(x.rKN), 2)} kN`
                 }
               />
             ))}
@@ -337,15 +345,15 @@ function ResultadoVigaPanel({
         <CardContent className="py-0">
           <Dato
             etiqueta={`Cortante máximo (x = ${fmt(r.cortanteMax.xM, 2)} m)`}
-            valor={`${fmt(r.cortanteMax.valor, 2)} kN`}
+            valor={`${fmt(sinCeroNegativo(r.cortanteMax.valor), 2)} kN`}
           />
           <Dato
             etiqueta={`Momento máximo positivo (x = ${fmt(r.momentoMax.xM, 2)} m)`}
-            valor={`${fmt(r.momentoMax.valor, 2)} kN·m`}
+            valor={`${fmt(sinCeroNegativo(r.momentoMax.valor), 2)} kN·m`}
           />
           <Dato
             etiqueta={`Momento máximo negativo (x = ${fmt(r.momentoMin.xM, 2)} m)`}
-            valor={`${fmt(r.momentoMin.valor, 2)} kN·m`}
+            valor={`${fmt(sinCeroNegativo(r.momentoMin.valor), 2)} kN·m`}
           />
         </CardContent>
       </Card>
@@ -358,7 +366,7 @@ function ResultadoVigaPanel({
           <div>
             <Dato
               etiqueta={`Flecha máxima (x = ${fmt(r.flechaMax.xM, 2)} m)`}
-              valor={`${fmt(r.flechaMax.valor, 2)} mm`}
+              valor={`${fmt(sinCeroNegativo(r.flechaMax.valor), 2)} mm`}
             />
             <Dato
               etiqueta="Relación L / δ"

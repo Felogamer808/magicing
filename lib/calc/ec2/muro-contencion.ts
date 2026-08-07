@@ -199,11 +199,26 @@ export const FS_DESLIZAMIENTO_MINIMO = 1.5;
 /**
  * Fracción de φ que se moviliza en el contacto hormigón-terreno.
  *
- * El rozamiento de la base contra el suelo no llega al ángulo que tiene el suelo
- * consigo mismo: la superficie de contacto es otra. Montoya §25.11.2 b), pág. 433:
- * μ = tg(2/3·φ). Con φ = 34° eso baja el coeficiente de 0,675 a 0,418.
+ * Montoya §25.11.2 b), pág. 433, propone μ = tg(⅔·φ): el rozamiento de la base
+ * contra el suelo no llega al ángulo que el suelo tiene consigo mismo, porque la
+ * superficie de contacto es otra. Es un criterio razonable y sin embargo acá se
+ * adopta 1, o sea φ pleno. El motivo:
+ *
+ * A ka se le aplica un piso de 0,5 (ver KA_MINIMO) justamente porque se
+ * desconfía de φ: se supone que podría ser bastante menor que el declarado. Si
+ * además se redujera φ para el rozamiento, se estaría castigando dos veces el
+ * mismo parámetro por la misma incertidumbre. Con φ = 34° el piso de ka sube el
+ * empuje un 77 % y el ⅔ baja la resistencia un 38 %: multiplicadas, dejan sin
+ * verificar muros que con cualquiera de las dos precauciones sola pasan holgados.
+ *
+ * El ⅔ de Montoya está pensado para usarse con el ka real, no con uno ya
+ * inflado. Se elige quedarse con el piso de ka, que actúa sobre la acción, y usar
+ * φ pleno en la resistencia.
+ *
+ * Si algún día se saca el piso de ka, hay que volver a poner 2/3 acá: las dos
+ * decisiones son una sola y no deben moverse por separado.
  */
-const FRACCION_PHI_ROZAMIENTO = 2 / 3;
+const FRACCION_PHI_ROZAMIENTO = 1;
 
 /**
  * La cohesión se toma a la mitad y topada en 0,05 N/mm². Mismo apartado.
@@ -218,6 +233,10 @@ const COHESION_MAXIMA_KPA = 50;
  * φ es el dato menos confiable del cálculo y el empuje varía linealmente con ka,
  * así que subestimarlo va directo contra la seguridad. Topar ka por abajo es la
  * forma que tenía la planilla original de cubrirse, y se mantiene.
+ *
+ * Ésta es la precaución que se adoptó sobre φ, y por eso el rozamiento de la base
+ * va con φ pleno: castigarlo también allá sería contar dos veces la misma
+ * incertidumbre. Ver FRACCION_PHI_ROZAMIENTO, que explica el par completo.
  */
 export const KA_MINIMO = 0.5;
 

@@ -237,7 +237,7 @@ export function CroquisSueloMuro() {
          achicaban todo lo demás. */
       viewBox="56 0 166 138"
       ancho="max-w-[19rem]"
-      nota="φ interviene dos veces: arma el empuje del trasdós y, reducido a ⅔, da el rozamiento de la base. La cohesión sólo colabora abajo, y va a la mitad."
+      nota="φ interviene dos veces: arma el empuje del trasdós y da el rozamiento de la base. La cohesión sólo colabora abajo, y va a la mitad."
     >
       {/* sobrecargas repartidas sobre el terreno */}
       {[104, 124, 144, 164].map((x) => (
@@ -279,7 +279,7 @@ export function CroquisSueloMuro() {
       <path d="M62 106 L118 106" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 2" opacity="0.6" />
       <path d="M68 106 L104 106" stroke="currentColor" strokeWidth="1.3" markerEnd="url(#croquis-flecha)" />
       <text x={62} y={122} className="fill-current font-mono" fontSize="9.5">
-        N · tg(⅔·φ) + c* · A
+        N · tg φ + c* · A
       </text>
       <text x={62} y={131} className="fill-current font-mono" fontSize="8" opacity="0.7">
         c* = mín(0,5·c ; 50 kPa)

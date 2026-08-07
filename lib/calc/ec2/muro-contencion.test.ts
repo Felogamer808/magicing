@@ -177,7 +177,7 @@ import { calcularMuroContencion } from "./muro-contencion";
 // Y tres son criterios de Montoya §25.11.2, págs. 432-433, adoptados por ser más
 // conservadores que lo que hacía la planilla:
 //   · el vuelco exige 2,0 y no 1,5, que es despejar 0,9·M_estab ≥ 1,8·M_volc;
-//   · el rozamiento va con μ = tg(⅔·φ) y c* = mín(0,5·c ; 50 kPa);
+//   · la cohesión del rozamiento va reducida, c* = mín(0,5·c ; 50 kPa);
 //   · el empuje pasivo no se cuenta, ni para vuelco ni para deslizamiento.
 
 const suelo = { gammaKNm3: 18, phiGrados: 34, cKPa: 5, sigmaAdmisibleKPa: 100 };
@@ -243,16 +243,17 @@ describe("muro de contención: vuelco", () => {
 describe("muro de contención: deslizamiento", () => {
   it("reproduce el caso 1, sólo zapata", () => {
     expect(r.deslizamientoSoloZapata.nKN).toBeCloseTo(34.02, 6);
-    // Fh adm con μ = tg(⅔·φ) y c* = mín(0,5·c ; 50), Montoya §25.11.2 b).
-    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(15.457625, 5);
+    // Fh adm con φ pleno —el piso de ka ya castiga a φ, ver FRACCION_PHI_ROZAMIENTO—
+    // y c* = mín(0,5·c ; 50), que sí se mantiene reducida.
+    expect(r.deslizamientoSoloZapata.fhAdmKN).toBeCloseTo(24.19678, 5);
     expect(r.deslizamientoSoloZapata.fhMaxKN).toBeCloseTo(54.08, 6);
-    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.285829, 5);
+    expect(r.deslizamientoSoloZapata.factorSeguridad).toBeCloseTo(0.447426, 5);
     expect(r.deslizamientoSoloZapata.verifica).toBe(false);
   });
 
   it("con apoyo en contrapiso sólo hay que pasar R1 por rozamiento, y no alcanza", () => {
     expect(r.deslizamientoApoyoContrapiso.fhMaxKN).toBeCloseTo(23.104, 6);
-    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(0.669045, 5);
+    expect(r.deslizamientoApoyoContrapiso.factorSeguridad).toBeCloseTo(1.047298, 5);
     expect(r.deslizamientoApoyoContrapiso.verifica).toBe(false);
   });
 });

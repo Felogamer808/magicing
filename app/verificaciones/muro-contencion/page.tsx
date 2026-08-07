@@ -160,8 +160,8 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
     },
     {
       etiqueta: "Fh adm",
-      formula: "N · tg(⅔·φ) + c* · A,  con c* = mín(0,5·c ; 50)",
-      sustitucion: `${fmt(desliz.nKN)} · tg ${fmt((2 / 3) * n.phi, 1)}° + ${fmt(Math.min(0.5 * n.c, 50))} · ${A}`,
+      formula: "N · tg φ + c* · A,  con c* = mín(0,5·c ; 50)",
+      sustitucion: `${fmt(desliz.nKN)} · tg ${fmt(n.phi, 0)}° + ${fmt(Math.min(0.5 * n.c, 50))} · ${A}`,
       valor: `${fmt(desliz.fhAdmKN)} kN/m`,
     },
     {
@@ -598,9 +598,32 @@ export default function MuroContencionPage() {
                     de Coulomb, que sí toma i, β y δ.
                   </p>
                   <p>
-                    La planilla original topaba k<sub>a</sub> por abajo en 0,5, más conservador que
-                    el valor teórico. Ese piso se quitó: lo que se ve es el valor de la fórmula, sin
-                    recortes.
+                    <strong className="text-foreground">A k<sub>a</sub> se le pone un piso de
+                    0,5.</strong> Con φ = 34° la fórmula da 0,283 y manda el piso: se adopta casi el
+                    doble de empuje. La razón es que φ es el dato menos confiable de todos —sale de
+                    un ensayo, de una tabla o de la experiencia— y subestimarlo va directo contra la
+                    seguridad.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Y por eso el rozamiento de la base va con φ
+                    pleno.</strong> Es una decisión que conviene tener presente. Jiménez Montoya
+                    (§25.11.2 b), pág. 433) propone tomar μ = tg(⅔·φ), porque el contacto
+                    hormigón-terreno no moviliza el ángulo que el suelo tiene consigo mismo. El
+                    criterio es razonable, pero está pensado para usarse con el k<sub>a</sub> real,
+                    no con uno ya inflado.
+                  </p>
+                  <p>
+                    Aplicar las dos cosas a la vez sería castigar φ dos veces por la misma
+                    incertidumbre: el piso de k<sub>a</sub> sube el empuje un 77 % y el ⅔ baja la
+                    resistencia un 38 %, y multiplicadas dejan sin verificar muros que con
+                    cualquiera de las dos precauciones sola pasan holgados. Se eligió quedarse con
+                    el piso de k<sub>a</sub>, que actúa sobre la acción.
+                  </p>
+                  <p>
+                    Si algún día se saca ese piso, corresponde volver a poner el ⅔ en el rozamiento:
+                    las dos decisiones son una sola. Lo que sí se mantiene reducida es la cohesión,
+                    c* = mín(0,5·c ; 50 kPa), porque ésa es otra incertidumbre —desaparece si el
+                    terreno se satura— y no depende de φ.
                   </p>
                 </PanelAyuda>
               </div>

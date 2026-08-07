@@ -17,6 +17,7 @@ export type IdVerificacion =
   | "vigas-flexion-cortante"
   | "vigas-torsion"
   | "vigas-apeo"
+  | "vigas-apeo-bielas"
   | "losas"
   | "secciones-mixtas"
   | "zapatas"

@@ -30,6 +30,7 @@ import {
 } from "@/lib/calc/ec2/muro-contencion";
 import type { ResultadoMuroContencion } from "@/lib/calc/ec2/muro-contencion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { GAMMA_F } from "@/lib/calc/ec2/coeficientes";
 import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -206,6 +207,92 @@ function desarrolloCaso1(n: NumerosMuro, r: ResultadoMuroContencion) {
       valor: `${fmt(tension.sigmaKPa)} kN/m²`,
     },
   ];
+}
+
+/**
+ * Desarrollo de los momentos con los que se arma cada pieza.
+ *
+ * Las tres son voladizos independientes y con cargas de sentidos distintos, así
+ * que no hay una fórmula común: el hastial lo empuja el terreno de costado, al
+ * talón lo baja lo que tiene encima, y a la puntera la levanta la reacción del
+ * suelo. Verlos separados es lo que explica por qué la armadura cambia de cara
+ * en cada uno.
+ *
+ * Los tres salen ya mayorados con γf: son momentos de cálculo, listos para
+ * dimensionar, a diferencia de los del vuelco que van sin mayorar.
+ */
+function desarrolloMomentos(n: NumerosMuro, r: ResultadoMuroContencion) {
+  const m = r.momentos;
+  const g = fmt(n.gamma, 0);
+  const q = n.sobrecargaG + n.sobrecargaQ;
+  const gf = fmt(GAMMA_F, 1);
+
+  const filas = [
+    {
+      etiqueta: "h hastial",
+      formula: "mín(h − canto ; altura del alzado)",
+      sustitucion: `mín(${fmt(n.hAct)} − ${fmt(n.cantoZap)} ; ${fmt(n.altMuro)})`,
+      valor: `${fmt(m.alturaHastialM)} m`,
+    },
+    {
+      etiqueta: "Ea hastial",
+      formula: "½ · γ · ka · h²",
+      sustitucion: `½ · ${g} · ${fmt(r.empujes.ka, 3)} · ${fmt(m.alturaHastialM)}²`,
+      valor: `${fmt(m.empujeSueloHastialKN)} kN/m`,
+    },
+    {
+      etiqueta: "Eq hastial",
+      formula: "ka · q · h",
+      sustitucion: `${fmt(r.empujes.ka, 3)} · ${fmt(q)} · ${fmt(m.alturaHastialM)}`,
+      valor: `${fmt(m.empujeSobrecargaHastialKN)} kN/m`,
+    },
+    {
+      etiqueta: "M hastial",
+      formula: "γf · (Ea · h/3 + Eq · h/2)",
+      sustitucion: `${gf} · (${fmt(m.empujeSueloHastialKN)} · ${fmt(m.alturaHastialM / 3)} + ${fmt(m.empujeSobrecargaHastialKN)} · ${fmt(m.alturaHastialM / 2)})`,
+      valor: `${fmt(m.hastialKNm)} kN·m/m`,
+    },
+
+    {
+      etiqueta: "Carga talón",
+      formula: "γ · (h − canto) + q + 25 · canto",
+      sustitucion: `${g} · ${fmt(r.empujes.alturaSobreTalonM)} + ${fmt(q)} + 25 · ${fmt(n.cantoZap)}`,
+      valor: `${fmt(m.cargaSobreTalonKPa)} kN/m²`,
+    },
+    {
+      etiqueta: "M talón",
+      formula: "γf · carga · talón² / 2",
+      sustitucion: `${gf} · ${fmt(m.cargaSobreTalonKPa)} · ${fmt(m.talonM)}² / 2`,
+      valor: `${fmt(m.talonKNm)} kN·m/m`,
+    },
+  ];
+
+  if (m.punteraM <= 0) return filas;
+
+  /*
+   * La puntera se resuelve con el trapecio de presiones bajo la base, no con una
+   * presión media: la reacción no es uniforme y el borde es donde más levanta.
+   */
+  return filas.concat([
+    {
+      etiqueta: "σ borde",
+      formula: "N/A + M/(A²/6)",
+      sustitucion: `${fmt(r.tensionSueloCaso1.nKN)}/${fmt(n.anchoZap)} + ${fmt(r.tensionSueloCaso1.momentoKNm)}/${fmt(n.anchoZap ** 2 / 6, 3)}`,
+      valor: `${fmt(m.sigmaPunteraBordeKPa)} kN/m²`,
+    },
+    {
+      etiqueta: "σ arranque",
+      formula: "σ media + gradiente · (1 − 2·puntera/A)",
+      sustitucion: `en el arranque del hastial, a ${fmt(m.punteraM)} m del borde`,
+      valor: `${fmt(m.sigmaPunteraArranqueKPa)} kN/m²`,
+    },
+    {
+      etiqueta: "M puntera",
+      formula: "γf · (trapecio de presiones − peso propio de la losa)",
+      sustitucion: `sobre un vuelo de ${fmt(m.punteraM)} m, descontando 25 · ${fmt(n.cantoZap)} · ${fmt(m.punteraM)}`,
+      valor: `${fmt(m.punteraKNm)} kN·m/m`,
+    },
+  ]);
 }
 
 export default function MuroContencionPage() {
@@ -638,31 +725,7 @@ export default function MuroContencionPage() {
                   <CardTitle className="text-base">Momentos para armar</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      {
-                        etiqueta: `Hastial · voladizo de ${fmt(resultado.r.momentos.alturaHastialM, 2)} m`,
-                        valor: `${fmt(resultado.r.momentos.hastialKNm)} kN·m/m`,
-                      },
-                      {
-                        etiqueta: `Talón · vuelo de ${fmt(resultado.r.momentos.talonM, 2)} m`,
-                        valor: `${fmt(resultado.r.momentos.talonKNm)} kN·m/m`,
-                      },
-                      ...(resultado.r.momentos.punteraM > 0
-                        ? [
-                            {
-                              etiqueta: `Puntera · vuelo de ${fmt(resultado.r.momentos.punteraM, 2)} m`,
-                              valor: `${fmt(resultado.r.momentos.punteraKNm)} kN·m/m`,
-                            },
-                            {
-                              etiqueta: "σ terreno en el borde / arranque",
-                              valor: `${fmt(resultado.r.momentos.sigmaPunteraBordeKPa)} / ${fmt(resultado.r.momentos.sigmaPunteraArranqueKPa)} kN/m²`,
-                            },
-                          ]
-                        : []),
-                    ]}
-                  />
+                  <PanelFormulas titulo="Ver cálculo" filas={desarrolloMomentos(resultado.n, resultado.r)} />
                   {resultado.r.momentos.punteraM === 0 && (
                     <p className="text-xs text-muted-foreground">
                       Sin puntera no hay nada que armar de ese lado: toda la zapata trabaja como

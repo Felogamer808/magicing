@@ -102,9 +102,15 @@ export interface ResultadoMomentosElementos {
   hastialKNm: number;
   /** Altura de terreno que empuja al hastial (m). */
   alturaHastialM: number;
+  /** Empuje del terreno sobre el hastial, sin mayorar (kN/m). */
+  empujeSueloHastialKN: number;
+  /** Empuje de las sobrecargas sobre el hastial, sin mayorar (kN/m). */
+  empujeSobrecargaHastialKN: number;
   /** Talón: lo baja el peso de tierra que gravita encima; tracciona arriba. */
   talonKNm: number;
   talonM: number;
+  /** Carga repartida que baja sobre el talón: tierra, sobrecarga y peso propio (kN/m²). */
+  cargaSobreTalonKPa: number;
   /** Puntera: la levanta la reacción del terreno; tracciona abajo. */
   punteraKNm: number;
   punteraM: number;
@@ -387,8 +393,11 @@ export function calcularMomentosElementos(
   return {
     hastialKNm,
     alturaHastialM,
+    empujeSueloHastialKN: empujeSuelo,
+    empujeSobrecargaHastialKN: empujeSobrecarga,
     talonKNm,
     talonM,
+    cargaSobreTalonKPa: cargaBajaKPa,
     punteraKNm,
     punteraM: puntera,
     sigmaPunteraBordeKPa,

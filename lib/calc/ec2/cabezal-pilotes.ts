@@ -1,3 +1,4 @@
+import { GAMMA_G } from "./coeficientes";
 import type { MaterialesDerivados } from "./types";
 
 /**
@@ -131,7 +132,7 @@ export function calcularCabezalDosPilotes(
   const dM = hM - recubrimientoM - phiT / 1000 - phiPrinc / 2000;
 
   const pesoPropioKN = ladoXM * ladoYM * hM * 25;
-  const ndPorPiloteKN = (ndPilarKN + 1.35 * pesoPropioKN) / 2;
+  const ndPorPiloteKN = (ndPilarKN + GAMMA_G * pesoPropioKN) / 2;
   const tdKN = (ndPorPiloteKN * (vM + anchoPilarM / 4)) / (0.85 * dM);
 
   const asNecCm2 = (tdKN * 100 ** 2) / (fydEstribos * 1000);

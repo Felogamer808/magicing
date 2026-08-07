@@ -1,10 +1,11 @@
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { combinacionDe } from "@/lib/verificaciones/combinaciones";
+import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
 interface AvisoCombinacionProps {
   /** Id de la verificación en el registro. */
-  idVerificacion: string;
+  idVerificacion: IdVerificacion;
 }
 
 /**
@@ -14,7 +15,6 @@ interface AvisoCombinacionProps {
  */
 export function AvisoCombinacion({ idVerificacion }: AvisoCombinacionProps) {
   const combinacion = combinacionDe(idVerificacion);
-  if (!combinacion) return null;
 
   // El régimen mixto es el que más se presta a error: se cargan características
   // pero una parte del cálculo mayora sola.

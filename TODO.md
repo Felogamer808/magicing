@@ -39,6 +39,15 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
 
 Pendiente, aprobado pero todavía sin hacer:
 
+- **Separar `Nk` en permanente y variable, en zapatas y pilotes.** Hoy `Nk` es
+  una carga vertical característica agregada, y el motor la mayora entera con un
+  único `GAMMA_F = 1,5`. Queda del lado seguro —a la parte permanente le tocaría
+  1,35— pero es una simplificación: impide usar γG y γQ como los define la norma,
+  y obliga a que la constante se llame γF en vez de γQ (ver
+  `lib/calc/ec2/coeficientes.ts`). Pedirlas por separado como `Ng` y `Nq`
+  resolvería las dos cosas. **Cambia resultados**, así que hay que rehacer los
+  casos de la planilla, no sólo el código.
+
 - **Bloque de validación repetido en las 16 páginas.** Cada `useMemo` de cálculo
   arranca convirtiendo todos sus campos con `aNumero()` y descartando el
   resultado si alguno no es finito o no es positivo (357 llamadas en total). Es

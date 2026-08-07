@@ -35,7 +35,9 @@ export type IdVerificacion =
   | "pretensado"
   | "corte-acero"
   | "flexo-compresion"
-  | "soldaduras";
+  | "soldaduras"
+  | "propiedades-geometricas"
+  | "formulario-vigas";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -89,6 +91,15 @@ export const registroSecciones: SeccionMeta[] = [
       "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
     normasDisponibles: ["ACI 318"],
     ruta: "/secciones/hormigon-pretensado",
+    disponible: true,
+  },
+  {
+    id: "herramientas",
+    nombre: "Herramientas de análisis",
+    descripcion:
+      "Lo que hay que resolver antes de verificar: propiedades de la sección y esfuerzos en la viga.",
+    normasDisponibles: ["Geometría", "Estática"],
+    ruta: "/secciones/herramientas",
     disponible: true,
   },
   {
@@ -347,6 +358,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/uniones",
+    disponible: true,
+  },
+  {
+    id: "propiedades-geometricas",
+    nombre: "Propiedades geométricas",
+    seccion: "herramientas",
+    categoria: "Secciones",
+    descripcion:
+      "Área, centroide, inercias, módulos resistentes, radios de giro y ejes principales de 16 formas paramétricas.",
+    normasDisponibles: ["Geometría"],
+    ruta: "/verificaciones/propiedades-geometricas",
     disponible: true,
   },
 ];

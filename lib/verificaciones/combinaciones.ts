@@ -7,6 +7,8 @@
  * silenciosamente mal dimensionado, así que cada página lo declara en pantalla.
  */
 
+import type { IdVerificacion } from "./registry";
+
 export type RegimenCombinacion = "elu" | "mixta" | "servicio" | "caracteristica";
 
 export interface Combinacion {
@@ -66,6 +68,13 @@ const MURO: Combinacion = {
     "Empujes y pesos sin mayorar. La seguridad se verifica con factores FS ≥ 1,5 sobre vuelco y deslizamiento, no mayorando las acciones.",
 };
 
+const PRETENSADO: Combinacion = {
+  regimen: "mixta",
+  etiqueta: "Cargas de servicio · sin mayorar",
+  detalle:
+    "Las cargas se introducen sin mayorar. Las tensiones en servicio y las flechas las usan tal cual, y la flexión última aplica 1,2·D + 1,6·L por dentro.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -73,8 +82,16 @@ const VIENTO: Combinacion = {
     "La presión y las cargas por nivel que devuelve son características. Hay que mayorarlas al entrar en la combinación de cálculo.",
 };
 
-/** Combinación de cada verificación, por su id en el registro. */
-export const COMBINACION_POR_VERIFICACION: Record<string, Combinacion> = {
+/**
+ * Combinación de cada verificación, por su id en el registro.
+ *
+ * El Record va sobre `IdVerificacion` y no sobre `string` a propósito: agregar
+ * una verificación sin declarar con qué régimen trabaja tiene que romper la
+ * compilación. Antes no lo hacía, y cinco se quedaron sin declarar —las cuatro
+ * de acero y la de pretensado—, con lo cual `AvisoCombinacion` no mostraba nada
+ * y la página quedaba sin el cartel que evita cargar el régimen equivocado.
+ */
+export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> = {
   "vigas-flexion-cortante": ELU_MAYORADAS,
   "vigas-torsion": ELU_MAYORADAS,
   "vigas-apeo": ELU_MAYORADAS,
@@ -91,9 +108,14 @@ export const COMBINACION_POR_VERIFICACION: Record<string, Combinacion> = {
   "muros-contencion": MURO,
   "secciones-mixtas": SERVICIO_ASD,
   soldaduras: SERVICIO_ASD,
+  "compresion-acero": SERVICIO_ASD,
+  "flexion-acero": SERVICIO_ASD,
+  "corte-acero": SERVICIO_ASD,
+  "flexo-compresion": SERVICIO_ASD,
+  pretensado: PRETENSADO,
   viento: VIENTO,
 };
 
-export function combinacionDe(idVerificacion: string): Combinacion | undefined {
+export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {
   return COMBINACION_POR_VERIFICACION[idVerificacion];
 }

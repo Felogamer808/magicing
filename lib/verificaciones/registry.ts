@@ -7,8 +7,37 @@ export interface SeccionMeta {
   disponible: boolean;
 }
 
+/**
+ * Id de cada verificación. Se enumeran a mano, en vez de dejarlo en `string`,
+ * porque hay tablas que tienen que cubrirlas a todas —la de combinaciones de
+ * acciones, sin ir más lejos— y con `string` una verificación nueva se olvidaba
+ * en silencio. Enumerado, el compilador la reclama.
+ */
+export type IdVerificacion =
+  | "vigas-flexion-cortante"
+  | "vigas-torsion"
+  | "vigas-apeo"
+  | "losas"
+  | "secciones-mixtas"
+  | "zapatas"
+  | "zapata-corrida"
+  | "zapata-medianeria"
+  | "zapata-combinada"
+  | "losa-fundacion"
+  | "pilotes"
+  | "cabezales"
+  | "muros-contencion"
+  | "fisuracion"
+  | "viento"
+  | "compresion-acero"
+  | "flexion-acero"
+  | "pretensado"
+  | "corte-acero"
+  | "flexo-compresion"
+  | "soldaduras";
+
 export interface VerificacionMeta {
-  id: string;
+  id: IdVerificacion;
   nombre: string;
   /** Material o familia a la que pertenece: primer nivel de navegación. */
   seccion: string;

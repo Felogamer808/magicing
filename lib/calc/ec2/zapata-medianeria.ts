@@ -1,3 +1,4 @@
+import { GAMMA_F } from "./coeficientes";
 import type { MaterialesDerivados } from "./types";
 import {
   calcularArmadoDesdePresion,
@@ -79,8 +80,8 @@ export function calcularZapataMedianeria(
   // del centro de la zapata: el geométrico (Nk·e0) más el aplicado (MkA).
   const momentoTotalKNm = Nk * e0M + MkA;
   const w = (B * A ** 2) / 6;
-  const sigmaLimiteKPa = (1.5 * Nk) / (A * B) - (1.5 * momentoTotalKNm) / w; // borde en el límite (x=0)
-  const sigmaInteriorKPa = (1.5 * Nk) / (A * B) + (1.5 * momentoTotalKNm) / w; // borde interior (x=A)
+  const sigmaLimiteKPa = (GAMMA_F * Nk) / (A * B) - (GAMMA_F * momentoTotalKNm) / w; // borde en el límite (x=0)
+  const sigmaInteriorKPa = (GAMMA_F * Nk) / (A * B) + (GAMMA_F * momentoTotalKNm) / w; // borde interior (x=A)
 
   const vueloLimiteM = distanciaColumnaLimite + anchoPilarA / 4;
   const vueloInteriorM = A - xColumnaM - anchoPilarA / 4;

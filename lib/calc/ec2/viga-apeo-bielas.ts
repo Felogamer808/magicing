@@ -1,4 +1,5 @@
 import { areaBarraCm2 } from "../armaduras";
+import { GAMMA_C } from "./coeficientes";
 import type { ArmaduraElegida, MaterialesDerivados } from "./types";
 
 /**
@@ -704,8 +705,7 @@ export function calcularVigaApeoBielas(
 
   // fctd = αct·fctk;0,05/γc, con αct = 1,00 (art. 3.1.6(2), ec. 3.16) y
   // fctk;0,05 = 0,7·fctm, cuantil 5 % (tabla A19.3.1).
-  const GAMMA_C_LOCAL = 1.5;
-  const fctdMPa = (0.7 * materiales.fctm) / GAMMA_C_LOCAL;
+  const fctdMPa = (0.7 * materiales.fctm) / GAMMA_C;
 
   // Art. 8.4.2(2): η1 = 1,0 con adherencia buena y 0,7 en el resto; η2 = 1,0
   // hasta φ32 y (132−φ)/100 por encima.
@@ -796,7 +796,7 @@ export function calcularVigaApeoBielas(
   // de esquina, que es la que revienta primero.
   const abMm = recubrimientoBarraMm + phiT / 2;
   // Ec. (8.1). El fcd de esta comprobación no puede pasar del de un HA-55.
-  const fcdTopadoMPa = Math.min(fcd, 55 / GAMMA_C_LOCAL);
+  const fcdTopadoMPa = Math.min(fcd, 55 / GAMMA_C);
   const mandrilPorHormigonMm = ((fbtKN * 1000) * (1 / abMm + 1 / (2 * phiT))) / fcdTopadoMPa;
 
   // Radio del eje de la barra en el codo, y desarrollo del giro de 180°.

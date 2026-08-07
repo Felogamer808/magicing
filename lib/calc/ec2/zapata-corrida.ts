@@ -1,3 +1,4 @@
+import { GAMMA_F } from "./coeficientes";
 import type { MaterialesDerivados } from "./types";
 
 /** Todo se calcula por metro corrido de zapata. */
@@ -101,8 +102,8 @@ export function calcularZapataCorrida(
   const d = H - recubrimiento - armadoPrincipal.diametroMm / 2000;
 
   const w = (ANCHO_REFERENCIA_M * A ** 2) / 6;
-  const sigmaMaxKPa = (1.5 * Nk) / (A * ANCHO_REFERENCIA_M) + (1.5 * MkA) / w;
-  const sigmaMinKPa = (1.5 * Nk) / (A * ANCHO_REFERENCIA_M) - (1.5 * MkA) / w;
+  const sigmaMaxKPa = (GAMMA_F * Nk) / (A * ANCHO_REFERENCIA_M) + (GAMMA_F * MkA) / w;
+  const sigmaMinKPa = (GAMMA_F * Nk) / (A * ANCHO_REFERENCIA_M) - (GAMMA_F * MkA) / w;
   const lM = A / 2 - anchoPilar / 4;
   const sigmaCriticaKPa = ((sigmaMaxKPa - sigmaMinKPa) / A) * (A / 2 + anchoPilar / 4) + sigmaMinKPa;
 

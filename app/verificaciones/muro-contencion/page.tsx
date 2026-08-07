@@ -20,6 +20,7 @@ import {
   CroquisSueloMuro,
 } from "@/components/verificaciones/croquis/CroquisMuro";
 import {
+  CUANTIA_GEOMETRICA_MINIMA,
   FS_DESLIZAMIENTO_MINIMO,
   FS_VUELCO_MINIMO,
   KA_MINIMO,
@@ -28,7 +29,7 @@ import {
   calcularMuroContencion,
   separacionParaAs,
 } from "@/lib/calc/ec2/muro-contencion";
-import type { ResultadoMuroContencion } from "@/lib/calc/ec2/muro-contencion";
+import type { ArmaduraPieza, ResultadoMuroContencion } from "@/lib/calc/ec2/muro-contencion";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { GAMMA_G, GAMMA_Q } from "@/lib/calc/ec2/coeficientes";
 import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
@@ -299,6 +300,85 @@ function desarrolloMomentos(n: NumerosMuro, r: ResultadoMuroContencion) {
   ]);
 }
 
+/**
+ * Desarrollo del armado de una pieza, del momento a las barras.
+ *
+ * El planteo es el adimensional de siempre: se lleva el momento a μ, de ahí sale
+ * la cuantía mecánica ω, y de ω el área. Tenerlo escrito importa porque el paso
+ * de μ a ω es el único que no se puede seguir de memoria, y porque muchas veces
+ * el área que manda no es la del momento sino un mínimo, y conviene ver cuál.
+ */
+function desarrolloArmado(
+  p: { calculo: ArmaduraPieza; asRealCm2: number; diametroMm: number; separacionMm: number },
+  fcdMPa: number,
+  fydMPa: number,
+  recubrimientoM: number
+) {
+  const c = p.calculo;
+  const nombre = c.nombre;
+  const fcd = fmt(fcdMPa, 1);
+  const fyd = fmt(fydMPa, 1);
+
+  const noDa = !Number.isFinite(c.asCalculadoCm2);
+
+  return [
+    {
+      etiqueta: `${nombre} · d`,
+      formula: "canto − recubrimiento mecánico",
+      sustitucion: `${fmt(c.hM)} − ${fmt(recubrimientoM)}`,
+      valor: `${fmt(c.dM, 3)} m`,
+    },
+    {
+      etiqueta: `${nombre} · μ`,
+      formula: "M / (b · d² · fcd),  con b = 1 m",
+      sustitucion: `${fmt(c.momentoKNm)} / (1 · ${fmt(c.dM, 3)}² · ${fcd} · 1000)`,
+      valor: fmt(c.mu, 4),
+    },
+    {
+      etiqueta: `${nombre} · ω`,
+      formula: noDa ? "1 − √(1 − 2μ)   con μ ≥ 0,50 la raíz no existe" : "1 − √(1 − 2μ)",
+      sustitucion: noDa
+        ? "la sección no da como simplemente armada: hay que engrosarla"
+        : `1 − √(1 − 2 · ${fmt(c.mu, 4)})`,
+      valor: noDa ? "—" : fmt(c.omega, 4),
+    },
+    {
+      etiqueta: `${nombre} · As por momento`,
+      formula: "ω · b · d · fcd / fyd",
+      sustitucion: noDa
+        ? "sin ω no hay área que calcular"
+        : `${fmt(c.omega, 4)} · 1 · ${fmt(c.dM, 3)} · ${fcd} / ${fyd}`,
+      valor: noDa ? "no da: engrosar la pieza" : `${fmt(c.asCalculadoCm2)} cm²/m`,
+    },
+    {
+      etiqueta: `${nombre} · As mín mecánico`,
+      formula: "0,045 · b · d · fcd / fyd",
+      sustitucion: `0,045 · 1 · ${fmt(c.dM, 3)} · ${fcd} / ${fyd}`,
+      valor: `${fmt(c.asMinMecanicoCm2)} cm²/m`,
+    },
+    {
+      etiqueta: `${nombre} · As mín geométrico`,
+      formula: "1,8 ‰ · b · canto   (va con el canto total, no con el útil)",
+      sustitucion: `${fmt(CUANTIA_GEOMETRICA_MINIMA * 1000, 1)}/1000 · 1 · ${fmt(c.hM)}`,
+      valor: `${fmt(c.asMinGeometricoCm2)} cm²/m`,
+    },
+    {
+      etiqueta: `${nombre} · As necesario`,
+      formula: "máx(por momento ; mín mecánico ; mín geométrico)",
+      sustitucion: c.mandaMinimo
+        ? "manda un mínimo, no el momento"
+        : "manda el momento",
+      valor: `${fmt(c.asNecesarioCm2)} cm²/m`,
+    },
+    {
+      etiqueta: `${nombre} · As real`,
+      formula: "área de una barra · 1000 / separación",
+      sustitucion: `π · ${fmt(p.diametroMm / 10, 2)}²/4 · 1000 / ${fmt(p.separacionMm, 0)}`,
+      valor: `${fmt(p.asRealCm2)} cm²/m`,
+    },
+  ];
+}
+
 export default function MuroContencionPage() {
   const [norma, setNorma] = useCampo("norma", "EC7");
 
@@ -398,6 +478,9 @@ export default function MuroContencionPage() {
     };
 
     return {
+      fcd: materiales.fcd,
+      fyd: materiales.fyd,
+      recubrimientoM: rec,
       hastial: pieza("Hastial", "interior", m.hastialKNm, aNumero(espMuro), phiHastial, sepHastial),
       talon: pieza("Talón", "superior", m.talonKNm, aNumero(cantoZap), phiTalon, sepTalon),
       puntera:
@@ -801,18 +884,9 @@ export default function MuroContencionPage() {
                       titulo="Ver cálculo"
                       filas={[armado.hastial, armado.talon, armado.puntera]
                         .filter((p): p is NonNullable<typeof p> => p !== null)
-                        .flatMap((p) => [
-                          { etiqueta: `${p.calculo.nombre} · d`, valor: `${fmt(p.calculo.dM, 3)} m` },
-                          { etiqueta: `${p.calculo.nombre} · μ`, valor: fmt(p.calculo.mu, 4) },
-                          {
-                            etiqueta: `${p.calculo.nombre} · As por momento`,
-                            valor: Number.isFinite(p.calculo.asCalculadoCm2)
-                              ? `${fmt(p.calculo.asCalculadoCm2)} cm²/m`
-                              : "no da: engrosar la pieza",
-                          },
-                          { etiqueta: `${p.calculo.nombre} · mín. mecánico`, valor: `${fmt(p.calculo.asMinMecanicoCm2)} cm²/m` },
-                          { etiqueta: `${p.calculo.nombre} · mín. geométrico`, valor: `${fmt(p.calculo.asMinGeometricoCm2)} cm²/m` },
-                        ])}
+                        .flatMap((p) =>
+                          desarrolloArmado(p, armado.fcd, armado.fyd, armado.recubrimientoM)
+                        )}
                     />
                     <p className="text-xs text-muted-foreground">
                       El mínimo geométrico es el de elementos superficiales (1,8 ‰ de la sección

@@ -257,6 +257,8 @@ export interface ArmaduraPieza {
   momentoKNm: number;
   /** Momento reducido μ = M/(b·d²·fcd), con b = 1 m. */
   mu: number;
+  /** Cuantía mecánica ω = 1 − √(1 − 2μ). Infinita si la sección no da. */
+  omega: number;
   asCalculadoCm2: number;
   asMinMecanicoCm2: number;
   asMinGeometricoCm2: number;
@@ -276,7 +278,7 @@ export interface ArmaduraPieza {
  * horizontal, repartida en las dos caras—, que es una comprobación aparte y no
  * está incluida acá.
  */
-const CUANTIA_GEOMETRICA_MINIMA = 1.8 / 1000;
+export const CUANTIA_GEOMETRICA_MINIMA = 1.8 / 1000;
 
 /**
  * Armadura de flexión de una pieza de un metro de ancho.
@@ -315,6 +317,7 @@ export function armarPieza(
     dM,
     momentoKNm,
     mu,
+    omega,
     asCalculadoCm2,
     asMinMecanicoCm2,
     asMinGeometricoCm2,

@@ -36,7 +36,16 @@ const fmt = (n: number, d = 2) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /** Redondeo a 5 cm, que es como se construye. */
-const aMultiplo = (m: number) => Math.round(m / 0.05) * 0.05;
+/**
+ * Redondea a múltiplos de 5 cm, que es como se replantea en obra.
+ *
+ * Se divide por 20 en lugar de multiplicar por 0,05: 0,05 no tiene
+ * representación exacta en binario, así que `Math.round(m / 0,05) * 0,05`
+ * devolvía cosas como 1,4000000000000001, y ese número entraba tal cual al
+ * formulario al cargar el predimensionado. Dividir da el doble más cercano al
+ * valor buscado, que ya se escribe con dos decimales.
+ */
+const aMultiplo = (m: number) => Math.round(m * 20) / 20;
 
 /**
  * Proporciones de referencia para un muro en ménsula, en función de la altura

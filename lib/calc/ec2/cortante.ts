@@ -7,6 +7,8 @@
  * distintos, que es exactamente el error que este módulo evita.
  */
 
+import { GAMMA_C } from "./coeficientes";
+
 /** Factor de escala por tamaño: k = 1 + √(200/d) ≤ 2, con d en mm. */
 export function factorEscalaK(dM: number): number {
   return Math.min(1 + Math.sqrt(200 / (dM * 1000)), 2);
@@ -20,7 +22,7 @@ export function factorEscalaK(dM: number): number {
  * queda del lado seguro porque en compresión ese término suma.
  */
 export function tensionCortanteBase(k: number, rhoL: number, fckMPa: number): number {
-  const CRdC = 0.18 / 1.5;
+  const CRdC = 0.18 / GAMMA_C;
   return CRdC * k * (100 * Math.min(rhoL, 0.02) * fckMPa) ** (1 / 3);
 }
 

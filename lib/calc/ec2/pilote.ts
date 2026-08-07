@@ -1,3 +1,4 @@
+import { GAMMA_F } from "./coeficientes";
 import type { MaterialesDerivados } from "./types";
 
 export interface GeometriaPilote {
@@ -88,7 +89,7 @@ export function calcularPilote(
   // Compresión simple: Nrd = 0.85·fcd·(Ac−As) + fyd·As. Áreas en cm², fcd/fyd en
   // MPa → fuerza en kN mediante el factor 0.1 (1 MPa·1 cm² = 0.1 kN).
   const nRdKN = (0.85 * fcd * (areaConcretoCm2 - areaAceroCm2) + fyd * areaAceroCm2) * 0.1;
-  const ndKN = 1.5 * Nk;
+  const ndKN = GAMMA_F * Nk;
   const verificaEstructural = ndKN <= nRdKN;
 
   // EC2 9.5.2(2): As,min = max(0.10·NEd/fyd, 0.002·Ac).

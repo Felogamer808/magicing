@@ -1,3 +1,4 @@
+import { GAMMA_F } from "./coeficientes";
 import { factorEscalaK, tensionCortanteResistente } from "./cortante";
 import type { MaterialesDerivados } from "./types";
 
@@ -267,8 +268,8 @@ export function calcularArmadoDireccion(
   const { Nk } = cargas;
 
   const w = (dimPerpendicular * dim ** 2) / 6;
-  const sigmaMaxKPa = (1.5 * Nk) / (dim * dimPerpendicular) + (1.5 * mk) / w;
-  const sigmaMinKPa = (1.5 * Nk) / (dim * dimPerpendicular) - (1.5 * mk) / w;
+  const sigmaMaxKPa = (GAMMA_F * Nk) / (dim * dimPerpendicular) + (GAMMA_F * mk) / w;
+  const sigmaMinKPa = (GAMMA_F * Nk) / (dim * dimPerpendicular) - (GAMMA_F * mk) / w;
 
   const lM = dim / 2 - anchoPilar / 4;
   const sigmaCriticaKPa = ((sigmaMaxKPa - sigmaMinKPa) / dim) * (dim / 2 + anchoPilar / 4) + sigmaMinKPa;
@@ -352,7 +353,7 @@ function calcularPunzonamiento(
 
   const dPromedioM = (dA + dB) / 2;
 
-  const sigmaDesignKPa = (1.5 * Nk) / (A * B);
+  const sigmaDesignKPa = (GAMMA_F * Nk) / (A * B);
 
   const rhoLA = asRealACm2 / (100 ** 2 * B * dA);
   const rhoLB = asRealBCm2 / (100 ** 2 * A * dB);
@@ -366,7 +367,7 @@ function calcularPunzonamiento(
       anchoPilarA * anchoPilarB + 2 * (anchoPilarA + anchoPilarB) * aM + Math.PI * aM ** 2;
 
     const vEdKN = Math.max(
-      BETA_COLUMNA_INTERIOR * (1.5 * Nk - sigmaDesignKPa * areaDentroM2),
+      BETA_COLUMNA_INTERIOR * (GAMMA_F * Nk - sigmaDesignKPa * areaDentroM2),
       0
     );
     // El factor 2d/a de la ec. (6.50) premia a los perímetros más cercanos al

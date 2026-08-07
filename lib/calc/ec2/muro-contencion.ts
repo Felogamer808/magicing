@@ -34,8 +34,19 @@ export interface GeometriaMuro {
   alturaSueloActivoM: number;
   /** Altura de suelo del lado pasivo (m) */
   alturaSueloPasivoM: number;
-  /** Sobrecarga en superficie, p. ej. tránsito de vehículos (kN/m²) */
-  sobrecargaKPa: number;
+  /**
+   * Carga permanente en superficie sobre el terreno del trasdós (kN/m²): un
+   * contrapiso, un solado, un relleno de nivelación. Está siempre, así que
+   * cuenta también cuando ayuda.
+   */
+  sobrecargaPermanenteKPa: number;
+  /**
+   * Sobrecarga de uso en superficie (kN/m²): tránsito, estacionamiento, acopio.
+   * Empuja igual que la permanente, pero no se cuenta del lado favorable —al ser
+   * variable puede no estar, y suponerla presente para que estabilice sería
+   * apoyarse en algo que el día de la falla podría faltar.
+   */
+  sobrecargaUsoKPa: number;
   /**
    * Vuelo de la puntera, por delante del hastial (m). Puede ser cero: un muro
    * de medianera o contra un límite de propiedad no la lleva, y entonces toda
@@ -63,6 +74,20 @@ export interface ResultadoEmpujes {
   pesoZapataKN: number;
   pesoSueloActivoKN: number;
   pesoSueloPasivoKN: number;
+  /** Carga permanente en superficie, ya llevada al ancho del talón (kN/m) */
+  cargaPermanenteKN: number;
+  /** Sobrecarga de uso, ya llevada al ancho del talón (kN/m) */
+  cargaUsoKN: number;
+  /** Ancho del talón (m), que es sobre lo que gravitan el suelo y las sobrecargas. */
+  talonM: number;
+  /** Altura de tierra que efectivamente pesa sobre el talón: hAct menos el canto (m). */
+  alturaSobreTalonM: number;
+  /** Brazo del talón respecto de la puntera (m). */
+  brazoTalonM: number;
+  /** Valor teórico de Rankine, antes del piso. */
+  kaTeorico: number;
+  /** El piso de 0,5 fue el que mandó, en vez del valor teórico. */
+  mandaPisoKa: boolean;
 }
 
 /**
@@ -109,6 +134,14 @@ export interface ResultadoTensionSuelo {
   momentoKNm: number;
   sigmaKPa: number;
   verifica: boolean;
+  /** Excentricidad de la resultante respecto del centro de la zapata (m). */
+  excentricidadM: number;
+  /**
+   * La resultante cae dentro del núcleo central, |e| ≤ A/6. Con esto toda la
+   * base comprime y la ley es trapecial; sin esto, parte de la zapata se
+   * despega y el pico crece bastante.
+   */
+  resultanteEnNucleo: boolean;
 }
 
 export interface ResultadoApoyos {
@@ -137,11 +170,13 @@ export interface ResultadoMuroContencion {
 export const FS_MINIMO = 1.5;
 
 /**
- * Ancho tributario de la sobrecarga que la planilla suma a la resultante
- * vertical al verificar deslizamiento en el caso 1. Es menor que el ancho de
- * zapata: sólo se cuenta la parte que efectivamente gravita.
+ * Piso del coeficiente de empuje activo.
+ *
+ * φ es el dato menos confiable del cálculo y el empuje varía linealmente con ka,
+ * así que subestimarlo va directo contra la seguridad. Topar ka por abajo es la
+ * forma que tenía la planilla original de cubrirse, y se mantiene.
  */
-const ANCHO_TRIBUTARIO_SOBRECARGA_M = 0.2;
+export const KA_MINIMO = 0.5;
 
 /** Brazo con el que se moviliza el empuje pasivo (m). */
 const BRAZO_EMPUJE_PASIVO_M = 0.9;
@@ -332,8 +367,12 @@ export function calcularMuroContencion(
     espesorMuroM: esp,
     alturaSueloActivoM: hAct,
     alturaSueloPasivoM: hPas,
-    sobrecargaKPa: q,
+    sobrecargaPermanenteKPa: qg,
+    sobrecargaUsoKPa: qq,
   } = geometria;
+  const puntera = Math.max(geometria.punteraM ?? 0, 0);
+  /** Las dos sobrecargas empujan por igual: para el empuje se suman. */
+  const q = qg + qq;
 
   const phi = (phiGrados * Math.PI) / 180;
   /*
@@ -342,16 +381,35 @@ export function calcularMuroContencion(
    * (δ = 0). Con esas tres hipótesis los empujes salen horizontales y quedan
    * sólo en función de φ.
    *
-   * La planilla original topaba ka por abajo en 0,5, más conservador que el
-   * valor teórico. Ese piso se quitó a pedido: ahora se usa la formulación
-   * limpia. No es un cambio inocente —baja el empuje activo y sube el pasivo, o
-   * sea que el muro da más seguro— así que los casos de la planilla que
-   * dependían del piso quedaron recalculados desde estas fórmulas y ya no son
-   * paridad con Excel.
+   * A ka se le pone un piso de 0,5, que es lo que hacía la planilla. Con φ = 34°
+   * el teórico da 0,283 y el piso manda: se adopta casi el doble de empuje. La
+   * razón es que φ es el dato menos confiable de todos —sale de un ensayo, de una
+   * tabla o de la experiencia— y subestimarlo va directo contra la seguridad,
+   * porque el empuje baja con el cuadrado de la altura pero linealmente con ka.
+   *
+   * kp se toma como el recíproco del ka ya pisado, y no como su valor teórico.
+   * Es deliberado: si desconfiamos de φ para el empuje, usar esa misma
+   * desconfianza para regalarnos resistencia pasiva sería quedarse con lo mejor
+   * de las dos hipótesis. Así kp da 2,00 en vez de 3,54, del lado seguro.
    */
-  const ka = (1 - Math.sin(phi)) / (1 + Math.sin(phi));
-  const kp = (1 + Math.sin(phi)) / (1 - Math.sin(phi));
+  const kaTeorico = (1 - Math.sin(phi)) / (1 + Math.sin(phi));
+  const ka = Math.max(kaTeorico, KA_MINIMO);
+  const kp = 1 / ka;
   const alturaTotalM = hMuro + hZap;
+
+  /*
+   * Geometría del reparto de cargas. El suelo que estabiliza es sólo el que
+   * gravita sobre el talón: ni el que está sobre la puntera —ése va del otro
+   * lado— ni el que ocupa el canto de la zapata, que es hormigón.
+   */
+  const talonM = Math.max(A - esp - puntera, 0);
+  const alturaSobreTalonM = Math.max(hAct - hZap, 0);
+  const alturaSobrePunteraM = Math.max(hPas - hZap, 0);
+
+  /** Brazos medidos desde la puntera, que es el punto de giro del vuelco. */
+  const brazoMuroM = puntera + esp / 2;
+  const brazoTalonM = puntera + esp + talonM / 2;
+  const brazoPunteraM = puntera / 2;
 
   // Acciones que vuelcan, tomando momentos respecto de la puntera.
   const empujeSueloKN = (gammaKNm3 * ka * hAct ** 2) / 2;
@@ -359,26 +417,41 @@ export function calcularMuroContencion(
   const momentoVolcadorKNm =
     empujeSueloKN * (hAct / 3) + empujeSobrecargaKN * (hAct / 2);
 
-  // Acciones que estabilizan.
-  const pesoMuroKN = 25 * esp * hMuro;
-  const pesoZapataKN = 25 * hZap * A;
-  const pesoSueloActivoKN = (gammaKNm3 * hAct * (A - esp)) / 2;
-  const pesoSueloPasivoKN = (gammaKNm3 * hPas * (A - esp)) / 2;
+  // Pesos propios y cargas sobre el talón.
+  const pesoMuroKN = PESO_HORMIGON * esp * hMuro;
+  const pesoZapataKN = PESO_HORMIGON * hZap * A;
+  const pesoSueloActivoKN = gammaKNm3 * talonM * alturaSobreTalonM;
+  const pesoSueloPasivoKN = gammaKNm3 * puntera * alturaSobrePunteraM;
   const empujePasivoKN = (gammaKNm3 * kp * hPas ** 2) / 2;
+  const cargaPermanenteKN = qg * talonM;
+  const cargaUsoKN = qq * talonM;
 
-  const momentoEstabilizadorKNm =
-    pesoMuroKN * (esp / 2) +
+  /** Momento de todo lo que está siempre: pesos propios más el empuje pasivo. */
+  const momentoPesosKNm =
+    pesoMuroKN * brazoMuroM +
     pesoZapataKN * (A / 2) +
-    pesoSueloActivoKN * (A - (A - esp) / 2) +
-    pesoSueloPasivoKN * ((A - esp) / 4) +
+    pesoSueloActivoKN * brazoTalonM +
+    pesoSueloPasivoKN * brazoPunteraM +
     empujePasivoKN * BRAZO_EMPUJE_PASIVO_M;
 
+  /*
+   * Al vuelco sólo se le suma la carga permanente. La de uso es favorable acá, y
+   * una acción variable favorable se toma con valor cero: contar con el camión
+   * estacionado sobre el talón para que el muro no vuelque es apostar a que el
+   * día del empuje máximo el camión esté ahí.
+   */
+  const momentoEstabilizadorKNm = momentoPesosKNm + cargaPermanenteKN * brazoTalonM;
   const fsVuelco = momentoEstabilizadorKNm / momentoVolcadorKNm;
 
   const pesoTotalKN = pesoMuroKN + pesoZapataKN + pesoSueloActivoKN + pesoSueloPasivoKN;
 
-  // Caso 1: el muro resiste el empuje sólo por rozamiento en la base.
-  const nCaso1 = pesoTotalKN + q * ANCHO_TRIBUTARIO_SOBRECARGA_M;
+  /*
+   * Caso 1: el muro resiste el empuje sólo por rozamiento en la base. Vale el
+   * mismo criterio que en el vuelco —la sobrecarga de uso aumentaría el
+   * rozamiento, así que es favorable y no se cuenta— con la diferencia de que
+   * acá la permanente sí suma peso vertical.
+   */
+  const nCaso1 = pesoTotalKN + cargaPermanenteKN;
   const fhAdmCaso1 = nCaso1 * Math.tan(phi) + cKPa * A;
   const fhMaxCaso1 = Math.abs(empujeSueloKN + empujeSobrecargaKN - empujePasivoKN);
 
@@ -393,12 +466,56 @@ export function calcularMuroContencion(
   // Con el contrapiso apuntalando, lo que hay que pasar por rozamiento es R1.
   const fhMaxApoyo = Math.abs(r1Caso2);
 
-  // Tensión del suelo.
-  const nTension = pesoTotalKN + q * 1;
-  const momentoCaso1 =
-    ((gammaKNm3 * hAct ** 2) / 2) * (hAct / 3) - ((gammaKNm3 * hPas ** 2) / 2) * (hPas / 3);
-  const sigmaCaso1 = nTension / A + momentoCaso1 / (A ** 2 / 6);
+  /*
+   * Tensión sobre el terreno — método de Montoya, §25.2.6, pág. 404.
+   *
+   * La planilla resolvía esto con `σ = N/A + M/W` tomando `M = γ·h³/6`, que
+   * tenía tres problemas: ese momento usaba el peso del suelo con coeficiente 1
+   * en vez de ka, no incluía el empuje de la sobrecarga, y no contaba la
+   * excentricidad de las cargas verticales. Además la fórmula lineal se aplicaba
+   * siempre, incluso con la resultante fuera del núcleo central, que es
+   * justamente donde deja de valer y del lado inseguro.
+   *
+   * Acá se hace lo que corresponde: se ubica la resultante por equilibrio de
+   * momentos respecto de la puntera y se mira dónde cae.
+   *
+   * Acá sí entran las dos sobrecargas, y no sólo los pesos propios: lo que se
+   * comprueba es cuánto aprieta el muro contra el terreno, así que toda carga
+   * exterior que baje aumenta la presión. Es el caso opuesto al del vuelco —lo
+   * que allá era favorable e iba con cero, acá es desfavorable y va entero.
+   */
+  const nTension = pesoTotalKN + cargaPermanenteKN + cargaUsoKN;
+  const momentoEstabilizadorTensionKNm =
+    momentoPesosKNm + (cargaPermanenteKN + cargaUsoKN) * brazoTalonM;
+  /** Distancia de la resultante a la puntera, por equilibrio de momentos. */
+  const brazoResultanteM = (momentoEstabilizadorTensionKNm - momentoVolcadorKNm) / nTension;
+  /** Excentricidad respecto del centro de la zapata. */
+  const excentricidadM = A / 2 - brazoResultanteM;
+  /** La que gobierna el pico: cuánto le queda a la resultante hasta el borde más próximo. */
+  const distanciaAlBordeM = Math.min(brazoResultanteM, A - brazoResultanteM);
+  /** Dentro del núcleo central (|e| ≤ A/6) toda la base comprime y la ley es trapecial. */
+  const resultanteEnNucleo = Math.abs(excentricidadM) <= A / 6;
 
+  const sigmaCaso1 =
+    distanciaAlBordeM <= 0
+      ? // La resultante se fue fuera de la zapata: no hay contacto que valga y el
+        // muro ya volcó. Se devuelve infinito para que la comprobación falle sin
+        // inventar un número.
+        Infinity
+      : resultanteEnNucleo
+        ? (nTension / A) * (1 + (6 * Math.abs(excentricidadM)) / A)
+        : // Ley triangular sobre 3·d, porque el terreno no tracciona.
+          (2 * nTension) / (3 * distanciaAlBordeM);
+
+  /** Momento respecto del centro de la zapata, que es el que da la ley de presiones. */
+  const momentoCaso1 = nTension * excentricidadM;
+
+  /*
+   * Apuntalado, el muro no puede girar: la resultante queda casi centrada y se
+   * adopta una excentricidad chica y fija en lugar de deducirla del equilibrio.
+   * Con ese valor la resultante siempre cae dentro del núcleo, así que la ley es
+   * trapecial y no hace falta el caso triangular.
+   */
   const momentoCasos23 = EXCENTRICIDAD_CASOS_APUNTALADOS * nTension;
   const sigmaCasos23 = nTension / A + momentoCasos23 / (A ** 2 / 6);
 
@@ -423,6 +540,13 @@ export function calcularMuroContencion(
       pesoZapataKN,
       pesoSueloActivoKN,
       pesoSueloPasivoKN,
+      cargaPermanenteKN,
+      cargaUsoKN,
+      talonM,
+      alturaSobreTalonM,
+      brazoTalonM,
+      kaTeorico,
+      mandaPisoKa: ka > kaTeorico,
     },
     vuelco: { factorSeguridad: fsVuelco, verifica: fsVuelco >= FS_MINIMO },
     deslizamientoSoloZapata: {
@@ -444,8 +568,12 @@ export function calcularMuroContencion(
       momentoKNm: momentoCaso1,
       sigmaKPa: sigmaCaso1,
       verifica: sigmaCaso1 <= sigmaAdmisibleKPa,
+      excentricidadM,
+      resultanteEnNucleo,
     },
     tensionSueloCasos23: {
+      excentricidadM: EXCENTRICIDAD_CASOS_APUNTALADOS,
+      resultanteEnNucleo: true,
       nKN: nTension,
       momentoKNm: momentoCasos23,
       sigmaKPa: sigmaCasos23,

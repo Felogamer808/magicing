@@ -159,6 +159,7 @@ export default function MuroContencionPage() {
               alturaMuroM={resultado.n.altMuro}
               espesorMuroM={resultado.n.espMuro}
               alturaSueloActivoM={resultado.n.hAct}
+              alturaSueloPasivoM={resultado.n.hPas}
               punteraM={resultado.n.puntera}
             />
           </CardContent>

@@ -82,6 +82,20 @@ const VIENTO: Combinacion = {
     "La presión y las cargas por nivel que devuelve son características. Hay que mayorarlas al entrar en la combinación de cálculo.",
 };
 
+/*
+ * Hidráulica no trabaja con estados límite ni mayora acciones: se dimensiona con
+ * un caudal de proyecto y se comprueba que el escurrimiento quede dentro de
+ * ciertos límites. El régimen "característica" es el que corresponde —el dato
+ * entra tal cual— y el detalle aclara de dónde tiene que salir ese caudal, que
+ * es la decisión que más condiciona el resultado.
+ */
+const CAUDAL_DE_PROYECTO: Combinacion = {
+  regimen: "caracteristica",
+  etiqueta: "Caudal de proyecto",
+  detalle:
+    "El caudal se introduce ya mayorado por el coeficiente de pico y el horizonte de diseño que corresponda. La herramienta no lo afecta: lo toma tal cual para resolver el escurrimiento.",
+};
+
 /**
  * Combinación de cada verificación, por su id en el registro.
  *
@@ -114,6 +128,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "flexo-compresion": SERVICIO_ASD,
   pretensado: PRETENSADO,
   viento: VIENTO,
+  "conducto-circular": CAUDAL_DE_PROYECTO,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

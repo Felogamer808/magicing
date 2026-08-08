@@ -35,7 +35,8 @@ export type IdVerificacion =
   | "pretensado"
   | "corte-acero"
   | "flexo-compresion"
-  | "soldaduras";
+  | "soldaduras"
+  | "conducto-circular";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -89,6 +90,21 @@ export const registroSecciones: SeccionMeta[] = [
       "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
     normasDisponibles: ["ACI 318"],
     ruta: "/secciones/hormigon-pretensado",
+    disponible: true,
+  },
+  {
+    id: "hidraulica",
+    nombre: "Hidráulica",
+    descripcion:
+      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
+    /*
+     * Manning es una fórmula empírica, no un articulado: vale igual en cualquier
+     * país. Lo que cambia con el reglamento son los límites que se le exigen al
+     * resultado, y por eso van como dato de entrada. Cuando la sección adopte una
+     * norma concreta, se declara acá y aparece como insignia.
+     */
+    normasDisponibles: [],
+    ruta: "/secciones/hidraulica",
     disponible: true,
   },
   {
@@ -347,6 +363,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/uniones",
+    disponible: true,
+  },
+  {
+    id: "conducto-circular",
+    nombre: "Conducto circular",
+    seccion: "hidraulica",
+    categoria: "Conducciones",
+    descripcion:
+      "Escurrimiento a superficie libre por Manning: altura de agua, velocidad y grado de llenado.",
+    normasDisponibles: [],
+    ruta: "/verificaciones/conducto-circular",
     disponible: true,
   },
 ];

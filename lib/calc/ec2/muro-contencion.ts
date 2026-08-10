@@ -336,10 +336,21 @@ export function calcularMuroContencion(
   } = geometria;
 
   const phi = (phiGrados * Math.PI) / 180;
-  // La planilla impone un piso de 0,5 al coeficiente activo, más conservador
-  // que el valor teórico de Rankine.
-  const ka = Math.max((1 - Math.sin(phi)) / (1 + Math.sin(phi)), 0.5);
-  const kp = 1 / ka;
+  /*
+   * Coeficientes de empuje de Rankine, en el caso habitual: terreno horizontal
+   * (i = 0), trasdós vertical (β = 90°) y sin rozamiento entre tierras y muro
+   * (δ = 0). Con esas tres hipótesis los empujes salen horizontales y quedan
+   * sólo en función de φ.
+   *
+   * La planilla original topaba ka por abajo en 0,5, más conservador que el
+   * valor teórico. Ese piso se quitó a pedido: ahora se usa la formulación
+   * limpia. No es un cambio inocente —baja el empuje activo y sube el pasivo, o
+   * sea que el muro da más seguro— así que los casos de la planilla que
+   * dependían del piso quedaron recalculados desde estas fórmulas y ya no son
+   * paridad con Excel.
+   */
+  const ka = (1 - Math.sin(phi)) / (1 + Math.sin(phi));
+  const kp = (1 + Math.sin(phi)) / (1 - Math.sin(phi));
   const alturaTotalM = hMuro + hZap;
 
   // Acciones que vuelcan, tomando momentos respecto de la puntera.

@@ -159,6 +159,7 @@ export default function MuroContencionPage() {
               alturaMuroM={resultado.n.altMuro}
               espesorMuroM={resultado.n.espMuro}
               alturaSueloActivoM={resultado.n.hAct}
+              alturaSueloPasivoM={resultado.n.hPas}
               punteraM={resultado.n.puntera}
             />
           </CardContent>
@@ -201,6 +202,52 @@ export default function MuroContencionPage() {
                   presión tolera el terreno de apoyo sin asentar de más. No sale de los otros tres:
                   es un dato del estudio de suelos. Es la que limita el ancho de zapata.
                 </p>
+                </PanelAyuda>
+
+                <PanelAyuda titulo="De dónde salen ka y kp, y en qué caso valen">
+                  <p>
+                    Los dos coeficientes se calculan solos a partir de φ, con las expresiones de
+                    Rankine:
+                  </p>
+                  <p className="py-1 text-center font-mono text-[13px] text-foreground">
+                    k<sub>a</sub> = (1 − sen φ) / (1 + sen φ)
+                    <span className="px-3 text-muted-foreground">·</span>
+                    k<sub>p</sub> = (1 + sen φ) / (1 − sen φ)
+                  </p>
+                  <p>
+                    Son recíprocos: k<sub>a</sub>·k<sub>p</sub> = 1. Con φ = 34°, k<sub>a</sub> ≈
+                    0,283 y k<sub>p</sub> ≈ 3,54: el terreno empuja con menos de un tercio de lo que
+                    pesa y resiste con más del triple.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Esas fórmulas valen en un caso concreto</strong>,
+                    el más habitual, definido por tres condiciones:
+                  </p>
+                  <p>
+                    <strong className="text-foreground">i = 0</strong> — el terreno de arriba está
+                    horizontal, sin talud. Si el relleno sube en pendiente, el empuje es mayor y hay
+                    que corregir.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">β = 90°</strong> — el trasdós del muro, la
+                    cara contra la que apoya la tierra, es vertical. Un muro inclinado recibe además
+                    el peso del suelo que le queda encima.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">δ = 0</strong> — no se cuenta el rozamiento
+                    entre la tierra y el muro. Existe y ayuda, pero despreciarlo deja del lado
+                    seguro y evita depender de cómo quede la cara del hormigón.
+                  </p>
+                  <p>
+                    Con las tres, el empuje sale horizontal y depende sólo de φ, que es lo que hace
+                    la expresión tan corta. Fuera de este caso hay que ir a la formulación general
+                    de Coulomb, que sí toma i, β y δ.
+                  </p>
+                  <p>
+                    La planilla original topaba k<sub>a</sub> por abajo en 0,5, más conservador que
+                    el valor teórico. Ese piso se quitó: lo que se ve es el valor de la fórmula, sin
+                    recortes.
+                  </p>
                 </PanelAyuda>
               </div>
             </CardContent>
@@ -465,8 +512,8 @@ export default function MuroContencionPage() {
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
-                      { etiqueta: "Ka (con piso de 0,5)", valor: fmt(resultado.r.empujes.ka, 3) },
-                      { etiqueta: "Kp", valor: fmt(resultado.r.empujes.kp, 3) },
+                      { etiqueta: "Ka = (1 − sen φ)/(1 + sen φ)", valor: fmt(resultado.r.empujes.ka, 3) },
+                      { etiqueta: "Kp = (1 + sen φ)/(1 − sen φ)", valor: fmt(resultado.r.empujes.kp, 3) },
                       { etiqueta: "Empuje del suelo", valor: `${fmt(resultado.r.empujes.empujeSueloKN)} kN/m` },
                       { etiqueta: "Empuje por sobrecarga", valor: `${fmt(resultado.r.empujes.empujeSobrecargaKN)} kN/m` },
                       { etiqueta: "Empuje pasivo", valor: `${fmt(resultado.r.empujes.empujePasivoKN)} kN/m` },

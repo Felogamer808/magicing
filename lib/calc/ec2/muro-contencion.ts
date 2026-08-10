@@ -10,6 +10,8 @@
  *     abajo, y se reparten las reacciones entre ambos apoyos.
  */
 
+import { GAMMA_F } from "./coeficientes";
+
 export interface SueloMuro {
   /** Peso específico del suelo (kN/m³) */
   gammaKNm3: number;
@@ -249,8 +251,6 @@ export function separacionParaAs(diametroMm: number, asCm2PorM: number): number 
   return (areaBarraCm2 * 1000) / asCm2PorM;
 }
 
-/** Coeficiente de mayoración de acciones para dimensionar la armadura. */
-const GAMMA_F = 1.5;
 /** Peso específico del hormigón armado (kN/m³). */
 const PESO_HORMIGON = 25;
 

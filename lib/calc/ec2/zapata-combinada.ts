@@ -1,3 +1,4 @@
+import { GAMMA_F } from "./coeficientes";
 import type { MaterialesDerivados } from "./types";
 import { factorEscalaK, tensionCortanteResistente } from "./cortante";
 
@@ -135,15 +136,15 @@ export function calcularVigaSobreTerreno(
 
   const w0 = (B * A ** 2) / 6;
   const momentoExcentricidadKNm = NkTotal * excentricidadM;
-  const sigmaEdge0KPa = (1.5 * NkTotal) / (A * B) - (1.5 * momentoExcentricidadKNm) / w0;
-  const sigmaEdgeAKPa = (1.5 * NkTotal) / (A * B) + (1.5 * momentoExcentricidadKNm) / w0;
+  const sigmaEdge0KPa = (GAMMA_F * NkTotal) / (A * B) - (GAMMA_F * momentoExcentricidadKNm) / w0;
+  const sigmaEdgeAKPa = (GAMMA_F * NkTotal) / (A * B) + (GAMMA_F * momentoExcentricidadKNm) / w0;
 
   const diagrama = calcularDiagrama(
     A,
     B,
     sigmaEdge0KPa,
     sigmaEdgeAKPa,
-    columnas.map((c) => ({ x: c.posicionM, NdKN: 1.5 * c.Nk }))
+    columnas.map((c) => ({ x: c.posicionM, NdKN: GAMMA_F * c.Nk }))
   );
 
   let mPositivo = { M: 0, x: 0 };

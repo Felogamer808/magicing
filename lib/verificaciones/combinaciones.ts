@@ -9,7 +9,12 @@
 
 import type { IdVerificacion } from "./registry";
 
-export type RegimenCombinacion = "elu" | "mixta" | "servicio" | "caracteristica";
+export type RegimenCombinacion =
+  | "elu"
+  | "mixta"
+  | "servicio"
+  | "caracteristica"
+  | "herramienta";
 
 export interface Combinacion {
   regimen: RegimenCombinacion;
@@ -97,6 +102,26 @@ const CAUDAL_DE_PROYECTO: Combinacion = {
 };
 
 /**
+ * Las dos herramientas de geometría y estática no verifican nada contra una
+ * norma, así que no tienen combinación de acciones. Se declara igual, y se
+ * declara explícita: dejarlas fuera de la tabla obligaría a aflojar el Record y
+ * con eso perderíamos el chequeo que reclama el régimen de las que sí verifican.
+ */
+const SIN_COMBINACION: Combinacion = {
+  regimen: "herramienta",
+  etiqueta: "Herramienta · sin combinación de acciones",
+  detalle:
+    "Es geometría pura: no interviene ninguna acción ni coeficiente de mayoración, y el resultado sirve igual para ELU que para ELS.",
+};
+
+const ESTATICA_LINEAL: Combinacion = {
+  regimen: "herramienta",
+  etiqueta: "Herramienta · el resultado hereda el régimen de la carga",
+  detalle:
+    "No mayora ni minora nada. Si se cargan acciones características salen esfuerzos característicos; si se cargan mayoradas, salen de cálculo. La flecha sólo tiene sentido con cargas de servicio.",
+};
+
+/**
  * Combinación de cada verificación, por su id en el registro.
  *
  * El Record va sobre `IdVerificacion` y no sobre `string` a propósito: agregar
@@ -129,6 +154,8 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   pretensado: PRETENSADO,
   viento: VIENTO,
   "conducto-circular": CAUDAL_DE_PROYECTO,
+  "propiedades-geometricas": SIN_COMBINACION,
+  "formulario-vigas": ESTATICA_LINEAL,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

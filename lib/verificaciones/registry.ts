@@ -73,7 +73,9 @@ export type IdVerificacion =
   | "corte-acero"
   | "flexo-compresion"
   | "soldaduras"
-  | "conducto-circular";
+  | "conducto-circular"
+  | "propiedades-geometricas"
+  | "formulario-vigas";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -147,6 +149,28 @@ export const registroSecciones: SeccionMeta[] = [
      */
     normasDisponibles: [],
     ruta: "/secciones/conducciones",
+    disponible: true,
+  },
+  {
+    id: "herramientas",
+    /*
+     * Va en estructural y no en un área propia: es lo que se resuelve antes de
+     * verificar una pieza, así que quien la busca ya está calculando estructura.
+     * Un área de primer nivel con una sola sección adentro haría dar una vuelta
+     * de más para llegar.
+     */
+    area: "estructural",
+    nombre: "Herramientas de análisis",
+    descripcion:
+      "Lo que hay que resolver antes de verificar: propiedades de la sección y esfuerzos en la viga.",
+    /*
+     * Geometría y estática lineal no son articulado de ninguna norma: valen igual
+     * bajo cualquier reglamento. Se declaran igual como insignia porque dicen con
+     * qué se resolvió, que es lo que el usuario necesita saber para confiar en el
+     * número.
+     */
+    normasDisponibles: ["Geometría", "Estática"],
+    ruta: "/secciones/herramientas",
     disponible: true,
   },
   {
@@ -418,6 +442,28 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Escurrimiento a superficie libre por Manning: altura de agua, velocidad y grado de llenado.",
     normasDisponibles: [],
     ruta: "/verificaciones/conducto-circular",
+    disponible: true,
+  },
+  {
+    id: "propiedades-geometricas",
+    nombre: "Propiedades geométricas",
+    seccion: "herramientas",
+    categoria: "Secciones",
+    descripcion:
+      "Área, centroide, inercias, módulos resistentes, radios de giro y ejes principales de 16 formas paramétricas.",
+    normasDisponibles: ["Geometría"],
+    ruta: "/verificaciones/propiedades-geometricas",
+    disponible: true,
+  },
+  {
+    id: "formulario-vigas",
+    nombre: "Formulario de vigas",
+    seccion: "herramientas",
+    categoria: "Estática",
+    descripcion:
+      "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
+    normasDisponibles: ["Estática"],
+    ruta: "/verificaciones/formulario-vigas",
     disponible: true,
   },
 ];

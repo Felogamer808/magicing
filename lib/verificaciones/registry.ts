@@ -1,5 +1,42 @@
+/**
+ * Primer nivel de navegación: la disciplina.
+ *
+ * Antes la portada abría directo en las secciones, que funcionaba mientras todo
+ * era cálculo estructural. Al entrar hidráulica dejó de funcionar: no comparten
+ * normas, ni vocabulario, ni la persona que las usa. Poner un nivel arriba evita
+ * que quien viene a dimensionar un colector tenga que pasar por delante de seis
+ * secciones de hormigón que no le sirven.
+ */
+export type IdArea = "estructural" | "hidraulica";
+
+export interface AreaMeta {
+  id: IdArea;
+  nombre: string;
+  descripcion: string;
+  ruta: string;
+}
+
+export const registroAreas: AreaMeta[] = [
+  {
+    id: "estructural",
+    nombre: "Cálculo estructural",
+    descripcion:
+      "Hormigón armado y pretensado, estructuras metálicas, cimentaciones y acciones sobre la estructura.",
+    ruta: "/areas/estructural",
+  },
+  {
+    id: "hidraulica",
+    nombre: "Cálculo hidráulico",
+    descripcion:
+      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
+    ruta: "/areas/hidraulica",
+  },
+];
+
 export interface SeccionMeta {
   id: string;
+  /** Disciplina a la que pertenece: primer nivel de navegación. */
+  area: IdArea;
   nombre: string;
   descripcion: string;
   normasDisponibles: string[];
@@ -36,6 +73,7 @@ export type IdVerificacion =
   | "corte-acero"
   | "flexo-compresion"
   | "soldaduras"
+  | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas";
 
@@ -60,6 +98,7 @@ export interface VerificacionMeta {
 export const registroSecciones: SeccionMeta[] = [
   {
     id: "hormigon-armado",
+    area: "estructural",
     nombre: "Hormigón armado",
     descripcion:
       "Vigas, losas, cimentaciones, muros de contención y estado límite de servicio.",
@@ -69,6 +108,7 @@ export const registroSecciones: SeccionMeta[] = [
   },
   {
     id: "estructuras-metalicas",
+    area: "estructural",
     nombre: "Estructuras metálicas",
     descripcion:
       "Perfiles de acero: compresión, flexión, corte y uniones soldadas o abulonadas.",
@@ -78,6 +118,7 @@ export const registroSecciones: SeccionMeta[] = [
   },
   {
     id: "acciones",
+    area: "estructural",
     nombre: "Acciones",
     descripcion: "Cargas sobre la estructura, independientes del material resistente.",
     normasDisponibles: ["CIRSOC 102"],
@@ -86,6 +127,7 @@ export const registroSecciones: SeccionMeta[] = [
   },
   {
     id: "hormigon-pretensado",
+    area: "estructural",
     nombre: "Hormigón pretensado",
     descripcion:
       "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
@@ -94,16 +136,46 @@ export const registroSecciones: SeccionMeta[] = [
     disponible: true,
   },
   {
+    id: "conducciones",
+    area: "hidraulica",
+    nombre: "Conducciones",
+    descripcion:
+      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
+    /*
+     * Manning es una fórmula empírica, no un articulado: vale igual en cualquier
+     * país. Lo que cambia con el reglamento son los límites que se le exigen al
+     * resultado, y por eso van como dato de entrada. Cuando la sección adopte una
+     * norma concreta, se declara acá y aparece como insignia.
+     */
+    normasDisponibles: [],
+    ruta: "/secciones/conducciones",
+    disponible: true,
+  },
+  {
     id: "herramientas",
+    /*
+     * Va en estructural y no en un área propia: es lo que se resuelve antes de
+     * verificar una pieza, así que quien la busca ya está calculando estructura.
+     * Un área de primer nivel con una sola sección adentro haría dar una vuelta
+     * de más para llegar.
+     */
+    area: "estructural",
     nombre: "Herramientas de análisis",
     descripcion:
       "Lo que hay que resolver antes de verificar: propiedades de la sección y esfuerzos en la viga.",
+    /*
+     * Geometría y estática lineal no son articulado de ninguna norma: valen igual
+     * bajo cualquier reglamento. Se declaran igual como insignia porque dicen con
+     * qué se resolvió, que es lo que el usuario necesita saber para confiar en el
+     * número.
+     */
     normasDisponibles: ["Geometría", "Estática"],
     ruta: "/secciones/herramientas",
     disponible: true,
   },
   {
     id: "madera",
+    area: "estructural",
     nombre: "Estructuras de madera",
     descripcion: "Flexión, corte y estabilidad de piezas de madera maciza y laminada.",
     normasDisponibles: ["EC5"],
@@ -112,6 +184,7 @@ export const registroSecciones: SeccionMeta[] = [
   },
   {
     id: "mamposteria",
+    area: "estructural",
     nombre: "Mampostería",
     descripcion: "Muros portantes: compresión, pandeo y acciones en el plano.",
     normasDisponibles: ["EC6"],
@@ -361,6 +434,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
+    id: "conducto-circular",
+    nombre: "Conducto circular",
+    seccion: "conducciones",
+    categoria: "Conducciones",
+    descripcion:
+      "Escurrimiento a superficie libre por Manning: altura de agua, velocidad y grado de llenado.",
+    normasDisponibles: [],
+    ruta: "/verificaciones/conducto-circular",
+    disponible: true,
+  },
+  {
     id: "propiedades-geometricas",
     nombre: "Propiedades geométricas",
     seccion: "herramientas",
@@ -384,8 +468,22 @@ export const registroVerificaciones: VerificacionMeta[] = [
   },
 ];
 
+export function buscarArea(id: string) {
+  return registroAreas.find((a) => a.id === id);
+}
+
+export function seccionesDeArea(idArea: string) {
+  return registroSecciones.filter((s) => s.area === idArea);
+}
+
 export function buscarSeccion(id: string) {
   return registroSecciones.find((s) => s.id === id);
+}
+
+/** Área a la que pertenece una sección, para poder volver desde adentro. */
+export function areaDeSeccion(idSeccion: string) {
+  const seccion = buscarSeccion(idSeccion);
+  return seccion ? buscarArea(seccion.area) : undefined;
 }
 
 export function verificacionesDeSeccion(idSeccion: string) {

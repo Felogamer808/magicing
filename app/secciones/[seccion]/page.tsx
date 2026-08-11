@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { IndiceVerificaciones } from "@/components/IndiceVerificaciones";
 import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
-import { buscarSeccion, registroSecciones } from "@/lib/verificaciones/registry";
+import { areaDeSeccion, buscarSeccion, registroSecciones } from "@/lib/verificaciones/registry";
 
 export function generateStaticParams() {
   return registroSecciones
@@ -24,13 +24,19 @@ export default async function PaginaSeccion({ params }: PageProps<"/secciones/[s
   // Una sección todavía sin abrir no tiene página propia: no hay nada que listar.
   if (!seccion || !seccion.disponible) notFound();
 
+  const area = areaDeSeccion(seccion.id);
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-10 px-6 py-16">
       <div className="flex items-center justify-between gap-2">
+        {/*
+          Se vuelve al área y no al inicio: es de donde se viene, y con dos
+          disciplinas mandar a la portada obliga a volver a elegir la misma.
+        */}
         <Link
-          href="/"
+          href={area?.ruta ?? "/"}
           className="flex items-center gap-2 transition-colors hover:text-primary"
-          aria-label="Volver al inicio de MagicIng"
+          aria-label={area ? `Volver a ${area.nombre}` : "Volver al inicio de MagicIng"}
         >
           <ArrowLeft className="h-4 w-4" />
           <Logo className="h-7 w-auto" titulo="" />

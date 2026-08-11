@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     // Utilidades de línea de comandos, no código de la aplicación: corren con
     // `node` sueltas y usan require(), que la config de Next prohíbe.
     "scripts/**",
+    // Copias del repositorio que crea Claude Code para trabajar en paralelo.
+    // Git ya las excluye, pero ESLint no lee esa exclusión y las lintaba como
+    // si fueran del proyecto: una sola tarea en segundo plano tiraba cientos de
+    // errores ajenos y dejaba `npm run lint` inservible.
+    ".claude/worktrees/**",
   ]),
 ]);
 

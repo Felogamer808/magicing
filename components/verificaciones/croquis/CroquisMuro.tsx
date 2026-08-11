@@ -221,35 +221,69 @@ export function CroquisApoyosMuro() {
 }
 
 /** Suelo: qué significa cada parámetro geotécnico sobre el propio empuje. */
+/**
+ * Qué hace cada parámetro del suelo, sobre el muro.
+ *
+ * El croquis tiene que mostrar los tres datos actuando donde actúan: γ y φ arman
+ * el empuje del trasdós, y φ vuelve a aparecer —reducido— en el rozamiento de la
+ * base, junto con la cohesión. Que φ intervenga dos veces es lo que lo hace el
+ * dato más sensible del cálculo, y por eso se rotula en los dos lugares.
+ */
 export function CroquisSueloMuro() {
   return (
     <Croquis
-      viewBox="0 0 230 116"
-      ancho="max-w-[17rem]"
-      nota="φ manda sobre el coeficiente de empuje y sobre el rozamiento en la base; la cohesión sólo colabora en el rozamiento."
+      /* El encuadre arranca en 56 y no en 0: el dibujo vive entre 62 y 214, y
+         dejar el origen en cero metía 60 px de aire muerto a la izquierda que
+         achicaban todo lo demás. */
+      viewBox="56 0 166 138"
+      ancho="max-w-[19rem]"
+      nota="φ interviene dos veces: arma el empuje del trasdós y da el rozamiento de la base. La cohesión sólo colabora abajo, y va a la mitad."
     >
-      <LineaTerreno x0={96} x1={196} y={26} />
-      {/* sobrecarga repartida sobre el terreno */}
-      {[104, 122, 140, 158, 176].map((x) => (
-        <path key={x} d={`M${x} 10 L${x} 22`} stroke="currentColor" strokeWidth="1" markerEnd="url(#croquis-flecha)" opacity="0.85" />
+      {/* sobrecargas repartidas sobre el terreno */}
+      {[104, 124, 144, 164].map((x) => (
+        <path
+          key={x}
+          d={`M${x} 8 L${x} 22`}
+          stroke="currentColor"
+          strokeWidth="1"
+          markerEnd="url(#croquis-flecha)"
+          opacity="0.85"
+        />
       ))}
-      <text x={188} y={16} className="fill-current font-mono" fontSize="10.5">
-        q
+      <text x={172} y={15} className="fill-current font-mono" fontSize="10">
+        qg + qq
       </text>
 
+      <LineaTerreno x0={96} x1={182} y={26} />
+
+      {/* alzado y zapata */}
       <rect x="84" y="26" width="12" height="62" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.5" />
       <rect x="62" y="88" width="56" height="10" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.5" />
 
       <DiagramaEmpuje x={96} yTop={26} yBase={98} />
 
-      {/* rozamiento en la base */}
-      <path d="M62 104 L118 104" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 2" opacity="0.7" />
-      <path d="M70 104 L100 104" stroke="currentColor" strokeWidth="1.3" markerEnd="url(#croquis-flecha)" />
-      <text x="104" y="112" className="fill-current font-mono" fontSize="10.5">
-        tan φ · N + c · A
+      {/*
+        El empuje se rotula a la derecha del triángulo, a media altura, para que
+        la línea de referencia no cruce las flechas.
+      */}
+      <Referencia x={150} y={58} hacia={[122, 62]} texto="γ · ka · z" />
+      <text x={150} y={72} className="fill-current font-mono" fontSize="8.5" opacity="0.7">
+        ka según φ
       </text>
 
-      <Referencia x={150} y={62} hacia={[124, 62]} texto="γ · ka" />
+      {/*
+        Rozamiento en la base. Va por debajo de la zapata y con la fórmula
+        completa: es el término que más cambió respecto de lo que se solía
+        escribir, y ponerlo mal acá induce a error al leer el resultado.
+      */}
+      <path d="M62 106 L118 106" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 2" opacity="0.6" />
+      <path d="M68 106 L104 106" stroke="currentColor" strokeWidth="1.3" markerEnd="url(#croquis-flecha)" />
+      <text x={62} y={122} className="fill-current font-mono" fontSize="9.5">
+        N · tg φ + c* · A
+      </text>
+      <text x={62} y={131} className="fill-current font-mono" fontSize="8" opacity="0.7">
+        c* = mín(0,5·c ; 50 kPa)
+      </text>
     </Croquis>
   );
 }

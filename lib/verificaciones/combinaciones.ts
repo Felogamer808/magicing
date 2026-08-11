@@ -135,6 +135,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "vigas-torsion": ELU_MAYORADAS,
   "vigas-apeo": ELU_MAYORADAS,
   "vigas-apeo-bielas": ELU_MAYORADAS,
+  "mensula-corta": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,

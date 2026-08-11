@@ -239,17 +239,33 @@ export interface ResultadoAnclajeMensula {
   verificaPilar: boolean;
 }
 
-/** Un cerco ya ubicado, con su longitud de taller. */
+/**
+ * Un cerco ya ubicado y con su longitud de taller, en los ejes del despiece:
+ * x desde la cara del pilar alejada de la ménsula, y desde la cara superior.
+ * Va con las dos puntas resueltas para que el dibujo no tenga que recalcularlas.
+ */
 export interface CercoDispuesto {
   tipo: "horizontal" | "vertical";
-  /** Profundidad desde la cara superior, sólo en los horizontales (m) */
-  yM: number;
-  /** Distancia a la cara alejada del pilar, sólo en los verticales (m) */
-  xM: number;
+  x1M: number;
+  y1M: number;
+  x2M: number;
+  y2M: number;
   /** Luz del cerco en su plano (m) */
   luzM: number;
   /** Desarrollo total del cerco cerrado, sin patillas (m) */
   desarrolloM: number;
+  /**
+   * Sólo horizontales: a esta profundidad todavía baja la pata del marco dentro
+   * del pilar, así que el cerco cierra abrazándola. Más abajo cierra contra el
+   * hormigón y el anclaje lo da el propio cerco.
+   */
+  abrazaLaPata: boolean;
+}
+
+/** Un vértice del marco principal, en los mismos ejes. */
+export interface PuntoMarco {
+  xM: number;
+  yM: number;
 }
 
 /** Paso 7: geometría del armado y despiece. */
@@ -265,6 +281,8 @@ export interface ResultadoDespieceMensula {
   retornoIntradosM: number;
   /** Desarrollo total de una barra del marco (m) */
   desarrolloBarraM: number;
+  /** Vértices del marco, en el orden en que se dobla la barra */
+  marco: PuntoMarco[];
   cercos: CercoDispuesto[];
   /** Longitud de los cercos horizontales, del más largo al más corto (m) */
   luzCercoMaximaM: number;
@@ -661,13 +679,17 @@ export function calcularMensulaCorta(
         cantidad > 1
           ? yPrimerCercoM + (i * (yUltimoCercoM - yPrimerCercoM)) / (cantidad - 1)
           : (yPrimerCercoM + yUltimoCercoM) / 2;
-      const luzM = Math.max(hcolM + 0.04, xCercoDerEn(yM)) - xCercoIzqM;
+      const x2M = Math.max(hcolM + 0.04, xCercoDerEn(yM));
+      const luzM = x2M - xCercoIzqM;
       cercosDispuestos.push({
         tipo: "horizontal",
-        yM,
-        xM: 0,
+        x1M: xCercoIzqM,
+        y1M: yM,
+        x2M,
+        y2M: yM,
         luzM,
         desarrolloM: 2 * (luzM + anchoCercoM),
+        abrazaLaPata: yM <= yTiranteM + pataPilarMm / 1000,
       });
     }
   };
@@ -677,13 +699,17 @@ export function calcularMensulaCorta(
   } else {
     for (let i = 1; i <= numeroCercos; i++) {
       const xM = hcolM + (i * acM) / (numeroCercos + 1);
-      const luzM = cantoEn(xM - hcolM) - recubrimientoBarraM - (yTiranteM + 0.008);
+      const y1M = yTiranteM + 0.008;
+      const y2M = cantoEn(xM - hcolM) - recubrimientoBarraM;
       cercosDispuestos.push({
         tipo: "vertical",
-        yM: 0,
-        xM,
-        luzM,
-        desarrolloM: 2 * (luzM + anchoCercoM),
+        x1M: xM,
+        y1M,
+        x2M: xM,
+        y2M,
+        luzM: y2M - y1M,
+        desarrolloM: 2 * (y2M - y1M + anchoCercoM),
+        abrazaLaPata: false,
       });
     }
     agregarHorizontales(numeroCercosHoriz);
@@ -700,6 +726,13 @@ export function calcularMensulaCorta(
     retornoIntradosM,
     desarrolloBarraM:
       pataPilarMm / 1000 + tramoSuperiorM + bajadaExteriorM + retornoIntradosM,
+    marco: [
+      { xM: xIzqM, yM: yTiranteM + pataPilarMm / 1000 },
+      { xM: xIzqM, yM: yTiranteM },
+      { xM: xDerM, yM: yTiranteM },
+      { xM: xDerM, yM: yBajadaM },
+      { xM: xFinRetornoM, yM: yFinRetornoM },
+    ],
     cercos: cercosDispuestos,
     luzCercoMaximaM: luces.length ? Math.max(...luces) : 0,
     luzCercoMinimaM: luces.length ? Math.min(...luces) : 0,

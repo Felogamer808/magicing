@@ -85,7 +85,9 @@ export type IdVerificacion =
   | "madera-deformaciones"
   | "madera-fuego"
   | "madera-uniones"
-  | "madera-seccion-variable";
+  | "madera-seccion-variable"
+  | "steel-deck-flexion"
+  | "steel-deck-rasante";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -585,6 +587,28 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Vigas a dos aguas y curvas del art. 6.4: km,α del borde inclinado, sección crítica a flexión, y flexión y tracción perpendicular en la zona del vértice.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-seccion-variable",
+    disponible: true,
+  },
+  {
+    id: "steel-deck-flexion",
+    nombre: "Flexión positiva y fuego",
+    seccion: "hormigon-armado",
+    categoria: "Steel deck",
+    descripcion:
+      "Losa mixta con chapa colaborante: momento resistente con la chapa y las barras del nervio, en frío y en situación de incendio.",
+    normasDisponibles: ["EC4", "EC2"],
+    ruta: "/verificaciones/steel-deck-flexion",
+    disponible: true,
+  },
+  {
+    id: "steel-deck-rasante",
+    nombre: "Rasante chapa-hormigón",
+    seccion: "hormigon-armado",
+    categoria: "Steel deck",
+    descripcion:
+      "Conexión longitudinal entre la chapa y el hormigón por el método m-k, separando el camino resistente de las barras adicionales por nervio.",
+    normasDisponibles: ["EC4"],
+    ruta: "/verificaciones/steel-deck-rasante",
     disponible: true,
   },
 ];

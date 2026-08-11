@@ -55,6 +55,7 @@ export type IdVerificacion =
   | "vigas-torsion"
   | "vigas-apeo"
   | "vigas-apeo-bielas"
+  | "mensula-corta"
   | "losas"
   | "secciones-mixtas"
   | "zapatas"
@@ -244,6 +245,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Apeo de pilar resuelto como región D: clasificación B/D, tirante, bielas, nudos, tracción transversal, malla de piel, anclaje con horquillas y armadura de cuelgue.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/vigas-apeo-bielas",
+    disponible: true,
+  },
+  {
+    id: "mensula-corta",
+    nombre: "Ménsula corta",
+    seccion: "hormigon-armado",
+    categoria: "Ménsulas",
+    descripcion:
+      "Región D por bielas y tirantes: tirante por Anejo 19 y por la Instrucción española, nudo bajo la placa, biela, degollamiento, cercos de las dos familias, anclaje y despiece del marco.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/mensula-corta",
     disponible: true,
   },
   {

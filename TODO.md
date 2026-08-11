@@ -39,6 +39,20 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
 
 Pendiente, aprobado pero todavía sin hacer:
 
+- **`derivarMateriales` no tiene la rama logarítmica de `f_ctm` por encima de
+  C50.** La tabla A19.3.1 cambia de expresión ahí: hasta C50 vale la que está
+  implementada, y por encima manda `2,12·ln(1 + (f_ck+8)/10)`. El motor de
+  ménsula corta la calcula localmente (`lib/calc/ec2/mensula-corta.ts`) en vez
+  de arreglar el módulo compartido, porque tocarlo **mueve resultados de otras
+  verificaciones y sus tests**, y eso es un refactor aparte. Mientras tanto,
+  cualquier otra verificación que use `f_ctm` con hormigón mayor a C50 está
+  devolviendo un valor alto de más.
+
+- **Ménsula corta: falta el pórtico plano.** Se decidió a propósito no meter un
+  solver matricial 2D para resolver el marco: la ménsula se resuelve entera con
+  el modelo de bielas y tirantes, que es lo que pide la norma para una región D.
+  Anotado para no volver a proponerlo como si fuera un olvido.
+
 - **Separar `Nk` en permanente y variable, en zapatas y pilotes.** Hoy `Nk` es
   una carga vertical característica agregada, y el motor la mayora entera con un
   único `GAMMA_F = 1,5`. Queda del lado seguro —a la parte permanente le tocaría

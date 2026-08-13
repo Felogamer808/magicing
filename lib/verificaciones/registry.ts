@@ -82,7 +82,8 @@ export type IdVerificacion =
   | "madera-cortante"
   | "madera-axil"
   | "madera-flexion-compuesta"
-  | "madera-deformaciones";
+  | "madera-deformaciones"
+  | "madera-fuego";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -549,6 +550,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Flecha instantánea con la contribución de cortante, fluencia por kdef separando permanente de variable, y los tres límites de la tabla 7.2.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-deformaciones",
+    disponible: true,
+  },
+  {
+    id: "madera-fuego",
+    nombre: "Resistencia al fuego",
+    seccion: "madera",
+    categoria: "Situación accidental",
+    descripcion:
+      "Método de la sección reducida del EC5-1-2: profundidad carbonizada por βn, capa eficaz k0·d0 y verificación sobre lo que queda con kfi y γM,fi = 1.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-fuego",
     disponible: true,
   },
 ];

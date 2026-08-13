@@ -119,6 +119,20 @@ const MADERA_SERVICIO: Combinacion = {
     "Las cargas se introducen de servicio y por separado: la permanente fluye entera y la variable sólo en su fracción casi permanente ψ2. Los módulos son los medios, no los del quinto percentil.",
 };
 
+/*
+ * Incendio es combinación accidental, y eso cambia dos cosas a la vez que se
+ * confunden: los esfuerzos bajan —las variables entran con ψ1 o ψ2, no con γQ—
+ * y las resistencias suben, porque γM pasa a 1,0 y encima se aplica kfi. Cargar
+ * acá los esfuerzos de ELU es el error típico, y da una pieza mucho más gorda
+ * de lo necesario.
+ */
+const MADERA_INCENDIO: Combinacion = {
+  regimen: "mixta",
+  etiqueta: "Accidental · esfuerzos de la combinación de incendio",
+  detalle:
+    "Los esfuerzos son los de la combinación accidental, bastante menores que los de ELU. La herramienta aplica por dentro kmod,fi = 1, γM,fi = 1 y el kfi de la tabla 2.1 del EC5-1-2.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -202,6 +216,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "madera-axil": MADERA_ELU,
   "madera-flexion-compuesta": MADERA_ELU,
   "madera-deformaciones": MADERA_SERVICIO,
+  "madera-fuego": MADERA_INCENDIO,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

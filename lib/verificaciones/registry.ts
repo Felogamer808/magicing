@@ -80,7 +80,9 @@ export type IdVerificacion =
   | "formulario-vigas"
   | "madera-flexion"
   | "madera-cortante"
-  | "madera-axil";
+  | "madera-axil"
+  | "madera-flexion-compuesta"
+  | "madera-deformaciones";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -525,6 +527,28 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Tracción paralela, compresión paralela con el pandeo del art. 6.3.2, y compresión perpendicular con el área eficaz y el kc,90 del art. 6.1.5 resueltos.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-axil",
+    disponible: true,
+  },
+  {
+    id: "madera-flexion-compuesta",
+    nombre: "Flexión compuesta",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Flexotracción y flexocompresión con y sin inestabilidad: el modo se despacha por el signo del axil y la esbeltez, según el art. 6.3.2(2).",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-flexion-compuesta",
+    disponible: true,
+  },
+  {
+    id: "madera-deformaciones",
+    nombre: "Deformaciones",
+    seccion: "madera",
+    categoria: "Estado límite de servicio",
+    descripcion:
+      "Flecha instantánea con la contribución de cortante, fluencia por kdef separando permanente de variable, y los tres límites de la tabla 7.2.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-deformaciones",
     disponible: true,
   },
 ];

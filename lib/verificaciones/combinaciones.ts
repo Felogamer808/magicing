@@ -106,6 +106,19 @@ const MADERA_ELU: Combinacion = {
     "Los esfuerzos entran ya mayorados. Además hay que declarar la clase de duración de la carga: kmod la toma de la acción de menor duración de la combinación, no de la dominante.",
 };
 
+/*
+ * Servicio en madera pide separar G de Q, cosa que ninguna otra verificación
+ * necesita: las ecs. (2.3) a (2.5) aplican kdef entero a la permanente y sólo
+ * ψ2·kdef a la variable, porque la parte de la sobrecarga que no está siempre
+ * puesta no fluye. Por eso el formulario tiene dos casillas de carga y no una.
+ */
+const MADERA_SERVICIO: Combinacion = {
+  regimen: "servicio",
+  etiqueta: "ELS · cargas sin mayorar, separadas en G y Q",
+  detalle:
+    "Las cargas se introducen de servicio y por separado: la permanente fluye entera y la variable sólo en su fracción casi permanente ψ2. Los módulos son los medios, no los del quinto percentil.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -187,6 +200,8 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "madera-flexion": MADERA_ELU,
   "madera-cortante": MADERA_ELU,
   "madera-axil": MADERA_ELU,
+  "madera-flexion-compuesta": MADERA_ELU,
+  "madera-deformaciones": MADERA_SERVICIO,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

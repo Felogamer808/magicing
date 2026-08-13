@@ -84,7 +84,8 @@ export type IdVerificacion =
   | "madera-flexion-compuesta"
   | "madera-deformaciones"
   | "madera-fuego"
-  | "madera-uniones";
+  | "madera-uniones"
+  | "madera-seccion-variable";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -573,6 +574,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Teoría de Johansen del art. 8.2 con todos sus modos de fallo, para cuatro configuraciones: madera-madera simple y doble, y chapas de acero centrales o exteriores.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-uniones",
+    disponible: true,
+  },
+  {
+    id: "madera-seccion-variable",
+    nombre: "Sección variable y piezas curvas",
+    seccion: "madera",
+    categoria: "Piezas de canto variable",
+    descripcion:
+      "Vigas a dos aguas y curvas del art. 6.4: km,α del borde inclinado, sección crítica a flexión, y flexión y tracción perpendicular en la zona del vértice.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-seccion-variable",
     disponible: true,
   },
 ];

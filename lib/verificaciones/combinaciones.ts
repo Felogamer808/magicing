@@ -218,6 +218,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "madera-deformaciones": MADERA_SERVICIO,
   "madera-fuego": MADERA_INCENDIO,
   "madera-uniones": MADERA_ELU,
+  "madera-seccion-variable": MADERA_ELU,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

@@ -77,7 +77,8 @@ export type IdVerificacion =
   | "soldaduras"
   | "conducto-circular"
   | "propiedades-geometricas"
-  | "formulario-vigas";
+  | "formulario-vigas"
+  | "madera-flexion";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -179,10 +180,11 @@ export const registroSecciones: SeccionMeta[] = [
     id: "madera",
     area: "estructural",
     nombre: "Estructuras de madera",
-    descripcion: "Flexión, corte y estabilidad de piezas de madera maciza y laminada.",
+    descripcion:
+      "Piezas de madera maciza, laminada encolada y microlaminada: flexión y vuelco, cortante y torsión, axil y pandeo, uniones e incendio.",
     normasDisponibles: ["EC5"],
     ruta: "/secciones/madera",
-    disponible: false,
+    disponible: true,
   },
   {
     id: "mamposteria",
@@ -488,6 +490,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
     normasDisponibles: ["Estática"],
     ruta: "/verificaciones/formulario-vigas",
+    disponible: true,
+  },
+  {
+    id: "madera-flexion",
+    nombre: "Flexión y vuelco lateral",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Flexión simple y esviada del art. 6.1.6 y estabilidad lateral del 6.3.3, con kmod, kh y ksys resueltos desde la clase de servicio y la duración de la carga.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-flexion",
     disponible: true,
   },
 ];

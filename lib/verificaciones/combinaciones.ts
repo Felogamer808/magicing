@@ -93,6 +93,19 @@ const PRETENSADO: Combinacion = {
     "Las cargas se introducen sin mayorar. Las tensiones en servicio y las flechas las usan tal cual, y la flexión última aplica 1,2·D + 1,6·L por dentro.",
 };
 
+/*
+ * La madera es el único material donde la combinación no basta para fijar la
+ * resistencia: kmod depende además de cuánto dura la acción de MENOR duración
+ * de esa combinación (art. 3.1.3(2)). Por eso el aviso no habla sólo de si los
+ * esfuerzos vienen mayorados, sino de que la duración es un dato de entrada más.
+ */
+const MADERA_ELU: Combinacion = {
+  regimen: "elu",
+  etiqueta: "ELU · esfuerzos mayorados + clase de duración",
+  detalle:
+    "Los esfuerzos entran ya mayorados. Además hay que declarar la clase de duración de la carga: kmod la toma de la acción de menor duración de la combinación, no de la dominante.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -171,6 +184,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "conducto-circular": CAUDAL_DE_PROYECTO,
   "propiedades-geometricas": SIN_COMBINACION,
   "formulario-vigas": ESTATICA_LINEAL,
+  "madera-flexion": MADERA_ELU,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

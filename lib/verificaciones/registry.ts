@@ -77,7 +77,15 @@ export type IdVerificacion =
   | "soldaduras"
   | "conducto-circular"
   | "propiedades-geometricas"
-  | "formulario-vigas";
+  | "formulario-vigas"
+  | "madera-flexion"
+  | "madera-cortante"
+  | "madera-axil"
+  | "madera-flexion-compuesta"
+  | "madera-deformaciones"
+  | "madera-fuego"
+  | "madera-uniones"
+  | "madera-seccion-variable";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -179,10 +187,11 @@ export const registroSecciones: SeccionMeta[] = [
     id: "madera",
     area: "estructural",
     nombre: "Estructuras de madera",
-    descripcion: "Flexión, corte y estabilidad de piezas de madera maciza y laminada.",
+    descripcion:
+      "Piezas de madera maciza, laminada encolada y microlaminada: flexión y vuelco, cortante y torsión, axil y pandeo, uniones e incendio.",
     normasDisponibles: ["EC5"],
     ruta: "/secciones/madera",
-    disponible: false,
+    disponible: true,
   },
   {
     id: "mamposteria",
@@ -488,6 +497,94 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
     normasDisponibles: ["Estática"],
     ruta: "/verificaciones/formulario-vigas",
+    disponible: true,
+  },
+  {
+    id: "madera-flexion",
+    nombre: "Flexión y vuelco lateral",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Flexión simple y esviada del art. 6.1.6 y estabilidad lateral del 6.3.3, con kmod, kh y ksys resueltos desde la clase de servicio y la duración de la carga.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-flexion",
+    disponible: true,
+  },
+  {
+    id: "madera-cortante",
+    nombre: "Cortante, entalladura y torsión",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Cortante con la anchura eficaz del art. 6.1.7, concentración de la entalladura en el apoyo del 6.5.2 y torsión del 6.1.8.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-cortante",
+    disponible: true,
+  },
+  {
+    id: "madera-axil",
+    nombre: "Tracción y compresión",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Tracción paralela, compresión paralela con el pandeo del art. 6.3.2, y compresión perpendicular con el área eficaz y el kc,90 del art. 6.1.5 resueltos.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-axil",
+    disponible: true,
+  },
+  {
+    id: "madera-flexion-compuesta",
+    nombre: "Flexión compuesta",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Flexotracción y flexocompresión con y sin inestabilidad: el modo se despacha por el signo del axil y la esbeltez, según el art. 6.3.2(2).",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-flexion-compuesta",
+    disponible: true,
+  },
+  {
+    id: "madera-deformaciones",
+    nombre: "Deformaciones",
+    seccion: "madera",
+    categoria: "Estado límite de servicio",
+    descripcion:
+      "Flecha instantánea con la contribución de cortante, fluencia por kdef separando permanente de variable, y los tres límites de la tabla 7.2.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-deformaciones",
+    disponible: true,
+  },
+  {
+    id: "madera-fuego",
+    nombre: "Resistencia al fuego",
+    seccion: "madera",
+    categoria: "Situación accidental",
+    descripcion:
+      "Método de la sección reducida del EC5-1-2: profundidad carbonizada por βn, capa eficaz k0·d0 y verificación sobre lo que queda con kfi y γM,fi = 1.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-fuego",
+    disponible: true,
+  },
+  {
+    id: "madera-uniones",
+    nombre: "Uniones con medios tipo clavija",
+    seccion: "madera",
+    categoria: "Uniones",
+    descripcion:
+      "Teoría de Johansen del art. 8.2 con todos sus modos de fallo, para cuatro configuraciones: madera-madera simple y doble, y chapas de acero centrales o exteriores.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-uniones",
+    disponible: true,
+  },
+  {
+    id: "madera-seccion-variable",
+    nombre: "Sección variable y piezas curvas",
+    seccion: "madera",
+    categoria: "Piezas de canto variable",
+    descripcion:
+      "Vigas a dos aguas y curvas del art. 6.4: km,α del borde inclinado, sección crítica a flexión, y flexión y tracción perpendicular en la zona del vértice.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-seccion-variable",
     disponible: true,
   },
 ];

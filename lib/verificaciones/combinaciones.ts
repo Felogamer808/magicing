@@ -93,6 +93,46 @@ const PRETENSADO: Combinacion = {
     "Las cargas se introducen sin mayorar. Las tensiones en servicio y las flechas las usan tal cual, y la flexión última aplica 1,2·D + 1,6·L por dentro.",
 };
 
+/*
+ * La madera es el único material donde la combinación no basta para fijar la
+ * resistencia: kmod depende además de cuánto dura la acción de MENOR duración
+ * de esa combinación (art. 3.1.3(2)). Por eso el aviso no habla sólo de si los
+ * esfuerzos vienen mayorados, sino de que la duración es un dato de entrada más.
+ */
+const MADERA_ELU: Combinacion = {
+  regimen: "elu",
+  etiqueta: "ELU · esfuerzos mayorados + clase de duración",
+  detalle:
+    "Los esfuerzos entran ya mayorados. Además hay que declarar la clase de duración de la carga: kmod la toma de la acción de menor duración de la combinación, no de la dominante.",
+};
+
+/*
+ * Servicio en madera pide separar G de Q, cosa que ninguna otra verificación
+ * necesita: las ecs. (2.3) a (2.5) aplican kdef entero a la permanente y sólo
+ * ψ2·kdef a la variable, porque la parte de la sobrecarga que no está siempre
+ * puesta no fluye. Por eso el formulario tiene dos casillas de carga y no una.
+ */
+const MADERA_SERVICIO: Combinacion = {
+  regimen: "servicio",
+  etiqueta: "ELS · cargas sin mayorar, separadas en G y Q",
+  detalle:
+    "Las cargas se introducen de servicio y por separado: la permanente fluye entera y la variable sólo en su fracción casi permanente ψ2. Los módulos son los medios, no los del quinto percentil.",
+};
+
+/*
+ * Incendio es combinación accidental, y eso cambia dos cosas a la vez que se
+ * confunden: los esfuerzos bajan —las variables entran con ψ1 o ψ2, no con γQ—
+ * y las resistencias suben, porque γM pasa a 1,0 y encima se aplica kfi. Cargar
+ * acá los esfuerzos de ELU es el error típico, y da una pieza mucho más gorda
+ * de lo necesario.
+ */
+const MADERA_INCENDIO: Combinacion = {
+  regimen: "mixta",
+  etiqueta: "Accidental · esfuerzos de la combinación de incendio",
+  detalle:
+    "Los esfuerzos son los de la combinación accidental, bastante menores que los de ELU. La herramienta aplica por dentro kmod,fi = 1, γM,fi = 1 y el kfi de la tabla 2.1 del EC5-1-2.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -171,6 +211,14 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "conducto-circular": CAUDAL_DE_PROYECTO,
   "propiedades-geometricas": SIN_COMBINACION,
   "formulario-vigas": ESTATICA_LINEAL,
+  "madera-flexion": MADERA_ELU,
+  "madera-cortante": MADERA_ELU,
+  "madera-axil": MADERA_ELU,
+  "madera-flexion-compuesta": MADERA_ELU,
+  "madera-deformaciones": MADERA_SERVICIO,
+  "madera-fuego": MADERA_INCENDIO,
+  "madera-uniones": MADERA_ELU,
+  "madera-seccion-variable": MADERA_ELU,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

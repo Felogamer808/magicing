@@ -66,6 +66,7 @@ export type IdVerificacion =
   | "pilotes"
   | "cabezales"
   | "muros-contencion"
+  | "muros"
   | "fisuracion"
   | "viento"
   | "compresion-acero"
@@ -347,6 +348,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Modelo de bielas y tirantes: armadura principal, secundaria y de reparto.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/cabezal-pilotes",
+    disponible: true,
+  },
+  {
+    id: "muros",
+    nombre: "Muros portantes",
+    seccion: "hormigon-armado",
+    categoria: "Muros",
+    descripcion:
+      "Muro que baja carga: clasificación, esbeltez y segundo orden, diagrama de interacción y cuantías del art. 9.6.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/muro",
     disponible: true,
   },
   {

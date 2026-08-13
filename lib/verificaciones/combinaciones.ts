@@ -73,6 +73,19 @@ const MURO: Combinacion = {
     "Empujes y pesos sin mayorar. La seguridad se verifica con factores FS ≥ 1,5 sobre vuelco y deslizamiento, no mayorando las acciones.",
 };
 
+/*
+ * El muro portante es el caso inverso al de contención, y por eso no comparten
+ * régimen: acá la acción dominante es el axil que baja de la estructura, que
+ * llega de la combinación de cálculo ya mayorado, y la verificación es de
+ * agotamiento de la sección.
+ */
+const MURO_PORTANTE: Combinacion = {
+  regimen: "elu",
+  etiqueta: "ELU · axil y momentos mayorados",
+  detalle:
+    "NEd y los momentos de extremo entran ya mayorados. La herramienta no los vuelve a mayorar: sólo les suma la excentricidad mínima y, si el muro es esbelto, el momento de segundo orden.",
+};
+
 const PRETENSADO: Combinacion = {
   regimen: "mixta",
   etiqueta: "Cargas de servicio · sin mayorar",
@@ -146,6 +159,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   cabezales: CABEZAL,
   fisuracion: SERVICIO_CUASIPERMANENTE,
   "muros-contencion": MURO,
+  muros: MURO_PORTANTE,
   "secciones-mixtas": SERVICIO_ASD,
   soldaduras: SERVICIO_ASD,
   "compresion-acero": SERVICIO_ASD,

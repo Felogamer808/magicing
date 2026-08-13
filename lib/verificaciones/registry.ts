@@ -83,7 +83,8 @@ export type IdVerificacion =
   | "madera-axil"
   | "madera-flexion-compuesta"
   | "madera-deformaciones"
-  | "madera-fuego";
+  | "madera-fuego"
+  | "madera-uniones";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -561,6 +562,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Método de la sección reducida del EC5-1-2: profundidad carbonizada por βn, capa eficaz k0·d0 y verificación sobre lo que queda con kfi y γM,fi = 1.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-fuego",
+    disponible: true,
+  },
+  {
+    id: "madera-uniones",
+    nombre: "Uniones con medios tipo clavija",
+    seccion: "madera",
+    categoria: "Uniones",
+    descripcion:
+      "Teoría de Johansen del art. 8.2 con todos sus modos de fallo, para cuatro configuraciones: madera-madera simple y doble, y chapas de acero centrales o exteriores.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-uniones",
     disponible: true,
   },
 ];

@@ -78,7 +78,9 @@ export type IdVerificacion =
   | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas"
-  | "madera-flexion";
+  | "madera-flexion"
+  | "madera-cortante"
+  | "madera-axil";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -501,6 +503,28 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Flexión simple y esviada del art. 6.1.6 y estabilidad lateral del 6.3.3, con kmod, kh y ksys resueltos desde la clase de servicio y la duración de la carga.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-flexion",
+    disponible: true,
+  },
+  {
+    id: "madera-cortante",
+    nombre: "Cortante, entalladura y torsión",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Cortante con la anchura eficaz del art. 6.1.7, concentración de la entalladura en el apoyo del 6.5.2 y torsión del 6.1.8.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-cortante",
+    disponible: true,
+  },
+  {
+    id: "madera-axil",
+    nombre: "Tracción y compresión",
+    seccion: "madera",
+    categoria: "Piezas rectas",
+    descripcion:
+      "Tracción paralela, compresión paralela con el pandeo del art. 6.3.2, y compresión perpendicular con el área eficaz y el kc,90 del art. 6.1.5 resueltos.",
+    normasDisponibles: ["EC5"],
+    ruta: "/verificaciones/madera-axil",
     disponible: true,
   },
 ];

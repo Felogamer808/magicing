@@ -185,6 +185,8 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "propiedades-geometricas": SIN_COMBINACION,
   "formulario-vigas": ESTATICA_LINEAL,
   "madera-flexion": MADERA_ELU,
+  "madera-cortante": MADERA_ELU,
+  "madera-axil": MADERA_ELU,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

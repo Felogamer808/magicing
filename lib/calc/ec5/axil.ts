@@ -175,9 +175,13 @@ export function kc90(opciones: {
     return { kc90: 1, motivo: "El articulado sólo da valores para madera maciza y laminada." };
   }
   if (distanciaVecinaM < 2 * cantoM) {
+    // Con coma decimal, como el resto de la aplicación: el motivo se muestra tal
+    // cual junto a números que sí pasan por el formateador.
+    const m = (v: number) =>
+      v.toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
     return {
       kc90: 1,
-      motivo: `Hace falta ℓ1 ≥ 2h = ${(2 * cantoM).toFixed(3)} m y hay ${distanciaVecinaM.toFixed(3)} m.`,
+      motivo: `Hace falta ℓ1 ≥ 2h = ${m(2 * cantoM)} m y hay ${m(distanciaVecinaM)} m.`,
     };
   }
 

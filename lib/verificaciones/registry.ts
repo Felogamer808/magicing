@@ -86,8 +86,7 @@ export type IdVerificacion =
   | "madera-fuego"
   | "madera-uniones"
   | "madera-seccion-variable"
-  | "steel-deck-flexion"
-  | "steel-deck-rasante";
+  | "losa-steel-deck";
 
 export interface VerificacionMeta {
   id: IdVerificacion;
@@ -278,6 +277,24 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/losas",
+    disponible: true,
+  },
+  {
+    /*
+     * Antes eran dos verificaciones separadas (steel-deck-flexion,
+     * steel-deck-rasante), cada una con su página. Se fusionan en una sola:
+     * son la misma losa mixta, comparten buena parte de la geometría de
+     * entrada, y separarlas obligaba a cargar el nervio dos veces para ver
+     * las dos comprobaciones que definen la pieza.
+     */
+    id: "losa-steel-deck",
+    nombre: "Losa mixta — steel deck",
+    seccion: "hormigon-armado",
+    categoria: "Losas",
+    descripcion:
+      "Chapa colaborante con hormigón: momento resistente en frío y en incendio, y rasante chapa-hormigón por el método m-k.",
+    normasDisponibles: ["EC4", "EC2"],
+    ruta: "/verificaciones/losa-steel-deck",
     disponible: true,
   },
   {
@@ -587,28 +604,6 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Vigas a dos aguas y curvas del art. 6.4: km,α del borde inclinado, sección crítica a flexión, y flexión y tracción perpendicular en la zona del vértice.",
     normasDisponibles: ["EC5"],
     ruta: "/verificaciones/madera-seccion-variable",
-    disponible: true,
-  },
-  {
-    id: "steel-deck-flexion",
-    nombre: "Flexión positiva y fuego",
-    seccion: "hormigon-armado",
-    categoria: "Steel deck",
-    descripcion:
-      "Losa mixta con chapa colaborante: momento resistente con la chapa y las barras del nervio, en frío y en situación de incendio.",
-    normasDisponibles: ["EC4", "EC2"],
-    ruta: "/verificaciones/steel-deck-flexion",
-    disponible: true,
-  },
-  {
-    id: "steel-deck-rasante",
-    nombre: "Rasante chapa-hormigón",
-    seccion: "hormigon-armado",
-    categoria: "Steel deck",
-    descripcion:
-      "Conexión longitudinal entre la chapa y el hormigón por el método m-k, separando el camino resistente de las barras adicionales por nervio.",
-    normasDisponibles: ["EC4"],
-    ruta: "/verificaciones/steel-deck-rasante",
     disponible: true,
   },
 ];

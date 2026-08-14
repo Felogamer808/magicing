@@ -1,7 +1,7 @@
 "use client";
 
-import { calcularFlexionSegunSeccion } from "@/lib/calc/aisc/seleccion-articulo";
-import type { Familia, ParametrosPerfil } from "@/lib/calc/aisc/perfiles";
+import { calcularFlexionSegunSeccion } from "@/lib/calc/acero/seleccion-articulo";
+import type { Familia, ParametrosPerfil } from "@/lib/calc/acero/perfiles";
 
 /**
  * Curva Mn contra la longitud sin arriostrar, con las tres zonas del capítulo F

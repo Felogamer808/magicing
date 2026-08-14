@@ -1,6 +1,6 @@
 "use client";
 
-import type { LadoEntalladura } from "@/lib/calc/ec5/cortante";
+import type { LadoEntalladura } from "@/lib/calc/madera/cortante";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

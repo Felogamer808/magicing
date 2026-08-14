@@ -1,6 +1,6 @@
 "use client";
 
-import type { DistribucionPresiones } from "@/lib/calc/ec2/zapata-aislada";
+import type { DistribucionPresiones } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 
 /**
  * Reparto de presiones bajo la base, con la tensión admisible del terreno de

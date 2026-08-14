@@ -1,6 +1,6 @@
 "use client";
 
-import type { CaraTraccionada } from "@/lib/calc/ec2/muro-contencion";
+import type { CaraTraccionada } from "@/lib/calc/hormigon/muros/contencion";
 
 /**
  * Disposición de la armadura principal en el muro.

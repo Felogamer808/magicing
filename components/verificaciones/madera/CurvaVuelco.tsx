@@ -1,6 +1,6 @@
 "use client";
 
-import { kcrit } from "@/lib/calc/ec5/flexion";
+import { kcrit } from "@/lib/calc/madera/flexion";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

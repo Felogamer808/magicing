@@ -1,6 +1,6 @@
 "use client";
 
-import type { SituacionTension } from "@/lib/calc/aci/pretensado";
+import type { SituacionTension } from "@/lib/calc/hormigon/pretensado";
 
 /**
  * Diagrama de tensiones de una situación: la sección a la izquierda y, a su

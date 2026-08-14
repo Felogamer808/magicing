@@ -1,6 +1,6 @@
 "use client";
 
-import type { CercoDispuesto, PuntoMarco } from "@/lib/calc/ec2/mensula-corta";
+import type { CercoDispuesto, PuntoMarco } from "@/lib/calc/hormigon/mensula-corta";
 import { fmt } from "@/lib/verificaciones/formato";
 
 interface DiagramaMensulaArmadoProps {

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
-import { BarraMovil } from "@/components/verificaciones/BarraMovil";
-import { NavVerificaciones } from "@/components/verificaciones/NavVerificaciones";
+import { BarraMovil } from "@/components/verificaciones/comun/BarraMovil";
+import { NavVerificaciones } from "@/components/verificaciones/comun/NavVerificaciones";
 
 export default function VerificacionesLayout({ children }: LayoutProps<"/verificaciones">) {
   return (

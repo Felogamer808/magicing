@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import type { ResultadoFisuracion } from "@/lib/calc/ec2/fisuracion";
+import type { ResultadoFisuracion } from "@/lib/calc/hormigon/fisuracion";
 
 /**
  * Sección en estado fisurado, con el área eficaz de tracción rayada.

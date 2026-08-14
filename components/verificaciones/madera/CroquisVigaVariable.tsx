@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormaViga } from "@/lib/calc/ec5/seccion-variable";
+import type { FormaViga } from "@/lib/calc/madera/seccion-variable";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

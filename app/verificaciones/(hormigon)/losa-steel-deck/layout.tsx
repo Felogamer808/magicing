@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Steel deck — Rasante",
+  title: "Losa mixta — steel deck",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

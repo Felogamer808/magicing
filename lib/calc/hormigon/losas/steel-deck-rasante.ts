@@ -14,7 +14,7 @@
  * reporta aparte del chequeo estricto, nunca en su lugar.
  */
 
-import { GAMMA_S } from "../hormigon/comun/coeficientes";
+import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 
 /**
  * γ de la chapa, mismo criterio que el módulo de flexión (EN 1993-1-1 usaría

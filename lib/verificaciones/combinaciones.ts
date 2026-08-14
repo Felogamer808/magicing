@@ -134,16 +134,21 @@ const MADERA_INCENDIO: Combinacion = {
 };
 
 /*
- * El rasante de steel deck no recibe VEd ya mayorado: carga las cargas
- * características y los propios γG/γQ, porque la planilla original los deja
- * como dato ajustable ("ajustar a combinación normativa") en vez de fijarlos.
- * La mayoración la hace la herramienta, adentro, con esos coeficientes.
+ * La losa mixta junta dos comprobaciones con regímenes distintos, y por eso no
+ * alcanza con "mayorado" o "característico": hay que decir cuál va con cuál.
+ *
+ * La flexión recibe MEd ya mayorado, igual que ELU_MAYORADAS. El rasante no:
+ * carga las cargas características y los propios γG/γQ, porque la planilla
+ * original los deja como dato ajustable ("ajustar a combinación normativa") en
+ * vez de fijarlos, y la herramienta mayora adentro con esos coeficientes.
+ * Cargar MEd de cálculo en la primera tarjeta y Gk/Qk característicos en la de
+ * acciones es lo que hay que tener presente para no cruzarlos.
  */
-const STEEL_DECK_RASANTE: Combinacion = {
+const LOSA_STEEL_DECK: Combinacion = {
   regimen: "mixta",
-  etiqueta: "Cargas características · γG y γQ como dato",
+  etiqueta: "Flexión: MEd mayorado · Rasante: Gk/Qk con γG y γQ como dato",
   detalle:
-    "Gk y Qk se cargan sin mayorar. wEd sale de aplicarles γG y γQ, que también son datos de entrada: ajustarlos a la combinación normativa que corresponda.",
+    "La tarjeta de flexión recibe MEd ya mayorado, sin volver a afectarlo. La de rasante recibe Gk y Qk sin mayorar: wEd sale de aplicarles γG y γQ, que también son datos de entrada.",
 };
 
 const VIENTO: Combinacion = {
@@ -232,8 +237,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "madera-fuego": MADERA_INCENDIO,
   "madera-uniones": MADERA_ELU,
   "madera-seccion-variable": MADERA_ELU,
-  "steel-deck-flexion": ELU_MAYORADAS,
-  "steel-deck-rasante": STEEL_DECK_RASANTE,
+  "losa-steel-deck": LOSA_STEEL_DECK,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

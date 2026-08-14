@@ -23,7 +23,7 @@
  * resistentes del módulo de rasante).
  */
 
-import { GAMMA_C, GAMMA_S } from "../hormigon/comun/coeficientes";
+import { GAMMA_C, GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 
 /**
  * γ de la chapa. EN 1993-1-1 usaría γM0 = 1,0 para un perfil conformado en

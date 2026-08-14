@@ -42,6 +42,13 @@ export interface SeccionMeta {
   normasDisponibles: string[];
   ruta: string;
   disponible: boolean;
+  /**
+   * Subtítulo bajo el que se agrupa dentro de su área, en el orden en que
+   * aparece por primera vez en `registroSecciones` — mismo mecanismo que
+   * `categoria` en `VerificacionMeta`. Las herramientas y las acciones no son
+   * un material y por eso van en su propio grupo, antes que los materiales.
+   */
+  grupo: string;
 }
 
 /**
@@ -109,61 +116,6 @@ export interface VerificacionMeta {
  */
 export const registroSecciones: SeccionMeta[] = [
   {
-    id: "hormigon-armado",
-    area: "estructural",
-    nombre: "Hormigón armado",
-    descripcion:
-      "Vigas, losas, cimentaciones, muros de contención y estado límite de servicio.",
-    normasDisponibles: ["EC2", "EC7"],
-    ruta: "/secciones/hormigon-armado",
-    disponible: true,
-  },
-  {
-    id: "estructuras-metalicas",
-    area: "estructural",
-    nombre: "Estructuras metálicas",
-    descripcion:
-      "Perfiles de acero: compresión, flexión, corte y uniones soldadas o abulonadas.",
-    normasDisponibles: ["AISC 360"],
-    ruta: "/secciones/estructuras-metalicas",
-    disponible: true,
-  },
-  {
-    id: "acciones",
-    area: "estructural",
-    nombre: "Acciones",
-    descripcion: "Cargas sobre la estructura, independientes del material resistente.",
-    normasDisponibles: ["CIRSOC 102"],
-    ruta: "/secciones/acciones",
-    disponible: true,
-  },
-  {
-    id: "hormigon-pretensado",
-    area: "estructural",
-    nombre: "Hormigón pretensado",
-    descripcion:
-      "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
-    normasDisponibles: ["ACI 318"],
-    ruta: "/secciones/hormigon-pretensado",
-    disponible: true,
-  },
-  {
-    id: "conducciones",
-    area: "hidraulica",
-    nombre: "Conducciones",
-    descripcion:
-      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
-    /*
-     * Manning es una fórmula empírica, no un articulado: vale igual en cualquier
-     * país. Lo que cambia con el reglamento son los límites que se le exigen al
-     * resultado, y por eso van como dato de entrada. Cuando la sección adopte una
-     * norma concreta, se declara acá y aparece como insignia.
-     */
-    normasDisponibles: [],
-    ruta: "/secciones/conducciones",
-    disponible: true,
-  },
-  {
     id: "herramientas",
     /*
      * Va en estructural y no en un área propia: es lo que se resuelve antes de
@@ -172,6 +124,7 @@ export const registroSecciones: SeccionMeta[] = [
      * de más para llegar.
      */
     area: "estructural",
+    grupo: "Herramientas de análisis",
     nombre: "Herramientas de análisis",
     descripcion:
       "Lo que hay que resolver antes de verificar: propiedades de la sección y esfuerzos en la viga.",
@@ -186,8 +139,52 @@ export const registroSecciones: SeccionMeta[] = [
     disponible: true,
   },
   {
+    id: "acciones",
+    area: "estructural",
+    grupo: "Acciones",
+    nombre: "Acciones",
+    descripcion: "Cargas sobre la estructura, independientes del material resistente.",
+    normasDisponibles: ["CIRSOC 102"],
+    ruta: "/secciones/acciones",
+    disponible: true,
+  },
+  {
+    id: "hormigon-armado",
+    area: "estructural",
+    grupo: "Materiales",
+    nombre: "Hormigón armado",
+    descripcion:
+      "Vigas, losas, cimentaciones, muros de contención y estado límite de servicio.",
+    normasDisponibles: ["EC2", "EC7"],
+    ruta: "/secciones/hormigon-armado",
+    disponible: true,
+  },
+  {
+    id: "hormigon-pretensado",
+    area: "estructural",
+    grupo: "Materiales",
+    nombre: "Hormigón pretensado",
+    descripcion:
+      "Piezas pretesadas: tensiones en servicio, pérdidas, flexión última y flechas.",
+    normasDisponibles: ["ACI 318"],
+    ruta: "/secciones/hormigon-pretensado",
+    disponible: true,
+  },
+  {
+    id: "estructuras-metalicas",
+    area: "estructural",
+    grupo: "Materiales",
+    nombre: "Estructuras metálicas",
+    descripcion:
+      "Perfiles de acero: compresión, flexión, corte y uniones soldadas o abulonadas.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/secciones/estructuras-metalicas",
+    disponible: true,
+  },
+  {
     id: "madera",
     area: "estructural",
+    grupo: "Materiales",
     nombre: "Estructuras de madera",
     descripcion:
       "Piezas de madera maciza, laminada encolada y microlaminada: flexión y vuelco, cortante y torsión, axil y pandeo, uniones e incendio.",
@@ -198,11 +195,34 @@ export const registroSecciones: SeccionMeta[] = [
   {
     id: "mamposteria",
     area: "estructural",
+    grupo: "Materiales",
     nombre: "Mampostería",
     descripcion: "Muros portantes: compresión, pandeo y acciones en el plano.",
     normasDisponibles: ["EC6"],
     ruta: "/secciones/mamposteria",
     disponible: false,
+  },
+  {
+    id: "conducciones",
+    area: "hidraulica",
+    /*
+     * "Materiales" no le queda bien a un conducto: no es un material, es un
+     * elemento hidráulico. Grupo propio para no forzar el mismo rótulo que
+     * usa el lado estructural para hormigón, acero y madera.
+     */
+    grupo: "Elementos",
+    nombre: "Conducciones",
+    descripcion:
+      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
+    /*
+     * Manning es una fórmula empírica, no un articulado: vale igual en cualquier
+     * país. Lo que cambia con el reglamento son los límites que se le exigen al
+     * resultado, y por eso van como dato de entrada. Cuando la sección adopte una
+     * norma concreta, se declara acá y aparece como insignia.
+     */
+    normasDisponibles: [],
+    ruta: "/secciones/conducciones",
+    disponible: true,
   },
 ];
 
@@ -641,6 +661,17 @@ export function agruparPorCategoria(items: VerificacionMeta[]) {
     const lista = grupos.get(item.categoria) ?? [];
     lista.push(item);
     grupos.set(item.categoria, lista);
+  }
+  return Array.from(grupos.entries());
+}
+
+/** Igual que agruparPorCategoria, para las secciones de un área. */
+export function agruparPorGrupo(items: SeccionMeta[]) {
+  const grupos = new Map<string, SeccionMeta[]>();
+  for (const item of items) {
+    const lista = grupos.get(item.grupo) ?? [];
+    lista.push(item);
+    grupos.set(item.grupo, lista);
   }
   return Array.from(grupos.entries());
 }

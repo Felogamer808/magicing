@@ -133,6 +133,19 @@ const MADERA_INCENDIO: Combinacion = {
     "Los esfuerzos son los de la combinación accidental, bastante menores que los de ELU. La herramienta aplica por dentro kmod,fi = 1, γM,fi = 1 y el kfi de la tabla 2.1 del EC5-1-2.",
 };
 
+/*
+ * El rasante de steel deck no recibe VEd ya mayorado: carga las cargas
+ * características y los propios γG/γQ, porque la planilla original los deja
+ * como dato ajustable ("ajustar a combinación normativa") en vez de fijarlos.
+ * La mayoración la hace la herramienta, adentro, con esos coeficientes.
+ */
+const STEEL_DECK_RASANTE: Combinacion = {
+  regimen: "mixta",
+  etiqueta: "Cargas características · γG y γQ como dato",
+  detalle:
+    "Gk y Qk se cargan sin mayorar. wEd sale de aplicarles γG y γQ, que también son datos de entrada: ajustarlos a la combinación normativa que corresponda.",
+};
+
 const VIENTO: Combinacion = {
   regimen: "caracteristica",
   etiqueta: "Acción característica",
@@ -219,6 +232,8 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "madera-fuego": MADERA_INCENDIO,
   "madera-uniones": MADERA_ELU,
   "madera-seccion-variable": MADERA_ELU,
+  "steel-deck-flexion": ELU_MAYORADAS,
+  "steel-deck-rasante": STEEL_DECK_RASANTE,
 };
 
 export function combinacionDe(idVerificacion: IdVerificacion): Combinacion {

@@ -3,11 +3,11 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import {
   calcularViento,
   generarNiveles,

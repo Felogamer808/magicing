@@ -1,9 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
-import { CroquisSeccionAcero } from "@/components/verificaciones/CroquisSeccionAcero";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { CroquisSeccionAcero } from "@/components/verificaciones/acero/CroquisSeccionAcero";
 import {
   familias,
   nombreFamilia,

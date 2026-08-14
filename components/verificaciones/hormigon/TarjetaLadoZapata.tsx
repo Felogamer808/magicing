@@ -1,8 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import type { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
 import { fmt } from "@/lib/verificaciones/formato";
 

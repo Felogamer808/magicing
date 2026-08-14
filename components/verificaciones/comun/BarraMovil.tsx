@@ -6,7 +6,7 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
-import { NavVerificaciones } from "@/components/verificaciones/NavVerificaciones";
+import { NavVerificaciones } from "@/components/verificaciones/comun/NavVerificaciones";
 
 /**
  * Barra superior sólo para pantallas chicas: en el escritorio la navegación vive

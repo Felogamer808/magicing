@@ -4,20 +4,20 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { SeccionVigaDiagrama } from "@/components/verificaciones/SeccionVigaDiagrama";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
 import { DiagramaRotura } from "@/components/verificaciones/hormigon/DiagramaRotura";
-import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/SolicitacionesVigaDiagrama";
+import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesVigaDiagrama";
 import {
   CroquisArmaduraFlexion,
   CroquisGeometriaViga,
   CroquisMateriales,
   CroquisRamasEstribo,
 } from "@/components/verificaciones/croquis/CroquisViga";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import {
   calcularCantoUtil,

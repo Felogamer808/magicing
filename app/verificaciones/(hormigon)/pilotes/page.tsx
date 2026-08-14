@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { PiloteDiagrama } from "@/components/verificaciones/PiloteDiagrama";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { PiloteDiagrama } from "@/components/verificaciones/hormigon/PiloteDiagrama";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularPilote } from "@/lib/calc/ec2/pilote";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";

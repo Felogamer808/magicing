@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { ZapataCombinadaDiagrama } from "@/components/verificaciones/ZapataCombinadaDiagrama";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { ZapataCombinadaDiagrama } from "@/components/verificaciones/hormigon/ZapataCombinadaDiagrama";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { calcularZapataCombinada } from "@/lib/calc/ec2/zapata-combinada";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";

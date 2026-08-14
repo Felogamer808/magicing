@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaVigaApeoModelo } from "@/components/verificaciones/hormigon/DiagramaVigaApeoModelo";
 import { DiagramaVigaApeoArmado } from "@/components/verificaciones/hormigon/DiagramaVigaApeoArmado";
 import {

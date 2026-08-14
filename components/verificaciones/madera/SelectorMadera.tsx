@@ -1,7 +1,7 @@
 "use client";
 
-import { CampoSeleccion } from "@/components/verificaciones/CampoSeleccion";
-import { PanelAyuda } from "@/components/verificaciones/PanelAyuda";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import {
   DESCRIPCION_SERVICIO,
   EJEMPLOS_DURACION,

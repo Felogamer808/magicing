@@ -3,11 +3,11 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { LosaDiagrama } from "@/components/verificaciones/LosaDiagrama";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { TarjetaDireccionLosa } from "@/components/verificaciones/TarjetaDireccionLosa";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { LosaDiagrama } from "@/components/verificaciones/hormigon/LosaDiagrama";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { TarjetaDireccionLosa } from "@/components/verificaciones/hormigon/TarjetaDireccionLosa";
 import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/ec2/losa";
 import { derivarMateriales } from "@/lib/calc/ec2/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";

@@ -3,17 +3,17 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AvisoCombinacion } from "@/components/verificaciones/AvisoCombinacion";
-import { CampoNumerico } from "@/components/verificaciones/CampoNumerico";
-import { PanelFormulas } from "@/components/verificaciones/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/ResultadoCheck";
+import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/DiagramaEmpujesMuro";
 import { PredimensionadoMuro } from "@/components/verificaciones/hormigon/PredimensionadoMuro";
 import { AccionesElementosMuro } from "@/components/verificaciones/hormigon/AccionesElementosMuro";
-import { PanelAyuda } from "@/components/verificaciones/PanelAyuda";
-import { SeccionPlegable } from "@/components/verificaciones/SeccionPlegable";
-import { BarraAcciones } from "@/components/verificaciones/BarraAcciones";
-import { DiagramaMuro } from "@/components/verificaciones/DiagramaMuro";
+import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
+import { SeccionPlegable } from "@/components/verificaciones/comun/SeccionPlegable";
+import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { DiagramaMuro } from "@/components/verificaciones/hormigon/DiagramaMuro";
 import {
   CroquisApoyosMuro,
   CroquisGeometriaMuro,

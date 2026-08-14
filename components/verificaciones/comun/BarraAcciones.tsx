@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Printer, RotateCcw } from "lucide-react";
-import { SelectorNorma } from "@/components/verificaciones/SelectorNorma";
+import { SelectorNorma } from "@/components/verificaciones/comun/SelectorNorma";
 import { restablecerCampos } from "@/lib/hooks/useCampo";
 
 interface BarraAccionesProps {

@@ -10,7 +10,7 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCFT } from "@/components/verificaciones/acero/DiagramaCFT";
-import { calcularSeccionMixta } from "@/lib/calc/aisc/seccion-mixta";
+import { calcularSeccionMixta } from "@/lib/calc/acero/seccion-mixta";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

@@ -11,7 +11,7 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaPandeo } from "@/components/verificaciones/acero/CurvaPandeo";
-import { calcularCompresion, OMEGA_C, type PandeoEnUnEje } from "@/lib/calc/aisc/compresion";
+import { calcularCompresion, OMEGA_C, type PandeoEnUnEje } from "@/lib/calc/acero/compresion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

@@ -9,8 +9,8 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { calcularZapataCorrida } from "@/lib/calc/ec2/zapata-corrida";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { calcularZapataCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

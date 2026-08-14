@@ -17,7 +17,7 @@ import {
   servicioDesdeEtiqueta,
   tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import { GAMMA_M, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/ec5/materiales";
+import { GAMMA_M, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
 import {
   NOMBRE_FORMA,
   anguloInclinacionGrados,
@@ -28,7 +28,7 @@ import {
   volumenVertice,
   type EstadoBordeInclinado,
   type FormaViga,
-} from "@/lib/calc/ec5/seccion-variable";
+} from "@/lib/calc/madera/seccion-variable";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

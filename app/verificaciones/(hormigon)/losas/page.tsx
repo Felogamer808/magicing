@@ -8,8 +8,8 @@ import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { LosaDiagrama } from "@/components/verificaciones/hormigon/LosaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaDireccionLosa } from "@/components/verificaciones/hormigon/TarjetaDireccionLosa";
-import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/ec2/losa";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/hormigon/losas/losa";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

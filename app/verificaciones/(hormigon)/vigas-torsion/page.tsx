@@ -11,9 +11,9 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
 import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesVigaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { calcularDisposicionArmadura } from "@/lib/calc/ec2/vigas-flexion-cortante";
-import { calcularVigaConTorsion } from "@/lib/calc/ec2/vigas-torsion";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
+import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import {

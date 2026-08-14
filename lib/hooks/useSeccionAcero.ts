@@ -8,7 +8,7 @@ import {
   type ClaveParametro,
   type Familia,
   type ParametrosPerfil,
-} from "@/lib/calc/aisc/perfiles";
+} from "@/lib/calc/acero/perfiles";
 import { aNumero } from "@/lib/verificaciones/formato";
 
 /**

@@ -11,11 +11,11 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaFlexion } from "@/components/verificaciones/acero/CurvaFlexion";
-import { OMEGA_B } from "@/lib/calc/aisc/flexion";
+import { OMEGA_B } from "@/lib/calc/acero/flexion";
 import {
   calcularFlexionSegunSeccion,
   type ResultadoFlexionCualquiera,
-} from "@/lib/calc/aisc/seleccion-articulo";
+} from "@/lib/calc/acero/seleccion-articulo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

@@ -13,7 +13,7 @@ import {
   type ClaseServicio,
   type DuracionCarga,
   type TipoMadera,
-} from "@/lib/calc/ec5/materiales";
+} from "@/lib/calc/madera/materiales";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

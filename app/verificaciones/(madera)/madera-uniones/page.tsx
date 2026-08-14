@@ -26,13 +26,13 @@ import {
   numeroEficaz,
   type EspecieUnion,
   type TipoClavija,
-} from "@/lib/calc/ec5/uniones";
-import { GAMMA_M_UNIONES, kmod } from "@/lib/calc/ec5/materiales";
+} from "@/lib/calc/madera/uniones";
+import { GAMMA_M_UNIONES, kmod } from "@/lib/calc/madera/materiales";
 import {
   duracionDesdeEtiqueta,
   servicioDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import { NOMBRE_DURACION } from "@/lib/calc/ec5/materiales";
+import { NOMBRE_DURACION } from "@/lib/calc/madera/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

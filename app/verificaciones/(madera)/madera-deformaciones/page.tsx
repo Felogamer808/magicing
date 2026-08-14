@@ -22,9 +22,9 @@ import {
   flechaDistribuidaMm,
   flechaPuntualMm,
   type TipoElemento,
-} from "@/lib/calc/ec5/deformaciones";
-import { kdef } from "@/lib/calc/ec5/materiales";
-import { propiedades } from "@/lib/calc/ec5/seccion";
+} from "@/lib/calc/madera/deformaciones";
+import { kdef } from "@/lib/calc/madera/materiales";
+import { propiedades } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

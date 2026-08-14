@@ -1,6 +1,6 @@
 "use client";
 
-import type { ResultadoUnion } from "@/lib/calc/ec5/uniones";
+import type { ResultadoUnion } from "@/lib/calc/madera/uniones";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

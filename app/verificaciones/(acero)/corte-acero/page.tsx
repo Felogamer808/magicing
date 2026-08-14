@@ -14,7 +14,7 @@ import { SelectorSeccionAcero } from "@/components/verificaciones/acero/Selector
 import {
   calcularCorteSegunSeccion,
   type ResultadoCorteCualquiera,
-} from "@/lib/calc/aisc/seleccion-articulo";
+} from "@/lib/calc/acero/seleccion-articulo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

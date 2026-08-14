@@ -1,6 +1,6 @@
 "use client";
 
-import type { ModoFlexionCompuesta } from "@/lib/calc/ec5/flexion-compuesta";
+import type { ModoFlexionCompuesta } from "@/lib/calc/madera/flexion-compuesta";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

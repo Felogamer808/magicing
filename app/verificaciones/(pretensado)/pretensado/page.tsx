@@ -13,7 +13,7 @@ import { DiagramaFlexion } from "@/components/verificaciones/pretensado/Diagrama
 import { DiagramaPerdidas } from "@/components/verificaciones/pretensado/DiagramaPerdidas";
 import { DiagramaTensiones } from "@/components/verificaciones/pretensado/DiagramaTensiones";
 import { SeccionPretensadaDiagrama } from "@/components/verificaciones/pretensado/SeccionPretensadaDiagrama";
-import { calcularPretensado } from "@/lib/calc/aci/pretensado";
+import { calcularPretensado } from "@/lib/calc/hormigon/pretensado";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

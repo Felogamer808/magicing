@@ -1,6 +1,6 @@
 "use client";
 
-import type { PuntoInteraccion } from "@/lib/calc/ec2/muro";
+import type { PuntoInteraccion } from "@/lib/calc/hormigon/muros/portante";
 
 /**
  * Diagrama de interacción N–M de la sección del muro, con el par actuante encima.

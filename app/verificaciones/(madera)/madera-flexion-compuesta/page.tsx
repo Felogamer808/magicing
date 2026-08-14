@@ -18,13 +18,13 @@ import {
   servicioDesdeEtiqueta,
   tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import { pandeoEje } from "@/lib/calc/ec5/axil";
-import { NOMBRE_MODO, verificarFlexionCompuesta } from "@/lib/calc/ec5/flexion-compuesta";
-import { kcrit, longitudEficazM, tensionCritica } from "@/lib/calc/ec5/flexion";
+import { pandeoEje } from "@/lib/calc/madera/axil";
+import { NOMBRE_MODO, verificarFlexionCompuesta } from "@/lib/calc/madera/flexion-compuesta";
+import { kcrit, longitudEficazM, tensionCritica } from "@/lib/calc/madera/flexion";
 import {
   GAMMA_M, KM_OTRAS_SECCIONES, KM_RECTANGULAR, kh, kmod, resistenciaDeCalculo,
-} from "@/lib/calc/ec5/materiales";
-import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/ec5/seccion";
+} from "@/lib/calc/madera/materiales";
+import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

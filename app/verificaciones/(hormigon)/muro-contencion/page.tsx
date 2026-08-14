@@ -28,10 +28,10 @@ import {
   armarPieza,
   calcularMuroContencion,
   separacionParaAs,
-} from "@/lib/calc/ec2/muro-contencion";
-import type { ArmaduraPieza, ResultadoMuroContencion } from "@/lib/calc/ec2/muro-contencion";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { GAMMA_G, GAMMA_Q } from "@/lib/calc/ec2/coeficientes";
+} from "@/lib/calc/hormigon/muros/contencion";
+import type { ArmaduraPieza, ResultadoMuroContencion } from "@/lib/calc/hormigon/muros/contencion";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { GAMMA_G, GAMMA_Q } from "@/lib/calc/hormigon/comun/coeficientes";
 import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";

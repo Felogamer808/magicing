@@ -11,7 +11,7 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { DiagramaInteraccion } from "@/components/verificaciones/acero/DiagramaInteraccion";
-import { calcularFlexoCompresion } from "@/lib/calc/aisc/flexo-compresion";
+import { calcularFlexoCompresion } from "@/lib/calc/acero/flexo-compresion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

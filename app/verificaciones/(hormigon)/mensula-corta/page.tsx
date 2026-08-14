@@ -17,8 +17,8 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import {
   calcularMensulaCorta,
   type ResultadoMensulaCorta,
-} from "@/lib/calc/ec2/mensula-corta";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+} from "@/lib/calc/hormigon/mensula-corta";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

@@ -10,7 +10,7 @@ import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/aisc/uniones";
+import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/acero/uniones";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisChapaBase,

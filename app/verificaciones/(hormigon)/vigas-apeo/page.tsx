@@ -11,20 +11,20 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
 import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesVigaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   calcularAnclajeMm,
   calcularArmaduraPiel,
   calcularArmaduraSecundaria,
   calcularDeformaciones,
   calcularSeparacionBarrasCm,
-} from "@/lib/calc/ec2/vigas-complementos";
+} from "@/lib/calc/hormigon/vigas/complementos";
 import {
   calcularCantoUtil,
   calcularCortante,
   calcularDisposicionArmadura,
   calcularFlexion,
-} from "@/lib/calc/ec2/vigas-flexion-cortante";
+} from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CarasExpuestas, SeccionReducida } from "@/lib/calc/ec5/fuego";
+import type { CarasExpuestas, SeccionReducida } from "@/lib/calc/madera/fuego";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

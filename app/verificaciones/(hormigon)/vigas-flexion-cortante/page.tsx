@@ -18,13 +18,13 @@ import {
   CroquisRamasEstribo,
 } from "@/components/verificaciones/croquis/CroquisViga";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   calcularCantoUtil,
   calcularCortante,
   calcularDisposicionArmadura,
   calcularFlexion,
-} from "@/lib/calc/ec2/vigas-flexion-cortante";
+} from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";

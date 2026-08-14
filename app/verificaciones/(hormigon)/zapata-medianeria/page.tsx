@@ -11,8 +11,8 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/hormigon/ZapataMedianeriaDiagrama";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { calcularZapataMedianeria } from "@/lib/calc/ec2/zapata-medianeria";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { calcularZapataMedianeria } from "@/lib/calc/hormigon/cimentaciones/zapata-medianeria";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

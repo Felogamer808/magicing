@@ -9,8 +9,8 @@ import { FranjaLosaDiagrama } from "@/components/verificaciones/hormigon/FranjaL
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularFranjaLosa } from "@/lib/calc/ec2/losa-fundacion";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularFranjaLosa } from "@/lib/calc/hormigon/losas/losa-fundacion";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

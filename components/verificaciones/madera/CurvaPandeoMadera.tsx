@@ -1,7 +1,7 @@
 "use client";
 
-import { pandeoEje } from "@/lib/calc/ec5/axil";
-import type { TipoMadera } from "@/lib/calc/ec5/materiales";
+import { pandeoEje } from "@/lib/calc/madera/axil";
+import type { TipoMadera } from "@/lib/calc/madera/materiales";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

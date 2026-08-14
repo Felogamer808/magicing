@@ -24,9 +24,9 @@ import {
   verificarCompresionPerpendicular,
   verificarTraccion,
   type TipoApoyo,
-} from "@/lib/calc/ec5/axil";
-import { GAMMA_M, KSYS_COMPARTIDA, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/ec5/materiales";
-import { propiedades } from "@/lib/calc/ec5/seccion";
+} from "@/lib/calc/madera/axil";
+import { GAMMA_M, KSYS_COMPARTIDA, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
+import { propiedades } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

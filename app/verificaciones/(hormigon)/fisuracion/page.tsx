@@ -9,8 +9,8 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaFisuracion } from "@/components/verificaciones/hormigon/DiagramaFisuracion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularFisuracion } from "@/lib/calc/ec2/fisuracion";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularFisuracion } from "@/lib/calc/hormigon/fisuracion";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

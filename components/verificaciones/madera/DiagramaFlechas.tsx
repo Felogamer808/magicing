@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentesFlecha } from "@/lib/calc/ec5/deformaciones";
+import type { ComponentesFlecha } from "@/lib/calc/madera/deformaciones";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**

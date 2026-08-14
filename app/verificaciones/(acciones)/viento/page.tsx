@@ -14,7 +14,7 @@ import {
   type TipoTerreno,
   type TipoTopografia,
   type TipoVelocidad,
-} from "@/lib/calc/cirsoc/viento";
+} from "@/lib/calc/acciones/viento";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisGeometriaViento,

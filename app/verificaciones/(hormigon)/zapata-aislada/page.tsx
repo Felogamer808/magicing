@@ -11,8 +11,8 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesZapataDiagrama";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { calcularZapataAislada } from "@/lib/calc/ec2/zapata-aislada";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

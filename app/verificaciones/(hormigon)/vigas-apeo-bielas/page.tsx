@@ -15,8 +15,8 @@ import {
   calcularVigaApeoBielas,
   type CondicionAdherencia,
   type TransmisionCarga,
-} from "@/lib/calc/ec2/viga-apeo-bielas";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+} from "@/lib/calc/hormigon/vigas/apeo-bielas";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";

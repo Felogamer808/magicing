@@ -24,7 +24,7 @@ import {
   verificarVuelco,
   type BordeCarga,
   type CasoVuelco,
-} from "@/lib/calc/ec5/flexion";
+} from "@/lib/calc/madera/flexion";
 import {
   GAMMA_M,
   KM_OTRAS_SECCIONES,
@@ -33,8 +33,8 @@ import {
   kh,
   kmod,
   resistenciaDeCalculo,
-} from "@/lib/calc/ec5/materiales";
-import { propiedades, tensionFlexionMPa } from "@/lib/calc/ec5/seccion";
+} from "@/lib/calc/madera/materiales";
+import { propiedades, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

@@ -9,8 +9,8 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { PiloteDiagrama } from "@/components/verificaciones/hormigon/PiloteDiagrama";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
-import { calcularPilote } from "@/lib/calc/ec2/pilote";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { calcularPilote } from "@/lib/calc/hormigon/cimentaciones/pilote";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

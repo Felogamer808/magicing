@@ -11,8 +11,8 @@ import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaInteraccionMuro } from "@/components/verificaciones/hormigon/DiagramaInteraccionMuro";
-import { calcularMuro } from "@/lib/calc/ec2/muro";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularMuro } from "@/lib/calc/hormigon/muros/portante";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

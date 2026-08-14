@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
-import type { ResultadoDireccionLosa } from "@/lib/calc/ec2/losa";
+import type { ResultadoDireccionLosa } from "@/lib/calc/hormigon/losas/losa";
 import { fmt } from "@/lib/verificaciones/formato";
 
 interface TarjetaDireccionLosaProps {

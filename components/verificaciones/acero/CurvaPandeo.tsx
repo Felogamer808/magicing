@@ -1,6 +1,6 @@
 "use client";
 
-import { tensionCritica } from "@/lib/calc/aisc/compresion";
+import { tensionCritica } from "@/lib/calc/acero/compresion";
 
 /**
  * Curva de pandeo del artículo E3: Fcr/Fy contra la esbeltez, con los dos ejes

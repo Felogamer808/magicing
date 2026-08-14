@@ -1,4 +1,4 @@
-import { propiedades, type Familia, type ParametrosPerfil } from "@/lib/calc/aisc/perfiles";
+import { propiedades, type Familia, type ParametrosPerfil } from "@/lib/calc/acero/perfiles";
 
 /**
  * Croquis a escala de la sección elegida, con sus cotas principales.

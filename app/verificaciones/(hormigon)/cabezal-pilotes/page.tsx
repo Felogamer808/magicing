@@ -10,8 +10,8 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { DiagramaBielasTirante } from "@/components/verificaciones/hormigon/DiagramaBielasTirante";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezal } from "@/components/verificaciones/hormigon/DiagramaCabezal";
-import { calcularCabezalDosPilotes } from "@/lib/calc/ec2/cabezal-pilotes";
-import { derivarMateriales } from "@/lib/calc/ec2/materiales";
+import { calcularCabezalDosPilotes } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
+import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {

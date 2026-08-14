@@ -16,7 +16,7 @@ import {
   GAMMA_M,
   kmod,
   type TipoMadera,
-} from "@/lib/calc/ec5/materiales";
+} from "@/lib/calc/madera/materiales";
 import {
   CUATRO_CARAS,
   NOMBRE_ESPECIE_FUEGO,
@@ -27,9 +27,9 @@ import {
   seccionReducida,
   type CarasExpuestas,
   type EspecieFuego,
-} from "@/lib/calc/ec5/fuego";
-import { pandeoEje } from "@/lib/calc/ec5/axil";
-import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/ec5/seccion";
+} from "@/lib/calc/madera/fuego";
+import { pandeoEje } from "@/lib/calc/madera/axil";
+import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

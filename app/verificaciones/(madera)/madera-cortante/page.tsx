@@ -24,8 +24,8 @@ import {
   verificarEntalladura,
   verificarTorsion,
   type LadoEntalladura,
-} from "@/lib/calc/ec5/cortante";
-import { GAMMA_M, KCR, kmod, resistenciaDeCalculo } from "@/lib/calc/ec5/materiales";
+} from "@/lib/calc/madera/cortante";
+import { GAMMA_M, KCR, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

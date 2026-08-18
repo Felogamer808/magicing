@@ -43,7 +43,7 @@ const logo = Fredoka({
 });
 
 const descripcion =
-  "Verificaciones estructurales según Eurocódigo 2, AISC 360 y CIRSOC: vigas, losas, cimentaciones, muros, viento y uniones, con el detalle de fórmulas a la vista.";
+  "Verificaciones estructurales según Eurocódigo 2, AISC 360 y UNIT: vigas, losas, cimentaciones, muros, viento y uniones, con el detalle de fórmulas a la vista.";
 
 export const metadata: Metadata = {
   title: {

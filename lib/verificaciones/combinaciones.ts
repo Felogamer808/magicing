@@ -185,6 +185,18 @@ const SIN_COMBINACION: Combinacion = {
     "Es geometría pura: no interviene ninguna acción ni coeficiente de mayoración, y el resultado sirve igual para ELU que para ELS.",
 };
 
+/*
+ * Longitudes de anclaje no pide ninguna acción: la barra se ancla para la
+ * fuerza que desarrollaría en fluencia plena (σsd = fyd), la hipótesis más
+ * conservadora. Es la misma razón por la que no hay "carga" que cargar acá.
+ */
+const ANCLAJE_REFERENCIA: Combinacion = {
+  regimen: "herramienta",
+  etiqueta: "Herramienta · asume fluencia plena (σsd = fyd)",
+  detalle:
+    "No pide ninguna acción: la longitud sale de anclar la barra a la fuerza que desarrollaría al 100% de fyd, del lado seguro. Si As real supera bastante a As necesaria, el anclaje real puede ser más corto que el que da acá.",
+};
+
 const ESTATICA_LINEAL: Combinacion = {
   regimen: "herramienta",
   etiqueta: "Herramienta · el resultado hereda el régimen de la carga",
@@ -216,6 +228,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   pilotes: PILOTES,
   cabezales: CABEZAL,
   fisuracion: SERVICIO_CUASIPERMANENTE,
+  "longitudes-anclaje": ANCLAJE_REFERENCIA,
   "muros-contencion": MURO,
   muros: MURO_PORTANTE,
   "secciones-mixtas": SERVICIO_ASD,

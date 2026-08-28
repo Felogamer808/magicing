@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -67,7 +68,7 @@ export default function CargaColgadaPage() {
               </div>
               <CampoNumerico id="reaccion" etiqueta="Rd (reacción colgada)" sufijo="kN" valor={reaccion} onChange={setReaccion} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
+              <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Ramas por estribo" valor={numeroRamas} onChange={setNumeroRamas} />
               <CampoNumerico id="h" etiqueta="h (viga que cuelga)" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="a" etiqueta="a (ancho colgado)" sufijo="m" valor={a} onChange={setA} />
@@ -114,7 +115,7 @@ export default function CargaColgadaPage() {
 
                 <div className="rounded-md border p-3 text-sm">
                   <p className="font-medium">
-                    Estribos necesarios: {resultado.r.cantidadEstribos} de φ{fmt(resultado.v.diametroEstribo, 0)},{" "}
+                    Estribos necesarios: {resultado.r.cantidadEstribos} de Ø{fmt(resultado.v.diametroEstribo, 0)},{" "}
                     {fmt(resultado.v.numeroRamas, 0)} ramas
                   </p>
                   <p className="text-xs text-muted-foreground">

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -16,7 +17,6 @@ import {
   type ResistenciaFuego,
 } from "@/lib/calc/hormigon/losas/steel-deck-flexion";
 import { calcularSteelDeckRasante } from "@/lib/calc/hormigon/losas/steel-deck-rasante";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -240,11 +240,11 @@ export default function LosaSteelDeckPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Barra adicional por nervio</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="phiBarra" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiBarra} onChange={setPhiBarra} />
+              <CampoDiametro id="phiBarra" etiqueta="Ø" valor={phiBarra} onChange={setPhiBarra} />
               <CampoNumerico id="sepBarra" etiqueta="Separación" sufijo="mm" valor={sepBarra} onChange={setSepBarra} />
               <CampoNumerico id="recBarra" etiqueta="Recub. inferior" sufijo="m" valor={recBarra} onChange={setRecBarra} />
               <p className="col-span-full text-xs text-muted-foreground">
-                φ = 0 para calcular sin barra adicional, sólo con la chapa. El recubrimiento se mide desde
+                Ø = 0 para calcular sin barra adicional, sólo con la chapa. El recubrimiento se mide desde
                 la cara inferior de la losa hasta el eje de la barra, y sólo lo usa el chequeo de incendio.
               </p>
             </CardContent>

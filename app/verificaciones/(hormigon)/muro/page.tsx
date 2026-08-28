@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -162,9 +163,9 @@ export default function MuroPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Armadura</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="phiV" etiqueta="⌀ vertical" sufijo="mm" valor={phiV} onChange={setPhiV} />
+              <CampoDiametro id="phiV" etiqueta="Ø vertical" valor={phiV} onChange={setPhiV} />
               <CampoNumerico id="sepV" etiqueta="Sep. vertical" sufijo="mm" valor={sepV} onChange={setSepV} />
-              <CampoNumerico id="phiH" etiqueta="⌀ horizontal" sufijo="mm" valor={phiH} onChange={setPhiH} />
+              <CampoDiametro id="phiH" etiqueta="Ø horizontal" valor={phiH} onChange={setPhiH} />
               <CampoNumerico id="sepH" etiqueta="Sep. horizontal" sufijo="mm" valor={sepH} onChange={setSepH} />
               <p className="col-span-2 text-xs text-muted-foreground">
                 Repartida en las dos caras, como pide el art. 9.6.3(1). Las áreas de abajo son la

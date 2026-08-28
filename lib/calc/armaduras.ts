@@ -1,9 +1,9 @@
 /**
- * Diámetros de barra que se fabrican, en mm. Sirven de sugerencia al cargar
- * armadura: nada impide escribir otro valor, pero un φ13 no se puede comprar y
- * conviene que la herramienta lo insinúe antes de que llegue al plano.
+ * Diámetros de barra de la serie que se ofrece como desplegable, en mm. No
+ * restringe: "Otro" en `CampoDiametro` sigue aceptando cualquier valor, un
+ * Ø13 o un Ø32, para contrastar un cálculo aunque no sea de catálogo.
  */
-export const DIAMETROS_ARMADURA = [6, 8, 10, 12, 14, 16, 20, 25, 32, 40] as const;
+export const DIAMETROS_ARMADURA = [6, 8, 10, 12, 16, 20, 25] as const;
 
 /** Área de una barra, en cm². */
 export function areaBarraCm2(diametroMm: number): number {

@@ -5,13 +5,13 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { PiloteDiagrama } from "@/components/verificaciones/hormigon/PiloteDiagrama";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularPilote } from "@/lib/calc/hormigon/cimentaciones/pilote";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisArmaduraPilote,
@@ -152,8 +152,8 @@ export default function PilotesPage() {
                   <CroquisArmaduraPilote />
                 </div>
                 <CampoNumerico id="numero" etiqueta="Nº barras" valor={numero} onChange={setNumero} />
-                <CampoNumerico id="diametroBarra" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroBarra} onChange={setDiametroBarra} />
-                <CampoNumerico id="diametroEstribo" etiqueta="φ zuncho" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
+                <CampoDiametro id="diametroBarra" etiqueta="Ø" valor={diametroBarra} onChange={setDiametroBarra} />
+                <CampoDiametro id="diametroEstribo" etiqueta="Ø zuncho" valor={diametroEstribo} onChange={setDiametroEstribo} />
                 <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
               </CardContent>
             </Card>

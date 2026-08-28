@@ -5,13 +5,13 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaFisuracion } from "@/components/verificaciones/hormigon/DiagramaFisuracion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { calcularFisuracion } from "@/lib/calc/hormigon/fisuracion";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisFamiliaFisuracion,
@@ -128,7 +128,7 @@ export default function FisuracionPage() {
                 <div className="col-span-full">
                   <CroquisFamiliaFisuracion numero={1} />
                 </div>
-                <CampoNumerico id="phi1" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi1} onChange={setPhi1} />
+                <CampoDiametro id="phi1" etiqueta="Ø" valor={phi1} onChange={setPhi1} />
                 <CampoNumerico id="s1" etiqueta="Separación" sufijo="m" valor={s1} onChange={setS1} />
               </CardContent>
             </Card>
@@ -138,7 +138,7 @@ export default function FisuracionPage() {
                 <div className="col-span-full">
                   <CroquisFamiliaFisuracion numero={2} />
                 </div>
-                <CampoNumerico id="phi2" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phi2} onChange={setPhi2} />
+                <CampoDiametro id="phi2" etiqueta="Ø" valor={phi2} onChange={setPhi2} />
                 <CampoNumerico id="s2" etiqueta="Separación" sufijo="m" valor={s2} onChange={setS2} />
               </CardContent>
             </Card>
@@ -179,7 +179,7 @@ export default function FisuracionPage() {
                   {resultado.r.usaTopeSeparacionAmplia && (
                     <p className="rounded-md border border-primary/40 p-3 text-xs text-muted-foreground">
                       Las barras están a {fmt(resultado.r.sMm, 0)} mm, por encima del límite
-                      5·(c + φ/2) = {fmt(5 * (resultado.n.rg * 1000 + resultado.r.diametroEqMm / 2), 0)} mm.
+                      5·(c + Ø/2) = {fmt(5 * (resultado.n.rg * 1000 + resultado.r.diametroEqMm / 2), 0)} mm.
                       A partir de ahí la fisura ya no la gobierna la adherencia de las barras sino el
                       canto traccionado, y el articulado pasa al tope de la ec. (7.14),
                       s r,max = 1,3·(h − x). Las dos expresiones no empalman: al cruzar el límite el
@@ -192,7 +192,7 @@ export default function FisuracionPage() {
                     filas={[
                       { etiqueta: "d", valor: `${fmt(resultado.r.dM, 3)} m` },
                       { etiqueta: "Fibra neutra x", valor: `${fmt(resultado.r.xM * 1000, 1)} mm` },
-                      { etiqueta: "Diámetro equivalente φeq", valor: `${fmt(resultado.r.diametroEqMm, 1)} mm` },
+                      { etiqueta: "Diámetro equivalente Øeq", valor: `${fmt(resultado.r.diametroEqMm, 1)} mm` },
                       { etiqueta: "Separación entre barras s", valor: `${fmt(resultado.r.sMm, 1)} mm` },
                       { etiqueta: "Barras/m familia 1", valor: fmt(resultado.n1, 2) },
                       { etiqueta: "Barras/m familia 2", valor: fmt(resultado.n2, 2) },

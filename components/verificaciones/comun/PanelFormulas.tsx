@@ -25,10 +25,10 @@ export function PanelFormulas({ titulo, filas }: PanelFormulasProps) {
 
   return (
     <Collapsible open={abierto} onOpenChange={setAbierto}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between py-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <span>{titulo}</span>
+      <CollapsibleTrigger className="group flex w-full items-center justify-between border-t border-border/60 py-2 text-left">
+        <span className="spec-label group-hover:text-foreground">{titulo}</span>
         <ChevronDown
-          className={`h-4 w-4 transition-transform ${abierto ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-muted-foreground transition-transform group-hover:text-foreground ${abierto ? "rotate-180" : ""}`}
         />
       </CollapsibleTrigger>
       {/*
@@ -67,10 +67,13 @@ export function PanelFormulas({ titulo, filas }: PanelFormulasProps) {
                 )}
 
                 <dt aria-hidden="true" />
-                <dd className="font-semibold tabular-nums">= {fila.valor}</dd>
+                <dd className="font-semibold tabular-nums text-primary">= {fila.valor}</dd>
               </div>
             ) : (
-              <div key={fila.etiqueta} className="grid grid-cols-2 gap-x-4">
+              <div
+                key={fila.etiqueta}
+                className="grid grid-cols-2 gap-x-4 border-b border-border/40 pb-1.5 last:border-0 last:pb-0"
+              >
                 <dt className="text-muted-foreground">{fila.etiqueta}</dt>
                 <dd className="text-right font-mono tabular-nums">{fila.valor}</dd>
               </div>

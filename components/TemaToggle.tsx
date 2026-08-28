@@ -44,7 +44,11 @@ export function TemaToggle() {
       title={oscuro ? "Tema claro" : "Tema oscuro"}
       className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none print:hidden"
     >
-      {oscuro ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {oscuro ? (
+        <Sun className="h-4 w-4 animate-in fade-in zoom-in-50 duration-200" />
+      ) : (
+        <Moon className="h-4 w-4 animate-in fade-in zoom-in-50 duration-200" />
+      )}
     </button>
   );
 }

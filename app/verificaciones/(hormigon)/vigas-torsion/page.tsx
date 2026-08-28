@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
@@ -14,7 +15,6 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import {
   CroquisArmaduraFlexion,
@@ -114,16 +114,16 @@ export default function VigasTorsionPage() {
     }
 
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
-    const dispPos = calcularDisposicionArmadura(geometria, { numero: v.numeroPos, diametroMm: v.diametroPos });
-    const dispNeg = calcularDisposicionArmadura(geometria, { numero: v.numeroNeg, diametroMm: v.diametroNeg });
+    const dispPos = calcularDisposicionArmadura(geometria, [{ numero: v.numeroPos, diametroMm: v.diametroPos }]);
+    const dispNeg = calcularDisposicionArmadura(geometria, [{ numero: v.numeroNeg, diametroMm: v.diametroNeg }]);
 
     return {
       bM: v.b,
       hM: v.h,
       recubrimientoM: v.recubrimiento,
       dM: v.h - dispPos.distanciaCentroideM,
-      armaduraPositiva: { diametroMm: v.diametroPos, capas: dispPos.capas },
-      armaduraNegativa: { diametroMm: v.diametroNeg, capas: dispNeg.capas },
+      armaduraPositiva: { capas: dispPos.filas },
+      armaduraNegativa: { capas: dispNeg.filas },
       diametroEstriboMm: v.diametroEstribo,
     };
   }, [b, h, recubrimiento, numeroPos, diametroPos, numeroNeg, diametroNeg, diametroEstribo]);
@@ -216,7 +216,7 @@ export default function VigasTorsionPage() {
                 <CampoNumerico id="momentoPos" etiqueta="Mmax+" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
+                  <CampoDiametro id="diametroPos" etiqueta="Ø" valor={diametroPos} onChange={setDiametroPos} />
                 </div>
               </CardContent>
             </Card>
@@ -232,7 +232,7 @@ export default function VigasTorsionPage() {
                 <CampoNumerico id="momentoNeg" etiqueta="Mmax-" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
                 <div className="grid grid-cols-2 gap-4">
                   <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
+                  <CampoDiametro id="diametroNeg" etiqueta="Ø" valor={diametroNeg} onChange={setDiametroNeg} />
                 </div>
               </CardContent>
             </Card>
@@ -247,7 +247,7 @@ export default function VigasTorsionPage() {
                 <CroquisRamasEstribo ramas={aNumero(numeroRamas)} />
               </div>
               <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-              <CampoNumerico id="diametroEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroEstribo} onChange={setDiametroEstribo} />
+              <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
               <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
             </CardContent>
           </Card>
@@ -372,7 +372,7 @@ export default function VigasTorsionPage() {
                   <Separator />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
-                      Estribado: {fmt(aNumero(numeroRamas), 0)} ramas φ{fmt(aNumero(diametroEstribo), 0)} cada{" "}
+                      Estribado: {fmt(aNumero(numeroRamas), 0)} ramas Ø{fmt(aNumero(diametroEstribo), 0)} cada{" "}
                       {fmt(resultado.cortante.separacionAdoptadaM * 100, 0)} cm
                     </p>
                     <p className="text-xs text-muted-foreground">

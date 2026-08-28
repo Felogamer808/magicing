@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
@@ -19,17 +22,24 @@ import {
 } from "@/components/verificaciones/croquis/CroquisViga";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import type { ArmaduraElegida } from "@/lib/calc/hormigon/comun/types";
 import {
   calcularCantoUtil,
   calcularCortante,
   calcularDisposicionArmadura,
   calcularFlexion,
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-flexion-cortante")!;
+
+/** Arma los grupos de armadura para el motor: la 2ª capa sólo entra si tiene barras cargadas. */
+function armarGrupos(numero: number, diametroMm: number, numero2: number, diametroMm2: number): ArmaduraElegida[] {
+  const grupos: ArmaduraElegida[] = [{ numero, diametroMm }];
+  if (numero2 > 0) grupos.push({ numero: numero2, diametroMm: diametroMm2 });
+  return grupos;
+}
 
 export default function VigasFlexionCortantePage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -44,10 +54,14 @@ export default function VigasFlexionCortantePage() {
   const [momentoPos, setMomentoPos] = useCampo("momentoPos", "32");
   const [numeroPos, setNumeroPos] = useCampo("numeroPos", "10");
   const [diametroPos, setDiametroPos] = useCampo("diametroPos", "10");
+  const [numeroPos2, setNumeroPos2] = useCampo("numeroPos2", "0");
+  const [diametroPos2, setDiametroPos2] = useCampo("diametroPos2", "10");
 
   const [momentoNeg, setMomentoNeg] = useCampo("momentoNeg", "14");
   const [numeroNeg, setNumeroNeg] = useCampo("numeroNeg", "5");
   const [diametroNeg, setDiametroNeg] = useCampo("diametroNeg", "12");
+  const [numeroNeg2, setNumeroNeg2] = useCampo("numeroNeg2", "0");
+  const [diametroNeg2, setDiametroNeg2] = useCampo("diametroNeg2", "12");
 
   const [vd, setVd] = useCampo("vd", "1076");
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
@@ -63,9 +77,13 @@ export default function VigasFlexionCortantePage() {
       momentoPos: aNumero(momentoPos),
       numeroPos: aNumero(numeroPos),
       diametroPos: aNumero(diametroPos),
+      numeroPos2: aNumero(numeroPos2),
+      diametroPos2: aNumero(diametroPos2),
       momentoNeg: aNumero(momentoNeg),
       numeroNeg: aNumero(numeroNeg),
       diametroNeg: aNumero(diametroNeg),
+      numeroNeg2: aNumero(numeroNeg2),
+      diametroNeg2: aNumero(diametroNeg2),
       vd: aNumero(vd),
       diametroEstribo: aNumero(diametroEstribo),
       numeroRamas: aNumero(numeroRamas),
@@ -75,23 +93,35 @@ export default function VigasFlexionCortantePage() {
     const geometriaValida = v.b > 0 && v.h > 0;
     const materialesValidos = v.fck > 0 && v.fyk > 0;
     const armadurasValidas = v.numeroPos > 0 && v.diametroPos > 0 && v.numeroNeg > 0 && v.diametroNeg > 0;
+    // La 2ª capa es opcional (0 barras = apagada), pero si tiene barras necesita diámetro.
+    const segundasCapasValidas =
+      (v.numeroPos2 === 0 || v.diametroPos2 > 0) && (v.numeroNeg2 === 0 || v.diametroNeg2 > 0);
     const cortanteValido = v.numeroRamas > 0 && v.diametroEstribo > 0;
 
-    if (!todosValidos || !geometriaValida || !materialesValidos || !armadurasValidas || !cortanteValido) {
+    if (
+      !todosValidos ||
+      !geometriaValida ||
+      !materialesValidos ||
+      !armadurasValidas ||
+      !segundasCapasValidas ||
+      !cortanteValido
+    ) {
       return null;
     }
 
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
-    const d = calcularCantoUtil(geometria, { numero: v.numeroPos, diametroMm: v.diametroPos });
+    const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
+    const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
+    const d = calcularCantoUtil(geometria, gruposPositiva);
 
     const flexionPositiva = calcularFlexion(materiales, geometria, d, {
       momento: v.momentoPos,
-      armaduraReal: { numero: v.numeroPos, diametroMm: v.diametroPos },
+      armaduraReal: gruposPositiva,
     });
     const flexionNegativa = calcularFlexion(materiales, geometria, d, {
       momento: v.momentoNeg,
-      armaduraReal: { numero: v.numeroNeg, diametroMm: v.diametroNeg },
+      armaduraReal: gruposNegativa,
     });
     const cortante = calcularCortante(materiales, geometria, d, flexionNegativa.asRealCm2, {
       vd: v.vd,
@@ -102,8 +132,8 @@ export default function VigasFlexionCortantePage() {
     return { materiales, d, flexionPositiva, flexionNegativa, cortante };
   }, [
     fck, fyk, b, h, recubrimiento,
-    momentoPos, numeroPos, diametroPos,
-    momentoNeg, numeroNeg, diametroNeg,
+    momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
+    momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas,
   ]);
 
@@ -116,14 +146,21 @@ export default function VigasFlexionCortantePage() {
       recubrimiento: aNumero(recubrimiento),
       numeroPos: aNumero(numeroPos),
       diametroPos: aNumero(diametroPos),
+      numeroPos2: aNumero(numeroPos2),
+      diametroPos2: aNumero(diametroPos2),
       numeroNeg: aNumero(numeroNeg),
       diametroNeg: aNumero(diametroNeg),
+      numeroNeg2: aNumero(numeroNeg2),
+      diametroNeg2: aNumero(diametroNeg2),
       diametroEstribo: aNumero(diametroEstribo),
     };
 
     const validos = Object.values(v).every((n) => Number.isFinite(n) && n >= 0);
+    const segundasCapasValidas =
+      (v.numeroPos2 === 0 || v.diametroPos2 > 0) && (v.numeroNeg2 === 0 || v.diametroNeg2 > 0);
     if (
       !validos ||
+      !segundasCapasValidas ||
       v.b <= 0 ||
       v.h <= 0 ||
       v.numeroPos <= 0 ||
@@ -136,10 +173,10 @@ export default function VigasFlexionCortantePage() {
     }
 
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
-    const armaduraPositiva = { numero: v.numeroPos, diametroMm: v.diametroPos };
-    const armaduraNegativa = { numero: v.numeroNeg, diametroMm: v.diametroNeg };
-    const disposicionPositiva = calcularDisposicionArmadura(geometria, armaduraPositiva);
-    const disposicionNegativa = calcularDisposicionArmadura(geometria, armaduraNegativa);
+    const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
+    const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
+    const disposicionPositiva = calcularDisposicionArmadura(geometria, gruposPositiva);
+    const disposicionNegativa = calcularDisposicionArmadura(geometria, gruposNegativa);
     const d = geometria.h - disposicionPositiva.distanciaCentroideM;
 
     return {
@@ -147,11 +184,16 @@ export default function VigasFlexionCortantePage() {
       hM: v.h,
       recubrimientoM: v.recubrimiento,
       dM: d,
-      armaduraPositiva: { diametroMm: v.diametroPos, capas: disposicionPositiva.capas },
-      armaduraNegativa: { diametroMm: v.diametroNeg, capas: disposicionNegativa.capas },
+      armaduraPositiva: { capas: disposicionPositiva.filas },
+      armaduraNegativa: { capas: disposicionNegativa.filas },
       diametroEstriboMm: v.diametroEstribo,
     };
-  }, [b, h, recubrimiento, numeroPos, diametroPos, numeroNeg, diametroNeg, diametroEstribo]);
+  }, [
+    b, h, recubrimiento,
+    numeroPos, diametroPos, numeroPos2, diametroPos2,
+    numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
+    diametroEstribo,
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -233,7 +275,10 @@ export default function VigasFlexionCortantePage() {
                 <CardTitle className="text-base">Armadura positiva</CardTitle>
               </CardHeader>
               <CardContent>
-                <CroquisArmaduraFlexion numero={aNumero(numeroPos)} cara="inferior" />
+                <CroquisArmaduraFlexion
+                  numero={aNumero(numeroPos) + Math.max(aNumero(numeroPos2), 0)}
+                  cara="inferior"
+                />
                 <div className="grid grid-cols-1 gap-4">
                   <CampoNumerico
                     id="momentoPos"
@@ -244,8 +289,35 @@ export default function VigasFlexionCortantePage() {
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                    <CampoNumerico id="diametroPos" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroPos} onChange={setDiametroPos} />
+                    <CampoDiametro id="diametroPos" etiqueta="Ø" valor={diametroPos} onChange={setDiametroPos} />
                   </div>
+                  {aNumero(numeroPos2) > 0 ? (
+                    <div className="flex items-end gap-2">
+                      <div className="grid flex-1 grid-cols-2 gap-4">
+                        <CampoNumerico
+                          id="numeroPos2"
+                          etiqueta="Nº barras (2ª capa)"
+                          valor={numeroPos2}
+                          onChange={setNumeroPos2}
+                        />
+                        <CampoDiametro id="diametroPos2" etiqueta="Ø" valor={diametroPos2} onChange={setDiametroPos2} />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Quitar la segunda capa"
+                        onClick={() => setNumeroPos2("0")}
+                        className="mb-1.5"
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setNumeroPos2("2")}>
+                      <Plus /> Agregar capa
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -255,7 +327,10 @@ export default function VigasFlexionCortantePage() {
                 <CardTitle className="text-base">Armadura negativa</CardTitle>
               </CardHeader>
               <CardContent>
-                <CroquisArmaduraFlexion numero={aNumero(numeroNeg)} cara="superior" />
+                <CroquisArmaduraFlexion
+                  numero={aNumero(numeroNeg) + Math.max(aNumero(numeroNeg2), 0)}
+                  cara="superior"
+                />
                 <div className="grid grid-cols-1 gap-4">
                   <CampoNumerico
                     id="momentoNeg"
@@ -266,8 +341,35 @@ export default function VigasFlexionCortantePage() {
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                    <CampoNumerico id="diametroNeg" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroNeg} onChange={setDiametroNeg} />
+                    <CampoDiametro id="diametroNeg" etiqueta="Ø" valor={diametroNeg} onChange={setDiametroNeg} />
                   </div>
+                  {aNumero(numeroNeg2) > 0 ? (
+                    <div className="flex items-end gap-2">
+                      <div className="grid flex-1 grid-cols-2 gap-4">
+                        <CampoNumerico
+                          id="numeroNeg2"
+                          etiqueta="Nº barras (2ª capa)"
+                          valor={numeroNeg2}
+                          onChange={setNumeroNeg2}
+                        />
+                        <CampoDiametro id="diametroNeg2" etiqueta="Ø" valor={diametroNeg2} onChange={setDiametroNeg2} />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Quitar la segunda capa"
+                        onClick={() => setNumeroNeg2("0")}
+                        className="mb-1.5"
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setNumeroNeg2("2")}>
+                      <Plus /> Agregar capa
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -281,14 +383,7 @@ export default function VigasFlexionCortantePage() {
               <CroquisRamasEstribo ramas={aNumero(numeroRamas)} />
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-                <CampoNumerico
-                  id="diametroEstribo"
-                  etiqueta="φ estribo"
-                  sufijo="mm"
-                  sugerencias={DIAMETROS_ARMADURA}
-                  valor={diametroEstribo}
-                  onChange={setDiametroEstribo}
-                />
+                <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
                 <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
               </div>
             </CardContent>
@@ -344,7 +439,10 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.flexionPositiva.asMinMecanicoCm2)} cm²` },
                       { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.flexionPositiva.asMinGeometricoCm2)} cm²` },
                       { etiqueta: "Aprovechamiento", valor: fmt(resultado.flexionPositiva.aprovechamiento, 2) },
-                      { etiqueta: "Barras por fila (máx.)", valor: `${resultado.flexionPositiva.capacidadPorFila}` },
+                      {
+                        etiqueta: "Barras por fila (máx.)",
+                        valor: resultado.flexionPositiva.capacidadPorGrupo.join(" + "),
+                      },
                       { etiqueta: "Distancia al centroide", valor: `${fmt(resultado.flexionPositiva.distanciaCentroideM, 3)} m` },
                     ]}
                   />
@@ -376,7 +474,10 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.flexionNegativa.asMinMecanicoCm2)} cm²` },
                       { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.flexionNegativa.asMinGeometricoCm2)} cm²` },
                       { etiqueta: "Aprovechamiento", valor: fmt(resultado.flexionNegativa.aprovechamiento, 2) },
-                      { etiqueta: "Barras por fila (máx.)", valor: `${resultado.flexionNegativa.capacidadPorFila}` },
+                      {
+                        etiqueta: "Barras por fila (máx.)",
+                        valor: resultado.flexionNegativa.capacidadPorGrupo.join(" + "),
+                      },
                       { etiqueta: "Distancia al centroide", valor: `${fmt(resultado.flexionNegativa.distanciaCentroideM, 3)} m` },
                     ]}
                   />
@@ -396,7 +497,7 @@ export default function VigasFlexionCortantePage() {
                   <Separator />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
-                      Estribado: {fmt(aNumero(numeroRamas), 0)} ramas φ{fmt(aNumero(diametroEstribo), 0)} cada{" "}
+                      Estribado: {fmt(aNumero(numeroRamas), 0)} ramas Ø{fmt(aNumero(diametroEstribo), 0)} cada{" "}
                       {fmt(resultado.cortante.separacionAdoptadaM * 100, 0)} cm
                     </p>
                     <p className="text-xs text-muted-foreground">

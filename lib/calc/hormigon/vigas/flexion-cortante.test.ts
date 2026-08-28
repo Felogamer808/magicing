@@ -25,10 +25,7 @@ describe("materiales EC2", () => {
 
 describe("canto útil", () => {
   it("coincide con F7 de la planilla", () => {
-    const d = calcularCantoUtil(
-      { b: 0.9, h: 0.7, recubrimiento: 0.04 },
-      { numero: 10, diametroMm: 10 }
-    );
+    const d = calcularCantoUtil({ b: 0.9, h: 0.7, recubrimiento: 0.04 }, [{ numero: 10, diametroMm: 10 }]);
     expect(d).toBeCloseTo(0.649, 9);
   });
 });
@@ -36,11 +33,11 @@ describe("canto útil", () => {
 describe("flexión positiva (bloque VIGA)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
   const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
-  const d = calcularCantoUtil(geometria, { numero: 10, diametroMm: 10 });
+  const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]);
 
   const r = calcularFlexion(materiales, geometria, d, {
     momento: 32,
-    armaduraReal: { numero: 10, diametroMm: 10 },
+    armaduraReal: [{ numero: 10, diametroMm: 10 }],
   });
 
   it("reproduce μ, ω y As calculado", () => {
@@ -61,8 +58,8 @@ describe("flexión positiva (bloque VIGA)", () => {
   });
 
   it("entra en una sola fila (b=0.9m sobra espacio para 10φ10)", () => {
-    expect(r.capas).toEqual([10]);
-    expect(r.capacidadPorFila).toBeGreaterThanOrEqual(10);
+    expect(r.capas).toEqual([{ numero: 10, diametroMm: 10, distanciaM: expect.any(Number) }]);
+    expect(r.capacidadPorGrupo[0]).toBeGreaterThanOrEqual(10);
     expect(r.distanciaCentroideM).toBeCloseTo(0.051, 6);
     expect(r.verificaEntraEnAncho).toBe(true);
   });
@@ -71,11 +68,11 @@ describe("flexión positiva (bloque VIGA)", () => {
 describe("flexión negativa (bloque VIGA, con mínimo corregido)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
   const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
-  const d = calcularCantoUtil(geometria, { numero: 10, diametroMm: 10 }); // mismo canto que la positiva, como en la planilla
+  const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]); // mismo canto que la positiva, como en la planilla
 
   const r = calcularFlexion(materiales, geometria, d, {
     momento: 14,
-    armaduraReal: { numero: 5, diametroMm: 12 },
+    armaduraReal: [{ numero: 5, diametroMm: 12 }],
   });
 
   it("reproduce μ, ω y As calculado", () => {
@@ -95,7 +92,7 @@ describe("flexión negativa (bloque VIGA, con mínimo corregido)", () => {
 describe("cortante (bloque VIGA)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
   const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
-  const d = calcularCantoUtil(geometria, { numero: 10, diametroMm: 10 });
+  const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]);
   const asNegativaRealCm2 = 5.65486677646163;
 
   const r = calcularCortante(materiales, geometria, d, asNegativaRealCm2, {
@@ -162,12 +159,13 @@ describe("armadura que no entra en una fila (viga angosta)", () => {
   // b=0.3m, recubrimiento=0.04m, estribo asumido 6mm: ancho disponible = 0.208m.
   // 6 barras φ20 con separación mínima de 20mm no entran en una fila (caben 5) → 2 filas de 3.
   const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
-  const armadura = { numero: 6, diametroMm: 20 };
+  const armadura = [{ numero: 6, diametroMm: 20 }];
 
   it("calcula la capacidad por fila y reparte en 2 capas de 3", () => {
     const disposicion = calcularDisposicionArmadura(geometria, armadura);
-    expect(disposicion.capacidadPorFila).toBe(5);
-    expect(disposicion.capas).toEqual([3, 3]);
+    expect(disposicion.capacidadPorGrupo).toEqual([5]);
+    expect(disposicion.filas.map((f) => f.numero)).toEqual([3, 3]);
+    expect(disposicion.filas.every((f) => f.diametroMm === 20)).toBe(true);
     expect(disposicion.verificaEntraEnAncho).toBe(true);
   });
 
@@ -181,11 +179,65 @@ describe("armadura que no entra en una fila (viga angosta)", () => {
   });
 });
 
+describe("armadura con dos capas de diámetro distinto (ej. 2Ø16 + 2Ø20)", () => {
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
+  const grupos = [
+    { numero: 2, diametroMm: 16 },
+    { numero: 2, diametroMm: 20 },
+  ];
+
+  it("no auto-reparte cada grupo (entran solos) y apila un grupo sobre el otro", () => {
+    const disposicion = calcularDisposicionArmadura(geometria, grupos);
+    expect(disposicion.filas).toHaveLength(2);
+    expect(disposicion.filas[0]).toMatchObject({ numero: 2, diametroMm: 16 });
+    expect(disposicion.filas[1]).toMatchObject({ numero: 2, diametroMm: 20 });
+    expect(disposicion.verificaEntraEnAncho).toBe(true);
+  });
+
+  it("la separación vertical entre filas usa el mayor de los dos diámetros (art. 8.2(2))", () => {
+    const disposicion = calcularDisposicionArmadura(geometria, grupos);
+    // fila 0 (Ø16): borde = 0.04+0.006+0.008 = 0.054
+    const distanciaFila0 = 0.04 + 0.006 + 0.016 / 2;
+    expect(disposicion.filas[0].distanciaM).toBeCloseTo(distanciaFila0, 9);
+    // separación libre vertical = max(16, 20, 20)/1000 = 0.02 (manda el Ø20, el mayor en juego)
+    const bordeFila1 = 0.04 + 0.006 + 0.016 + 0.02;
+    const distanciaFila1 = bordeFila1 + 0.02 / 2;
+    expect(disposicion.filas[1].distanciaM).toBeCloseTo(distanciaFila1, 9);
+  });
+
+  it("el centroide pondera por área, no por cantidad de barras", () => {
+    const disposicion = calcularDisposicionArmadura(geometria, grupos);
+    const areaCm2 = (diametroMm: number) => (Math.PI * diametroMm ** 2) / 4 / 100;
+    const area16 = 2 * areaCm2(16);
+    const area20 = 2 * areaCm2(20);
+    const distanciaFila0 = 0.04 + 0.006 + 0.016 / 2;
+    const distanciaFila1 = 0.04 + 0.006 + 0.016 + 0.02 + 0.02 / 2;
+    const centroideEsperado = (area16 * distanciaFila0 + area20 * distanciaFila1) / (area16 + area20);
+    expect(disposicion.distanciaCentroideM).toBeCloseTo(centroideEsperado, 9);
+    expect(disposicion.areaTotalCm2).toBeCloseTo(area16 + area20, 6);
+  });
+
+  it("cada grupo se auto-reparte primero si no entra solo, y después se apilan los grupos", () => {
+    // Grupo 0: 8Ø20 no entra en una sola fila (caben 5) → se reparte en 2 filas antes de
+    // apilar el grupo 1 encima.
+    const grupos2 = [
+      { numero: 8, diametroMm: 20 },
+      { numero: 2, diametroMm: 12 },
+    ];
+    const disposicion = calcularDisposicionArmadura(geometria, grupos2);
+    expect(disposicion.filas.map((f) => ({ numero: f.numero, diametroMm: f.diametroMm }))).toEqual([
+      { numero: 4, diametroMm: 20 },
+      { numero: 4, diametroMm: 20 },
+      { numero: 2, diametroMm: 12 },
+    ]);
+  });
+});
+
 describe("geometría del agotamiento", () => {
   const materiales = derivarMateriales({ fck: 25, fyk: 500 });
   const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
   const d = 0.45;
-  const armadura = { diametroMm: 16, numero: 4 };
+  const armadura = [{ diametroMm: 16, numero: 4 }];
 
   const flexion = (momento: number) =>
     calcularFlexion(materiales, geometria, d, { momento, armaduraReal: armadura });

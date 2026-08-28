@@ -49,12 +49,12 @@ export default function Home() {
             const normas = [...new Set(abiertas.flatMap((s) => s.normasDisponibles))];
 
             return (
-              <Link key={area.id} href={area.ruta} className="block">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:ring-primary/20">
+              <Link key={area.id} href={area.ruta} className="group block">
+                <Card className="h-full transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:ring-primary/20 active:translate-y-0 active:scale-[0.99]">
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-lg">{area.nombre}</CardTitle>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                      <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">

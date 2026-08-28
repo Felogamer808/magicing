@@ -190,6 +190,23 @@
   }
 
   /*
+   * Los paneles "Ver cálculo" y "Por qué..." se abren de golpe por defecto:
+   * Base UI sólo anima si detecta una transición de altura declarada en el
+   * panel, así que sin esto CSS ni siquiera lo intenta. La var
+   * --collapsible-panel-height la escribe el propio componente (mide
+   * scrollHeight); acá sólo se consume.
+   */
+  [data-slot="collapsible-content"] {
+    overflow: hidden;
+    height: var(--collapsible-panel-height);
+    transition: height 200ms ease-out;
+  }
+  [data-slot="collapsible-content"][data-starting-style],
+  [data-slot="collapsible-content"][data-ending-style] {
+    height: 0;
+  }
+
+  /*
    * Tope de altura de los esquemas. Varios dibujos arman su viewBox con la
    * geometría que carga el usuario, así que un muro alto o un pilote esbelto
    * salen verticales y, al ocupar todo el ancho de la columna, quedan al triple

@@ -43,10 +43,6 @@ De `fck` y `fyk` deriva `fcd = fck/1,5`, `fctm = 0,3·fck^(2/3)`,
 | `calcularTorsion(materiales, geometria, datos)` | `vigas-torsion.ts` | `ResultadoTorsion` |
 | `calcularVigaConTorsion(materiales, geometria, datos)` | idem | flexión + cortante + torsión combinados |
 
-Complementos en `vigas-complementos.ts`: `calcularArmaduraSecundaria`,
-`calcularArmaduraPiel`, `calcularAnclajeMm`, `calcularDeformaciones`,
-`calcularSeparacionBarrasCm`.
-
 `DatosFlexion` acepta `asAdicionalCm2` y `DatosCortante` acepta
 `a90AdicionalCm2PorM`: así la torsión suma su aporte sin duplicar el cálculo.
 

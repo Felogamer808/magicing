@@ -122,6 +122,36 @@ export function CroquisNivelesViento() {
 }
 
 /**
+ * cd para el anclaje: el mínimo entre el semiancho libre entre barras, el
+ * recubrimiento lateral y el recubrimiento inferior (fig. A19.8.3).
+ */
+export function CroquisRecubrimientoAnclaje() {
+  const x0 = 40;
+  const x1 = 190;
+  const yTop = 26;
+  const yBot = 92;
+  const yBar = yBot - 16;
+  const barX = [70, 118, 166];
+
+  return (
+    <Croquis
+      viewBox="0 0 226 128"
+      ancho="max-w-[16rem]"
+      nota="cd es el mínimo entre a/2 (mitad de la separación libre entre barras), c1 (recubrimiento lateral) y c (recubrimiento inferior)."
+    >
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.35" />
+      {barX.map((x) => (
+        <circle key={x} cx={x} cy={yBar} r="5" fill="currentColor" />
+      ))}
+
+      <CotaH x0={barX[0]} x1={barX[1]} y={yBar + 20} texto="a" />
+      <CotaV x={x0 - 14} y0={yBar} y1={yBot} texto="c" />
+      <Referencia x={198} y={yBar} hacia={[barX[2] + 5, yBar]} texto="c1" />
+    </Croquis>
+  );
+}
+
+/**
  * Carga colgada: una pieza que llega al alma de la viga, por debajo de la
  * zona comprimida, y que hay que "colgar" con estribos que suben hasta la
  * cara comprimida opuesta (Jiménez Montoya, §24.9.1).

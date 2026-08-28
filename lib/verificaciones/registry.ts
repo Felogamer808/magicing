@@ -75,6 +75,7 @@ export type IdVerificacion =
   | "muros-contencion"
   | "muros"
   | "fisuracion"
+  | "longitudes-anclaje"
   | "viento"
   | "compresion-acero"
   | "flexion-acero"
@@ -429,6 +430,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Abertura característica de fisura por separación media, en vigas y losas.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/fisuracion",
+    disponible: true,
+  },
+  {
+    id: "longitudes-anclaje",
+    nombre: "Longitudes de anclaje y solape",
+    seccion: "hormigon-armado",
+    categoria: "Detalles de armado",
+    descripcion:
+      "Longitud de anclaje recto, con gancho a 90° y de solape según el diámetro, la adherencia y el recubrimiento.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/longitudes-anclaje",
     disponible: true,
   },
   {

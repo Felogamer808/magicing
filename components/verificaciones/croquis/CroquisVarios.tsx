@@ -151,6 +151,46 @@ export function CroquisRecubrimientoAnclaje() {
   );
 }
 
+/**
+ * Carga colgada: una pieza que llega al alma de la viga, por debajo de la
+ * zona comprimida, y que hay que "colgar" con estribos que suben hasta la
+ * cara comprimida opuesta (Jiménez Montoya, §24.9.1).
+ */
+export function CroquisCargaColgada() {
+  const x0 = 58;
+  const x1 = 168;
+  const yTop = 22;
+  const yBot = 92;
+  const xColgH0 = 92;
+  const xColgH1 = 134;
+  const yColgB = 112;
+
+  return (
+    <Croquis
+      viewBox="0 0 258 136"
+      ancho="max-w-[17rem]"
+      nota="Rd se cuelga con estribos que suben hasta la cara comprimida opuesta a la carga. h es el canto de la viga que cuelga; a, el ancho de la pieza colgada."
+    >
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x={xColgH0} y={yBot} width={xColgH1 - xColgH0} height={yColgB - yBot} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
+
+      {[102, 114, 124].map((x) => (
+        <path key={x} d={`M${x} ${yColgB - 4} L${x} ${yTop + 6}`} stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" opacity="0.85" />
+      ))}
+
+      <path d={`M113 ${yColgB + 14} L113 ${yColgB + 2}`} stroke="currentColor" strokeWidth="1.4" markerEnd="url(#croquis-flecha)" />
+      <text x={113} y={yColgB + 26} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
+        Rd
+      </text>
+
+      <CotaV x={44} y0={yTop} y1={yBot} texto="h" />
+      <CotaH x0={xColgH0} x1={xColgH1} y={yColgB + 10} texto="a" />
+      <Referencia x={182} y={yTop + 10} hacia={[x1, yTop + 4]} texto="compresión" />
+      <Referencia x={182} y={60} hacia={[124, 60]} texto="cuelgue" />
+    </Croquis>
+  );
+}
+
 /** Sección mixta: tubo circular relleno, con el acero por fuera y las barras dentro. */
 export function CroquisSeccionMixta() {
   const cx = 74;

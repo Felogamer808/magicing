@@ -60,8 +60,8 @@ export interface SeccionMeta {
 export type IdVerificacion =
   | "vigas-flexion-cortante"
   | "vigas-torsion"
-  | "vigas-apeo"
   | "vigas-apeo-bielas"
+  | "carga-colgada"
   | "mensula-corta"
   | "losas"
   | "secciones-mixtas"
@@ -86,6 +86,7 @@ export type IdVerificacion =
   | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas"
+  | "formulario-torsion"
   | "madera-flexion"
   | "madera-cortante"
   | "madera-axil"
@@ -258,17 +259,6 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
-    id: "vigas-apeo",
-    nombre: "Vigas de apeo",
-    seccion: "hormigon-armado",
-    categoria: "Vigas",
-    descripcion:
-      "Verificación completa de viga: flexión, cortante, armadura secundaria y de piel, anclaje y flecha.",
-    normasDisponibles: ["EC2"],
-    ruta: "/verificaciones/vigas-apeo",
-    disponible: true,
-  },
-  {
     id: "vigas-apeo-bielas",
     nombre: "Vigas de apeo — bielas y tirantes",
     seccion: "hormigon-armado",
@@ -277,6 +267,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Apeo de pilar resuelto como región D: clasificación B/D, tirante, bielas, nudos, tracción transversal, malla de piel, anclaje con horquillas y armadura de cuelgue.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/vigas-apeo-bielas",
+    disponible: true,
+  },
+  {
+    id: "carga-colgada",
+    nombre: "Armadura de cuelgue",
+    seccion: "hormigon-armado",
+    categoria: "Vigas",
+    descripcion:
+      "Estribos de suspensión para una carga colgada: viga invertida u otro caso donde la reacción se aplica por debajo de la zona comprimida.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/carga-colgada",
     disponible: true,
   },
   {
@@ -548,6 +549,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
     normasDisponibles: ["Estática"],
     ruta: "/verificaciones/formulario-vigas",
+    disponible: true,
+  },
+  {
+    id: "formulario-torsion",
+    nombre: "Formulario de torsión",
+    seccion: "herramientas",
+    categoria: "Estática",
+    descripcion:
+      "Diagrama de momento torsor Mt(x) para piezas isostáticas: par puntual, carga excéntrica puntual o repartida.",
+    normasDisponibles: ["Estática"],
+    ruta: "/verificaciones/formulario-torsion",
     disponible: true,
   },
   {

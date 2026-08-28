@@ -66,7 +66,7 @@ export function IndiceVerificaciones({ seccion }: { seccion: string }) {
                     <Card
                       className={
                         item.disponible
-                          ? "h-full transition-colors hover:border-primary/40 hover:ring-primary/20"
+                          ? "h-full transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:ring-primary/20 active:translate-y-0 active:scale-[0.99]"
                           : "h-full opacity-60"
                       }
                     >
@@ -74,7 +74,7 @@ export function IndiceVerificaciones({ seccion }: { seccion: string }) {
                         <div className="flex items-start justify-between gap-2">
                           <CardTitle className="text-base">{item.nombre}</CardTitle>
                           {item.disponible ? (
-                            <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                            <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
                           ) : (
                             <Badge variant="outline" className="shrink-0">
                               Próximamente
@@ -96,7 +96,7 @@ export function IndiceVerificaciones({ seccion }: { seccion: string }) {
                   );
 
                   return item.disponible ? (
-                    <Link key={item.id} href={item.ruta} className="block">
+                    <Link key={item.id} href={item.ruta} className="group block">
                       {contenido}
                     </Link>
                   ) : (

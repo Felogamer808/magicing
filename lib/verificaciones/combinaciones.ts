@@ -204,6 +204,12 @@ const ESTATICA_LINEAL: Combinacion = {
     "No mayora ni minora nada. Si se cargan acciones características salen esfuerzos característicos; si se cargan mayoradas, salen de cálculo. La flecha sólo tiene sentido con cargas de servicio.",
 };
 
+const TORSION_ESTATICA: Combinacion = {
+  regimen: "herramienta",
+  etiqueta: "Herramienta · el resultado hereda el régimen de la carga",
+  detalle: "No mayora ni minora nada: el par o la carga que se cargue define el régimen del torsor que devuelve.",
+};
+
 /**
  * Combinación de cada verificación, por su id en el registro.
  *
@@ -216,8 +222,8 @@ const ESTATICA_LINEAL: Combinacion = {
 export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> = {
   "vigas-flexion-cortante": ELU_MAYORADAS,
   "vigas-torsion": ELU_MAYORADAS,
-  "vigas-apeo": ELU_MAYORADAS,
   "vigas-apeo-bielas": ELU_MAYORADAS,
+  "carga-colgada": ELU_MAYORADAS,
   "mensula-corta": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   zapatas: ZAPATAS,
@@ -242,6 +248,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "conducto-circular": CAUDAL_DE_PROYECTO,
   "propiedades-geometricas": SIN_COMBINACION,
   "formulario-vigas": ESTATICA_LINEAL,
+  "formulario-torsion": TORSION_ESTATICA,
   "madera-flexion": MADERA_ELU,
   "madera-cortante": MADERA_ELU,
   "madera-axil": MADERA_ELU,

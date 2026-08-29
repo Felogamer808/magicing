@@ -11,6 +11,7 @@ import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisRecubrimientoAnclaje } from "@/components/verificaciones/croquis/CroquisVarios";
+import { DiagramaAnclaje, DiagramaSolape } from "@/components/verificaciones/hormigon/DiagramaAnclaje";
 import {
   calcularAnclaje,
   calcularSolape,
@@ -186,6 +187,12 @@ export default function LongitudesAnclajePage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Longitud de anclaje</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  <DiagramaAnclaje
+                    diametroMm={resultado.v.diametro}
+                    forma={forma}
+                    lbdMm={resultado.anclaje.lbdMm}
+                    mandrilMinMm={resultado.anclaje.mandrilMinMm}
+                  />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
                       lbd = {fmt(resultado.anclaje.lbdMm, 0)} mm (
@@ -227,6 +234,7 @@ export default function LongitudesAnclajePage() {
                 <Card>
                   <CardHeader><CardTitle className="text-base">Longitud de solape</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
+                    <DiagramaSolape diametroMm={resultado.v.diametro} l0Mm={resultado.solapeR.l0Mm} />
                     <div className="rounded-md border p-3 text-sm">
                       <p className="font-medium">
                         l0 = {fmt(resultado.solapeR.l0Mm, 0)} mm (

@@ -401,6 +401,52 @@ describe("columna armada dentro de calcularCompresion", () => {
     expect(3).toBeGreaterThan(apretado.columnaArmada!.separacionMaximaM);
   });
 
+  it("con lcxM = lcyM, el eje débil ya corregido gobierna la separación máxima", () => {
+    // Caso habitual: ry compuesto menor que rx, y encima con la corrección de
+    // E6.2 sumada. La esbeltez gobernante coincide con la modificada, y la
+    // separación máxima sale igual que antes del fix.
+    const r = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 0.4, tipo: "atornillado-sin-pretensar" },
+    });
+    expect(r.columnaArmada!.esbeltezGobernante).toBeCloseTo(r.columnaArmada!.esbeltezModificada, 9);
+    expect(r.columnaArmada!.separacionMaximaM).toBeCloseTo(
+      0.75 * r.columnaArmada!.esbeltezModificada * r.columnaArmada!.riM,
+      9
+    );
+  });
+
+  it("con el eje fuerte muy esbelto y el débil corto, la separación máxima usa el eje fuerte", () => {
+    // lcxM largo y lcyM corto: aun con la corrección de E6.2 sobre el débil
+    // —acá sin corrección real, a/ri < 40—, el fuerte queda más esbelto y
+    // tiene que ser el que gobierna la separación máxima, no el débil.
+    const p = propiedades("2PNC-almas", { altura: 180 });
+    const riM = radioGiroIndividualPNCM(180);
+    const lcxM = 10;
+    const lcyM = 0.3;
+
+    const r = calcularCompresion({
+      familia: "2PNC-almas",
+      params: { altura: 180 },
+      lcxM,
+      lcyM,
+      fyPa: FY,
+      ePa: E,
+      columnaArmada: { aM: 0.1, tipo: "soldado-o-pretensado" }, // a/ri ≈ 5: ec. (E6-2a), sin corrección.
+    });
+
+    const esbeltezFuerte = lcxM / p.rxM;
+    const esbeltezDebilSinCorregir = lcyM / p.ryM;
+    // Confirma la premisa del caso: el fuerte manda incluso antes de mirar E6.
+    expect(esbeltezFuerte).toBeGreaterThan(esbeltezDebilSinCorregir);
+
+    expect(r.columnaArmada!.ecuacion).toBe("E6-2a");
+    expect(r.columnaArmada!.esbeltezModificada).toBeCloseTo(esbeltezDebilSinCorregir, 6);
+    expect(r.columnaArmada!.esbeltezGobernante).toBeCloseTo(esbeltezFuerte, 6);
+    expect(r.columnaArmada!.esbeltezGobernante).toBeGreaterThan(r.columnaArmada!.esbeltezModificada);
+    expect(r.columnaArmada!.separacionMaximaM).toBeCloseTo(0.75 * esbeltezFuerte * riM, 6);
+  });
+
   it("reproduce a mano el caso soldado con a/ri > 40 sobre el catálogo real", () => {
     const riM = radioGiroIndividualPNCM(180);
     const aM = 41 * riM; // a/ri = 41, apenas sobre el umbral.

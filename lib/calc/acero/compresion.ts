@@ -61,6 +61,14 @@ export interface ResultadoColumnaArmada {
   esbeltezGeometrica: number;
   /** (Lc/r)m: esbeltez corregida, la que entra en la ec. E3-4 en lugar de (Lc/r)0. */
   esbeltezModificada: number;
+  /**
+   * La esbeltez que realmente gobierna la capacidad de la columna compuesta:
+   * el mayor entre (Lc/r)m del eje débil y Lc/r del eje fuerte —el fuerte no
+   * lleva corrección de E6.2, así que entra tal cual—. Es la que exige la ec.
+   * de separación máxima, no siempre (Lc/r)m: si el eje fuerte fuera más
+   * esbelto que el débil ya corregido, sería el fuerte el que gobierna.
+   */
+  esbeltezGobernante: number;
   /** Separación máxima entre conectores, art. E6.2(a): 0,75 de la esbeltez que gobierna la columna, por ri. */
   separacionMaximaM: number;
   cumpleSeparacionMaxima: boolean;
@@ -312,9 +320,13 @@ export function calcularCompresion(datos: DatosCompresion): ResultadoCompresion 
 
     // Art. E6.2(a): la esbeltez de un tramo individual entre conectores tiene
     // que quedar por debajo de 3/4 de la esbeltez que gobierna la columna
-    // compuesta. Se despeja como separación máxima, que es el dato que hace
-    // falta para poner los conectores en el plano, no la esbeltez en sí.
-    const separacionMaximaM = 0.75 * esbeltezModificada * riM;
+    // compuesta —el mayor entre los dos ejes, no necesariamente el débil ya
+    // corregido: con un eje fuerte muy esbelto y un eje débil corto, el
+    // fuerte puede seguir gobernando aunque el débil lleve la corrección de
+    // E6.2 encima—. Se despeja como separación máxima, que es el dato que
+    // hace falta para poner los conectores en el plano, no la esbeltez en sí.
+    const esbeltezGobernante = Math.max(esbeltezModificada, ejeFuerte.esbeltez);
+    const separacionMaximaM = 0.75 * esbeltezGobernante * riM;
 
     columnaArmada = {
       riM,
@@ -323,6 +335,7 @@ export function calcularCompresion(datos: DatosCompresion): ResultadoCompresion 
       ecuacion,
       esbeltezGeometrica,
       esbeltezModificada,
+      esbeltezGobernante,
       separacionMaximaM,
       cumpleSeparacionMaxima: datos.columnaArmada.aM <= separacionMaximaM,
     };

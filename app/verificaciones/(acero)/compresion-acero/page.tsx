@@ -383,6 +383,11 @@ export default function CompresionAceroPage() {
                         { etiqueta: "Ecuación aplicada", valor: resultado.columnaArmada.ecuacion },
                         { etiqueta: "(Lc/r)0 — geométrica, sin corregir", valor: fmt(resultado.columnaArmada.esbeltezGeometrica, 2) },
                         { etiqueta: "(Lc/r)m — modificada", valor: fmt(resultado.columnaArmada.esbeltezModificada, 2) },
+                        { etiqueta: "Esbeltez del eje fuerte", valor: fmt(resultado.ejeFuerte.esbeltez, 2) },
+                        {
+                          etiqueta: "Esbeltez gobernante — máx(débil corregida, fuerte)",
+                          valor: fmt(resultado.columnaArmada.esbeltezGobernante, 2),
+                        },
                         { etiqueta: "Separación máxima admisible — E6.2(a)", valor: `${fmt(resultado.columnaArmada.separacionMaximaM, 3)} m` },
                       ]}
                     />

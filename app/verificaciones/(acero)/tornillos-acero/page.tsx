@@ -14,6 +14,7 @@ import {
   OMEGA_J,
   bulonMasExigido,
   calcularBloqueDeCorte,
+  interaccionTraccionCorteKN,
   repartoElasticoBulones,
   resistenciaBulonKN,
   type GradoBulon,
@@ -28,6 +29,7 @@ const GRADOS: readonly GradoBulon[] = ["A325", "A307"];
 const DEFORMACION = ["Controlada (agujeros estándar)", "No controlada"] as const;
 const DOS_CHAPAS = ["Una chapa", "Dos chapas"] as const;
 const HAY_BLOQUE = ["No corresponde", "Sí, verificar"] as const;
+const HAY_TRACCION = ["No corresponde", "Sí, verificar"] as const;
 const UBS = ["Uniforme (Ubs = 1,0)", "No uniforme (Ubs = 0,5)"] as const;
 
 /** Grilla centrada en su propio centroide: es la hipótesis que pide el método elástico. */
@@ -70,6 +72,9 @@ export default function TornillosAceroPage() {
   const [fu2, setFu2] = useCampo("fu2", "400");
   const [lc2, setLc2] = useCampo("lc2", "35");
   const [deformacion2, setDeformacion2] = useCampo("deformacion2", DEFORMACION[0]);
+
+  const [hayTraccion, setHayTraccion] = useCampo("hayTraccion", HAY_TRACCION[0]);
+  const [traccionReq, setTraccionReq] = useCampo("traccionReq", "30");
 
   const [hayBloque, setHayBloque] = useCampo("hayBloque", HAY_BLOQUE[0]);
   const [corteLargo, setCorteLargo] = useCampo("corteLargo", "160");
@@ -123,6 +128,19 @@ export default function TornillosAceroPage() {
       chapas,
     });
 
+    let traccion: ReturnType<typeof interaccionTraccionCorteKN> | null = null;
+    let traccionReqKN = 0;
+    if (hayTraccion === HAY_TRACCION[1]) {
+      traccionReqKN = aNumero(traccionReq);
+      if (!(Number.isFinite(traccionReqKN) && traccionReqKN >= 0)) return null;
+      traccion = interaccionTraccionCorteKN({
+        diametroMm: n.d,
+        grado: grado as GradoBulon,
+        vReqKN: critico.vKN,
+        planosDeCorte: n.planos,
+      });
+    }
+
     let bloque: ReturnType<typeof calcularBloqueDeCorte> | null = null;
     if (hayBloque === HAY_BLOQUE[1]) {
       const cl = aNumero(corteLargo);
@@ -150,10 +168,11 @@ export default function TornillosAceroPage() {
       });
     }
 
-    return { bulones, fuerzas, critico, bulon, bloque, n };
+    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, bloque, n };
   }, [
     filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte,
     espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2,
+    hayTraccion, traccionReq,
     hayBloque, corteLargo, corteEspesor, corteAgujeros, traccionAncho, traccionEspesor,
     traccionAgujeros, diametroAgujeroBloque, ubs,
   ]);
@@ -175,9 +194,10 @@ export default function TornillosAceroPage() {
           Artículo J3, conexiones de contacto (no <em>slip-critical</em>), por el método ASD
           (Ω = {fmt(OMEGA_J, 2)}). Un bulón puede fallar de tres maneras distintas y cualquiera puede
           gobernar: corte del vástago —depende sólo del bulón—, o aplastamiento y arrancamiento de la
-          chapa —dependen de la chapa y no del bulón—. No cubre todavía la interacción
-          tracción-corte de un mismo bulón (J3-3a) ni las conexiones <em>slip-critical</em> (J3-4),
-          que la norma reserva para estructuras de altura, puentes o fatiga.
+          chapa —dependen de la chapa y no del bulón—. Si además hay tracción simultánea, la ec.
+          (J3-3b) reduce la capacidad a tracción según cuánto corte haya. No cubre todavía las
+          conexiones <em>slip-critical</em> (J3-4), que la norma reserva para estructuras de altura,
+          puentes o fatiga.
         </CardContent>
       </Card>
 
@@ -267,6 +287,35 @@ export default function TornillosAceroPage() {
                   fuerza —no la distancia entre centros—.
                 </p>
               </PanelAyuda>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Tracción simultánea — art. J3.7</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <CampoSeleccion id="hayTraccion" etiqueta="¿El bulón más exigido también tracciona?" valor={hayTraccion}
+                              opciones={HAY_TRACCION} onChange={setHayTraccion} />
+              {hayTraccion === HAY_TRACCION[1] && (
+                <>
+                  <CampoNumerico id="traccionReq" etiqueta="Tracción requerida en el bulón" sufijo="kN"
+                                 valor={traccionReq} onChange={setTraccionReq} />
+                  <PanelAyuda titulo="De dónde sale el corte que entra en la interacción">
+                    <p>
+                      El corte requerido es el del bulón más exigido del grupo —el mismo V que ya
+                      calcula el reparto elástico de arriba—, no un dato aparte. La tracción sí es un
+                      dato nuevo: sale de la parte de la conexión que no modela el reparto elástico
+                      en el plano —por ejemplo, el brazo de palanca de una ménsula que tracciona los
+                      bulones de la fila superior—.
+                    </p>
+                    <p>
+                      No se resuelve acá el apalancamiento (<em>prying action</em>) de piezas tipo
+                      T ni el reparto de la tracción entre bulones de una conexión a momento: el
+                      apunte remite esos casos a un procedimiento aparte (Steel Construction Manual,
+                      sección 9). Este cálculo asume que la tracción por bulón ya está determinada.
+                    </p>
+                  </PanelAyuda>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -377,6 +426,31 @@ export default function TornillosAceroPage() {
                   />
                 </CardContent>
               </Card>
+
+              {resultado.traccion && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Interacción tracción-corte — art. J3.7</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <ResultadoCheck
+                      etiqueta="Tracción con corte simultáneo"
+                      verifica={resultado.traccionReqKN <= resultado.traccion.admisibleKN}
+                      detalle={`${fmt(resultado.traccionReqKN, 2)} kN / ${fmt(resultado.traccion.admisibleKN, 2)} kN · aprovechamiento ${fmt(
+                        (resultado.traccionReqKN / resultado.traccion.admisibleKN) * 100,
+                        1
+                      )} %`}
+                    />
+                    <PanelFormulas
+                      titulo="Ver cálculo"
+                      filas={[
+                        { etiqueta: "fv requerida en el vástago", valor: `${fmt(resultado.traccion.fvReqPa / 1e6, 1)} MPa` },
+                        { etiqueta: "F'nt reducida  (J3-3b)", valor: `${fmt(resultado.traccion.fntReducidaPa / 1e6, 1)} MPa` },
+                        { etiqueta: "Rn = F'nt·Ab", valor: `${fmt(resultado.traccion.nominalKN, 2)} kN` },
+                        { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.traccion.admisibleKN, 2)} kN` },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {resultado.bloque && (
                 <Card>

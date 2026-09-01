@@ -4,6 +4,8 @@ import {
   areaNetaBloqueM2,
   bulonMasExigido,
   calcularBloqueDeCorte,
+  fntReducidaPorCortePa,
+  interaccionTraccionCorteKN,
   OMEGA_J,
   repartoElasticoBulones,
   resistenciaBulonKN,
@@ -122,6 +124,53 @@ describe("resistencia del bulón completo: vástago y chapas", () => {
     });
     expect(r.resistenciaChapas).toHaveLength(2);
     expect(r.nominalKN).toBeCloseTo(soloFina.gobiernaKN, 6);
+  });
+});
+
+// Fnt = 620 MPa y Fnv = 372 MPa del A325, iguales que en el resto del archivo.
+describe("interacción tracción-corte, ec. (J3-3b)", () => {
+  const FNT_A325 = 620e6;
+  const FNV_A325 = 372e6;
+
+  it("sin corte no hay penalización: F'nt topa en Fnt", () => {
+    expect(fntReducidaPorCortePa(FNT_A325, FNV_A325, 0)).toBeCloseTo(FNT_A325, 0);
+  });
+
+  it("el tramo plano del diagrama dura hasta fv = 0,3·Fnv/Ω", () => {
+    // Figura 8.16 del apunte: el quiebre del diagrama de interacción está en
+    // 0,3·φFnv (LRFD) — acá, en la forma ASD, en 0,3·Fnv/Ω.
+    const umbral = (0.3 * FNV_A325) / OMEGA_J;
+    expect(fntReducidaPorCortePa(FNT_A325, FNV_A325, umbral)).toBeCloseTo(FNT_A325, 0);
+    expect(fntReducidaPorCortePa(FNT_A325, FNV_A325, umbral + 1e6)).toBeLessThan(FNT_A325);
+  });
+
+  it("reproduce un punto intermedio a mano: fv = 100 MPa", () => {
+    // F'nt = 1,3·620 − (2·100/372)·620 = 806 − 333,33... = 472,67 MPa.
+    expect(fntReducidaPorCortePa(FNT_A325, FNV_A325, 100e6) / 1e6).toBeCloseTo(472.67, 1);
+  });
+
+  it("no baja de cero: pasado cierto corte, no queda capacidad a tracción", () => {
+    const fvMuyAlto = (2 * FNV_A325) / OMEGA_J;
+    expect(fntReducidaPorCortePa(FNT_A325, FNV_A325, fvMuyAlto)).toBe(0);
+  });
+
+  it("interaccionTraccionCorteKN sin corte coincide con la tracción pura J3-1", () => {
+    const r = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 0, planosDeCorte: 1 });
+    expect(r.nominalKN).toBeCloseTo(resistenciaTraccionBulonKN(20, "A325"), 6);
+  });
+
+  it("interaccionTraccionCorteKN reduce la admisible a medida que crece el corte", () => {
+    const sinCorte = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 0, planosDeCorte: 1 });
+    const conCorte = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 20, planosDeCorte: 1 });
+    expect(conCorte.admisibleKN).toBeLessThan(sinCorte.admisibleKN);
+    expect(conCorte.admisibleKN).toBeCloseTo(conCorte.nominalKN / OMEGA_J, 9);
+  });
+
+  it("más planos de corte reparten el mismo corte total: penaliza menos", () => {
+    const unPlano = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 20, planosDeCorte: 1 });
+    const dosPlanos = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 20, planosDeCorte: 2 });
+    expect(dosPlanos.fvReqPa).toBeCloseTo(unPlano.fvReqPa / 2, 0);
+    expect(dosPlanos.admisibleKN).toBeGreaterThan(unPlano.admisibleKN);
   });
 });
 

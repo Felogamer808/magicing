@@ -18,10 +18,9 @@
  *   pieza conectada, que combina rotura por corte en un plano con rotura por
  *   tracción en el plano perpendicular.
  *
- * Lo que no está cubierto todavía: la interacción tracción-corte de la ec.
- * (J3-3a) para bulones sometidos a los dos esfuerzos a la vez, y las
- * conexiones *slip-critical* de la ec. (J3-4), que la propia norma reserva
- * para estructuras de altura, puentes o situaciones de fatiga.
+ * Lo que no está cubierto todavía: las conexiones *slip-critical* de la ec.
+ * (J3-4), que la propia norma reserva para estructuras de altura, puentes o
+ * situaciones de fatiga.
  */
 
 /** Coeficiente de seguridad ASD compartido: todos los φ = 0,75 de este capítulo emparejan con Ω = 1,5/0,75 = 2,00. */
@@ -46,6 +45,63 @@ export function resistenciaCorteBulonKN(diametroMm: number, grado: GradoBulon): 
 /** Forma en tracción de la ec. (J3-1): Rn = Fnt·Ab. */
 export function resistenciaTraccionBulonKN(diametroMm: number, grado: GradoBulon): number {
   return (FNT_PA[grado] * areaBulonM2(diametroMm)) / 1000;
+}
+
+/* ------------------------------------------------------------------ *
+ * Interacción tracción-corte de un mismo bulón, art. J3.7
+ * ------------------------------------------------------------------ */
+
+/**
+ * Ec. (J3-3b): tensión de tracción nominal reducida por la presencia
+ * simultánea de corte, forma ASD.
+ *
+ * F'nt = 1,3·Fnt − (Ω·fv/Fnv)·Fnt ≤ Fnt
+ *
+ * `fvPa` es la tensión de corte **requerida** en el vástago —la solicitación
+ * real, de cargas de servicio—, no la admisible. El apunte sólo trae la
+ * forma LRFD, ec. (J3-3a): F'nt = 1,3·Fnt − fv(Fnt/φFnv) ≤ Fnt con φ = 0,75.
+ * La forma ASD (J3-3b) de la propia norma AISC 360 reemplaza fv/φ por Ω·fv:
+ * son las dos caras de la misma ecuación, la que compara contra φFnv y la
+ * que compara contra Fnv/Ω, igual que en todo el resto de este capítulo. Por
+ * debajo de fv = 0,3·Fnv/Ω no hay penalización —F'nt topa en Fnt—, tal como
+ * muestra el tramo plano del diagrama de interacción del apunte (figura
+ * 8.16, con el quiebre en 0,3·φFnt / 0,3·φFnv).
+ *
+ * La resistencia de corte del bulón no se reduce: la interacción sólo
+ * penaliza la tracción.
+ */
+export function fntReducidaPorCortePa(fntPa: number, fnvPa: number, fvPa: number): number {
+  const reducida = 1.3 * fntPa - ((OMEGA_J * fvPa) / fnvPa) * fntPa;
+  return Math.max(0, Math.min(reducida, fntPa));
+}
+
+export interface ResultadoInteraccionTraccionCorte {
+  /** Tensión de corte requerida en el vástago, Pa. */
+  fvReqPa: number;
+  /** Fnt reducida por la ec. (J3-3b), Pa. */
+  fntReducidaPa: number;
+  /** Rn = F'nt·Ab, kN. */
+  nominalKN: number;
+  admisibleKN: number;
+}
+
+/**
+ * Resuelve la ec. (J3-3b) a partir del corte requerido en el bulón, en kN
+ * —el mismo dato que ya exige el reparto elástico del grupo—, no de la
+ * tensión directamente.
+ */
+export function interaccionTraccionCorteKN(opciones: {
+  diametroMm: number;
+  grado: GradoBulon;
+  vReqKN: number;
+  planosDeCorte: number;
+}): ResultadoInteraccionTraccionCorte {
+  const { diametroMm, grado, vReqKN, planosDeCorte } = opciones;
+  const abM2 = areaBulonM2(diametroMm);
+  const fvReqPa = (vReqKN * 1000) / (abM2 * planosDeCorte);
+  const fntReducidaPa = fntReducidaPorCortePa(FNT_PA[grado], FNV_PA[grado], fvReqPa);
+  const nominalKN = (fntReducidaPa * abM2) / 1000;
+  return { fvReqPa, fntReducidaPa, nominalKN, admisibleKN: nominalKN / OMEGA_J };
 }
 
 export interface ResultadoAplastamiento {

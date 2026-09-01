@@ -147,6 +147,30 @@ describe("flexo-compresión H1.1", () => {
     expect(conMasMy.interaccion).toBeGreaterThan(r.interaccion);
   });
 
+  /**
+   * Con Pr = 0 no hay carga axial: es el caso de una viga con momento en los
+   * dos ejes y ninguna axial, no una columna. La H1-1a nunca se activa acá
+   * —Pr/Pc = 0 siempre cae por debajo de 0,2— y la H1-1b se reduce sola a
+   * Mrx/Mcx + Mry/Mcy ≤ 1, sin término axial: no hace falta una fórmula
+   * aparte para flexión biaxial pura, el caso límite de H1-1b ya lo resuelve.
+   */
+  it("con Pr = 0 se reduce a la interacción de flexión biaxial pura", () => {
+    const r = calcularFlexoCompresion({
+      ...base,
+      pRequeridaKN: 0,
+      mrxKNm: 40,
+      mryKNm: 10,
+    });
+
+    expect(r.ecuacion).toBe("H1-1b");
+    expect(r.relacionAxial).toBe(0);
+    expect(r.terminos.axial).toBe(0);
+    expect(r.interaccion).toBeCloseTo(40 / r.mcxKNm + 10 / r.mcyKNm, 9);
+    // Verificado además contra el navegador: HEB200, Fy=250MPa, Lb=Lc=4m
+    // da Mcx≈91,32kN·m y Mcy≈45,87kN·m, interacción≈0,656.
+    expect(r.interaccion).toBeCloseTo(0.656, 3);
+  });
+
   it("el eje débil es más flexible: el mismo momento consume más ahí", () => {
     const r = calcularFlexoCompresion({
       ...base,

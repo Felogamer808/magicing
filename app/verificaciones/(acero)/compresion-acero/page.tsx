@@ -18,12 +18,21 @@ import {
   OMEGA_C,
   type DatosColumnaArmada,
   type PandeoEnUnEje,
+  type PandeoTorsional,
+  type ResultadoCompresion,
   type TipoConectorArmada,
 } from "@/lib/calc/acero/compresion";
+import { propiedades } from "@/lib/calc/acero/perfiles";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "compresion-acero")!;
+
+const GOBIERNA_TEXTO: Record<ResultadoCompresion["gobierna"], string> = {
+  fuerte: "el eje fuerte",
+  débil: "el eje débil",
+  torsional: "el pandeo torsional",
+};
 
 const CONEXION = ["Continua (soldadura corrida)", "Intermitente (conectores espaciados)"] as const;
 const TIPO_CONECTOR = ["Atornillado sin pretensar", "Soldado o atornillado pretensado (clase A/B)"] as const;
@@ -53,15 +62,43 @@ function FilasDeEje({ eje, corregidaPorColumnaArmada }: { eje: PandeoEnUnEje; co
   );
 }
 
+function FilasDeTorsional({ torsional }: { torsional: PandeoTorsional }) {
+  return (
+    <PanelFormulas
+      titulo="Ver cálculo"
+      filas={[
+        { etiqueta: "Kz·L", valor: `${fmt(torsional.kzLM, 2)} m` },
+        { etiqueta: "Fe  (E4-2)", valor: `${fmt(torsional.fePa / 1e6, 1)} MPa` },
+        { etiqueta: "Rama aplicada", valor: torsional.regimen },
+        { etiqueta: "Fcr", valor: `${fmt(torsional.fcrPa / 1e6, 1)} MPa` },
+        { etiqueta: "Pn = Fcr·Ag  (E4-1)", valor: `${fmt(torsional.pnKN, 1)} kN` },
+        { etiqueta: `Pn/Ωc con Ωc = ${OMEGA_C}`, valor: `${fmt(torsional.admisibleKN, 1)} kN` },
+      ]}
+    />
+  );
+}
+
 export default function CompresionAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
   const seccion = useSeccionAcero("PNI");
 
   const [lcx, setLcx] = useCampo("lcx", "3.6");
   const [lcy, setLcy] = useCampo("lcy", "1.5");
+  const [kzl, setKzl] = useCampo("kzl", "3.6");
   const [fy, setFy] = useCampo("fy", "250");
   const [e, setE] = useCampo("e", "200000");
   const [pRequerida, setPRequerida] = useCampo("pRequerida", "300");
+
+  // El art. E4 sólo aplica a secciones doblemente simétricas: el PNC suelto
+  // queda afuera, todo lo demás del catálogo de este módulo lo es.
+  const esDoblementeSimetrica = useMemo(() => {
+    if (!seccion.completos) return false;
+    try {
+      return propiedades(seccion.familia, seccion.params).doblementeSimetrica;
+    } catch {
+      return false;
+    }
+  }, [seccion.familia, seccion.params, seccion.completos]);
 
   const esColumnaArmable = seccion.familia === "2PNC-almas";
   const [conexion, setConexion] = useCampo("conexion", CONEXION[0]);
@@ -74,6 +111,9 @@ export default function CompresionAceroPage() {
     const n = { lcx: aNumero(lcx), lcy: aNumero(lcy), fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida) };
     if (!seccion.completos) return null;
     if (!Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
+
+    const nKzl = aNumero(kzl);
+    if (esDoblementeSimetrica && !(Number.isFinite(nKzl) && nKzl > 0)) return null;
 
     let columnaArmada: DatosColumnaArmada | undefined;
     if (pideColumnaArmada) {
@@ -91,13 +131,14 @@ export default function CompresionAceroPage() {
         fyPa: n.fy * 1e6,
         ePa: n.e * 1e6,
         pRequeridaKN: n.p,
+        kzLM: esDoblementeSimetrica ? nKzl : undefined,
         columnaArmada,
       });
     } catch {
       return null;
     }
   }, [
-    seccion.familia, seccion.params, seccion.completos, lcx, lcy, fy, e, pRequerida,
+    seccion.familia, seccion.params, seccion.completos, esDoblementeSimetrica, lcx, lcy, kzl, fy, e, pRequerida,
     pideColumnaArmada, separacionConectores, tipoConector,
   ]);
 
@@ -117,10 +158,11 @@ export default function CompresionAceroPage() {
         <CardContent className="py-4 text-sm text-muted-foreground">
           Artículo E3: pandeo por flexión de barras sin elementos esbeltos, por el método ASD
           (Ωc = 1,67). Se resuelven los dos ejes por separado y gobierna el menor. La longitud
-          efectiva Lc = K·L se carga ya multiplicada por K. En tubos de pared muy delgada puede
-          gobernar el pandeo local del artículo E7, que todavía no está implementado. En 2PNC
-          soldados por las almas con conectores intermedios en vez de soldadura corrida, se suma
-          la esbeltez modificada del artículo E6.2 —columnas armadas—, más abajo.
+          efectiva Lc = K·L se carga ya multiplicada por K. En secciones doblemente simétricas
+          también se verifica el pandeo torsional del artículo E4. En 2PNC soldados por las almas
+          con conectores intermedios en vez de soldadura corrida, se suma la esbeltez modificada
+          del artículo E6.2 —columnas armadas—, más abajo. En tubos de pared muy delgada puede
+          gobernar el pandeo local del artículo E7, que todavía no está implementado.
         </CardContent>
       </Card>
 
@@ -141,9 +183,18 @@ export default function CompresionAceroPage() {
             <CardContent className="grid grid-cols-2 gap-4">
               <CampoNumerico id="lcx" etiqueta="Lc eje fuerte" sufijo="m" valor={lcx} onChange={setLcx} />
               <CampoNumerico id="lcy" etiqueta="Lc eje débil" sufijo="m" valor={lcy} onChange={setLcy} />
+              {esDoblementeSimetrica && (
+                <CampoNumerico id="kzl" etiqueta="Kz·L pandeo torsional" sufijo="m" valor={kzl} onChange={setKzl} />
+              )}
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="e" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
             </CardContent>
+            {esDoblementeSimetrica && (
+              <CardContent className="pt-0 text-xs text-muted-foreground">
+                Sección doblemente simétrica: también se verifica el pandeo torsional del art.
+                E4, con Kz·L la distancia entre puntos arriostrados al giro.
+              </CardContent>
+            )}
           </Card>
 
           <Card>
@@ -245,7 +296,7 @@ export default function CompresionAceroPage() {
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
-                      Gobierna el eje {resultado.gobierna}: {fmt(resultado.admisibleKN, 1)} kN
+                      Gobierna {GOBIERNA_TEXTO[resultado.gobierna]}: {fmt(resultado.admisibleKN, 1)} kN
                     </p>
                     <p className="font-mono text-xs text-muted-foreground">
                       Ag = {fmt(resultado.areaM2 * 1e4, 2)} cm² · esbeltez máxima{" "}
@@ -263,11 +314,12 @@ export default function CompresionAceroPage() {
                     ePa={aNumero(e) * 1e6}
                     esbeltezFuerte={resultado.ejeFuerte.esbeltez}
                     esbeltezDebil={resultado.ejeDebil.esbeltez}
-                    gobierna={resultado.gobierna}
+                    gobierna={resultado.gobierna === "débil" ? "débil" : "fuerte"}
                   />
                   <p className="text-xs text-muted-foreground">
                     La línea vertical separa el pandeo inelástico del elástico. Cada eje del perfil
                     cae en un punto de la curva; gobierna el de menor resistencia, marcado en rojo.
+                    {resultado.pandeoTorsional && " El pandeo torsional del art. E4 no está en esta curva: se compara aparte."}
                   </p>
                 </CardContent>
               </Card>
@@ -293,6 +345,19 @@ export default function CompresionAceroPage() {
                   <FilasDeEje eje={resultado.ejeDebil} corregidaPorColumnaArmada={!!resultado.columnaArmada} />
                 </CardContent>
               </Card>
+
+              {resultado.pandeoTorsional && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Pandeo torsional · art. E4 · {fmt(resultado.pandeoTorsional.admisibleKN, 1)} kN
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FilasDeTorsional torsional={resultado.pandeoTorsional} />
+                  </CardContent>
+                </Card>
+              )}
 
               {resultado.columnaArmada && (
                 <Card>

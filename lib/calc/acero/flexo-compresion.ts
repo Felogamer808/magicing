@@ -116,7 +116,9 @@ export function calcularFlexoCompresion(
       flexionY: (factorFlexion * datos.mryKNm) / mcyKNm,
     },
     verifica: interaccion <= 1,
-    gobiernaCompresion: compresion.gobierna,
+    // Nunca puede salir "torsional" acá: no se pasa kzLM, así que el art. E4
+    // no se evalúa y `compresion.gobierna` queda en "fuerte" | "débil".
+    gobiernaCompresion: compresion.gobierna === "débil" ? "débil" : "fuerte",
     articuloFlexion: flexionX.articulo,
     // Qué gobierna la flexión: la zona de pandeo lateral-torsional en F2, el
     // estado límite más chico en F7, la clase de pared en F8.

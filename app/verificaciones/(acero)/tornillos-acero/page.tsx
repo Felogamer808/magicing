@@ -17,8 +17,11 @@ import {
   interaccionTraccionCorteKN,
   repartoElasticoBulones,
   resistenciaBulonKN,
+  resistenciaDeslizamientoKN,
+  type ClaseSuperficie,
   type GradoBulon,
   type PosicionBulon,
+  type TipoAgujeroDeslizamiento,
 } from "@/lib/calc/acero/tornillos";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -31,6 +34,18 @@ const DOS_CHAPAS = ["Una chapa", "Dos chapas"] as const;
 const HAY_BLOQUE = ["No corresponde", "Sí, verificar"] as const;
 const HAY_TRACCION = ["No corresponde", "Sí, verificar"] as const;
 const UBS = ["Uniforme (Ubs = 1,0)", "No uniforme (Ubs = 0,5)"] as const;
+const HAY_DESLIZAMIENTO = ["No, conexión de contacto", "Sí, slip-critical"] as const;
+const CLASES = ["Clase A (μ = 0,30)", "Clase B (μ = 0,50)"] as const;
+const CLASE_MAP: Record<(typeof CLASES)[number], ClaseSuperficie> = {
+  "Clase A (μ = 0,30)": "A",
+  "Clase B (μ = 0,50)": "B",
+};
+const TIPOS_AGUJERO = ["Estándar (φ=1,00)", "Agrandado o ranura corta paralela (φ=0,85)", "Ranura alargada (φ=0,70)"] as const;
+const TIPO_AGUJERO_MAP: Record<(typeof TIPOS_AGUJERO)[number], TipoAgujeroDeslizamiento> = {
+  "Estándar (φ=1,00)": "estandar",
+  "Agrandado o ranura corta paralela (φ=0,85)": "agrandado",
+  "Ranura alargada (φ=0,70)": "ranuraAlargada",
+};
 
 /** Grilla centrada en su propio centroide: es la hipótesis que pide el método elástico. */
 function grillaBulones(filas: number, columnas: number, sxM: number, syM: number): PosicionBulon[] {
@@ -75,6 +90,12 @@ export default function TornillosAceroPage() {
 
   const [hayTraccion, setHayTraccion] = useCampo("hayTraccion", HAY_TRACCION[0]);
   const [traccionReq, setTraccionReq] = useCampo("traccionReq", "30");
+
+  const [hayDeslizamiento, setHayDeslizamiento] = useCampo("hayDeslizamiento", HAY_DESLIZAMIENTO[0]);
+  const [clase, setClase] = useCampo("clase", CLASES[0]);
+  const [tipoAgujeroDesl, setTipoAgujeroDesl] = useCampo("tipoAgujeroDesl", TIPOS_AGUJERO[0]);
+  const [tb, setTb] = useCampo("tb", "142");
+  const [chapasDeRelleno, setChapasDeRelleno] = useCampo("chapasDeRelleno", "0");
 
   const [hayBloque, setHayBloque] = useCampo("hayBloque", HAY_BLOQUE[0]);
   const [corteLargo, setCorteLargo] = useCampo("corteLargo", "160");
@@ -141,6 +162,21 @@ export default function TornillosAceroPage() {
       });
     }
 
+    let deslizamiento: ReturnType<typeof resistenciaDeslizamientoKN> | null = null;
+    if (hayDeslizamiento === HAY_DESLIZAMIENTO[1]) {
+      const tbKN = aNumero(tb);
+      const relleno = Math.round(aNumero(chapasDeRelleno));
+      if (!(Number.isFinite(tbKN) && tbKN > 0)) return null;
+      if (!(Number.isInteger(relleno) && relleno >= 0)) return null;
+      deslizamiento = resistenciaDeslizamientoKN({
+        clase: CLASE_MAP[clase as (typeof CLASES)[number]],
+        tipoAgujero: TIPO_AGUJERO_MAP[tipoAgujeroDesl as (typeof TIPOS_AGUJERO)[number]],
+        tbKN,
+        planosDeFriccion: n.planos,
+        chapasDeRelleno: relleno,
+      });
+    }
+
     let bloque: ReturnType<typeof calcularBloqueDeCorte> | null = null;
     if (hayBloque === HAY_BLOQUE[1]) {
       const cl = aNumero(corteLargo);
@@ -168,11 +204,12 @@ export default function TornillosAceroPage() {
       });
     }
 
-    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, bloque, n };
+    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, deslizamiento, bloque, n };
   }, [
     filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte,
     espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2,
     hayTraccion, traccionReq,
+    hayDeslizamiento, clase, tipoAgujeroDesl, tb, chapasDeRelleno,
     hayBloque, corteLargo, corteEspesor, corteAgujeros, traccionAncho, traccionEspesor,
     traccionAgujeros, diametroAgujeroBloque, ubs,
   ]);
@@ -191,13 +228,13 @@ export default function TornillosAceroPage() {
 
       <Card className="border-primary/30">
         <CardContent className="py-4 text-sm text-muted-foreground">
-          Artículo J3, conexiones de contacto (no <em>slip-critical</em>), por el método ASD
-          (Ω = {fmt(OMEGA_J, 2)}). Un bulón puede fallar de tres maneras distintas y cualquiera puede
-          gobernar: corte del vástago —depende sólo del bulón—, o aplastamiento y arrancamiento de la
-          chapa —dependen de la chapa y no del bulón—. Si además hay tracción simultánea, la ec.
-          (J3-3b) reduce la capacidad a tracción según cuánto corte haya. No cubre todavía las
-          conexiones <em>slip-critical</em> (J3-4), que la norma reserva para estructuras de altura,
-          puentes o fatiga.
+          Artículo J3, por el método ASD. Un bulón puede fallar de tres maneras distintas y
+          cualquiera puede gobernar: corte del vástago —depende sólo del bulón— (Ω ={" "}
+          {fmt(OMEGA_J, 2)}), o aplastamiento y arrancamiento de la chapa —dependen de la chapa y no
+          del bulón—. Si además hay tracción simultánea, la ec. (J3-3b) reduce la capacidad a
+          tracción según cuánto corte haya. Si la conexión es <em>slip-critical</em>, se agrega la
+          verificación de deslizamiento del art. J3.8 —que no reemplaza a las de contacto: si la
+          unión llega a deslizar, termina apoyando en aplastamiento igual—.
         </CardContent>
       </Card>
 
@@ -312,6 +349,47 @@ export default function TornillosAceroPage() {
                       T ni el reparto de la tracción entre bulones de una conexión a momento: el
                       apunte remite esos casos a un procedimiento aparte (Steel Construction Manual,
                       sección 9). Este cálculo asume que la tracción por bulón ya está determinada.
+                    </p>
+                  </PanelAyuda>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8 (slip-critical)</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <CampoSeleccion id="hayDeslizamiento" etiqueta="¿Es una conexión slip-critical?" valor={hayDeslizamiento}
+                              opciones={HAY_DESLIZAMIENTO} onChange={setHayDeslizamiento} />
+              {hayDeslizamiento === HAY_DESLIZAMIENTO[1] && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoSeleccion id="clase" etiqueta="Clase de superficie" valor={clase} opciones={CLASES} onChange={setClase} />
+                    <CampoSeleccion id="tipoAgujeroDesl" etiqueta="Tipo de agujero" valor={tipoAgujeroDesl}
+                                    opciones={TIPOS_AGUJERO} onChange={setTipoAgujeroDesl} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="tb" etiqueta="Tb — pretensión mínima especificada" sufijo="kN"
+                                   valor={tb} onChange={setTb} />
+                    <CampoNumerico id="chapasDeRelleno" etiqueta="Chapas de relleno (fillers)" valor={chapasDeRelleno}
+                                   onChange={setChapasDeRelleno} />
+                  </div>
+                  <PanelAyuda titulo="De dónde sale Tb y qué NO resuelve esta verificación">
+                    <p>
+                      <strong className="text-foreground">Tb</strong> es la pretensión mínima
+                      especificada del bulón, de la Tabla J3.1 de la norma —depende del diámetro y
+                      el grado—. No se calcula acá: cargala de la tabla para tu bulón.
+                    </p>
+                    <p>
+                      Los planos de fricción son los mismos planos de corte que ya se cargaron en la
+                      tarjeta «Bulón» de arriba: físicamente son las mismas interfaces entre chapas.
+                    </p>
+                    <p>
+                      Esta verificación de deslizamiento se <strong className="text-foreground">
+                      suma</strong> a las de contacto —corte del vástago, aplastamiento,
+                      arrancamiento—, no las reemplaza: la norma pide comprobar las dos, porque si la
+                      unión llega a deslizar hasta el fondo del agujero, termina apoyando en
+                      aplastamiento igual que una conexión de contacto común.
                     </p>
                   </PanelAyuda>
                 </>
@@ -446,6 +524,29 @@ export default function TornillosAceroPage() {
                         { etiqueta: "F'nt reducida  (J3-3b)", valor: `${fmt(resultado.traccion.fntReducidaPa / 1e6, 1)} MPa` },
                         { etiqueta: "Rn = F'nt·Ab", valor: `${fmt(resultado.traccion.nominalKN, 2)} kN` },
                         { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.traccion.admisibleKN, 2)} kN` },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {resultado.deslizamiento && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <ResultadoCheck
+                      etiqueta="Deslizamiento (slip-critical)"
+                      verifica={resultado.critico.vKN <= resultado.deslizamiento.admisibleKN}
+                      detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.deslizamiento.admisibleKN, 2)} kN · aprovechamiento ${fmt(
+                        (resultado.critico.vKN / resultado.deslizamiento.admisibleKN) * 100,
+                        1
+                      )} %`}
+                    />
+                    <PanelFormulas
+                      titulo="Ver cálculo"
+                      filas={[
+                        { etiqueta: "Rn = μ·Du·hf·Tb·ns  (J3-4)", valor: `${fmt(resultado.deslizamiento.nominalKN, 2)} kN` },
+                        { etiqueta: `Rn/Ω con Ω = 1,5/φ = ${fmt(resultado.deslizamiento.omega, 2)}`, valor: `${fmt(resultado.deslizamiento.admisibleKN, 2)} kN` },
                       ]}
                     />
                   </CardContent>

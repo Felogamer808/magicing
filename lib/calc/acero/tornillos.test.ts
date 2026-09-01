@@ -4,6 +4,8 @@ import {
   areaNetaBloqueM2,
   bulonMasExigido,
   calcularBloqueDeCorte,
+  DU_DESLIZAMIENTO,
+  factorRelleno,
   fntReducidaPorCortePa,
   interaccionTraccionCorteKN,
   OMEGA_J,
@@ -11,6 +13,7 @@ import {
   resistenciaBulonKN,
   resistenciaChapaKN,
   resistenciaCorteBulonKN,
+  resistenciaDeslizamientoKN,
   resistenciaTraccionBulonKN,
   type PosicionBulon,
 } from "@/lib/calc/acero/tornillos";
@@ -171,6 +174,64 @@ describe("interacción tracción-corte, ec. (J3-3b)", () => {
     const dosPlanos = interaccionTraccionCorteKN({ diametroMm: 20, grado: "A325", vReqKN: 20, planosDeCorte: 2 });
     expect(dosPlanos.fvReqPa).toBeCloseTo(unPlano.fvReqPa / 2, 0);
     expect(dosPlanos.admisibleKN).toBeGreaterThan(unPlano.admisibleKN);
+  });
+});
+
+describe("deslizamiento, conexiones slip-critical, ec. (J3-4)", () => {
+  it("Du es la constante fija de la norma, 1,13", () => {
+    expect(DU_DESLIZAMIENTO).toBe(1.13);
+  });
+
+  it("hf baja a 0,85 recién con dos o más chapas de relleno", () => {
+    expect(factorRelleno(0)).toBe(1.0);
+    expect(factorRelleno(1)).toBe(1.0);
+    expect(factorRelleno(2)).toBe(0.85);
+    expect(factorRelleno(3)).toBe(0.85);
+  });
+
+  it("reproduce Ω = 1,5/φ para los tres tipos de agujero de la tabla J3.8", () => {
+    // φ = 1,00 / 0,85 / 0,70 dan Ω = 1,50 / 1,76 / 2,14 — los valores que
+    // publica la norma, misma conversión que en todo el resto del capítulo.
+    expect(resistenciaDeslizamientoKN({
+      clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1,
+    }).omega).toBeCloseTo(1.5, 2);
+    expect(resistenciaDeslizamientoKN({
+      clase: "A", tipoAgujero: "agrandado", tbKN: 100, planosDeFriccion: 1,
+    }).omega).toBeCloseTo(1.76, 2);
+    expect(resistenciaDeslizamientoKN({
+      clase: "A", tipoAgujero: "ranuraAlargada", tbKN: 100, planosDeFriccion: 1,
+    }).omega).toBeCloseTo(2.14, 2);
+  });
+
+  it("reproduce a mano Rn = μ·Du·hf·Tb·ns con clase B, dos planos de fricción", () => {
+    // Rn = 0,50 · 1,13 · 1,0 · 142 kN · 2 = 160,46 kN.
+    const r = resistenciaDeslizamientoKN({
+      clase: "B", tipoAgujero: "estandar", tbKN: 142, planosDeFriccion: 2,
+    });
+    expect(r.nominalKN).toBeCloseTo(160.46, 1);
+    expect(r.admisibleKN).toBeCloseTo(160.46 / 1.5, 1);
+  });
+
+  it("clase B (μ = 0,50) resiste el doble que clase A (μ = 0,30) en la misma proporción", () => {
+    const a = resistenciaDeslizamientoKN({ clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1 });
+    const b = resistenciaDeslizamientoKN({ clase: "B", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1 });
+    expect(b.nominalKN / a.nominalKN).toBeCloseTo(0.5 / 0.3, 6);
+  });
+
+  it("dos o más chapas de relleno bajan la resistencia un 15 %", () => {
+    const sinRelleno = resistenciaDeslizamientoKN({
+      clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1, chapasDeRelleno: 0,
+    });
+    const conRelleno = resistenciaDeslizamientoKN({
+      clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1, chapasDeRelleno: 2,
+    });
+    expect(conRelleno.nominalKN / sinRelleno.nominalKN).toBeCloseTo(0.85, 6);
+  });
+
+  it("duplicar los planos de fricción duplica la resistencia, igual que el corte del vástago", () => {
+    const uno = resistenciaDeslizamientoKN({ clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 1 });
+    const dos = resistenciaDeslizamientoKN({ clase: "A", tipoAgujero: "estandar", tbKN: 100, planosDeFriccion: 2 });
+    expect(dos.nominalKN).toBeCloseTo(2 * uno.nominalKN, 6);
   });
 });
 

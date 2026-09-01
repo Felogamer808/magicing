@@ -18,9 +18,10 @@
  *   pieza conectada, que combina rotura por corte en un plano con rotura por
  *   tracción en el plano perpendicular.
  *
- * Lo que no está cubierto todavía: las conexiones *slip-critical* de la ec.
- * (J3-4), que la propia norma reserva para estructuras de altura, puentes o
- * situaciones de fatiga.
+ * También se cubren las conexiones *slip-critical* del art. J3.8: además de
+ * los estados límite de contacto de arriba —que siguen aplicando, porque si
+ * la unión desliza termina apoyando en aplastamiento igual—, se agrega la
+ * verificación de deslizamiento en sí.
  */
 
 /** Coeficiente de seguridad ASD compartido: todos los φ = 0,75 de este capítulo emparejan con Ω = 1,5/0,75 = 2,00. */
@@ -102,6 +103,79 @@ export function interaccionTraccionCorteKN(opciones: {
   const fntReducidaPa = fntReducidaPorCortePa(FNT_PA[grado], FNV_PA[grado], fvReqPa);
   const nominalKN = (fntReducidaPa * abM2) / 1000;
   return { fvReqPa, fntReducidaPa, nominalKN, admisibleKN: nominalKN / OMEGA_J };
+}
+
+/* ------------------------------------------------------------------ *
+ * Deslizamiento en conexiones slip-critical, art. J3.8
+ * ------------------------------------------------------------------ */
+
+export type ClaseSuperficie = "A" | "B";
+
+/** Coeficiente de fricción medio, según el tratamiento superficial (art. J3.8). */
+const MU_CLASE: Record<ClaseSuperficie, number> = { A: 0.3, B: 0.5 };
+
+export type TipoAgujeroDeslizamiento = "estandar" | "agrandado" | "ranuraAlargada";
+
+/**
+ * φ de la tabla del art. J3.8, según el tipo de agujero —agujeros
+ * agrandados o ranura corta paralela a la fuerza comparten el mismo φ—.
+ * Ω = 1,5/φ, la misma conversión de siempre entre las dos formas.
+ */
+const PHI_DESLIZAMIENTO: Record<TipoAgujeroDeslizamiento, number> = {
+  estandar: 1.0,
+  agrandado: 0.85,
+  ranuraAlargada: 0.7,
+};
+
+/**
+ * Du: multiplicador que corrige la pretensión mínima especificada a un
+ * valor medio al instalar. Es una constante fija de la norma (AISC 360-22
+ * J3.8), no depende del bulón, la clase de superficie ni el tipo de agujero.
+ */
+export const DU_DESLIZAMIENTO = 1.13;
+
+/**
+ * hf: factor por chapas de relleno (*fillers*) entre las piezas conectadas.
+ * 1,0 sin relleno o con una sola chapa de relleno; 0,85 con dos o más.
+ */
+export function factorRelleno(chapasDeRelleno: number): number {
+  return chapasDeRelleno >= 2 ? 0.85 : 1.0;
+}
+
+export interface ResultadoDeslizamiento {
+  omega: number;
+  /** Rn = μ·Du·hf·Tb·ns, ec. (J3-4), kN. */
+  nominalKN: number;
+  admisibleKN: number;
+}
+
+/**
+ * Ec. (J3-4): resistencia a deslizamiento de un bulón en una conexión
+ * *slip-critical*, Rn = μ·Du·hf·Tb·ns.
+ *
+ * `tbKN` es la pretensión mínima especificada del bulón, de la Tabla J3.1 de
+ * la norma —no de este apunte, que sólo la menciona sin dar los valores—.
+ * No se hardcodea acá: varía con diámetro y grado, y no hay una fuente
+ * confiable de esos valores en métrico para no arriesgar un número de tabla
+ * mal transcripto en un cálculo estructural. Se carga como dato, igual que
+ * ya se hace en este módulo con el Fy del bloque de corte.
+ *
+ * Esta verificación se agrega a las de contacto —corte del vástago,
+ * aplastamiento y arrancamiento—, no las reemplaza: si la unión llega a
+ * deslizar, pasa a apoyar en aplastamiento igual, así que ese estado límite
+ * sigue siendo necesario como respaldo.
+ */
+export function resistenciaDeslizamientoKN(opciones: {
+  clase: ClaseSuperficie;
+  tipoAgujero: TipoAgujeroDeslizamiento;
+  tbKN: number;
+  planosDeFriccion: number;
+  chapasDeRelleno?: number;
+}): ResultadoDeslizamiento {
+  const { clase, tipoAgujero, tbKN, planosDeFriccion, chapasDeRelleno = 0 } = opciones;
+  const omega = 1.5 / PHI_DESLIZAMIENTO[tipoAgujero];
+  const nominalKN = MU_CLASE[clase] * DU_DESLIZAMIENTO * factorRelleno(chapasDeRelleno) * tbKN * planosDeFriccion;
+  return { omega, nominalKN, admisibleKN: nominalKN / omega };
 }
 
 export interface ResultadoAplastamiento {

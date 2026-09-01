@@ -241,6 +241,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   soldaduras: SERVICIO_ASD,
   "tornillos-acero": SERVICIO_ASD,
   "compresion-acero": SERVICIO_ASD,
+  "traccion-acero": SERVICIO_ASD,
   "flexion-acero": SERVICIO_ASD,
   "corte-acero": SERVICIO_ASD,
   "flexo-compresion": SERVICIO_ASD,

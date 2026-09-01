@@ -447,6 +447,21 @@ export function tuboRectangular(hM: number, bM: number, tM: number): Propiedades
   };
 }
 
+/**
+ * Radio de giro mínimo de un componente individual —una sola PNC, antes de
+ * componerla— para el art. E6.2 de columnas armadas.
+ *
+ * "Mínimo" porque el canal no es igual en sus dos ejes: ri es siempre el ry del
+ * perfil simple, nunca el rx. Es un dato distinto del radio de giro de la
+ * sección ya compuesta (`ryM` en `PropiedadesSeccion`), que sale de este mismo
+ * catálogo pero con el traslado de Steiner ya sumado.
+ */
+export function radioGiroIndividualPNCM(altura: number): number {
+  const fila = PNC[altura];
+  if (!fila) throw new Error(`No hay PNC de altura ${altura} mm en el catálogo.`);
+  return fila.ry / 100;
+}
+
 /** Propiedades de una sección a partir de su familia y sus parámetros en mm. */
 export function propiedades(familia: Familia, params: ParametrosPerfil): PropiedadesSeccion {
   switch (familia) {

@@ -239,6 +239,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   muros: MURO_PORTANTE,
   "secciones-mixtas": SERVICIO_ASD,
   soldaduras: SERVICIO_ASD,
+  "tornillos-acero": SERVICIO_ASD,
   "compresion-acero": SERVICIO_ASD,
   "traccion-acero": SERVICIO_ASD,
   "flexion-acero": SERVICIO_ASD,

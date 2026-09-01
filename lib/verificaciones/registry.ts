@@ -78,6 +78,7 @@ export type IdVerificacion =
   | "longitudes-anclaje"
   | "viento"
   | "compresion-acero"
+  | "traccion-acero"
   | "flexion-acero"
   | "pretensado"
   | "corte-acero"
@@ -462,6 +463,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Pandeo por flexión en los dos ejes de un perfil laminado, con el catálogo de PNI, PNC, HEB y 2PNC.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/compresion-acero",
+    disponible: true,
+  },
+  {
+    id: "traccion-acero",
+    nombre: "Tracción",
+    seccion: "estructuras-metalicas",
+    categoria: "Barras",
+    descripcion:
+      "Fluencia y rotura de barras traccionadas: área neta con agujeros en zigzag y factor de shear lag del Caso 2.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/traccion-acero",
     disponible: true,
   },
   {

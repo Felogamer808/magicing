@@ -38,9 +38,12 @@ export default function FlexoCompresionPage() {
       fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida),
       mrx: aNumero(mrx), mry: aNumero(mry),
     };
-    const positivos = [n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e, n.p];
+    const positivos = [n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e];
     if (!seccion.completos || !positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) return null;
+    // La compresión puede ser cero: con Pr = 0 la H1-1b se reduce a la
+    // interacción de flexión biaxial pura, sin término axial. Es el caso de
+    // una viga con momento en los dos ejes y ninguna carga axial.
+    if (![n.p, n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) return null;
 
     try {
       return calcularFlexoCompresion({
@@ -77,7 +80,9 @@ export default function FlexoCompresionPage() {
         <CardContent className="py-4 text-sm text-muted-foreground">
           Artículo H1.1. No agrega resistencias nuevas: combina la axial admisible del capítulo E
           con las dos flexionales del capítulo F. La ecuación cambia de forma según cuánto pese la
-          axial — con Pr/Pc ≥ 0,2 manda H1-1a, por debajo H1-1b.
+          axial — con Pr/Pc ≥ 0,2 manda H1-1a, por debajo H1-1b. Con Pr = 0 —una viga con momento en
+          los dos ejes y sin carga axial— la H1-1b se reduce sola a Mrx/Mcx + Mry/Mcy ≤ 1: sirve
+          también para verificar flexión biaxial pura, sin tener que cargar una axial ficticia.
         </CardContent>
       </Card>
 
@@ -110,7 +115,7 @@ export default function FlexoCompresionPage() {
               <CardTitle className="text-base">Solicitaciones</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="pFC" etiqueta="Compresión Pr" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
+              <CampoNumerico id="pFC" etiqueta="Compresión Pr (0 si es una viga)" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
               <div />
               <CampoNumerico id="mrx" etiqueta="Momento Mrx" sufijo="kN·m" valor={mrx} onChange={setMrx} />
               <CampoNumerico id="mry" etiqueta="Momento Mry" sufijo="kN·m" valor={mry} onChange={setMry} />
@@ -122,8 +127,8 @@ export default function FlexoCompresionPage() {
           {!resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá la sección, las longitudes y el material con valores positivos. Los
-                momentos pueden ser cero.
+                Completá la sección, las longitudes y el material con valores positivos. La
+                compresión y los momentos pueden ser cero.
               </CardContent>
             </Card>
           ) : (

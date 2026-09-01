@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { calcularCompresion, OMEGA_C, tensionCritica } from "@/lib/calc/acero/compresion";
-import { propiedades } from "@/lib/calc/acero/perfiles";
+import {
+  KI_CANALES_ESPALDA_CON_ESPALDA,
+  calcularCompresion,
+  esbeltezModificadaE6,
+  OMEGA_C,
+  tensionCritica,
+  tensionCriticaTorsionalPa,
+} from "@/lib/calc/acero/compresion";
+import { propiedades, radioGiroIndividualPNCM } from "@/lib/calc/acero/perfiles";
 
 const FY = 250e6;
 const E = 200e9;
@@ -176,5 +183,285 @@ describe("compresión de un perfil completo", () => {
 
     expect(separados.ejeDebil.admisibleKN).toBeGreaterThan(juntos.ejeDebil.admisibleKN);
     expect(separados.ejeFuerte.admisibleKN).toBeCloseTo(juntos.ejeFuerte.admisibleKN, 6);
+  });
+});
+
+// El HEB200 del catálogo (Ix=5696 cm⁴, Iy=2003 cm⁴, J=59,28 cm⁴, Iw=171,1·10⁹ mm⁶,
+// A=78,1 cm²) contrasta a mano la ec. (E4-2): con KzL = 3 m da Fe ≈ 1079,70 MPa,
+// muy por encima de Fy, así que siempre cae en la rama inelástica —el término en
+// Iw domina y G·J solo, con KzL → ∞, ya da Fy/Fe ≈ 0,42 < 2,25, lejos del límite
+// elástico—. No hace falta forzar la rama elástica: alcanza con reproducir el
+// número exacto de la ecuación y la lógica de gobierno.
+describe("pandeo torsional, art. E4", () => {
+  const HEB200_IX_M4 = 5696 / 1e8;
+  const HEB200_IY_M4 = 2003 / 1e8;
+  const HEB200_J_M4 = 59.28 / 1e8;
+  const HEB200_CW_M6 = (171.1e9) / 1e18;
+  const HEB200_AREA_M2 = 78.1 / 1e4;
+
+  it("reproduce Fe de la ec. (E4-2) para un HEB200 con KzL = 3 m", () => {
+    const fePa = tensionCriticaTorsionalPa(3, E, HEB200_CW_M6, HEB200_J_M4, HEB200_IX_M4, HEB200_IY_M4);
+    expect(fePa).toBeCloseTo(1079704236.632864, 0);
+  });
+
+  it("G sale de E con ν = 0,3 fijo: G = E/2,6", () => {
+    // Con KzL → ∞ el término en Cw se anula y sólo queda G·J/(Ix+Iy).
+    const fePa = tensionCriticaTorsionalPa(1e9, E, HEB200_CW_M6, HEB200_J_M4, HEB200_IX_M4, HEB200_IY_M4);
+    const gPa = E / 2.6;
+    expect(fePa).toBeCloseTo((gPa * HEB200_J_M4) / (HEB200_IX_M4 + HEB200_IY_M4), 0);
+  });
+
+  it("no se evalúa si no se pasa kzLM", () => {
+    const r = calcularCompresion({
+      familia: "HEB",
+      params: { altura: 200 },
+      lcxM: 3,
+      lcyM: 3,
+      fyPa: FY,
+      ePa: E,
+    });
+    expect(r.pandeoTorsional).toBeUndefined();
+    expect(r.gobierna).not.toBe("torsional");
+  });
+
+  it("no se evalúa en el PNC suelto, que no es doblemente simétrico", () => {
+    const p = propiedades("PNC", { altura: 200 });
+    expect(p.doblementeSimetrica).toBe(false);
+
+    const r = calcularCompresion({
+      familia: "PNC",
+      params: { altura: 200 },
+      lcxM: 3,
+      lcyM: 3,
+      fyPa: FY,
+      ePa: E,
+      kzLM: 3,
+    });
+    expect(r.pandeoTorsional).toBeUndefined();
+  });
+
+  it("puede gobernar cuando la longitud de pandeo flexional es chica y la torsional no", () => {
+    const r = calcularCompresion({
+      familia: "HEB",
+      params: { altura: 200 },
+      lcxM: 0.01,
+      lcyM: 0.01,
+      fyPa: FY,
+      ePa: E,
+      kzLM: 3,
+    });
+
+    expect(r.pandeoTorsional).toBeDefined();
+    expect(r.pandeoTorsional!.regimen).toBe("inelástico (E3-2)");
+    expect(r.pandeoTorsional!.pnKN).toBeCloseTo(226908697.5537007 * HEB200_AREA_M2 / 1000, 3);
+    expect(r.pandeoTorsional!.admisibleKN).toBeCloseTo(r.pandeoTorsional!.pnKN / OMEGA_C, 6);
+    expect(r.gobierna).toBe("torsional");
+    expect(r.admisibleKN).toBeCloseTo(r.pandeoTorsional!.admisibleKN, 9);
+    expect(r.admisibleKN).toBeLessThan(r.ejeFuerte.admisibleKN);
+    expect(r.admisibleKN).toBeLessThan(r.ejeDebil.admisibleKN);
+  });
+});
+
+/*
+ * Notas del curso Estructuras de Acero (FING, UdelaR), art. E6.2: columnas
+ * armadas con conectores intermedios. La planilla AISC 360.xlsx no traía este
+ * caso; las fórmulas se contrastaron a mano contra el apunte, no contra una
+ * celda de referencia.
+ */
+describe("esbeltez modificada de columnas armadas, art. E6.2", () => {
+  it("atornillado sin pretensar: ec. (E6-1) siempre, sin umbral", () => {
+    // (Lc/r)0 = 50, a = 1 m, ri = 0,02 m → a/ri = 50.
+    const r = esbeltezModificadaE6(50, 1, 0.02, "atornillado-sin-pretensar", 0.75);
+    expect(r.relacion).toBeCloseTo(50, 9);
+    expect(r.ecuacion).toBe("E6-1");
+    expect(r.esbeltezModificada).toBeCloseTo(Math.sqrt(50 ** 2 + 50 ** 2), 9);
+
+    // Vale igual con a/ri chico: no hay rama sin corrección para este conector.
+    const chico = esbeltezModificadaE6(50, 0.2, 0.02, "atornillado-sin-pretensar", 0.75);
+    expect(chico.ecuacion).toBe("E6-1");
+    expect(chico.esbeltezModificada).toBeGreaterThan(50);
+  });
+
+  it("soldado o pretensado, a/ri ≤ 40: ec. (E6-2a), sin corrección", () => {
+    const r = esbeltezModificadaE6(50, 0.6, 0.02, "soldado-o-pretensado", 0.75);
+    expect(r.relacion).toBeCloseTo(30, 9);
+    expect(r.ecuacion).toBe("E6-2a");
+    expect(r.esbeltezModificada).toBe(50);
+  });
+
+  it("soldado o pretensado, a/ri > 40: ec. (E6-2b), atenuada por Ki", () => {
+    // a = 1 m, ri = 0,02 m → a/ri = 50.
+    const r = esbeltezModificadaE6(50, 1, 0.02, "soldado-o-pretensado", 0.75);
+    expect(r.relacion).toBeCloseTo(50, 9);
+    expect(r.ecuacion).toBe("E6-2b");
+    expect(r.esbeltezModificada).toBeCloseTo(Math.sqrt(50 ** 2 + (0.75 * 50) ** 2), 9);
+  });
+
+  it("el conector soldado tiene un escalón en a/ri = 40, y es de la norma", () => {
+    /*
+     * Justo por encima de 40 la ec. (E6-2b) no arranca en cero: entra con
+     * (Ki·40)² ya adentro de la raíz, así que hay un salto discreto contra la
+     * ec. (E6-2a) que un instante antes no corregía nada. A diferencia del
+     * empalme de E3 (que es continuo salvo redondeo), acá el escalón es real y
+     * no un artefacto de precisión: las dos ecuaciones de la norma no se tocan
+     * en el punto de quiebre.
+     */
+    const justoAntes = esbeltezModificadaE6(50, 40 * 0.02, 0.02, "soldado-o-pretensado", 0.75);
+    const justoDespues = esbeltezModificadaE6(50, 40.01 * 0.02, 0.02, "soldado-o-pretensado", 0.75);
+
+    expect(justoAntes.esbeltezModificada).toBe(50);
+    expect(justoDespues.esbeltezModificada).toBeGreaterThan(50);
+    expect(justoDespues.esbeltezModificada - justoAntes.esbeltezModificada).toBeGreaterThan(0.4);
+  });
+
+  it("la corrección nunca baja la esbeltez: sumar un término al cuadrado no puede achicar la raíz", () => {
+    for (const tipo of ["atornillado-sin-pretensar", "soldado-o-pretensado"] as const) {
+      for (const a of [0.1, 0.5, 1, 2]) {
+        const r = esbeltezModificadaE6(60, a, 0.025, tipo, 0.75);
+        expect(r.esbeltezModificada).toBeGreaterThanOrEqual(60);
+      }
+    }
+  });
+});
+
+describe("columna armada dentro de calcularCompresion", () => {
+  const comun = {
+    familia: "2PNC-almas" as const,
+    params: { altura: 180 },
+    lcxM: 3.6,
+    lcyM: 3.6,
+    fyPa: FY,
+    ePa: E,
+  };
+
+  it("ri sale del catálogo del canal simple, no de la sección compuesta", () => {
+    const riM = radioGiroIndividualPNCM(180);
+    // ry de la fila PNC180 del catálogo: 2,02 cm.
+    expect(riM).toBeCloseTo(0.0202, 6);
+    // Y es distinto del ry de la sección ya compuesta con los dos canales.
+    const compuesta = propiedades("2PNC-almas", { altura: 180 });
+    expect(riM).not.toBeCloseTo(compuesta.ryM, 3);
+  });
+
+  it("sin columnaArmada, el resultado no trae el bloque y el eje débil queda igual que antes", () => {
+    const sinCorregir = calcularCompresion(comun);
+    expect(sinCorregir.columnaArmada).toBeUndefined();
+  });
+
+  it("con columnaArmada, sólo se corrige el eje débil", () => {
+    const sinCorregir = calcularCompresion(comun);
+    const conConectores = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 0.4, tipo: "atornillado-sin-pretensar" },
+    });
+
+    expect(conConectores.columnaArmada).toBeDefined();
+    expect(conConectores.ejeDebil.esbeltez).toBeGreaterThan(sinCorregir.ejeDebil.esbeltez);
+    expect(conConectores.ejeDebil.admisibleKN).toBeLessThan(sinCorregir.ejeDebil.admisibleKN);
+    // El eje fuerte no tiene término de Steiner en la composición: no depende
+    // de los conectores y no se toca.
+    expect(conConectores.ejeFuerte.admisibleKN).toBeCloseTo(sinCorregir.ejeFuerte.admisibleKN, 9);
+  });
+
+  it("usa Ki = 0,75, canales espalda con espalda", () => {
+    const r = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 2, tipo: "soldado-o-pretensado" },
+    });
+    expect(r.columnaArmada!.ki).toBe(KI_CANALES_ESPALDA_CON_ESPALDA);
+    expect(r.columnaArmada!.ki).toBe(0.75);
+  });
+
+  it("ignora columnaArmada en familias que no son 2PNC-almas", () => {
+    const r = calcularCompresion({
+      familia: "2PNC-cajon",
+      params: { altura: 180 },
+      lcxM: 3.6,
+      lcyM: 3.6,
+      fyPa: FY,
+      ePa: E,
+      columnaArmada: { aM: 0.2, tipo: "atornillado-sin-pretensar" },
+    });
+    expect(r.columnaArmada).toBeUndefined();
+  });
+
+  it("el art. E6.2(a) limita la separación entre conectores, y se puede despejar", () => {
+    const holgado = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 0.15, tipo: "atornillado-sin-pretensar" },
+    });
+    expect(holgado.columnaArmada!.cumpleSeparacionMaxima).toBe(true);
+    expect(0.15).toBeLessThanOrEqual(holgado.columnaArmada!.separacionMaximaM);
+
+    const apretado = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 3, tipo: "atornillado-sin-pretensar" },
+    });
+    expect(apretado.columnaArmada!.cumpleSeparacionMaxima).toBe(false);
+    expect(3).toBeGreaterThan(apretado.columnaArmada!.separacionMaximaM);
+  });
+
+  it("con lcxM = lcyM, el eje débil ya corregido gobierna la separación máxima", () => {
+    // Caso habitual: ry compuesto menor que rx, y encima con la corrección de
+    // E6.2 sumada. La esbeltez gobernante coincide con la modificada, y la
+    // separación máxima sale igual que antes del fix.
+    const r = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM: 0.4, tipo: "atornillado-sin-pretensar" },
+    });
+    expect(r.columnaArmada!.esbeltezGobernante).toBeCloseTo(r.columnaArmada!.esbeltezModificada, 9);
+    expect(r.columnaArmada!.separacionMaximaM).toBeCloseTo(
+      0.75 * r.columnaArmada!.esbeltezModificada * r.columnaArmada!.riM,
+      9
+    );
+  });
+
+  it("con el eje fuerte muy esbelto y el débil corto, la separación máxima usa el eje fuerte", () => {
+    // lcxM largo y lcyM corto: aun con la corrección de E6.2 sobre el débil
+    // —acá sin corrección real, a/ri < 40—, el fuerte queda más esbelto y
+    // tiene que ser el que gobierna la separación máxima, no el débil.
+    const p = propiedades("2PNC-almas", { altura: 180 });
+    const riM = radioGiroIndividualPNCM(180);
+    const lcxM = 10;
+    const lcyM = 0.3;
+
+    const r = calcularCompresion({
+      familia: "2PNC-almas",
+      params: { altura: 180 },
+      lcxM,
+      lcyM,
+      fyPa: FY,
+      ePa: E,
+      columnaArmada: { aM: 0.1, tipo: "soldado-o-pretensado" }, // a/ri ≈ 5: ec. (E6-2a), sin corrección.
+    });
+
+    const esbeltezFuerte = lcxM / p.rxM;
+    const esbeltezDebilSinCorregir = lcyM / p.ryM;
+    // Confirma la premisa del caso: el fuerte manda incluso antes de mirar E6.
+    expect(esbeltezFuerte).toBeGreaterThan(esbeltezDebilSinCorregir);
+
+    expect(r.columnaArmada!.ecuacion).toBe("E6-2a");
+    expect(r.columnaArmada!.esbeltezModificada).toBeCloseTo(esbeltezDebilSinCorregir, 6);
+    expect(r.columnaArmada!.esbeltezGobernante).toBeCloseTo(esbeltezFuerte, 6);
+    expect(r.columnaArmada!.esbeltezGobernante).toBeGreaterThan(r.columnaArmada!.esbeltezModificada);
+    expect(r.columnaArmada!.separacionMaximaM).toBeCloseTo(0.75 * esbeltezFuerte * riM, 6);
+  });
+
+  it("reproduce a mano el caso soldado con a/ri > 40 sobre el catálogo real", () => {
+    const riM = radioGiroIndividualPNCM(180);
+    const aM = 41 * riM; // a/ri = 41, apenas sobre el umbral.
+    const r = calcularCompresion({
+      ...comun,
+      columnaArmada: { aM, tipo: "soldado-o-pretensado" },
+    });
+
+    const p = propiedades("2PNC-almas", { altura: 180 });
+    const esbeltez0 = comun.lcyM / p.ryM;
+    const esperado = Math.sqrt(esbeltez0 ** 2 + (0.75 * 41) ** 2);
+
+    expect(r.columnaArmada!.ecuacion).toBe("E6-2b");
+    expect(r.columnaArmada!.esbeltezGeometrica).toBeCloseTo(esbeltez0, 6);
+    expect(r.ejeDebil.esbeltez).toBeCloseTo(esperado, 6);
+    expect(r.ejeDebil.esbeltez).toBeCloseTo(r.columnaArmada!.esbeltezModificada, 9);
   });
 });

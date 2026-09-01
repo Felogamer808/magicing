@@ -6,24 +6,42 @@ import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaPandeo } from "@/components/verificaciones/acero/CurvaPandeo";
-import { calcularCompresion, OMEGA_C, type PandeoEnUnEje } from "@/lib/calc/acero/compresion";
+import {
+  calcularCompresion,
+  OMEGA_C,
+  type DatosColumnaArmada,
+  type PandeoEnUnEje,
+  type TipoConectorArmada,
+} from "@/lib/calc/acero/compresion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "compresion-acero")!;
 
-function FilasDeEje({ eje }: { eje: PandeoEnUnEje }) {
+const CONEXION = ["Continua (soldadura corrida)", "Intermitente (conectores espaciados)"] as const;
+const TIPO_CONECTOR = ["Atornillado sin pretensar", "Soldado o atornillado pretensado (clase A/B)"] as const;
+
+function tipoConectorDesde(etiqueta: string): TipoConectorArmada {
+  return etiqueta === TIPO_CONECTOR[0] ? "atornillado-sin-pretensar" : "soldado-o-pretensado";
+}
+
+function FilasDeEje({ eje, corregidaPorColumnaArmada }: { eje: PandeoEnUnEje; corregidaPorColumnaArmada: boolean }) {
   return (
     <PanelFormulas
       titulo="Ver cálculo"
       filas={[
         { etiqueta: "Radio de giro r", valor: `${fmt(eje.rM * 100, 2)} cm` },
-        { etiqueta: "Esbeltez Lc/r", valor: fmt(eje.esbeltez, 2) },
+        {
+          etiqueta: corregidaPorColumnaArmada ? "Esbeltez (Lc/r)m, corregida — E6.2" : "Esbeltez Lc/r",
+          valor: fmt(eje.esbeltez, 2),
+        },
         { etiqueta: "Límite 4,71·√(E/Fy)", valor: fmt(eje.esbeltezLimite, 2) },
         { etiqueta: "Fe = π²E/(Lc/r)²  (E3-4)", valor: `${fmt(eje.fePa / 1e6, 1)} MPa` },
         { etiqueta: "Rama aplicada", valor: eje.regimen },
@@ -45,10 +63,24 @@ export default function CompresionAceroPage() {
   const [e, setE] = useCampo("e", "200000");
   const [pRequerida, setPRequerida] = useCampo("pRequerida", "300");
 
+  const esColumnaArmable = seccion.familia === "2PNC-almas";
+  const [conexion, setConexion] = useCampo("conexion", CONEXION[0]);
+  const [tipoConector, setTipoConector] = useCampo("tipoConector", TIPO_CONECTOR[0]);
+  const [separacionConectores, setSeparacionConectores] = useCampo("separacionConectores", "0.4");
+
+  const pideColumnaArmada = esColumnaArmable && conexion === CONEXION[1];
+
   const resultado = useMemo(() => {
     const n = { lcx: aNumero(lcx), lcy: aNumero(lcy), fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida) };
     if (!seccion.completos) return null;
     if (!Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
+
+    let columnaArmada: DatosColumnaArmada | undefined;
+    if (pideColumnaArmada) {
+      const aM = aNumero(separacionConectores);
+      if (!Number.isFinite(aM) || aM <= 0) return null;
+      columnaArmada = { aM, tipo: tipoConectorDesde(tipoConector) };
+    }
 
     try {
       return calcularCompresion({
@@ -59,11 +91,15 @@ export default function CompresionAceroPage() {
         fyPa: n.fy * 1e6,
         ePa: n.e * 1e6,
         pRequeridaKN: n.p,
+        columnaArmada,
       });
     } catch {
       return null;
     }
-  }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, fy, e, pRequerida]);
+  }, [
+    seccion.familia, seccion.params, seccion.completos, lcx, lcy, fy, e, pRequerida,
+    pideColumnaArmada, separacionConectores, tipoConector,
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -82,7 +118,9 @@ export default function CompresionAceroPage() {
           Artículo E3: pandeo por flexión de barras sin elementos esbeltos, por el método ASD
           (Ωc = 1,67). Se resuelven los dos ejes por separado y gobierna el menor. La longitud
           efectiva Lc = K·L se carga ya multiplicada por K. En tubos de pared muy delgada puede
-          gobernar el pandeo local del artículo E7, que todavía no está implementado.
+          gobernar el pandeo local del artículo E7, que todavía no está implementado. En 2PNC
+          soldados por las almas con conectores intermedios en vez de soldadura corrida, se suma
+          la esbeltez modificada del artículo E6.2 —columnas armadas—, más abajo.
         </CardContent>
       </Card>
 
@@ -122,6 +160,65 @@ export default function CompresionAceroPage() {
               />
             </CardContent>
           </Card>
+
+          {esColumnaArmable && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Columna armada — art. E6.2</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <CampoSeleccion
+                  id="conexion"
+                  etiqueta="Unión entre los dos canales"
+                  valor={conexion}
+                  opciones={CONEXION}
+                  onChange={setConexion}
+                />
+                {pideColumnaArmada && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoSeleccion
+                      id="tipoConector"
+                      etiqueta="Tipo de conector"
+                      valor={tipoConector}
+                      opciones={TIPO_CONECTOR}
+                      onChange={setTipoConector}
+                    />
+                    <CampoNumerico
+                      id="separacionConectores"
+                      etiqueta="Separación entre conectores a"
+                      sufijo="m"
+                      valor={separacionConectores}
+                      onChange={setSeparacionConectores}
+                    />
+                  </div>
+                )}
+                <PanelAyuda titulo="Por qué esto sólo afecta al eje débil">
+                  <p>
+                    Con soldadura corrida, los dos canales trabajan como una sola pieza compuesta y
+                    esta corrección no aplica: es lo que ya calcula la sección de arriba.
+                  </p>
+                  <p>
+                    Con conectores espaciados, la columna es más flexible de lo que indica la
+                    esbeltez geométrica —los conectores dejan pasar algo de corte relativo entre los
+                    dos canales— y el art. E6.2 lo recoge con una esbeltez modificada (Lc/r)m, mayor
+                    que la geométrica (Lc/r)0.
+                  </p>
+                  <p>
+                    Sólo corrige el eje débil, porque es el único con término de Steiner en la
+                    composición: cada canal aporta su inercia propia más A·brazo² hasta el eje de
+                    simetría, y necesita que los conectores transmitan corte para que la sección
+                    trabaje entera. El eje fuerte duplica Ix sin ningún traslado —cada canal ya
+                    flexiona solo alrededor de su propio eje fuerte— y no depende de la conexión.
+                  </p>
+                  <p>
+                    El art. E6.2 también pide diseñar los conectores para un cortante igual al 2 % de
+                    la carga axial de la columna. Esta página no verifica esa unión —haría falta el
+                    tipo y diámetro del conector—, así que queda a cargo de la verificación aparte.
+                  </p>
+                </PanelAyuda>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -182,7 +279,7 @@ export default function CompresionAceroPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <FilasDeEje eje={resultado.ejeFuerte} />
+                  <FilasDeEje eje={resultado.ejeFuerte} corregidaPorColumnaArmada={false} />
                 </CardContent>
               </Card>
 
@@ -193,9 +290,47 @@ export default function CompresionAceroPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <FilasDeEje eje={resultado.ejeDebil} />
+                  <FilasDeEje eje={resultado.ejeDebil} corregidaPorColumnaArmada={!!resultado.columnaArmada} />
                 </CardContent>
               </Card>
+
+              {resultado.columnaArmada && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Columna armada — art. E6.2</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <ResultadoCheck
+                      etiqueta="Separación entre conectores"
+                      verifica={resultado.columnaArmada.cumpleSeparacionMaxima}
+                      detalle={`${fmt(aNumero(separacionConectores), 3)} m / máx ${fmt(
+                        resultado.columnaArmada.separacionMaximaM,
+                        3
+                      )} m · art. E6.2(a): a ≤ 0,75 · (Lc/r)m · ri`}
+                    />
+                    <PanelFormulas
+                      titulo="Ver cálculo"
+                      filas={[
+                        { etiqueta: "ri — radio de giro del canal simple", valor: `${fmt(resultado.columnaArmada.riM * 100, 2)} cm` },
+                        { etiqueta: "a — separación entre conectores", valor: `${fmt(aNumero(separacionConectores), 3)} m` },
+                        { etiqueta: "a/ri", valor: fmt(resultado.columnaArmada.relacion, 2) },
+                        { etiqueta: "Ki — canales espalda con espalda", valor: fmt(resultado.columnaArmada.ki, 2) },
+                        { etiqueta: "Ecuación aplicada", valor: resultado.columnaArmada.ecuacion },
+                        { etiqueta: "(Lc/r)0 — geométrica, sin corregir", valor: fmt(resultado.columnaArmada.esbeltezGeometrica, 2) },
+                        { etiqueta: "(Lc/r)m — modificada", valor: fmt(resultado.columnaArmada.esbeltezModificada, 2) },
+                        { etiqueta: "Separación máxima admisible — E6.2(a)", valor: `${fmt(resultado.columnaArmada.separacionMaximaM, 3)} m` },
+                      ]}
+                    />
+                    {!resultado.columnaArmada.cumpleSeparacionMaxima && (
+                      <p className="text-xs text-destructive">
+                        Con esta separación, un tramo del canal entre conectores puede pandear antes
+                        que la columna completa. Achicá la separación o repetí el cálculo con más
+                        conectores.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </div>

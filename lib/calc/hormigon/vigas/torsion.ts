@@ -114,18 +114,21 @@ export function calcularVigaConTorsion(
   }
 ): ResultadoVigaTorsion {
   const torsion = calcularTorsion(materiales, geometria, datos.torsion);
-  const d = calcularCantoUtil(geometria, datos.armaduraPositiva);
+  // Esta hoja sigue con un solo diámetro por cara: se envuelve en un arreglo
+  // de un elemento porque el motor de flexión ahora admite varios grupos
+  // (capas de Ø distinto), pero acá no hace falta esa opción.
+  const d = calcularCantoUtil(geometria, [datos.armaduraPositiva]);
 
   const comunes: Pick<DatosFlexion, "asAdicionalCm2"> = { asAdicionalCm2: torsion.alPorCaraCm2 };
 
   const flexionPositiva = calcularFlexion(materiales, geometria, d, {
     momento: datos.momentoPositivo,
-    armaduraReal: datos.armaduraPositiva,
+    armaduraReal: [datos.armaduraPositiva],
     ...comunes,
   });
   const flexionNegativa = calcularFlexion(materiales, geometria, d, {
     momento: datos.momentoNegativo,
-    armaduraReal: datos.armaduraNegativa,
+    armaduraReal: [datos.armaduraNegativa],
     ...comunes,
   });
 

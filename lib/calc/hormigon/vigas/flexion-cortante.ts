@@ -2,6 +2,7 @@ import type {
   ArmaduraElegida,
   DatosCortante,
   DatosFlexion,
+  FilaArmadura,
   GeometriaViga,
   MaterialesDerivados,
   ResultadoCortante,
@@ -13,13 +14,10 @@ import {
   tensionCortanteBase,
   tensionCortanteMinima,
 } from "@/lib/calc/hormigon/comun/cortante";
+import { areaBarraCm2 } from "@/lib/calc/armaduras";
 
 /** Recubrimiento de estribo asumido (m), fijo según el criterio de oficina de la planilla original. */
 const DIAMETRO_ESTRIBO_CALADO_M = 0.006;
-
-function areaBarrasCm2(armadura: ArmaduraElegida): number {
-  return (100 ** 2 * armadura.numero * Math.PI * (armadura.diametroMm / 1000) ** 2) / 4;
-}
 
 /** Separación libre mínima entre barras (EC2 8.2): el mayor entre el diámetro de barra y 20 mm. */
 function separacionMinM(diametroMm: number): number {
@@ -27,9 +25,9 @@ function separacionMinM(diametroMm: number): number {
 }
 
 /**
- * Reparte "numero" barras en tantas filas como haga falta para que cada fila
- * respete la separación mínima dentro del ancho disponible. Las filas más
- * cercanas a la fibra traccionada (índice 0) se llenan primero.
+ * Reparte "numero" barras del mismo diámetro en tantas filas como haga falta
+ * para que cada una respete la separación mínima dentro del ancho disponible.
+ * Las filas más cercanas a la fibra traccionada (índice 0) se llenan primero.
  */
 function distribuirEnCapas(numero: number, capacidadPorFila: number): number[] {
   const capacidad = Math.max(1, capacidadPorFila);
@@ -40,45 +38,75 @@ function distribuirEnCapas(numero: number, capacidadPorFila: number): number[] {
 }
 
 export interface DisposicionArmadura {
-  /** Barras por fila, de la más cercana a la fibra traccionada hacia adentro. */
-  capas: number[];
-  /** Máximo de barras que entran en una fila dado el ancho disponible. */
-  capacidadPorFila: number;
-  /** Distancia desde la fibra traccionada extrema al centroide de la armadura (m). */
+  /** Filas físicas, ya repartidas y ordenadas de la fibra traccionada hacia adentro. */
+  filas: FilaArmadura[];
+  /** Capacidad por fila de cada grupo cargado, según su propio diámetro. */
+  capacidadPorGrupo: number[];
+  /** Distancia desde la fibra traccionada extrema al centroide de toda la armadura (m). */
   distanciaCentroideM: number;
+  areaTotalCm2: number;
+  /** Todos los grupos entran en el ancho disponible (aunque sea repartidos en varias filas). */
   verificaEntraEnAncho: boolean;
 }
 
 /**
- * Calcula en cuántas filas hay que distribuir la armadura elegida (cuando no
- * entra en una sola fila por la separación mínima entre barras) y la
- * distancia al centroide resultante, que es lo que efectivamente define el
- * canto útil cuando hay más de una capa.
+ * Reparte los grupos de armadura cargados (cada uno con su propio número y
+ * diámetro — dos capas de Ø distinto, por ejemplo) en filas físicas.
+ *
+ * Cada grupo se expande primero en tantas filas del mismo diámetro como haga
+ * falta para entrar en el ancho disponible (igual que antes, cuando sólo
+ * existía un diámetro). Después las filas de todos los grupos se apilan en el
+ * orden en que se cargaron, y la separación libre vertical entre dos filas
+ * consecutivas usa el mayor de los dos diámetros en juego —el mismo criterio
+ * que ya aplica la segunda capa del tirante en `apeo-bielas.ts`, art. 8.2(2):
+ * "se toma el mayor diámetro en juego porque es el que manda entre dos barras
+ * distintas".
+ *
+ * El centroide pondera por área, no por cantidad de barras: con diámetros
+ * mezclados una barra más gruesa pesa más, y ponderar por cantidad daría un
+ * canto útil optimista.
  */
 export function calcularDisposicionArmadura(
   geometria: GeometriaViga,
-  armadura: ArmaduraElegida
+  grupos: readonly ArmaduraElegida[]
 ): DisposicionArmadura {
   const { b, recubrimiento } = geometria;
-  const diametroM = armadura.diametroMm / 1000;
-  const sMin = separacionMinM(armadura.diametroMm);
-
   const anchoDisponible = b - 2 * (recubrimiento + DIAMETRO_ESTRIBO_CALADO_M);
-  const capacidadPorFila =
-    anchoDisponible > 0 ? Math.floor((anchoDisponible + sMin) / (diametroM + sMin)) : 0;
 
-  const capas = distribuirEnCapas(armadura.numero, capacidadPorFila);
+  const capacidadPorGrupo = grupos.map((g) => {
+    const diametroM = g.diametroMm / 1000;
+    const sMin = separacionMinM(g.diametroMm);
+    return anchoDisponible > 0 ? Math.floor((anchoDisponible + sMin) / (diametroM + sMin)) : 0;
+  });
 
-  const sumaPonderada = capas.reduce((acc, nCapa, i) => {
-    const distanciaCapa = recubrimiento + DIAMETRO_ESTRIBO_CALADO_M + diametroM / 2 + i * (diametroM + sMin);
-    return acc + nCapa * distanciaCapa;
-  }, 0);
+  const filasSinUbicar = grupos.flatMap((g, i) =>
+    distribuirEnCapas(g.numero, capacidadPorGrupo[i]).map((numero) => ({ numero, diametroMm: g.diametroMm }))
+  );
+
+  let bordeM = recubrimiento + DIAMETRO_ESTRIBO_CALADO_M;
+  let sumaPonderadaM = 0;
+  let areaTotalCm2 = 0;
+
+  const filas: FilaArmadura[] = filasSinUbicar.map((fila, i) => {
+    const diametroM = fila.diametroMm / 1000;
+    if (i > 0) {
+      const anterior = filasSinUbicar[i - 1];
+      const sVerticalM = Math.max(fila.diametroMm, anterior.diametroMm, 20) / 1000;
+      bordeM += anterior.diametroMm / 1000 + sVerticalM;
+    }
+    const distanciaM = bordeM + diametroM / 2;
+    const areaFilaCm2 = fila.numero * areaBarraCm2(fila.diametroMm);
+    sumaPonderadaM += areaFilaCm2 * distanciaM;
+    areaTotalCm2 += areaFilaCm2;
+    return { numero: fila.numero, diametroMm: fila.diametroMm, distanciaM };
+  });
 
   return {
-    capas,
-    capacidadPorFila,
-    distanciaCentroideM: sumaPonderada / armadura.numero,
-    verificaEntraEnAncho: capacidadPorFila >= 1,
+    filas,
+    capacidadPorGrupo,
+    distanciaCentroideM: areaTotalCm2 > 0 ? sumaPonderadaM / areaTotalCm2 : 0,
+    areaTotalCm2,
+    verificaEntraEnAncho: capacidadPorGrupo.every((c) => c >= 1),
   };
 }
 
@@ -88,7 +116,10 @@ export function calcularDisposicionArmadura(
  * para el cálculo a flexión negativa como para cortante — así lo hace la
  * planilla original (mismo criterio simplificado).
  */
-export function calcularCantoUtil(geometria: GeometriaViga, armaduraPositiva: ArmaduraElegida): number {
+export function calcularCantoUtil(
+  geometria: GeometriaViga,
+  armaduraPositiva: readonly ArmaduraElegida[]
+): number {
   return geometria.h - calcularDisposicionArmadura(geometria, armaduraPositiva).distanciaCentroideM;
 }
 
@@ -111,14 +142,14 @@ export function calcularFlexion(
   const asMinMecanicoCm2 = (100 ** 2 * 0.045 * b * d * fcd) / fyd;
   const asMinGeometricoCm2 = 100 ** 2 * (2.8 / 1000) * b * h;
 
+  const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
+
   // La armadura de torsión se suma a la de flexión (no se toma el máximo): son
   // esfuerzos concomitantes que traccionan las mismas barras.
   const asNecCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2) + asAdicionalCm2;
-  const asRealCm2 = areaBarrasCm2(armaduraReal);
+  const asRealCm2 = disposicion.areaTotalCm2;
   const aprovechamiento = asNecCm2 / asRealCm2;
   const verificaAs = asRealCm2 >= asNecCm2;
-
-  const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
 
   // Geometría del agotamiento, para poder dibujarlo: ω·d = 0,8·x y z = d·(1 − ω/2).
   const xM = (omega * d) / 0.8;
@@ -139,8 +170,8 @@ export function calcularFlexion(
     asRealCm2,
     aprovechamiento,
     verificaAs,
-    capas: disposicion.capas,
-    capacidadPorFila: disposicion.capacidadPorFila,
+    capas: disposicion.filas,
+    capacidadPorGrupo: disposicion.capacidadPorGrupo,
     distanciaCentroideM: disposicion.distanciaCentroideM,
     verificaEntraEnAncho: disposicion.verificaEntraEnAncho,
   };

@@ -35,7 +35,12 @@ export interface ArmaduraElegida {
 export interface DatosFlexion {
   /** Momento de cálculo (kN·m), en valor absoluto */
   momento: number;
-  armaduraReal: ArmaduraElegida;
+  /**
+   * Armadura real, en grupos: cada uno con su propio número y diámetro (una
+   * segunda capa de Ø distinto, por ejemplo). Un solo grupo es el caso de
+   * siempre.
+   */
+  armaduraReal: readonly ArmaduraElegida[];
   /** Armadura longitudinal extra a sumar al As necesario (cm²), p. ej. la parte que aporta la torsión. */
   asAdicionalCm2?: number;
 }
@@ -73,14 +78,21 @@ export interface ResultadoFlexion {
   /** Ratio de aprovechamiento As,nec / As,real */
   aprovechamiento: number;
   verificaAs: boolean;
-  /** Barras por fila, de la más cercana a la fibra traccionada hacia adentro. Más de un elemento = varias capas. */
-  capas: number[];
-  /** Máximo de barras que entran en una fila dado el ancho disponible. */
-  capacidadPorFila: number;
+  /** Filas físicas, de la más cercana a la fibra traccionada hacia adentro. Más de un elemento = varias capas. */
+  capas: FilaArmadura[];
+  /** Capacidad por fila de cada grupo cargado, según su propio diámetro. */
+  capacidadPorGrupo: number[];
   /** Distancia desde la fibra traccionada extrema al centroide de la armadura (m). */
   distanciaCentroideM: number;
   /** La armadura entra en el ancho disponible (aunque sea en varias filas). */
   verificaEntraEnAncho: boolean;
+}
+
+export interface FilaArmadura {
+  numero: number;
+  diametroMm: number;
+  /** Distancia desde la fibra traccionada extrema al centro de esta fila (m). */
+  distanciaM: number;
 }
 
 export interface DatosCortante {

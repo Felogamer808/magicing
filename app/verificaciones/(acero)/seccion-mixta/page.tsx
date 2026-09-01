@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCFT } from "@/components/verificaciones/acero/DiagramaCFT";
 import { calcularSeccionMixta } from "@/lib/calc/acero/seccion-mixta";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisSeccionMixta,
@@ -103,7 +103,7 @@ export default function SeccionMixtaPage() {
               <CampoNumerico id="dMm" etiqueta="D" sufijo="mm" valor={dMm} onChange={setDMm} />
               <CampoNumerico id="tMm" etiqueta="t" sufijo="mm" valor={tMm} onChange={setTMm} />
               <CampoNumerico id="lM" etiqueta="L" sufijo="m" valor={lM} onChange={setLM} />
-              <CampoNumerico id="phiBarra" etiqueta="φ armadura" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiBarra} onChange={setPhiBarra} />
+              <CampoDiametro id="phiBarra" etiqueta="Ø armadura" valor={phiBarra} onChange={setPhiBarra} />
               <CampoNumerico id="nBarras" etiqueta="Nº barras" valor={nBarras} onChange={setNBarras} />
               <CampoNumerico id="yG" etiqueta="yG" sufijo="mm" valor={yG} onChange={setYG} />
             </CardContent>

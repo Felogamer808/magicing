@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { DiagramaPresionSuelo } from '@/components/verificaciones/hormigon/DiagramaPresionSuelo';
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -13,7 +14,6 @@ import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormig
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisArmadoDireccion,
@@ -241,7 +241,7 @@ export default function ZapataAisladaPage() {
                   <CroquisArmadoDireccion direccion="A" />
                 </div>
                 <CampoNumerico id="numeroA" etiqueta="Nº barras" valor={numeroA} onChange={setNumeroA} />
-                <CampoNumerico id="diametroA" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroA} onChange={setDiametroA} />
+                <CampoDiametro id="diametroA" etiqueta="Ø" valor={diametroA} onChange={setDiametroA} />
               </CardContent>
             </Card>
 
@@ -254,7 +254,7 @@ export default function ZapataAisladaPage() {
                   <CroquisArmadoDireccion direccion="B" />
                 </div>
                 <CampoNumerico id="numeroB" etiqueta="Nº barras" valor={numeroB} onChange={setNumeroB} />
-                <CampoNumerico id="diametroB" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={diametroB} onChange={setDiametroB} />
+                <CampoDiametro id="diametroB" etiqueta="Ø" valor={diametroB} onChange={setDiametroB} />
               </CardContent>
             </Card>
           </div>

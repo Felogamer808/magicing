@@ -27,7 +27,10 @@ export function fmt(n: number, decimales = 2): string {
   });
 }
 
-/** Describe en cuántas filas quedó repartida una armadura. */
-export function describirCapas(capas: number[]): string {
-  return capas.length <= 1 ? `1 fila de ${capas[0]}` : `${capas.length} filas: ${capas.join("+")}`;
+/** Describe en cuántas filas quedó repartida una armadura, con el diámetro de cada una. */
+export function describirCapas(capas: readonly { numero: number; diametroMm: number }[]): string {
+  const etiqueta = (c: { numero: number; diametroMm: number }) => `${c.numero}Ø${c.diametroMm}`;
+  return capas.length <= 1
+    ? `1 fila de ${etiqueta(capas[0])}`
+    : `${capas.length} filas: ${capas.map(etiqueta).join(" + ")}`;
 }

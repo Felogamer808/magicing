@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaBielasTirante } from "@/components/verificaciones/hormigon/DiagramaBielasTirante";
@@ -12,7 +13,6 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezal } from "@/components/verificaciones/hormigon/DiagramaCabezal";
 import { calcularCabezalDosPilotes } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisArmaduraPrincipalCabezal,
@@ -139,7 +139,7 @@ export default function CabezalPilotesPage() {
                   <CroquisArmaduraPrincipalCabezal />
                 </div>
                 <CampoNumerico id="nPrinc" etiqueta="Nº barras" valor={nPrinc} onChange={setNPrinc} />
-                <CampoNumerico id="phiPrinc" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPrinc} onChange={setPhiPrinc} />
+                <CampoDiametro id="phiPrinc" etiqueta="Ø" valor={phiPrinc} onChange={setPhiPrinc} />
               </CardContent>
             </Card>
             <Card>
@@ -149,7 +149,7 @@ export default function CabezalPilotesPage() {
                   <CroquisArmaduraSecundariaCabezal />
                 </div>
                 <CampoNumerico id="nSec" etiqueta="Nº barras" valor={nSec} onChange={setNSec} />
-                <CampoNumerico id="phiSec" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiSec} onChange={setPhiSec} />
+                <CampoDiametro id="phiSec" etiqueta="Ø" valor={phiSec} onChange={setPhiSec} />
               </CardContent>
             </Card>
           </div>
@@ -162,7 +162,7 @@ export default function CabezalPilotesPage() {
                   <CroquisEstribosCabezal direccion="verticales" />
                 </div>
                 <CampoNumerico id="nEstV" etiqueta="Nº" valor={nEstV} onChange={setNEstV} />
-                <CampoNumerico id="phiEstV" etiqueta="φt" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstV} onChange={setPhiEstV} />
+                <CampoDiametro id="phiEstV" etiqueta="Øt" valor={phiEstV} onChange={setPhiEstV} />
                 <CampoNumerico id="nCercos" etiqueta="Cercos" valor={nCercos} onChange={setNCercos} />
               </CardContent>
             </Card>
@@ -173,7 +173,7 @@ export default function CabezalPilotesPage() {
                   <CroquisEstribosCabezal direccion="horizontales" />
                 </div>
                 <CampoNumerico id="nEstH" etiqueta="Nº" valor={nEstH} onChange={setNEstH} />
-                <CampoNumerico id="phiEstH" etiqueta="φl" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstH} onChange={setPhiEstH} />
+                <CampoDiametro id="phiEstH" etiqueta="Øl" valor={phiEstH} onChange={setPhiEstH} />
               </CardContent>
             </Card>
           </div>

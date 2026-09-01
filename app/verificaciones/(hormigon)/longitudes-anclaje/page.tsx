@@ -5,11 +5,13 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisRecubrimientoAnclaje } from "@/components/verificaciones/croquis/CroquisVarios";
+import { DiagramaAnclaje, DiagramaSolape } from "@/components/verificaciones/hormigon/DiagramaAnclaje";
 import {
   calcularAnclaje,
   calcularSolape,
@@ -96,7 +98,7 @@ export default function LongitudesAnclajePage() {
               <div className="col-span-full">
                 <CroquisRecubrimientoAnclaje />
               </div>
-              <CampoNumerico id="diametro" etiqueta="φ" sufijo="mm" valor={diametro} onChange={setDiametro} />
+              <CampoDiametro id="diametro" etiqueta="Ø" valor={diametro} onChange={setDiametro} />
               <CampoNumerico id="recubrimiento" etiqueta="cd" sufijo="mm" valor={recubrimiento} onChange={setRecubrimiento} />
               <CampoSeleccion
                 id="situacion"
@@ -136,7 +138,7 @@ export default function LongitudesAnclajePage() {
                   <p>
                     <strong className="text-foreground">cd.</strong> El menor entre el semiancho
                     libre entre barras, el recubrimiento lateral y el recubrimiento inferior (ver
-                    esquema arriba). Con recubrimientos generosos (cd &gt; 3φ) un gancho acorta el
+                    esquema arriba). Con recubrimientos generosos (cd &gt; 3Ø) un gancho acorta el
                     anclaje; con poco recubrimiento, no.
                   </p>
                   <p>
@@ -185,10 +187,16 @@ export default function LongitudesAnclajePage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Longitud de anclaje</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  <DiagramaAnclaje
+                    diametroMm={resultado.v.diametro}
+                    forma={forma}
+                    lbdMm={resultado.anclaje.lbdMm}
+                    mandrilMinMm={resultado.anclaje.mandrilMinMm}
+                  />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
                       lbd = {fmt(resultado.anclaje.lbdMm, 0)} mm (
-                      {fmt(resultado.anclaje.lbdMm / resultado.v.diametro, 1)}·φ)
+                      {fmt(resultado.anclaje.lbdMm / resultado.v.diametro, 1)}·Ø)
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Mandril mínimo para el doblado: {fmt(resultado.anclaje.mandrilMinMm, 0)} mm
@@ -204,7 +212,7 @@ export default function LongitudesAnclajePage() {
                       { etiqueta: "σsd (= fyd)", valor: `${fmt(resultado.anclaje.sigmaSdMPa, 1)} MPa` },
                       {
                         etiqueta: "lb,rqd",
-                        formula: "(φ/4)·(σsd/fbd)",
+                        formula: "(Ø/4)·(σsd/fbd)",
                         sustitucion: `(${fmt(resultado.v.diametro, 0)}/4)·(${fmt(resultado.anclaje.sigmaSdMPa, 1)}/${fmt(resultado.anclaje.fbdMPa, 2)})`,
                         valor: `${fmt(resultado.anclaje.lbRqdMm, 0)} mm`,
                       },
@@ -226,10 +234,11 @@ export default function LongitudesAnclajePage() {
                 <Card>
                   <CardHeader><CardTitle className="text-base">Longitud de solape</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
+                    <DiagramaSolape diametroMm={resultado.v.diametro} l0Mm={resultado.solapeR.l0Mm} />
                     <div className="rounded-md border p-3 text-sm">
                       <p className="font-medium">
                         l0 = {fmt(resultado.solapeR.l0Mm, 0)} mm (
-                        {fmt(resultado.solapeR.l0Mm / resultado.v.diametro, 1)}·φ)
+                        {fmt(resultado.solapeR.l0Mm / resultado.v.diametro, 1)}·Ø)
                       </p>
                       <p className="text-xs text-muted-foreground">
                         α6 = {fmt(resultado.solapeR.alfa6, 2)}, con {fmt(resultado.v.porcentajeSolapado, 0)}% de
@@ -250,7 +259,7 @@ export default function LongitudesAnclajePage() {
                       ]}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Separación libre máxima entre barras solapadas: 4φ (art. 8.7.2(3)); si no se
+                      Separación libre máxima entre barras solapadas: 4Ø (art. 8.7.2(3)); si no se
                       cumple, hay que sumarle esa distancia a l0.
                     </p>
                   </CardContent>

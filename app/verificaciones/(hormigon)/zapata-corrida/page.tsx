@@ -5,13 +5,13 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularZapataCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisZapataCorrida,
@@ -190,14 +190,7 @@ export default function ZapataCorridaPage() {
                 <CardTitle className="text-base">Armado principal</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico
-                  id="diametroPrincipal"
-                  etiqueta="φ"
-                  sufijo="mm"
-                  sugerencias={DIAMETROS_ARMADURA}
-                  valor={diametroPrincipal}
-                  onChange={setDiametroPrincipal}
-                />
+                <CampoDiametro id="diametroPrincipal" etiqueta="Ø" valor={diametroPrincipal} onChange={setDiametroPrincipal} />
                 <CampoNumerico
                   id="separacionPrincipal"
                   etiqueta="Separación"
@@ -219,14 +212,7 @@ export default function ZapataCorridaPage() {
                   valor={numeroSecundario}
                   onChange={setNumeroSecundario}
                 />
-                <CampoNumerico
-                  id="diametroSecundario"
-                  etiqueta="φ"
-                  sufijo="mm"
-                  sugerencias={DIAMETROS_ARMADURA}
-                  valor={diametroSecundario}
-                  onChange={setDiametroSecundario}
-                />
+                <CampoDiametro id="diametroSecundario" etiqueta="Ø" valor={diametroSecundario} onChange={setDiametroSecundario} />
               </CardContent>
             </Card>
           </div>

@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaEmpujesMuro } from "@/components/verificaciones/hormigon/DiagramaEmpujesMuro";
@@ -860,15 +861,15 @@ export default function MuroContencionPage() {
                       <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                       <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
                       <CampoNumerico id="recArm" etiqueta="Recubrimiento mec." sufijo="m" valor={recArm} onChange={setRecArm} />
-                      <CampoNumerico id="phiHastial" etiqueta="⌀ hastial" sufijo="mm" valor={phiHastial} onChange={setPhiHastial} />
+                      <CampoDiametro id="phiHastial" etiqueta="Ø hastial" valor={phiHastial} onChange={setPhiHastial} />
                       <CampoNumerico id="sepHastial" etiqueta="Sep. hastial" sufijo="mm" valor={sepHastial} onChange={setSepHastial} />
                       <div />
-                      <CampoNumerico id="phiTalon" etiqueta="⌀ talón" sufijo="mm" valor={phiTalon} onChange={setPhiTalon} />
+                      <CampoDiametro id="phiTalon" etiqueta="Ø talón" valor={phiTalon} onChange={setPhiTalon} />
                       <CampoNumerico id="sepTalon" etiqueta="Sep. talón" sufijo="mm" valor={sepTalon} onChange={setSepTalon} />
                       <div />
                       {armado.puntera && (
                         <>
-                          <CampoNumerico id="phiPuntera" etiqueta="⌀ puntera" sufijo="mm" valor={phiPuntera} onChange={setPhiPuntera} />
+                          <CampoDiametro id="phiPuntera" etiqueta="Ø puntera" valor={phiPuntera} onChange={setPhiPuntera} />
                           <CampoNumerico id="sepPuntera" etiqueta="Sep. puntera" sufijo="mm" valor={sepPuntera} onChange={setSepPuntera} />
                         </>
                       )}

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -17,7 +18,6 @@ import {
   type TransmisionCarga,
 } from "@/lib/calc/hormigon/vigas/apeo-bielas";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -292,10 +292,10 @@ export default function VigaApeoBielasPage() {
             <CardHeader><CardTitle className="text-base">Tirante inferior</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="nTirante" etiqueta="Nº barras" valor={nTirante} onChange={setNTirante} />
-              <CampoNumerico id="phiTirante" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiTirante} onChange={setPhiTirante} />
-              <CampoNumerico id="phiEstribo" etiqueta="φ estribo" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiEstribo} onChange={setPhiEstribo} />
+              <CampoDiametro id="phiTirante" etiqueta="Ø" valor={phiTirante} onChange={setPhiTirante} />
+              <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
               <CampoNumerico id="nTirante2" etiqueta="Nº barras 2ª capa" valor={nTirante2} onChange={setNTirante2} />
-              <CampoNumerico id="phiTirante2" etiqueta="φ 2ª capa" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiTirante2} onChange={setPhiTirante2} />
+              <CampoDiametro id="phiTirante2" etiqueta="Ø 2ª capa" valor={phiTirante2} onChange={setPhiTirante2} />
               <CampoNumerico id="dg" etiqueta="Árido máx. dg" sufijo="m" valor={dg} onChange={setDg} />
               <div className="col-span-2 sm:col-span-3">
                 <CampoSeleccion
@@ -317,9 +317,9 @@ export default function VigaApeoBielasPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Malla de piel (por cara)</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="phiMallaH" etiqueta="φ horizontal" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiMallaH} onChange={setPhiMallaH} />
+              <CampoDiametro id="phiMallaH" etiqueta="Ø horizontal" valor={phiMallaH} onChange={setPhiMallaH} />
               <CampoNumerico id="sepMallaH" etiqueta="Separación horiz." sufijo="m" valor={sepMallaH} onChange={setSepMallaH} />
-              <CampoNumerico id="phiMallaV" etiqueta="φ vertical" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiMallaV} onChange={setPhiMallaV} />
+              <CampoDiametro id="phiMallaV" etiqueta="Ø vertical" valor={phiMallaV} onChange={setPhiMallaV} />
               <CampoNumerico id="sepMallaV" etiqueta="Separación vert." sufijo="m" valor={sepMallaV} onChange={setSepMallaV} />
             </CardContent>
           </Card>
@@ -328,7 +328,7 @@ export default function VigaApeoBielasPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Estribos de cuelgue</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="phiCuelgue" etiqueta="φ" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiCuelgue} onChange={setPhiCuelgue} />
+                <CampoDiametro id="phiCuelgue" etiqueta="Ø" valor={phiCuelgue} onChange={setPhiCuelgue} />
                 <CampoNumerico id="sepCuelgue" etiqueta="Separación" sufijo="m" valor={sepCuelgue} onChange={setSepCuelgue} />
                 <CampoNumerico id="ramasCuelgue" etiqueta="Ramas" valor={ramasCuelgue} onChange={setRamasCuelgue} />
                 <CampoNumerico id="cantoColgado" etiqueta="Canto del elemento colgado" sufijo="m" valor={cantoColgado} onChange={setCantoColgado} />
@@ -499,7 +499,7 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "fctd = αct·0,7·fctm/γc (ec. 3.16)", valor: `${fmt(resultado.r.anclaje.fctdMPa, 3)} MPa` },
                       { etiqueta: "η1 por condición de adherencia · η2 por diámetro", valor: `${fmt(resultado.r.anclaje.eta1, 2)} · ${fmt(resultado.r.anclaje.eta2, 2)}` },
                       { etiqueta: "fbd = 2,25·η1·η2·fctd (ec. 8.2)", valor: `${fmt(resultado.r.anclaje.fbdMPa, 3)} MPa` },
-                      { etiqueta: "lb,rqd = (φ/4)·(σsd/fbd) (ec. 8.3)", valor: `${fmt(resultado.r.anclaje.lbRqdMm, 0)} mm` },
+                      { etiqueta: "lb,rqd = (Ø/4)·(σsd/fbd) (ec. 8.3)", valor: `${fmt(resultado.r.anclaje.lbRqdMm, 0)} mm` },
                       { etiqueta: "cd = mín(a/2; c1; c) (fig. A19.8.3)", valor: `${fmt(resultado.r.anclaje.cdMm, 1)} mm` },
                       { etiqueta: "Recta: α1 · α2·α3·α5 (tabla A19.8.2)", valor: `${fmt(resultado.r.anclaje.recto.alfa1, 2)} · ${fmt(resultado.r.anclaje.recto.producto235, 2)}` },
                       { etiqueta: "Recta: lbd = α·lb,rqd ≥ lb,min (ec. 8.4)", valor: `${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm (lb,min ${fmt(resultado.r.anclaje.recto.lbMinMm, 0)} mm)` },
@@ -512,22 +512,22 @@ export default function VigaApeoBielasPage() {
                     titulo="Ver cómo se calcula la horquilla"
                     filas={[
                       { etiqueta: "Nº de horquillas (una cada dos barras)", valor: `${resultado.r.anclaje.geometriaHorquilla.numeroHorquillas}` },
-                      { etiqueta: "Mandril mínimo de tabla A19.8.1 (4φ si φ≤16; 7φ si no)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm, 0)} mm` },
-                      { etiqueta: "Tracción de una barra Fbt = σsd·Aφ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.fbtKN, 0)} kN` },
-                      { etiqueta: "ab = recubrimiento + φ/2 (barra de esquina)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.abMm, 0)} mm` },
+                      { etiqueta: "Mandril mínimo de tabla A19.8.1 (4Ø si Ø≤16; 7Ø si no)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm, 0)} mm` },
+                      { etiqueta: "Tracción de una barra Fbt = σsd·AØ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.fbtKN, 0)} kN` },
+                      { etiqueta: "ab = recubrimiento + Ø/2 (barra de esquina)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.abMm, 0)} mm` },
                       { etiqueta: "Mandril por rotura del hormigón, ec. (8.1)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilPorHormigonMm, 0)} mm` },
                       {
                         etiqueta: "¿Exenta de comprobar el hormigón? (art. 8.3(3))",
                         valor: resultado.r.anclaje.geometriaHorquilla.exentaDeComprobarMandril
-                          ? "sí, la rama de vuelta no pasa de 5φ"
+                          ? "sí, la rama de vuelta no pasa de 5Ø"
                           : "no, hay que comprobarlo",
                       },
-                      { etiqueta: "Mandril adoptado φm", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilAdoptadoMm, 0)} mm` },
-                      { etiqueta: "Desarrollo del codo de 180°: π·(φm+φ)/2", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloCodoMm, 0)} mm` },
+                      { etiqueta: "Mandril adoptado Øm", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilAdoptadoMm, 0)} mm` },
+                      { etiqueta: "Desarrollo del codo de 180°: π·(Øm+Ø)/2", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloCodoMm, 0)} mm` },
                       { etiqueta: "Rama de ida izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaDerMm, 0)} mm` },
                       { etiqueta: "Desarrollo total 2·ida + codo, izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleDerMm, 0)} mm` },
                       { etiqueta: "Rama de vuelta que falta, izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.ramaVueltaIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.ramaVueltaDerMm, 0)} mm` },
-                      { etiqueta: "Ancho que ocupa el lazo en planta: φm + 2φ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm` },
+                      { etiqueta: "Ancho que ocupa el lazo en planta: Øm + 2Ø", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm` },
                     ]}
                   />
 
@@ -537,7 +537,7 @@ export default function VigaApeoBielasPage() {
                       Primero sale lbd como en cualquier barra: la tensión real σsd = T/As,real
                       dividida por la adherencia fbd da la longitud recta lb,rqd, y los α de la
                       tabla A19.8.2 la corrigen. Ojo con un punto que engaña: doblar la barra
-                      sólo bonifica (α1 = 0,7) si cd &gt; 3φ, o sea si el codo tiene hormigón
+                      sólo bonifica (α1 = 0,7) si cd &gt; 3Ø, o sea si el codo tiene hormigón
                       alrededor. Con recubrimientos y separaciones normales cd es chico y la
                       horquilla exige la misma lbd que la barra recta.
                     </p>
@@ -551,11 +551,11 @@ export default function VigaApeoBielasPage() {
                       pasaría si el giro fuera vertical.
                     </p>
                     <p>
-                      El mandril φm sale por el mayor de dos criterios: el de tabla —4φ hasta φ16
-                      y 7φ por encima, para no fisurar la barra al doblarla— y el de la ec. (8.1),
+                      El mandril Øm sale por el mayor de dos criterios: el de tabla —4Ø hasta Ø16
+                      y 7Ø por encima, para no fisurar la barra al doblarla— y el de la ec. (8.1),
                       que evita que el hormigón de adentro del codo reviente por la presión de
                       contacto. El segundo sólo hay que comprobarlo si tras el codo queda más de
-                      5φ de barra (art. 8.3(3)); si la rama de vuelta es corta, la propia barra
+                      5Ø de barra (art. 8.3(3)); si la rama de vuelta es corta, la propia barra
                       no llega a cargar el codo.
                     </p>
                     <p>

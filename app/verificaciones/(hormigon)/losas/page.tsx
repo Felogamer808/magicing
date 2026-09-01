@@ -5,12 +5,12 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { LosaDiagrama } from "@/components/verificaciones/hormigon/LosaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaDireccionLosa } from "@/components/verificaciones/hormigon/TarjetaDireccionLosa";
 import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/hormigon/losas/losa";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisCapasLosa,
@@ -153,9 +153,9 @@ export default function LosasPage() {
                 <div className="col-span-full">
                   <CroquisCapasLosa cara="inferior" />
                 </div>
-                <CampoNumerico id="phiPosX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosX} onChange={setPhiPosX} />
+                <CampoDiametro id="phiPosX" etiqueta="Ø X" valor={phiPosX} onChange={setPhiPosX} />
                 <CampoNumerico id="sPosX" etiqueta="s X" sufijo="m" valor={sPosX} onChange={setSPosX} />
-                <CampoNumerico id="phiPosY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiPosY} onChange={setPhiPosY} />
+                <CampoDiametro id="phiPosY" etiqueta="Ø Y" valor={phiPosY} onChange={setPhiPosY} />
                 <CampoNumerico id="sPosY" etiqueta="s Y" sufijo="m" valor={sPosY} onChange={setSPosY} />
               </CardContent>
             </Card>
@@ -165,9 +165,9 @@ export default function LosasPage() {
                 <div className="col-span-full">
                   <CroquisCapasLosa cara="superior" />
                 </div>
-                <CampoNumerico id="phiNegX" etiqueta="φ X" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegX} onChange={setPhiNegX} />
+                <CampoDiametro id="phiNegX" etiqueta="Ø X" valor={phiNegX} onChange={setPhiNegX} />
                 <CampoNumerico id="sNegX" etiqueta="s X" sufijo="m" valor={sNegX} onChange={setSNegX} />
-                <CampoNumerico id="phiNegY" etiqueta="φ Y" sufijo="mm" sugerencias={DIAMETROS_ARMADURA} valor={phiNegY} onChange={setPhiNegY} />
+                <CampoDiametro id="phiNegY" etiqueta="Ø Y" valor={phiNegY} onChange={setPhiNegY} />
                 <CampoNumerico id="sNegY" etiqueta="s Y" sufijo="m" valor={sNegY} onChange={setSNegY} />
               </CardContent>
             </Card>
@@ -216,7 +216,7 @@ export default function LosasPage() {
                     {fmt(resultado.resistente.momentoKNmPorM)} kN·m/m
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Lo que resiste φ{fmt(resultado.v.phiPosX, 0)}/{fmt(resultado.v.sPosX * 100, 0)} cm por sí solo
+                    Lo que resiste Ø{fmt(resultado.v.phiPosX, 0)}/{fmt(resultado.v.sPosX * 100, 0)} cm por sí solo
                     (As {fmt(resultado.resistente.asRealCm2PorM)} cm²/m, d {fmt(resultado.resistente.dM, 3)} m),
                     sin contar la malla de Y.
                   </p>

@@ -2,10 +2,14 @@
 
 import { useId } from "react";
 
-interface ArmaduraDiagrama {
+interface FilaDiagrama {
+  numero: number;
   diametroMm: number;
-  /** Barras por fila, de la más cercana a la fibra traccionada hacia adentro. */
-  capas: number[];
+}
+
+interface ArmaduraDiagrama {
+  /** Filas físicas, de la más cercana a la fibra traccionada hacia adentro. */
+  capas: readonly FilaDiagrama[];
 }
 
 interface SeccionVigaDiagramaProps {
@@ -26,10 +30,32 @@ function distribuir(n: number, desde: number, hasta: number): number[] {
 
 const fmtM = (n: number) => `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
 
-function etiquetaArmadura({ diametroMm, capas }: ArmaduraDiagrama): string {
-  const total = capas.reduce((a, b) => a + b, 0);
-  if (capas.length <= 1) return `${total}⌀${diametroMm}`;
-  return `${capas.join("+")}⌀${diametroMm} (${capas.length} filas)`;
+function etiquetaArmadura({ capas }: ArmaduraDiagrama): string {
+  if (capas.length === 0) return "—";
+  return capas.map((c) => `${c.numero}Ø${c.diametroMm}`).join(" + ");
+}
+
+/** Radio del punto que representa la barra en el dibujo: no a escala, sólo referencia visual del diámetro. */
+function radioDe(diametroMm: number): number {
+  return Math.max(2.5, Math.min(6, diametroMm * 0.3));
+}
+
+/**
+ * Ubica cada fila a partir del borde interior del estribo, apilando hacia
+ * adentro de la sección. El paso entre filas es el radio de la anterior más
+ * el de la siguiente y un espacio fijo: es un esquema, no un plano a escala,
+ * así que no reproduce la separación libre real en milímetros.
+ */
+function ubicarFilas(capas: readonly FilaDiagrama[], bordeY: number, signo: 1 | -1) {
+  let yAnterior = bordeY;
+  let radioAnterior = 0;
+  return capas.map((capa, i) => {
+    const radio = radioDe(capa.diametroMm);
+    const y = i === 0 ? bordeY + signo * radio : yAnterior + signo * (radioAnterior + 3 + radio);
+    yAnterior = y;
+    radioAnterior = radio;
+    return { numero: capa.numero, radio, y };
+  });
 }
 
 export function SeccionVigaDiagrama({
@@ -70,23 +96,12 @@ export function SeccionVigaDiagrama({
   const coverY0 = y0 + Math.max(cover, 4);
   const coverY1 = y1 - Math.max(cover, 4);
 
-  const radioPos = Math.max(2.5, Math.min(6, armaduraPositiva.diametroMm * 0.3));
-  const radioNeg = Math.max(2.5, Math.min(6, armaduraNegativa.diametroMm * 0.3));
-  const pitchPos = radioPos * 2 + 3;
-  const pitchNeg = radioNeg * 2 + 3;
-
   // Filas de la armadura positiva: la 0 pegada al borde inferior, las siguientes hacia arriba.
-  const filasPos = armaduraPositiva.capas.map((n, i) => ({
-    n,
-    y: coverY1 - radioPos - i * pitchPos,
-  }));
+  const filasPos = ubicarFilas(armaduraPositiva.capas, coverY1, -1);
   // Filas de la armadura negativa: la 0 pegada al borde superior, las siguientes hacia abajo.
-  const filasNeg = armaduraNegativa.capas.map((n, i) => ({
-    n,
-    y: coverY0 + radioNeg + i * pitchNeg,
-  }));
+  const filasNeg = ubicarFilas(armaduraNegativa.capas, coverY0, 1);
 
-  const yCentroidePos = filasPos[0]?.y ?? coverY1 - radioPos;
+  const yCentroidePos = filasPos[0]?.y ?? coverY1;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -182,15 +197,15 @@ export function SeccionVigaDiagrama({
 
         {/* armadura negativa (superior), una fila por capa */}
         {filasNeg.map((fila, i) =>
-          distribuir(fila.n, coverX0 + radioNeg, coverX1 - radioNeg).map((x, j) => (
-            <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={radioNeg} fill="currentColor" />
+          distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
+            <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill="currentColor" />
           ))
         )}
 
         {/* armadura positiva (inferior), una fila por capa */}
         {filasPos.map((fila, i) =>
-          distribuir(fila.n, coverX0 + radioPos, coverX1 - radioPos).map((x, j) => (
-            <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={radioPos} fill="currentColor" />
+          distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
+            <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill="currentColor" />
           ))
         )}
       </svg>
@@ -201,7 +216,7 @@ export function SeccionVigaDiagrama({
         <dt>Negativa</dt>
         <dd className="text-right text-foreground">{etiquetaArmadura(armaduraNegativa)}</dd>
         <dt>Estribo</dt>
-        <dd className="text-right text-foreground">⌀{diametroEstriboMm}</dd>
+        <dd className="text-right text-foreground">Ø{diametroEstriboMm}</dd>
         <dt>d</dt>
         <dd className="text-right text-foreground">{fmtM(dM)}</dd>
       </dl>

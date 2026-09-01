@@ -83,6 +83,7 @@ export type IdVerificacion =
   | "corte-acero"
   | "flexo-compresion"
   | "soldaduras"
+  | "tornillos-acero"
   | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas"
@@ -516,6 +517,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/uniones",
+    disponible: true,
+  },
+  {
+    id: "tornillos-acero",
+    nombre: "Unión abulonada",
+    seccion: "estructuras-metalicas",
+    categoria: "Uniones",
+    descripcion:
+      "Bulón por corte del vástago, aplastamiento y arrancamiento de chapa, reparto elástico en grupo excéntrico, y bloque de corte del extremo conectado.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/tornillos-acero",
     disponible: true,
   },
   {

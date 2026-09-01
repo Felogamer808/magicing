@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularCompresion, OMEGA_C, tensionCritica } from "@/lib/calc/acero/compresion";
+import { calcularCompresion, OMEGA_C, tensionCritica, tensionCriticaTorsionalPa } from "@/lib/calc/acero/compresion";
 import { propiedades } from "@/lib/calc/acero/perfiles";
 
 const FY = 250e6;
@@ -176,5 +176,81 @@ describe("compresión de un perfil completo", () => {
 
     expect(separados.ejeDebil.admisibleKN).toBeGreaterThan(juntos.ejeDebil.admisibleKN);
     expect(separados.ejeFuerte.admisibleKN).toBeCloseTo(juntos.ejeFuerte.admisibleKN, 6);
+  });
+});
+
+// El HEB200 del catálogo (Ix=5696 cm⁴, Iy=2003 cm⁴, J=59,28 cm⁴, Iw=171,1·10⁹ mm⁶,
+// A=78,1 cm²) contrasta a mano la ec. (E4-2): con KzL = 3 m da Fe ≈ 1079,70 MPa,
+// muy por encima de Fy, así que siempre cae en la rama inelástica —el término en
+// Iw domina y G·J solo, con KzL → ∞, ya da Fy/Fe ≈ 0,42 < 2,25, lejos del límite
+// elástico—. No hace falta forzar la rama elástica: alcanza con reproducir el
+// número exacto de la ecuación y la lógica de gobierno.
+describe("pandeo torsional, art. E4", () => {
+  const HEB200_IX_M4 = 5696 / 1e8;
+  const HEB200_IY_M4 = 2003 / 1e8;
+  const HEB200_J_M4 = 59.28 / 1e8;
+  const HEB200_CW_M6 = (171.1e9) / 1e18;
+  const HEB200_AREA_M2 = 78.1 / 1e4;
+
+  it("reproduce Fe de la ec. (E4-2) para un HEB200 con KzL = 3 m", () => {
+    const fePa = tensionCriticaTorsionalPa(3, E, HEB200_CW_M6, HEB200_J_M4, HEB200_IX_M4, HEB200_IY_M4);
+    expect(fePa).toBeCloseTo(1079704236.632864, 0);
+  });
+
+  it("G sale de E con ν = 0,3 fijo: G = E/2,6", () => {
+    // Con KzL → ∞ el término en Cw se anula y sólo queda G·J/(Ix+Iy).
+    const fePa = tensionCriticaTorsionalPa(1e9, E, HEB200_CW_M6, HEB200_J_M4, HEB200_IX_M4, HEB200_IY_M4);
+    const gPa = E / 2.6;
+    expect(fePa).toBeCloseTo((gPa * HEB200_J_M4) / (HEB200_IX_M4 + HEB200_IY_M4), 0);
+  });
+
+  it("no se evalúa si no se pasa kzLM", () => {
+    const r = calcularCompresion({
+      familia: "HEB",
+      params: { altura: 200 },
+      lcxM: 3,
+      lcyM: 3,
+      fyPa: FY,
+      ePa: E,
+    });
+    expect(r.pandeoTorsional).toBeUndefined();
+    expect(r.gobierna).not.toBe("torsional");
+  });
+
+  it("no se evalúa en el PNC suelto, que no es doblemente simétrico", () => {
+    const p = propiedades("PNC", { altura: 200 });
+    expect(p.doblementeSimetrica).toBe(false);
+
+    const r = calcularCompresion({
+      familia: "PNC",
+      params: { altura: 200 },
+      lcxM: 3,
+      lcyM: 3,
+      fyPa: FY,
+      ePa: E,
+      kzLM: 3,
+    });
+    expect(r.pandeoTorsional).toBeUndefined();
+  });
+
+  it("puede gobernar cuando la longitud de pandeo flexional es chica y la torsional no", () => {
+    const r = calcularCompresion({
+      familia: "HEB",
+      params: { altura: 200 },
+      lcxM: 0.01,
+      lcyM: 0.01,
+      fyPa: FY,
+      ePa: E,
+      kzLM: 3,
+    });
+
+    expect(r.pandeoTorsional).toBeDefined();
+    expect(r.pandeoTorsional!.regimen).toBe("inelástico (E3-2)");
+    expect(r.pandeoTorsional!.pnKN).toBeCloseTo(226908697.5537007 * HEB200_AREA_M2 / 1000, 3);
+    expect(r.pandeoTorsional!.admisibleKN).toBeCloseTo(r.pandeoTorsional!.pnKN / OMEGA_C, 6);
+    expect(r.gobierna).toBe("torsional");
+    expect(r.admisibleKN).toBeCloseTo(r.pandeoTorsional!.admisibleKN, 9);
+    expect(r.admisibleKN).toBeLessThan(r.ejeFuerte.admisibleKN);
+    expect(r.admisibleKN).toBeLessThan(r.ejeDebil.admisibleKN);
   });
 });

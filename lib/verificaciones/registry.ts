@@ -78,11 +78,13 @@ export type IdVerificacion =
   | "longitudes-anclaje"
   | "viento"
   | "compresion-acero"
+  | "traccion-acero"
   | "flexion-acero"
   | "pretensado"
   | "corte-acero"
   | "flexo-compresion"
   | "soldaduras"
+  | "tornillos-acero"
   | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas"
@@ -465,6 +467,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
+    id: "traccion-acero",
+    nombre: "Tracción",
+    seccion: "estructuras-metalicas",
+    categoria: "Barras",
+    descripcion:
+      "Fluencia y rotura de barras traccionadas: área neta con agujeros en zigzag y factor de shear lag del Caso 2.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/traccion-acero",
+    disponible: true,
+  },
+  {
     id: "flexion-acero",
     nombre: "Flexión en vigas",
     seccion: "estructuras-metalicas",
@@ -516,6 +529,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/uniones",
+    disponible: true,
+  },
+  {
+    id: "tornillos-acero",
+    nombre: "Unión abulonada",
+    seccion: "estructuras-metalicas",
+    categoria: "Uniones",
+    descripcion:
+      "Bulón por corte del vástago, aplastamiento y arrancamiento de chapa, reparto elástico en grupo excéntrico, y bloque de corte del extremo conectado.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/tornillos-acero",
     disponible: true,
   },
   {

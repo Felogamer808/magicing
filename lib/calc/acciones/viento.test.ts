@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calcularCasoApertura,
+  calcularFactorFormaGamma0,
   calcularViento,
   coeficienteAltura,
   coeficienteSeguridad,
@@ -38,6 +39,35 @@ describe("viento: coeficiente de seguridad Kk (Tabla 6.3)", () => {
   it("por tensiones admisibles es siempre 1 (7.3.1)", () => {
     expect(coeficienteSeguridad("tensiones-admisibles", "A")).toBeCloseTo(1, 9);
     expect(coeficienteSeguridad("tensiones-admisibles", "E2")).toBeCloseTo(1, 9);
+  });
+});
+
+describe("viento: factor de forma γ0 (fig. 8.2, ramas simples)", () => {
+  it("reproduce el caso real de la planilla VIENTO2025 (77×35×14 m)", () => {
+    const lambdaA = 14 / 77; // 0,1818...
+    const lambdaB = 14 / 35; // 0,4
+    const r = calcularFactorFormaGamma0(lambdaA, lambdaB);
+    expect(r.ladoA).toBeCloseTo(0.94, 6);
+    expect(r.ladoB).toBeCloseTo(0.85, 6);
+  });
+
+  it("reproduce el ejemplo 4 de la norma (13.13.2): λa=0,1875, λb=0,5", () => {
+    const r = calcularFactorFormaGamma0(0.1875, 0.5);
+    expect(r.ladoA).toBeCloseTo(1, 6); // "ACCION DE VIENTO PERPENDICULAR AL LADO MAYOR Sa": γ0=1
+    expect(r.ladoB).toBeCloseTo(0.85, 6); // "... AL LADO MENOR Sb": γ0=0,85
+  });
+
+  it("interpola linealmente entre los quiebres del ábaco", () => {
+    // Rama λa<0,5: quiebres en λb=0,25 (γ0=0,85) y λb=0,5 (γ0=1,00).
+    expect(calcularFactorFormaGamma0(0.1, 0.375).ladoA).toBeCloseTo(0.925, 9);
+    // Rama λb<1: quiebres en λa=0,2 (γ0=0,85) y λa=0,3 (γ0=1,00).
+    expect(calcularFactorFormaGamma0(0.25, 0.1).ladoB).toBeCloseTo(0.925, 9);
+  });
+
+  it("devuelve null cuando λ sale del rango digitalizado: hay que leer la fig. 8.2", () => {
+    // λa≥0,5 y λb≥1 son los ábacos densos (edificios altos), no digitalizados.
+    expect(calcularFactorFormaGamma0(0.6, 0.3).ladoA).toBeNull();
+    expect(calcularFactorFormaGamma0(0.1, 1.2).ladoB).toBeNull();
   });
 });
 

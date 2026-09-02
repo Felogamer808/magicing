@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -12,6 +14,7 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { DiagramaCargaViento } from "@/components/verificaciones/acciones/DiagramaCargaViento";
 import {
   calcularCasoApertura,
+  calcularFactorFormaGamma0,
   calcularViento,
   generarNiveles,
   CASOS_APERTURA,
@@ -67,12 +70,27 @@ export default function VientoPage() {
   const [zInicial, setZInicial] = useCampo("zInicial", "3.5");
   const [nNiveles, setNNiveles] = useCampo("nNiveles", "4");
 
+  // γ0 sale solo de la geometría (fig. 8.2): se calcula aparte de "resultado"
+  // para que las tarjetas de Lado A/B lo muestren aunque el resto del
+  // formulario (Ce, Kd, niveles) todavía no sea válido. Null = el edificio
+  // cae en el ábaco denso (λa≥0,5 o λb≥1) que no está digitalizado: hay que
+  // leer γ0 de la fig. 8.2 a mano.
+  const factorForma = useMemo(() => {
+    const alturaN = aNumero(altura);
+    const aN = aNumero(a);
+    const bN = aNumero(b);
+    if (![alturaN, aN, bN].every((x) => Number.isFinite(x) && x > 0)) return null;
+    return calcularFactorFormaGamma0(alturaN / aN, alturaN / bN);
+  }, [altura, a, b]);
+
   const resultado = useMemo(() => {
+    const gammaAEfectivo = factorForma?.ladoA ?? aNumero(gammaA);
+    const gammaBEfectivo = factorForma?.ladoB ?? aNumero(gammaB);
     const n = {
       altura: aNumero(altura), a: aNumero(a), b: aNumero(b),
       grupo, zInicial: aNumero(zInicial), nNiveles: aNumero(nNiveles),
-      gammaA: aNumero(gammaA), ceLateralA: aNumero(ceLateralA), kdA: aNumero(kdA),
-      gammaB: aNumero(gammaB), ceLateralB: aNumero(ceLateralB), kdB: aNumero(kdB),
+      gammaA: gammaAEfectivo, ceLateralA: aNumero(ceLateralA), kdA: aNumero(kdA),
+      gammaB: gammaBEfectivo, ceLateralB: aNumero(ceLateralB), kdB: aNumero(kdB),
     };
     const numericos = [
       n.altura, n.a, n.b, n.zInicial, n.nNiveles,
@@ -105,7 +123,7 @@ export default function VientoPage() {
     return { n, r, casoA, casoB };
   }, [
     altura, a, b, velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
-    gammaA, ceLateralA, kdA, gammaB, ceLateralB, kdB, zInicial, nNiveles,
+    factorForma, gammaA, ceLateralA, kdA, gammaB, ceLateralB, kdB, zInicial, nNiveles,
   ]);
 
   return (
@@ -122,10 +140,12 @@ export default function VientoPage() {
 
       <Card className="border-primary/30">
         <CardContent className="py-4 text-sm text-muted-foreground">
-          γ, el coeficiente de caras laterales y techo, y Kd se leen de los gráficos de la norma
-          (fig. 8.2, fig. 8.6 y fig. 6.2) según λa/λb, a/b y el área expuesta de cada lado — son
-          datos de entrada, no los calcula la página. Cada lado (A y B) es una dirección de
-          viento distinta, con su propio γ, y por eso se cargan por separado.
+γ0 se calcula solo a partir de a, b y la altura (fig. 8.2), para el caso habitual de
+          construcciones apoyadas en el suelo con λa&lt;0,5 o λb&lt;1. Fuera de ese rango
+          (edificios altos en relación a su planta) hay que leerlo del gráfico y cargarlo a mano.
+          El coeficiente de caras laterales y techo y Kd todavía se leen de la norma (fig. 8.6 y
+          fig. 6.2) según a/b y el área expuesta de cada lado. Cada lado (A y B) es una dirección
+          de viento distinta, con su propio γ, y por eso se cargan por separado.
         </CardContent>
       </Card>
 
@@ -203,7 +223,16 @@ export default function VientoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Lado A (+X) — γ0,a</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <CampoNumerico id="gammaA" etiqueta="γ0,a" valor={gammaA} onChange={setGammaA} />
+              <CampoGamma0
+                id="gammaA"
+                etiqueta="γ0,a"
+                lambdaEtiqueta="λa"
+                lambdaValor={aNumero(altura) / aNumero(a)}
+                umbral="0,5"
+                gammaCalculado={factorForma?.ladoA ?? null}
+                valorManual={gammaA}
+                onChangeManual={setGammaA}
+              />
               <CampoNumerico id="ceLateralA" etiqueta="Ce lateral/techo" valor={ceLateralA} onChange={setCeLateralA} />
               <CampoNumerico id="kdA" etiqueta="Kd" valor={kdA} onChange={setKdA} />
             </CardContent>
@@ -212,7 +241,16 @@ export default function VientoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Lado B (+Y) — γ0,b</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <CampoNumerico id="gammaB" etiqueta="γ0,b" valor={gammaB} onChange={setGammaB} />
+              <CampoGamma0
+                id="gammaB"
+                etiqueta="γ0,b"
+                lambdaEtiqueta="λb"
+                lambdaValor={aNumero(altura) / aNumero(b)}
+                umbral="1"
+                gammaCalculado={factorForma?.ladoB ?? null}
+                valorManual={gammaB}
+                onChangeManual={setGammaB}
+              />
               <CampoNumerico id="ceLateralB" etiqueta="Ce lateral/techo" valor={ceLateralB} onChange={setCeLateralB} />
               <CampoNumerico id="kdB" etiqueta="Kd" valor={kdB} onChange={setKdB} />
             </CardContent>
@@ -276,6 +314,53 @@ export default function VientoPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * γ0 sale solo de la geometría (fig. 8.2, ramas λa<0,5 y λb<1). Cuando el
+ * edificio cae en el ábaco denso que no está digitalizado (λ≥umbral), no hay
+ * valor calculado: se avisa y se deja el campo para cargarlo a mano leyendo
+ * la fig. 8.2 de la norma.
+ */
+function CampoGamma0({
+  id,
+  etiqueta,
+  lambdaEtiqueta,
+  lambdaValor,
+  umbral,
+  gammaCalculado,
+  valorManual,
+  onChangeManual,
+}: {
+  id: string;
+  etiqueta: string;
+  lambdaEtiqueta: string;
+  lambdaValor: number;
+  umbral: string;
+  gammaCalculado: number | null;
+  valorManual: string;
+  onChangeManual: (valor: string) => void;
+}) {
+  if (gammaCalculado !== null) {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={id}>{etiqueta}</Label>
+        <Input id={id} disabled value={fmt(gammaCalculado, 2)} />
+        <p className="text-xs text-muted-foreground">
+          fig. 8.2, {lambdaEtiqueta}={fmt(lambdaValor, 2)}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <CampoNumerico
+      id={id}
+      etiqueta={etiqueta}
+      valor={valorManual}
+      onChange={onChangeManual}
+      advertencia={`${lambdaEtiqueta}=${fmt(lambdaValor, 2)} ≥ ${umbral}: leer γ0 de la fig. 8.2 (no está digitalizada para este caso).`}
+    />
   );
 }
 

@@ -44,6 +44,50 @@ export const CASOS_APERTURA: { id: CasoApertura; nombre: string }[] = [
   { id: "dos-opuestas-paralelas-viento", nombre: "Dos paredes opuestas abiertas, paralelas a la dirección del viento" },
 ];
 
+/**
+ * Factor de forma γ0 para construcciones apoyadas en el suelo (e=0), fig. 8.2.
+ *
+ * La norma sólo da esta fig. en forma de ábaco. Acá se digitalizaron las dos
+ * ramas "simples" (λa<0,5 en función de λb, y λb<1 en función de λa): son
+ * curvas de un solo tramo, lineales entre dos puntos leídos del gráfico. El
+ * quiebre de la rama λa<0,5 se calibró contra dos casos reales, no sólo
+ * contra la lectura visual del ábaco: el ejemplo 4 de la norma (13.13.2, pág.
+ * 105-107, λa=0,1875 → γ0=0,85 y λb=0,5 → γ0=1) y la planilla "VIENTO2025"
+ * (77×35×14 m, λb=0,4 → γ0,a=0,94), que fijan el quiebre en λb=0,25 en vez
+ * del 0,2 que parecía a simple vista en el escaneo.
+ *
+ * Las ramas "λa≥0,5" y "λb≥1" (ábacos de 8 curvas superpuestas, uno por cada
+ * λ entero de 3 a 10) no están digitalizadas: son edificios altos en relación
+ * a su planta, un caso que no se da en la práctica de obra en Uruguay. Para
+ * esos casos la función devuelve null y hay que leer γ0 de la fig. 8.2
+ * directamente.
+ */
+function gammaOLadoA(lambdaB: number): number {
+  if (lambdaB <= 0.25) return 0.85;
+  if (lambdaB >= 0.5) return 1.0;
+  return 0.85 + ((lambdaB - 0.25) / (0.5 - 0.25)) * (1.0 - 0.85);
+}
+
+function gammaOLadoB(lambdaA: number): number {
+  if (lambdaA <= 0.2) return 0.85;
+  if (lambdaA >= 0.3) return 1.0;
+  return 0.85 + ((lambdaA - 0.2) / (0.3 - 0.2)) * (1.0 - 0.85);
+}
+
+export interface FactorFormaGamma0 {
+  /** γ0 para viento ⊥ Sa (usa λa<0,5, en función de λb). null si λa≥0,5: hay que leer la fig. 8.2. */
+  ladoA: number | null;
+  /** γ0 para viento ⊥ Sb (usa λb<1, en función de λa). null si λb≥1: hay que leer la fig. 8.2. */
+  ladoB: number | null;
+}
+
+export function calcularFactorFormaGamma0(lambdaA: number, lambdaB: number): FactorFormaGamma0 {
+  return {
+    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : null,
+    ladoB: lambdaB < 1 ? gammaOLadoB(lambdaA) : null,
+  };
+}
+
 export interface DatosLado {
   /** Coeficiente γ₀ leído de la fig. 8.2, según λ y a/b para esta cara expuesta. */
   gamma: number;

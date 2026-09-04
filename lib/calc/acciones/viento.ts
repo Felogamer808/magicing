@@ -366,12 +366,17 @@ export function calcularViento(datos: DatosViento, niveles: NivelViento[]): Resu
   };
 }
 
-/** Genera niveles equiespaciados entre una cota inicial y la coronación. */
-export function generarNiveles(zInicialM: number, zFinalM: number, cantidad: number): NivelViento[] {
-  if (cantidad < 2) return [{ nombre: "N1", zM: zFinalM }];
-  const paso = (zFinalM - zInicialM) / (cantidad - 1);
-  return Array.from({ length: cantidad }, (_, i) => ({
-    nombre: `N${i + 1}`,
-    zM: zInicialM + i * paso,
-  }));
+/**
+ * Cota acumulada de cada nivel a partir de su altura de piso: cada nivel se
+ * carga con la altura del piso que tiene debajo (no con la cota absoluta),
+ * para poder armar edificios con pisos de altura despareja sin tener que
+ * sumar a mano. El último nivel cae en la coronación (suma de todas las
+ * alturas de piso).
+ */
+export function nivelesDesdeAlturaPiso(alturasPisoM: readonly number[]): NivelViento[] {
+  let acumulado = 0;
+  return alturasPisoM.map((alturaPisoM, i) => {
+    acumulado += alturaPisoM;
+    return { nombre: `N${i + 1}`, zM: acumulado };
+  });
 }

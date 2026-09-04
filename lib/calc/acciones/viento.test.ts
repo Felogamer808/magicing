@@ -7,7 +7,7 @@ import {
   coeficienteSeguridad,
   coeficientesExterioresLado,
   coeficientesInterioresPorCaso,
-  generarNiveles,
+  nivelesDesdeAlturaPiso,
 } from "@/lib/calc/acciones/viento";
 
 // Caso real de la hoja "VIENTO2025": edificio 77 x 35 x 14 m, γ0,a=0,94 (lado
@@ -228,13 +228,23 @@ describe("viento: velocidad y presión dinámica por nivel", () => {
   });
 });
 
-describe("viento: generarNiveles", () => {
-  it("genera niveles equiespaciados entre la cota inicial y la coronación", () => {
-    const niveles = generarNiveles(0, 10, 3);
-    expect(niveles.map((n) => n.zM)).toEqual([0, 5, 10]);
+describe("viento: nivelesDesdeAlturaPiso", () => {
+  it("acumula la cota sumando la altura de cada piso", () => {
+    const niveles = nivelesDesdeAlturaPiso([3.5, 3.5, 3.5, 3.5]);
+    expect(niveles).toEqual([
+      { nombre: "N1", zM: 3.5 },
+      { nombre: "N2", zM: 7 },
+      { nombre: "N3", zM: 10.5 },
+      { nombre: "N4", zM: 14 },
+    ]);
   });
 
-  it("con menos de 2 niveles devuelve sólo la coronación", () => {
-    expect(generarNiveles(0, 10, 1)).toEqual([{ nombre: "N1", zM: 10 }]);
+  it("admite pisos de altura despareja", () => {
+    const niveles = nivelesDesdeAlturaPiso([4, 3, 3, 2.5]);
+    expect(niveles.map((n) => n.zM)).toEqual([4, 7, 10, 12.5]);
+  });
+
+  it("con un solo piso, la coronación es su propia altura", () => {
+    expect(nivelesDesdeAlturaPiso([10])).toEqual([{ nombre: "N1", zM: 10 }]);
   });
 });

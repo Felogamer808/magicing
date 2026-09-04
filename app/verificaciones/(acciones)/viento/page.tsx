@@ -204,27 +204,20 @@ export default function VientoPage() {
   const casoIdActual = CASOS_APERTURA.find((c) => c.nombre === casoNombre)?.id;
   const avisoCasoActual = casoIdActual ? AVISO_CASO_APERTURA[casoIdActual] : undefined;
 
-  // vk, Kt, Kk, Kz por nivel y Kd sólo dependen del sitio y de la geometría,
-  // no de Ce ni del caso de apertura: se calculan aparte para poder
-  // mostrarlos en "Sitio y seguridad" aunque el resto del formulario no esté
-  // completo. Kd se calcula una vez por lado, con el área de toda la fachada
-  // expuesta de ese lado (suma de ancho×altura de piso de cada nivel) y la
-  // altura de su centro — el criterio más simple, ya que la norma no define
-  // Kd distinto por nivel dentro de un mismo lado.
+  // vk, Kt, Kk y Kz por nivel sólo dependen del sitio y de la geometría, no
+  // de Ce ni del caso de apertura: se calculan aparte para poder mostrarlos
+  // en "Sitio y seguridad" aunque el resto del formulario no esté completo.
+  // Kd no entra acá: se calcula por nivel dentro de BloqueLado, con el área
+  // de influencia propia de cada uno (ver comentario ahí).
   const coeficientesSitio = useMemo(() => {
     if (!geometria) return null;
     const metodo = METODOS_CALCULO.find((m) => m.nombre === metodoNombre)?.id ?? "estados-limite";
     const niveles = nivelesDesdeAlturaPiso(geometria.numericos.map((niv) => niv.alturaPisoM));
-    const areaFachadaAM2 = geometria.numericos.reduce((s, n) => s + n.aM * n.alturaPisoM, 0);
-    const areaFachadaBM2 = geometria.numericos.reduce((s, n) => s + n.bM * n.alturaPisoM, 0);
-    const zCentralM = geometria.alturaTotal / 2;
     return {
       vk: velocidadCaracteristica(velocidad),
       kt: factorTopografico(topografia),
       kk: coeficienteSeguridad(metodo as MetodoCalculo, grupo),
       kzPorNivel: niveles.map((n) => ({ nombre: n.nombre, zM: n.zM, kz: coeficienteAltura(terreno, n.zM) })),
-      kdA: calcularKd(areaFachadaAM2, zCentralM, terreno),
-      kdB: calcularKd(areaFachadaBM2, zCentralM, terreno),
     };
   }, [geometria, velocidad, topografia, terreno, metodoNombre, grupo]);
 
@@ -256,7 +249,7 @@ export default function VientoPage() {
     const casoA = calcularCasoApertura(caso as CasoApertura, n.gammaA, n.ceLateralA);
     const casoB = calcularCasoApertura(caso as CasoApertura, n.gammaB, n.ceLateralB);
 
-    return { geometria, r, casoA, casoB, kdA: coeficientesSitio.kdA, kdB: coeficientesSitio.kdB };
+    return { geometria, r, casoA, casoB };
   }, [
     geometria, coeficientesSitio, gammaAEfectivo, gammaBEfectivo, ceLateralAEfectivo, ceLateralBEfectivo,
     velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
@@ -280,10 +273,11 @@ export default function VientoPage() {
           niveles cargados) y la altura total (fig. 8.2), para el caso habitual de construcciones
           apoyadas en el suelo con λa&lt;0,5 o λb&lt;1. Fuera de ese rango (edificios altos en
           relación a su planta) hay que leerlo del gráfico y cargarlo a mano. Kd (fig. 6.2) también
-          se calcula solo, con el área de toda la fachada de cada lado; sólo entra en la resultante
-          y en Pc por nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo
-          (Ce, fig. 8.6, α=0°) también sale de γ solo. Cada lado (A y B) es una dirección de viento
-          distinta, con su propio γ, y por eso se cargan por separado.
+          se calcula solo, con el área de influencia propia de cada nivel (ancho expuesto × altura
+          de influencia, no toda la fachada del lado); sólo entra en la resultante y en Pc por
+          nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo (Ce, fig. 8.6,
+          α=0°) también sale de γ solo. Cada lado (A y B) es una dirección de viento distinta, con
+          su propio γ, y por eso se cargan por separado.
         </CardContent>
       </Card>
 
@@ -471,7 +465,7 @@ export default function VientoPage() {
 
           <Card>
             <CardHeader><CardTitle className="text-base">Lado A (+X) — γ0,a</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4">
               <CampoGamma0
                 id="gammaA"
                 etiqueta="γ0,a"
@@ -488,18 +482,12 @@ export default function VientoPage() {
                 valor={fmt(ceLateralAEfectivo, 2)}
                 nota="fig. 8.6, α=0°"
               />
-              <CampoValorCalculado
-                id="kdA"
-                etiqueta="Kd"
-                valor={coeficientesSitio ? fmt(coeficientesSitio.kdA, 3) : "—"}
-                nota="fig. 6.2, área de toda la fachada"
-              />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Lado B (+Y) — γ0,b</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-2 gap-4">
               <CampoGamma0
                 id="gammaB"
                 etiqueta="γ0,b"
@@ -515,12 +503,6 @@ export default function VientoPage() {
                 etiqueta="Ce lateral/techo"
                 valor={fmt(ceLateralBEfectivo, 2)}
                 nota="fig. 8.6, α=0°"
-              />
-              <CampoValorCalculado
-                id="kdB"
-                etiqueta="Kd"
-                valor={coeficientesSitio ? fmt(coeficientesSitio.kdB, 3) : "—"}
-                nota="fig. 6.2, área de toda la fachada"
               />
             </CardContent>
           </Card>
@@ -540,7 +522,7 @@ export default function VientoPage() {
                 titulo="Lado A (+X)"
                 ladoR={resultado.r.ladoA}
                 caso={resultado.casoA}
-                kd={resultado.kdA}
+                terreno={terreno}
                 anchosExpuestosM={resultado.geometria.numericos.map((n) => n.aM)}
                 alturaTotalM={resultado.geometria.alturaTotal}
               />
@@ -548,7 +530,7 @@ export default function VientoPage() {
                 titulo="Lado B (+Y)"
                 ladoR={resultado.r.ladoB}
                 caso={resultado.casoB}
-                kd={resultado.kdB}
+                terreno={terreno}
                 anchosExpuestosM={resultado.geometria.numericos.map((n) => n.bM)}
                 alturaTotalM={resultado.geometria.alturaTotal}
               />
@@ -636,15 +618,22 @@ function BloqueLado({
   titulo,
   ladoR,
   caso,
-  kd,
+  terreno,
   anchosExpuestosM,
   alturaTotalM,
 }: {
   titulo: string;
   ladoR: ResultadoLado;
   caso: ResultadoCasoApertura;
-  /** Kd de este lado (fig. 6.2, área de toda la fachada): sólo entra en Pc y en la resultante, no en pc (6.2.6.2). */
-  kd: number;
+  /**
+   * Terreno para calcular Kd por nivel (fig. 6.2), con el área de
+   * influencia propia de cada uno: ancho expuesto × altura de influencia.
+   * No es un Kd único por lado con toda la fachada — un área tan grande da
+   * un Kd bajo (poco conservador) para el nivel individual: la reducción de
+   * fig. 6.2 vale para el área de influencia real del elemento en estudio,
+   * no para todo el edificio junto.
+   */
+  terreno: TipoTerreno;
   anchosExpuestosM: number[];
   alturaTotalM: number;
 }) {
@@ -652,11 +641,12 @@ function BloqueLado({
     // pc es una presión puntual: Kd=1 (ya viene así en qKgM2, ver calcularLado).
     const pcKNm2 = (n.qKgM2 * caso.cTotalGobernante) / 100;
     const anchoM = anchosExpuestosM[i];
+    const kd = calcularKd(anchoM * n.hInflM, n.zM, terreno);
     // Pc es una acción (fuerza integrada): entra el Kd real. Kd multiplica a
     // vc, que después se eleva al cuadrado para dar la presión — por eso acá
     // entra Kd² y no Kd.
     const pcKNm = pcKNm2 * kd ** 2 * n.hInflM;
-    return { ...n, pcKNm2, pcKNm, anchoM };
+    return { ...n, pcKNm2, kd, pcKNm, anchoM };
   });
   const resultanteTotalKN = niveles.reduce((acc, n) => acc + n.pcKNm * n.anchoM, 0);
   const ladoSlug = titulo.replace(/[^a-zA-Z0-9]/g, "");
@@ -731,6 +721,7 @@ function BloqueLado({
                 <th className="py-1.5 text-right font-medium">vc (m/s)</th>
                 <th className="py-1.5 text-right font-medium">pc (kN/m²)</th>
                 <th className="py-1.5 text-right font-medium">ancho (m)</th>
+                <th className="py-1.5 text-right font-medium">Kd</th>
                 <th className="py-1.5 text-right font-medium">Pc (kN/m)</th>
               </tr>
             </thead>
@@ -743,6 +734,7 @@ function BloqueLado({
                   <td className="py-1 text-right tabular-nums">{fmt(n.vcMs, 1)}</td>
                   <td className="py-1 text-right tabular-nums">{fmt(n.pcKNm2, 3)}</td>
                   <td className="py-1 text-right tabular-nums">{fmt(n.anchoM, 1)}</td>
+                  <td className="py-1 text-right tabular-nums">{fmt(n.kd, 3)}</td>
                   <td className="py-1 text-right tabular-nums">{fmt(n.pcKNm, 2)}</td>
                 </tr>
               ))}
@@ -753,9 +745,9 @@ function BloqueLado({
         <div className="rounded-md border p-3 text-sm">
           <p className="font-medium">Resultante sobre una cara: {fmt(resultanteTotalKN)} kN</p>
           <p className="text-xs text-muted-foreground">
-            Con el coeficiente total de arrastre gobernante y Kd={fmt(kd, 3)} (es una acción, no una
-            presión puntual), suma de la presión de cada nivel por su altura de influencia y el
-            ancho expuesto de ese nivel.
+            Con el coeficiente total de arrastre gobernante y el Kd propio de cada nivel (es una
+            acción, no una presión puntual), suma de la presión de cada nivel por su altura de
+            influencia y el ancho expuesto de ese nivel.
           </p>
         </div>
 

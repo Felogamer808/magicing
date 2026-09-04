@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcularCasoApertura,
   calcularFactorFormaGamma0,
+  calcularKd,
   calcularViento,
   coeficienteAltura,
   coeficienteSeguridad,
@@ -28,6 +29,43 @@ describe("viento: coeficiente de altura (Tabla 6.2)", () => {
   it("reproduce kz en un nivel intermedio (terreno III, z=7 m)", () => {
     // Planilla: L44 = 0,75*((7/10)^0,17)
     expect(coeficienteAltura("III", 7)).toBeCloseTo(0.705875210398619, 9);
+  });
+});
+
+describe("viento: Kd (fig. 6.2)", () => {
+  it("en z=10 m, área≤10 m² y rugosidad I, f1 y f2 valen 1: Kd=1", () => {
+    expect(calcularKd(10, 10, "I")).toBeCloseTo(1, 6);
+  });
+
+  it("en z=10 m reproduce f1/f2 leídos del gráfico para área=2500 m²", () => {
+    // f1(2500,z=10)=0,85 · f2(I,z=10)=1,00 → Kd=0,85
+    expect(calcularKd(2500, 10, "I")).toBeCloseTo(0.85, 6);
+    // f2(IV,z=10)=1+(0,9-0,85)/3=1,01667 → Kd=0,85/1,01667
+    expect(calcularKd(2500, 10, "IV")).toBeCloseTo(0.85 / (1 + 0.05 / 3), 6);
+  });
+
+  it("converge a 1 en z=250 m, cualquiera sea el área o la rugosidad", () => {
+    expect(calcularKd(2500, 250, "IV")).toBeCloseTo(1, 6);
+    expect(calcularKd(10, 250, "I")).toBeCloseTo(1, 6);
+  });
+
+  it("por encima de z=250 m se satura en 1 (no extrapola más allá del ábaco)", () => {
+    expect(calcularKd(2500, 400, "IV")).toBeCloseTo(1, 6);
+  });
+
+  it("interpola linealmente en log(área) entre dos áreas tabuladas", () => {
+    // A=100 m² (f1=0,96) y A=150 m² (f1=0,955): el punto medio en log(área)
+    // es sqrt(100*150), no el promedio aritmético.
+    const medioLog = Math.sqrt(100 * 150);
+    const kdMedio = calcularKd(medioLog, 10, "I");
+    const kdA = calcularKd(100, 10, "I");
+    const kdB = calcularKd(150, 10, "I");
+    expect(kdMedio).toBeCloseTo((kdA + kdB) / 2, 6);
+  });
+
+  it("a mayor área, menor Kd (más reducción); a mayor rugosidad, también menor Kd", () => {
+    expect(calcularKd(2500, 50, "III")).toBeLessThan(calcularKd(100, 50, "III"));
+    expect(calcularKd(500, 50, "IV")).toBeLessThan(calcularKd(500, 50, "I"));
   });
 });
 
@@ -190,8 +228,8 @@ describe("viento: velocidad y presión dinámica por nivel", () => {
     terreno: "III" as const,
     metodo: "estados-limite" as const,
     grupo: "B" as const,
-    ladoA: { gamma: 0.94, ceLateralYTecho: -0.4, kd: 0.8446601941747572 },
-    ladoB: { gamma: 0.85, ceLateralYTecho: -0.3, kd: 0.8640776699029126 },
+    ladoA: { gamma: 0.94, ceLateralYTecho: -0.4 },
+    ladoB: { gamma: 0.85, ceLateralYTecho: -0.3 },
   };
   const niveles = [
     { nombre: "PB", zM: 3.5 },
@@ -214,23 +252,18 @@ describe("viento: velocidad y presión dinámica por nivel", () => {
     expect(r.relacionAB).toBeCloseTo(77 / 35, 9);
   });
 
-  it("reproduce vc en P3 (coronación) para el lado A: L21 de la planilla", () => {
+  it("reproduce vc en P3 (coronación): vk·Kt·Kk·kz, con Kd=1 (6.2.6.2)", () => {
     const r = calcularViento(datos, niveles);
     const p3 = r.ladoA.niveles.find((n) => n.nombre === "P3")!;
-    expect(p3.vcMs).toBeCloseTo(33.86471445112395, 6);
+    const esperado = 43.9 * 1 * 1.15 * coeficienteAltura("III", 14);
+    expect(p3.vcMs).toBeCloseTo(esperado, 9);
   });
 
-  it("reproduce vc en P3 para el lado B: L17 de la planilla", () => {
-    const r = calcularViento(datos, niveles);
-    const p3 = r.ladoB.niveles.find((n) => n.nombre === "P3")!;
-    expect(p3.vcMs).toBeCloseTo(34.64321363390841, 6);
-  });
-
-  it("cada lado usa su propio kd, y por eso da una vc distinta al mismo nivel", () => {
+  it("los dos lados dan la misma vc en el mismo nivel: Kd ya no entra acá, sólo en las acciones", () => {
     const r = calcularViento(datos, niveles);
     const p3A = r.ladoA.niveles.find((n) => n.nombre === "P3")!;
     const p3B = r.ladoB.niveles.find((n) => n.nombre === "P3")!;
-    expect(p3A.vcMs).not.toBeCloseTo(p3B.vcMs, 3);
+    expect(p3A.vcMs).toBeCloseTo(p3B.vcMs, 9);
   });
 
   it("reparte las alturas de influencia como media distancia a cada vecino", () => {

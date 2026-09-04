@@ -17,6 +17,7 @@ import { DiagramaCargaViento } from "@/components/verificaciones/acciones/Diagra
 import {
   calcularCasoApertura,
   calcularFactorFormaGamma0,
+  calcularKd,
   calcularViento,
   coeficienteAltura,
   coeficienteSeguridad,
@@ -160,11 +161,9 @@ export default function VientoPage() {
 
   const [gammaA, setGammaA] = useCampo("gammaA", "0.94");
   const [ceLateralA, setCeLateralA] = useCampo("ceLateralA", "-0.4");
-  const [kdA, setKdA] = useCampo("kdA", "0.84");
 
   const [gammaB, setGammaB] = useCampo("gammaB", "0.85");
   const [ceLateralB, setCeLateralB] = useCampo("ceLateralB", "-0.3");
-  const [kdB, setKdB] = useCampo("kdB", "0.86");
 
   const geometria = useMemo(() => derivarGeometria(nivelesCrudo), [nivelesCrudo]);
 
@@ -181,33 +180,42 @@ export default function VientoPage() {
     );
   }, [geometria]);
 
-  // vk, Kt, Kk y Kz por nivel sólo dependen del sitio y de la geometría, no
-  // de Ce ni del caso de apertura: se calculan aparte para poder mostrarlos
-  // en "Sitio y seguridad" aunque el resto del formulario no esté completo.
+  // vk, Kt, Kk, Kz por nivel y Kd sólo dependen del sitio y de la geometría,
+  // no de Ce ni del caso de apertura: se calculan aparte para poder
+  // mostrarlos en "Sitio y seguridad" aunque el resto del formulario no esté
+  // completo. Kd se calcula una vez por lado, con el área de toda la fachada
+  // expuesta de ese lado (suma de ancho×altura de piso de cada nivel) y la
+  // altura de su centro — el criterio más simple, ya que la norma no define
+  // Kd distinto por nivel dentro de un mismo lado.
   const coeficientesSitio = useMemo(() => {
     if (!geometria) return null;
     const metodo = METODOS_CALCULO.find((m) => m.nombre === metodoNombre)?.id ?? "estados-limite";
     const niveles = nivelesDesdeAlturaPiso(geometria.numericos.map((niv) => niv.alturaPisoM));
+    const areaFachadaAM2 = geometria.numericos.reduce((s, n) => s + n.aM * n.alturaPisoM, 0);
+    const areaFachadaBM2 = geometria.numericos.reduce((s, n) => s + n.bM * n.alturaPisoM, 0);
+    const zCentralM = geometria.alturaTotal / 2;
     return {
       vk: velocidadCaracteristica(velocidad),
       kt: factorTopografico(topografia),
       kk: coeficienteSeguridad(metodo as MetodoCalculo, grupo),
       kzPorNivel: niveles.map((n) => ({ nombre: n.nombre, zM: n.zM, kz: coeficienteAltura(terreno, n.zM) })),
+      kdA: calcularKd(areaFachadaAM2, zCentralM, terreno),
+      kdB: calcularKd(areaFachadaBM2, zCentralM, terreno),
     };
   }, [geometria, velocidad, topografia, terreno, metodoNombre, grupo]);
 
   const resultado = useMemo(() => {
-    if (!geometria) return null;
+    if (!geometria || !coeficientesSitio) return null;
     const gammaAEfectivo = factorForma?.ladoA ?? aNumero(gammaA);
     const gammaBEfectivo = factorForma?.ladoB ?? aNumero(gammaB);
     const n = {
-      ceLateralA: aNumero(ceLateralA), kdA: aNumero(kdA),
-      ceLateralB: aNumero(ceLateralB), kdB: aNumero(kdB),
+      ceLateralA: aNumero(ceLateralA),
+      ceLateralB: aNumero(ceLateralB),
       gammaA: gammaAEfectivo, gammaB: gammaBEfectivo,
     };
-    const numericos = [n.gammaA, n.ceLateralA, n.kdA, n.gammaB, n.ceLateralB, n.kdB];
+    const numericos = [n.gammaA, n.ceLateralA, n.gammaB, n.ceLateralB];
     if (!numericos.every((x) => Number.isFinite(x))) return null;
-    if (n.gammaA <= 0 || n.gammaB <= 0 || n.kdA <= 0 || n.kdB <= 0) return null;
+    if (n.gammaA <= 0 || n.gammaB <= 0) return null;
 
     const metodo = METODOS_CALCULO.find((m) => m.nombre === metodoNombre)?.id;
     const caso = CASOS_APERTURA.find((c) => c.nombre === casoNombre)?.id;
@@ -219,18 +227,18 @@ export default function VientoPage() {
         alturaM: geometria.alturaTotal, aM: geometria.aEnvolvente, bM: geometria.bEnvolvente,
         velocidad, topografia, terreno,
         metodo: metodo as MetodoCalculo, grupo,
-        ladoA: { gamma: n.gammaA, ceLateralYTecho: n.ceLateralA, kd: n.kdA },
-        ladoB: { gamma: n.gammaB, ceLateralYTecho: n.ceLateralB, kd: n.kdB },
+        ladoA: { gamma: n.gammaA, ceLateralYTecho: n.ceLateralA },
+        ladoB: { gamma: n.gammaB, ceLateralYTecho: n.ceLateralB },
       },
       niveles
     );
     const casoA = calcularCasoApertura(caso as CasoApertura, n.gammaA, n.ceLateralA);
     const casoB = calcularCasoApertura(caso as CasoApertura, n.gammaB, n.ceLateralB);
 
-    return { geometria, r, casoA, casoB };
+    return { geometria, r, casoA, casoB, kdA: coeficientesSitio.kdA, kdB: coeficientesSitio.kdB };
   }, [
-    geometria, factorForma, velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
-    gammaA, ceLateralA, kdA, gammaB, ceLateralB, kdB,
+    geometria, coeficientesSitio, factorForma, velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
+    gammaA, ceLateralA, gammaB, ceLateralB,
   ]);
 
   return (
@@ -250,10 +258,12 @@ export default function VientoPage() {
           γ0 se calcula solo a partir de la envolvente en planta (el mayor a y el mayor b entre los
           niveles cargados) y la altura total (fig. 8.2), para el caso habitual de construcciones
           apoyadas en el suelo con λa&lt;0,5 o λb&lt;1. Fuera de ese rango (edificios altos en
-          relación a su planta) hay que leerlo del gráfico y cargarlo a mano. El coeficiente de
-          caras laterales y techo y Kd todavía se leen de la norma (fig. 8.6 y fig. 6.2) según a/b y
-          el área expuesta de cada lado. Cada lado (A y B) es una dirección de viento distinta, con
-          su propio γ, y por eso se cargan por separado.
+          relación a su planta) hay que leerlo del gráfico y cargarlo a mano. Kd (fig. 6.2) también
+          se calcula solo, con el área de toda la fachada de cada lado; sólo entra en la resultante
+          y en Pc por nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo
+          (Ce) todavía se lee de la norma (fig. 8.6) según a/b y el área expuesta de cada lado.
+          Cada lado (A y B) es una dirección de viento distinta, con su propio γ, y por eso se
+          cargan por separado.
         </CardContent>
       </Card>
 
@@ -381,8 +391,8 @@ export default function VientoPage() {
                       { etiqueta: "vk (velocidad característica)", valor: `${fmt(coeficientesSitio.vk, 1)} m/s` },
                       { etiqueta: "Kt (topográfico)", valor: fmt(coeficientesSitio.kt, 2) },
                       { etiqueta: "Kk (seguridad)", valor: fmt(coeficientesSitio.kk, 2) },
-                      { etiqueta: "Kd,a", valor: fmt(aNumero(kdA), 2) },
-                      { etiqueta: "Kd,b", valor: fmt(aNumero(kdB), 2) },
+                      { etiqueta: "Kd,a", valor: fmt(coeficientesSitio.kdA, 3) },
+                      { etiqueta: "Kd,b", valor: fmt(coeficientesSitio.kdB, 3) },
                       ...coeficientesSitio.kzPorNivel.map((n) => ({
                         etiqueta: `Kz en ${n.nombre} (z=${fmt(n.zM, 1)} m)`,
                         valor: fmt(n.kz, 3),
@@ -415,7 +425,12 @@ export default function VientoPage() {
                 onChangeManual={setGammaA}
               />
               <CampoNumerico id="ceLateralA" etiqueta="Ce lateral/techo" valor={ceLateralA} onChange={setCeLateralA} />
-              <CampoNumerico id="kdA" etiqueta="Kd" valor={kdA} onChange={setKdA} />
+              <CampoValorCalculado
+                id="kdA"
+                etiqueta="Kd"
+                valor={coeficientesSitio ? fmt(coeficientesSitio.kdA, 3) : "—"}
+                nota="fig. 6.2, área de toda la fachada"
+              />
             </CardContent>
           </Card>
 
@@ -433,7 +448,12 @@ export default function VientoPage() {
                 onChangeManual={setGammaB}
               />
               <CampoNumerico id="ceLateralB" etiqueta="Ce lateral/techo" valor={ceLateralB} onChange={setCeLateralB} />
-              <CampoNumerico id="kdB" etiqueta="Kd" valor={kdB} onChange={setKdB} />
+              <CampoValorCalculado
+                id="kdB"
+                etiqueta="Kd"
+                valor={coeficientesSitio ? fmt(coeficientesSitio.kdB, 3) : "—"}
+                nota="fig. 6.2, área de toda la fachada"
+              />
             </CardContent>
           </Card>
         </div>
@@ -442,8 +462,8 @@ export default function VientoPage() {
           {!resultado ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los niveles (altura de piso, a y b positivos) y γ y Kd positivos en ambos
-                lados para ver los resultados.
+                Completá los niveles (altura de piso, a y b positivos) y γ positivo en ambos lados
+                para ver los resultados.
               </CardContent>
             </Card>
           ) : (
@@ -469,6 +489,7 @@ export default function VientoPage() {
                 titulo="Lado A (+X)"
                 ladoR={resultado.r.ladoA}
                 caso={resultado.casoA}
+                kd={resultado.kdA}
                 anchosExpuestosM={resultado.geometria.numericos.map((n) => n.aM)}
                 alturaTotalM={resultado.geometria.alturaTotal}
               />
@@ -476,6 +497,7 @@ export default function VientoPage() {
                 titulo="Lado B (+Y)"
                 ladoR={resultado.r.ladoB}
                 caso={resultado.casoB}
+                kd={resultado.kdB}
                 anchosExpuestosM={resultado.geometria.numericos.map((n) => n.bM)}
                 alturaTotalM={resultado.geometria.alturaTotal}
               />
@@ -484,6 +506,27 @@ export default function VientoPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** Valor de sólo lectura, con una nota de dónde sale — para datos que ya no se cargan a mano. */
+function CampoValorCalculado({
+  id,
+  etiqueta,
+  valor,
+  nota,
+}: {
+  id: string;
+  etiqueta: string;
+  valor: string;
+  nota: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{etiqueta}</Label>
+      <Input id={id} disabled value={valor} />
+      <p className="text-xs text-muted-foreground">{nota}</p>
+    </div>
   );
 }
 
@@ -542,19 +585,26 @@ function BloqueLado({
   titulo,
   ladoR,
   caso,
+  kd,
   anchosExpuestosM,
   alturaTotalM,
 }: {
   titulo: string;
   ladoR: ResultadoLado;
   caso: ResultadoCasoApertura;
+  /** Kd de este lado (fig. 6.2, área de toda la fachada): sólo entra en Pc y en la resultante, no en pc (6.2.6.2). */
+  kd: number;
   anchosExpuestosM: number[];
   alturaTotalM: number;
 }) {
   const niveles = ladoR.niveles.map((n, i) => {
+    // pc es una presión puntual: Kd=1 (ya viene así en qKgM2, ver calcularLado).
     const pcKNm2 = (n.qKgM2 * caso.cTotalGobernante) / 100;
     const anchoM = anchosExpuestosM[i];
-    const pcKNm = pcKNm2 * n.hInflM;
+    // Pc es una acción (fuerza integrada): entra el Kd real. Kd multiplica a
+    // vc, que después se eleva al cuadrado para dar la presión — por eso acá
+    // entra Kd² y no Kd.
+    const pcKNm = pcKNm2 * kd ** 2 * n.hInflM;
     return { ...n, pcKNm2, pcKNm, anchoM };
   });
   const resultanteTotalKN = niveles.reduce((acc, n) => acc + n.pcKNm * n.anchoM, 0);
@@ -625,8 +675,9 @@ function BloqueLado({
         <div className="rounded-md border p-3 text-sm">
           <p className="font-medium">Resultante sobre una cara: {fmt(resultanteTotalKN)} kN</p>
           <p className="text-xs text-muted-foreground">
-            Con el coeficiente total de arrastre gobernante, suma de la presión de cada nivel por su
-            altura de influencia y el ancho expuesto de ese nivel.
+            Con el coeficiente total de arrastre gobernante y Kd={fmt(kd, 3)} (es una acción, no una
+            presión puntual), suma de la presión de cada nivel por su altura de influencia y el
+            ancho expuesto de ese nivel.
           </p>
         </div>
 

@@ -88,13 +88,97 @@ export function calcularFactorFormaGamma0(lambdaA: number, lambdaB: number): Fac
   };
 }
 
+/**
+ * Kd = f1/f2 (fig. 6.2, art. 6.2.6): reduce la acción del viento sobre
+ * superficies grandes, donde la ráfaga no pega pareja en toda el área al
+ * mismo tiempo. f1 depende del área de influencia (Ai) y f2 de la rugosidad
+ * del terreno; los dos dependen además de la altura (z) del centro de esa
+ * área, decayendo hacia 1,0 a medida que z crece.
+ *
+ * El art. 6.2.6.2 aclara que Kd se toma igual a 1 cuando se determinan
+ * presiones puntuales (pc): sólo entra en las acciones (fuerzas integradas,
+ * como la resultante sobre una cara) — ver calcularLado.
+ *
+ * La fig. 6.2 es un ábaco de rectas: cada curva de f1 (una por área) y cada
+ * curva de f2 (una por rugosidad) es un segmento recto que arranca en z=10 m
+ * con un valor propio y converge con las demás en z=250 m, valor 1,0. Los
+ * valores en z=10 se leyeron directamente del gráfico de la norma (no hay
+ * ejemplo resuelto para contrastarlos, a diferencia de γ0); entre área
+ * tabuladas se interpola en log(área), que es como se lee un ábaco de este
+ * tipo cuando el punto cae entre dos curvas dibujadas.
+ */
+const Z_CONVERGENCIA_KD_M = 250;
+
+/** f1 en z=10 m, según el área de influencia (m²) — fig. 6.2. */
+const F1_AREA_Z10: readonly { areaM2: number; f1: number }[] = [
+  { areaM2: 10, f1: 1.0 },
+  { areaM2: 25, f1: 0.99 },
+  { areaM2: 50, f1: 0.98 },
+  { areaM2: 100, f1: 0.96 },
+  { areaM2: 150, f1: 0.955 },
+  { areaM2: 200, f1: 0.93 },
+  { areaM2: 250, f1: 0.92 },
+  { areaM2: 300, f1: 0.91 },
+  { areaM2: 400, f1: 0.895 },
+  { areaM2: 600, f1: 0.88 },
+  { areaM2: 1000, f1: 0.87 },
+  { areaM2: 1500, f1: 0.86 },
+  { areaM2: 2500, f1: 0.85 },
+];
+
+/**
+ * f2 en z=10 m, según la rugosidad — fig. 6.2. La norma sólo dibuja esta
+ * curva contra la regla de f1 (0,85 a 1,00): se convirtió a la escala propia
+ * de f2 (1,00 a 1,05) proporcionalmente, porque las dos reglas ocupan la
+ * misma altura del gráfico.
+ */
+const F2_RUGOSIDAD_Z10: Record<TipoTerreno, number> = {
+  I: 1.0,
+  II: 1.005,
+  III: 1.01,
+  IV: 1.0 + (0.9 - 0.85) / 3,
+};
+
+/** Interpola f1 en z=10 m entre las áreas tabuladas, en escala logarítmica de área. */
+function f1EnZ10(areaM2: number): number {
+  const tabla = F1_AREA_Z10;
+  if (areaM2 <= tabla[0].areaM2) return tabla[0].f1;
+  const ultimo = tabla[tabla.length - 1];
+  if (areaM2 >= ultimo.areaM2) return ultimo.f1;
+  for (let i = 0; i < tabla.length - 1; i++) {
+    const a = tabla[i];
+    const b = tabla[i + 1];
+    if (areaM2 <= b.areaM2) {
+      const t = (Math.log(areaM2) - Math.log(a.areaM2)) / (Math.log(b.areaM2) - Math.log(a.areaM2));
+      return a.f1 + t * (b.f1 - a.f1);
+    }
+  }
+  return ultimo.f1;
+}
+
+/** Interpola linealmente en log(z) desde el valor en z=10 m hasta 1,0 en z=250 m. */
+function decaeHaciaUnoConZ(valorEnZ10: number, zM: number): number {
+  const z = Math.max(zM, 10);
+  if (z >= Z_CONVERGENCIA_KD_M) return 1.0;
+  const t = (Math.log(z) - Math.log(10)) / (Math.log(Z_CONVERGENCIA_KD_M) - Math.log(10));
+  return valorEnZ10 + t * (1.0 - valorEnZ10);
+}
+
+/**
+ * Kd para una superficie de área `areaM2`, cuyo centro está a la altura
+ * `zM`, según la rugosidad del terreno.
+ */
+export function calcularKd(areaM2: number, zM: number, terreno: TipoTerreno): number {
+  const f1 = decaeHaciaUnoConZ(f1EnZ10(areaM2), zM);
+  const f2 = decaeHaciaUnoConZ(F2_RUGOSIDAD_Z10[terreno], zM);
+  return f1 / f2;
+}
+
 export interface DatosLado {
   /** Coeficiente γ₀ leído de la fig. 8.2, según λ y a/b para esta cara expuesta. */
   gamma: number;
   /** Ce de caras laterales y techo (α=0°, Tabla 8.1), leído de la fig. 8.6 según γ. */
   ceLateralYTecho: number;
-  /** Kd de este lado (fig. 6.2, Kd=f1/f2), según el área de influencia expuesta en esta dirección. */
-  kd: number;
 }
 
 export interface DatosViento {
@@ -119,7 +203,12 @@ export interface NivelViento {
 
 export interface ResultadoNivelViento extends NivelViento {
   kz: number;
-  /** Velocidad de cálculo (m/s), ya con el Kd de este lado. */
+  /**
+   * Velocidad de cálculo (m/s), con Kd=1: es la que corresponde a una
+   * presión puntual (art. 6.2.6.2, "Kd se tomará igual a la unidad cuando
+   * se determinen presiones"). Para una acción (Pc, la resultante) hay que
+   * multiplicar por Kd² — ver calcularKd.
+   */
   vcMs: number;
   qKgM2: number;
   /** Altura de influencia del nivel (m) */
@@ -316,7 +405,6 @@ function alturasInfluencia(niveles: NivelViento[]): number[] {
 export interface ResultadoLado {
   gamma: number;
   ceLateralYTecho: number;
-  kd: number;
   kzCoronacion: number;
   niveles: ResultadoNivelViento[];
 }
@@ -344,14 +432,15 @@ function calcularLado(
   const hInfl = alturasInfluencia(niveles);
   const nivelesCalculados = niveles.map((nivel, i) => {
     const kz = coeficienteAltura(terreno, nivel.zM);
-    const vcMs = vkMs * kt * datos.kd * kk * kz;
+    // Kd=1: esta vc es la de una presión puntual (6.2.6.2). El Kd real sólo
+    // se aplica más arriba, sobre las acciones (Pc, la resultante).
+    const vcMs = vkMs * kt * kk * kz;
     return { ...nivel, kz, vcMs, qKgM2: vcMs ** 2 / 16.3, hInflM: hInfl[i] };
   });
 
   return {
     gamma: datos.gamma,
     ceLateralYTecho: datos.ceLateralYTecho,
-    kd: datos.kd,
     kzCoronacion: coeficienteAltura(terreno, alturaM),
     niveles: nivelesCalculados,
   };

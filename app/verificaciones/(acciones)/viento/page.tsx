@@ -49,6 +49,20 @@ const NOMBRE_CARA: Record<string, string> = {
   lateralYTecho: "Caras laterales y techo",
 };
 
+/**
+ * "Cerrada" y "una pared abierta" (barlovento/sotavento) están modeladas
+ * completas, tal cual la Tabla 8.2. Los dos casos de paredes opuestas
+ * abiertas tienen sub-filas que esta página no calcula (elementos en la
+ * corriente de aire, cara interior expuesta al viento, regla especial de
+ * las vertientes del techo): si corresponden, hay que revisarlos aparte.
+ */
+const AVISO_CASO_APERTURA: Partial<Record<CasoApertura, string>> = {
+  "dos-opuestas-direccion-viento":
+    "Esta página no calcula los elementos o construcciones interiores situados en la corriente de aire (entre las dos paredes abiertas): la Tabla 8.2 pide calcularlos como si estuvieran aislados en el espacio, aparte.",
+  "dos-opuestas-paralelas-viento":
+    "Esta página no calcula la cara interior expuesta al viento (Tabla 8.2: ci=0,02α−0,5, entre 0 y 0,6) ni la regla especial de las vertientes del techo: revisarlos aparte si corresponden.",
+};
+
 interface NivelForm {
   alturaPiso: string;
   a: string;
@@ -186,6 +200,9 @@ export default function VientoPage() {
   const gammaBEfectivo = factorForma?.ladoB ?? aNumero(gammaB);
   const ceLateralAEfectivo = ceLateralYTechoPorGamma(gammaAEfectivo);
   const ceLateralBEfectivo = ceLateralYTechoPorGamma(gammaBEfectivo);
+
+  const casoIdActual = CASOS_APERTURA.find((c) => c.nombre === casoNombre)?.id;
+  const avisoCasoActual = casoIdActual ? AVISO_CASO_APERTURA[casoIdActual] : undefined;
 
   // vk, Kt, Kk, Kz por nivel y Kd sólo dependen del sitio y de la geometría,
   // no de Ce ni del caso de apertura: se calculan aparte para poder
@@ -351,6 +368,12 @@ export default function VientoPage() {
                 Con tensiones admisibles Kk=1 siempre (7.3.1): el grupo sólo se usa con estados límite.
               </p>
               <div className="col-span-2">
+                <CampoSeleccion id="caso" etiqueta="Estado de permeabilidad (Tabla 8.2)" valor={casoNombre} opciones={CASOS_APERTURA.map((c) => c.nombre)} onChange={setCasoNombre} />
+              </div>
+              {avisoCasoActual && (
+                <p className="col-span-2 text-xs text-destructive">{avisoCasoActual}</p>
+              )}
+              <div className="col-span-2">
                 <PanelAyuda titulo="Qué es cada dato">
                   <p>
                     <strong className="text-foreground">Velocidad.</strong> La velocidad
@@ -386,33 +409,64 @@ export default function VientoPage() {
                   </p>
                 </PanelAyuda>
               </div>
-              {coeficientesSitio && (
-                <div className="col-span-2">
-                  <PanelFormulas
-                    titulo="Ver coeficientes"
-                    filas={[
-                      { etiqueta: "vk (velocidad característica)", valor: `${fmt(coeficientesSitio.vk, 1)} m/s` },
-                      { etiqueta: "Kt (topográfico)", valor: fmt(coeficientesSitio.kt, 2) },
-                      { etiqueta: "Kk (seguridad)", valor: fmt(coeficientesSitio.kk, 2) },
-                      { etiqueta: "Kd,a", valor: fmt(coeficientesSitio.kdA, 3) },
-                      { etiqueta: "Kd,b", valor: fmt(coeficientesSitio.kdB, 3) },
-                      ...coeficientesSitio.kzPorNivel.map((n) => ({
-                        etiqueta: `Kz en ${n.nombre} (z=${fmt(n.zM, 1)} m)`,
-                        valor: fmt(n.kz, 3),
-                      })),
-                    ]}
-                  />
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Estado de permeabilidad</CardTitle></CardHeader>
-            <CardContent>
-              <CampoSeleccion id="caso" etiqueta="Caso (Tabla 8.2)" valor={casoNombre} opciones={CASOS_APERTURA.map((c) => c.nombre)} onChange={setCasoNombre} />
-            </CardContent>
-          </Card>
+          {coeficientesSitio && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Coeficientes del sitio</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <CampoValorCalculado
+                    id="vk"
+                    etiqueta="vk"
+                    valor={`${fmt(coeficientesSitio.vk, 1)} m/s`}
+                    nota="6.2.2.2, según velocidad"
+                  />
+                  <CampoValorCalculado
+                    id="kt"
+                    etiqueta="Kt"
+                    valor={fmt(coeficientesSitio.kt, 2)}
+                    nota="Tabla 6.1, según topografía"
+                  />
+                  <CampoValorCalculado
+                    id="kk"
+                    etiqueta="Kk"
+                    valor={fmt(coeficientesSitio.kk, 2)}
+                    nota={metodoNombre === "Tensiones admisibles" ? "7.3.1, tensiones admisibles" : "Tabla 6.3, según grupo"}
+                  />
+                  {coeficientesSitio.kzPorNivel.map((n) => (
+                    <CampoValorCalculado
+                      key={n.nombre}
+                      id={`kz-${n.nombre}`}
+                      etiqueta={`Kz en ${n.nombre}`}
+                      valor={fmt(n.kz, 3)}
+                      nota={`6.2.5, terreno ${terreno}, z=${fmt(n.zM, 1)} m`}
+                    />
+                  ))}
+                </div>
+                <PanelFormulas
+                  titulo="Ver cálculo"
+                  filas={[
+                    { etiqueta: "vk según velocidad", valor: `${velocidad}: ${fmt(coeficientesSitio.vk, 1)} m/s` },
+                    { etiqueta: "Kt según topografía", valor: `${topografia}: ${fmt(coeficientesSitio.kt, 2)}` },
+                    {
+                      etiqueta: "Kk según método y grupo",
+                      valor:
+                        metodoNombre === "Tensiones admisibles"
+                          ? `Tensiones admisibles: Kk=1 (7.3.1)`
+                          : `Estados límite, grupo ${grupo}: Kk=${fmt(coeficientesSitio.kk, 2)} (Tabla 6.3)`,
+                    },
+                    ...coeficientesSitio.kzPorNivel.map((n) => ({
+                      etiqueta: `Kz en ${n.nombre}`,
+                      valor: `terreno ${terreno}, z=${fmt(n.zM, 1)} m → ${fmt(n.kz, 3)}`,
+                    })),
+                    ...(resultado ? [{ etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) }] : []),
+                  ]}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle className="text-base">Lado A (+X) — γ0,a</CardTitle></CardHeader>
@@ -481,23 +535,6 @@ export default function VientoPage() {
             </Card>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Coeficientes generales</CardTitle></CardHeader>
-                <CardContent>
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "Velocidad característica vk", valor: `${fmt(resultado.r.vkMs, 1)} m/s` },
-                      { etiqueta: "Kt (topográfico)", valor: fmt(resultado.r.kt, 2) },
-                      { etiqueta: "Kk (seguridad)", valor: fmt(resultado.r.kk, 2) },
-                      { etiqueta: "λa = h/a", valor: fmt(resultado.r.lambdaA, 3) },
-                      { etiqueta: "λb = h/b", valor: fmt(resultado.r.lambdaB, 3) },
-                      { etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) },
-                    ]}
-                  />
-                </CardContent>
-              </Card>
-
               <BloqueLado
                 titulo="Lado A (+X)"
                 ladoR={resultado.r.ladoA}
@@ -637,17 +674,27 @@ function BloqueLado({
 
         <PanelFormulas
           titulo="Ver coeficientes por cara"
-          filas={caso.caras.flatMap((cara) => [
-            { etiqueta: `Ce ${NOMBRE_CARA[cara.cara]}`, valor: fmt(cara.ce, 3) },
-            ...cara.candidatos.map((c, i) => ({
-              // El signo del candidato de ci (no el de c ya combinado) es lo
-              // que distingue sobrepresión de succión: dos candidatos de c
-              // pueden terminar con el mismo signo después de combinar con
-              // ce, y ahí el rótulo por signo de c colisionaría.
-              etiqueta: `c ${NOMBRE_CARA[cara.cara]} (${caso.ci.general[i] >= 0 ? "sobrepresión" : "succión"})`,
-              valor: fmt(c, 3),
-            })),
-          ])}
+          filas={caso.caras.flatMap((cara) => {
+            // La cara realmente abierta usa ci.paredAbierta, no ci.general
+            // (ver coeficientesInterioresPorCaso): hay que mirar el mismo
+            // candidato de ci que se usó para calcular esta cara, si no el
+            // rótulo sobrepresión/succión queda cruzado con el de otra cara.
+            const ciCandidatos =
+              cara.cara === caso.ci.caraAbierta && caso.ci.paredAbierta !== undefined
+                ? [caso.ci.paredAbierta]
+                : caso.ci.general;
+            return [
+              { etiqueta: `Ce ${NOMBRE_CARA[cara.cara]}`, valor: fmt(cara.ce, 3) },
+              ...cara.candidatos.map((c, i) => ({
+                // El signo del candidato de ci (no el de c ya combinado) es lo
+                // que distingue sobrepresión de succión: dos candidatos de c
+                // pueden terminar con el mismo signo después de combinar con
+                // ce, y ahí el rótulo por signo de c colisionaría.
+                etiqueta: `c ${NOMBRE_CARA[cara.cara]} (${ciCandidatos[i] >= 0 ? "sobrepresión" : "succión"})`,
+                valor: fmt(c, 3),
+              })),
+            ];
+          })}
         />
 
         {caso.ci.paredAbierta !== undefined && (

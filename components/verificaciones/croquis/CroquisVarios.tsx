@@ -74,49 +74,31 @@ export function CroquisFamiliaFisuracion({ numero }: { numero: 1 | 2 }) {
  * y h la altura total; la relación entre ellos es la que entra al gráfico del
  * que se lee γ.
  */
+/**
+ * Geometría por nivel: cada nivel tiene su propia altura de piso y su a×b en
+ * planta, para poder armar un edificio con retranqueos (más angosto en los
+ * pisos de arriba) sin más que cargar cada fila con su propio ancho.
+ */
 export function CroquisGeometriaViento() {
   return (
     <Croquis
-      viewBox="0 0 226 136"
+      viewBox="0 0 226 150"
       ancho="max-w-[16rem]"
-      nota="a y b son los lados en planta y h la altura total. De su relación sale el γ que hay que leer del gráfico de la norma y cargar acá."
+      nota="Cada nivel se carga con su propia altura de piso y su a×b en planta. La cota de cada uno se acumula sola; si el edificio no tiene retranqueos, a y b se repiten igual en todos los niveles."
     >
-      {/* alzado */}
-      <rect x="34" y="24" width="52" height="82" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
-      <CotaV x={24} y0={24} y1={106} texto="h total" />
-      {[36, 54, 72, 90].map((y) => (
-        <path key={y} d={`M14 ${y} L30 ${y}`} stroke="currentColor" strokeWidth="1.1" markerEnd="url(#croquis-flecha)" opacity="0.8" />
-      ))}
-      <path d="M34 110 L86 110" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
+      {/* alzado escalonado, tres niveles a modo de ejemplo */}
+      <rect x="70" y="86" width="70" height="34" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.3" />
+      <rect x="82" y="56" width="46" height="30" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.42" />
+      <rect x="92" y="28" width="26" height="28" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.54" />
+      <path d="M52 120 L162 120" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
 
-      {/* planta */}
-      <rect x="126" y="46" width="68" height="46" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.35" />
-      <CotaH x0={126} x1={194} y={110} texto="a" />
-      <CotaV x={116} y0={46} y1={92} texto="b" />
-      <text x="160" y="36" textAnchor="middle" className="fill-current font-mono" fontSize="9.5" opacity="0.7">
-        planta
-      </text>
-    </Croquis>
-  );
-}
+      <CotaV x={46} y0={86} y1={120} texto="h1" />
+      <CotaV x={58} y0={56} y1={86} texto="h2" />
+      <CotaV x={70} y0={28} y1={56} texto="h3" />
 
-/** Niveles: se generan equiespaciados entre la primera cota y la coronación. */
-export function CroquisNivelesViento() {
-  const ys = [96, 82, 68, 54, 40];
-  return (
-    <Croquis
-      viewBox="0 0 206 128"
-      ancho="max-w-[14rem]"
-      nota="Los niveles se generan equiespaciados entre la cota del primero y la coronación: no se cargan uno por uno."
-    >
-      <rect x="60" y="30" width="60" height="80" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.35" />
-      {ys.map((y) => (
-        <path key={y} d={`M60 ${y} L120 ${y}`} stroke="currentColor" strokeWidth="1" opacity="0.7" />
-      ))}
-      <path d="M40 110 L52 110" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-      <Referencia x={128} y={100} hacia={[120, 96]} texto="1er nivel" />
-      <Referencia x={128} y={36} hacia={[120, 30]} texto="coronación" />
-      <CotaV x={50} y0={96} y1={110} texto="cota" />
+      <Referencia x={168} y={106} hacia={[140, 100]} texto="a1 × b1" />
+      <Referencia x={168} y={72} hacia={[128, 68]} texto="a2 × b2" />
+      <Referencia x={168} y={38} hacia={[118, 40]} texto="a3 × b3" />
     </Croquis>
   );
 }

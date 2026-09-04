@@ -4,6 +4,7 @@ interface NivelCargaViento {
   nombre: string;
   zM: number;
   pcKNm: number;
+  pcKNm2: number;
 }
 
 interface DiagramaCargaVientoProps {
@@ -110,15 +111,16 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
                 {n.nombre} · z={fmt(n.zM)} m
               </text>
               <text x={margenIzq} y={y + 10} textAnchor="start" className="fill-current font-mono" fontSize="8" opacity="0.7">
-                Pc {fmt(n.pcKNm)} kN/m
+                Pc {fmt(n.pcKNm)} kN/m · pc {fmt(n.pcKNm2)} kN/m²
               </text>
             </g>
           );
         })}
       </svg>
       <p className="max-w-lg text-center text-xs text-muted-foreground">
-        Cada flecha es la carga lineal Pc de ese nivel; el largo es proporcional entre niveles, no
-        una escala absoluta de kN/m.
+        Cada flecha es la carga lineal Pc de ese nivel (con Kd); el largo es proporcional entre
+        niveles, no una escala absoluta de kN/m. Al lado, pc es la presión puntual del nivel,
+        en kN/m².
       </p>
     </div>
   );

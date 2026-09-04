@@ -325,6 +325,41 @@ export function coeficientesInterioresPorCaso(caso: CasoApertura, gamma: number)
   }
 }
 
+/**
+ * Ce de caras laterales y techo (Tabla 8.1, "Otras caras": el coeficiente
+ * para α=0° de la fig. 8.6). La fig. 8.6 da Ce en función del ángulo de
+ * ataque α, con una curva por cada γ (0,85 / 1,00 / 1,50); en α=0° las tres
+ * curvas ya están en su tramo plano (el quiebre pasa antes, cerca de
+ * α=20-25°), así que basta leer el valor de esa recta horizontal e
+ * interpolar linealmente entre las tres según γ.
+ *
+ * Los dos primeros puntos (γ=0,85 → -0,3 y γ=1,00 → -0,5, leídos del
+ * gráfico) coinciden con los valores que ya traía esta página como default
+ * antes de automatizar esto (-0,3 y -0,4 para γ≈0,94, cerca de la
+ * interpolación), lo que da confianza en la lectura.
+ */
+const CE_LATERAL_TECHO_POR_GAMMA: readonly { gamma: number; ce: number }[] = [
+  { gamma: 0.85, ce: -0.3 },
+  { gamma: 1.0, ce: -0.5 },
+  { gamma: 1.5, ce: -1.1 },
+];
+
+export function ceLateralYTechoPorGamma(gamma: number): number {
+  const tabla = CE_LATERAL_TECHO_POR_GAMMA;
+  if (gamma <= tabla[0].gamma) return tabla[0].ce;
+  const ultimo = tabla[tabla.length - 1];
+  if (gamma >= ultimo.gamma) return ultimo.ce;
+  for (let i = 0; i < tabla.length - 1; i++) {
+    const a = tabla[i];
+    const b = tabla[i + 1];
+    if (gamma <= b.gamma) {
+      const t = (gamma - a.gamma) / (b.gamma - a.gamma);
+      return a.ce + t * (b.ce - a.ce);
+    }
+  }
+  return ultimo.ce;
+}
+
 export interface CoeficientesExterioresLado {
   barlovento: number;
   sotavento: number;

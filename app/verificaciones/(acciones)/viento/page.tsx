@@ -19,6 +19,7 @@ import {
   calcularFactorFormaGamma0,
   calcularKd,
   calcularViento,
+  ceLateralYTechoPorGamma,
   coeficienteAltura,
   coeficienteSeguridad,
   factorTopografico,
@@ -160,10 +161,7 @@ export default function VientoPage() {
   const [casoNombre, setCasoNombre] = useCampo("caso", CASOS_APERTURA[0].nombre);
 
   const [gammaA, setGammaA] = useCampo("gammaA", "0.94");
-  const [ceLateralA, setCeLateralA] = useCampo("ceLateralA", "-0.4");
-
   const [gammaB, setGammaB] = useCampo("gammaB", "0.85");
-  const [ceLateralB, setCeLateralB] = useCampo("ceLateralB", "-0.3");
 
   const geometria = useMemo(() => derivarGeometria(nivelesCrudo), [nivelesCrudo]);
 
@@ -179,6 +177,15 @@ export default function VientoPage() {
       geometria.alturaTotal / geometria.bEnvolvente
     );
   }, [geometria]);
+
+  // γ efectivo (calculado o cargado a mano) y Ce lateral/techo, que sale de
+  // él solo (fig. 8.6, α=0°): se calculan aparte de "resultado" para que las
+  // tarjetas de Lado A/B los muestren aunque el resto del formulario no esté
+  // completo.
+  const gammaAEfectivo = factorForma?.ladoA ?? aNumero(gammaA);
+  const gammaBEfectivo = factorForma?.ladoB ?? aNumero(gammaB);
+  const ceLateralAEfectivo = ceLateralYTechoPorGamma(gammaAEfectivo);
+  const ceLateralBEfectivo = ceLateralYTechoPorGamma(gammaBEfectivo);
 
   // vk, Kt, Kk, Kz por nivel y Kd sólo dependen del sitio y de la geometría,
   // no de Ce ni del caso de apertura: se calculan aparte para poder
@@ -206,11 +213,8 @@ export default function VientoPage() {
 
   const resultado = useMemo(() => {
     if (!geometria || !coeficientesSitio) return null;
-    const gammaAEfectivo = factorForma?.ladoA ?? aNumero(gammaA);
-    const gammaBEfectivo = factorForma?.ladoB ?? aNumero(gammaB);
     const n = {
-      ceLateralA: aNumero(ceLateralA),
-      ceLateralB: aNumero(ceLateralB),
+      ceLateralA: ceLateralAEfectivo, ceLateralB: ceLateralBEfectivo,
       gammaA: gammaAEfectivo, gammaB: gammaBEfectivo,
     };
     const numericos = [n.gammaA, n.ceLateralA, n.gammaB, n.ceLateralB];
@@ -237,8 +241,8 @@ export default function VientoPage() {
 
     return { geometria, r, casoA, casoB, kdA: coeficientesSitio.kdA, kdB: coeficientesSitio.kdB };
   }, [
-    geometria, coeficientesSitio, factorForma, velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
-    gammaA, ceLateralA, gammaB, ceLateralB,
+    geometria, coeficientesSitio, gammaAEfectivo, gammaBEfectivo, ceLateralAEfectivo, ceLateralBEfectivo,
+    velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
   ]);
 
   return (
@@ -261,9 +265,8 @@ export default function VientoPage() {
           relación a su planta) hay que leerlo del gráfico y cargarlo a mano. Kd (fig. 6.2) también
           se calcula solo, con el área de toda la fachada de cada lado; sólo entra en la resultante
           y en Pc por nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo
-          (Ce) todavía se lee de la norma (fig. 8.6) según a/b y el área expuesta de cada lado.
-          Cada lado (A y B) es una dirección de viento distinta, con su propio γ, y por eso se
-          cargan por separado.
+          (Ce, fig. 8.6, α=0°) también sale de γ solo. Cada lado (A y B) es una dirección de viento
+          distinta, con su propio γ, y por eso se cargan por separado.
         </CardContent>
       </Card>
 
@@ -424,7 +427,12 @@ export default function VientoPage() {
                 valorManual={gammaA}
                 onChangeManual={setGammaA}
               />
-              <CampoNumerico id="ceLateralA" etiqueta="Ce lateral/techo" valor={ceLateralA} onChange={setCeLateralA} />
+              <CampoValorCalculado
+                id="ceLateralA"
+                etiqueta="Ce lateral/techo"
+                valor={fmt(ceLateralAEfectivo, 2)}
+                nota="fig. 8.6, α=0°"
+              />
               <CampoValorCalculado
                 id="kdA"
                 etiqueta="Kd"
@@ -447,7 +455,12 @@ export default function VientoPage() {
                 valorManual={gammaB}
                 onChangeManual={setGammaB}
               />
-              <CampoNumerico id="ceLateralB" etiqueta="Ce lateral/techo" valor={ceLateralB} onChange={setCeLateralB} />
+              <CampoValorCalculado
+                id="ceLateralB"
+                etiqueta="Ce lateral/techo"
+                valor={fmt(ceLateralBEfectivo, 2)}
+                nota="fig. 8.6, α=0°"
+              />
               <CampoValorCalculado
                 id="kdB"
                 etiqueta="Kd"

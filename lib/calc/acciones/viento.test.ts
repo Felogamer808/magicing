@@ -4,6 +4,7 @@ import {
   calcularFactorFormaGamma0,
   calcularKd,
   calcularViento,
+  ceLateralYTechoPorGamma,
   coeficienteAltura,
   coeficienteSeguridad,
   coeficientesExterioresLado,
@@ -66,6 +67,24 @@ describe("viento: Kd (fig. 6.2)", () => {
   it("a mayor área, menor Kd (más reducción); a mayor rugosidad, también menor Kd", () => {
     expect(calcularKd(2500, 50, "III")).toBeLessThan(calcularKd(100, 50, "III"));
     expect(calcularKd(500, 50, "IV")).toBeLessThan(calcularKd(500, 50, "I"));
+  });
+});
+
+describe("viento: Ce lateral/techo (fig. 8.6, α=0°)", () => {
+  it("reproduce los puntos leídos del gráfico", () => {
+    expect(ceLateralYTechoPorGamma(0.85)).toBeCloseTo(-0.3, 9);
+    expect(ceLateralYTechoPorGamma(1.0)).toBeCloseTo(-0.5, 9);
+    expect(ceLateralYTechoPorGamma(1.5)).toBeCloseTo(-1.1, 9);
+  });
+
+  it("interpola linealmente entre los puntos tabulados", () => {
+    // Caso real VIENTO2025: γ0,a=0,94 → Ce≈-0,42 (la planilla original traía -0,4, cargado a mano).
+    expect(ceLateralYTechoPorGamma(0.94)).toBeCloseTo(-0.42, 2);
+  });
+
+  it("fuera del rango tabulado, se satura en el extremo más cercano", () => {
+    expect(ceLateralYTechoPorGamma(0.5)).toBeCloseTo(-0.3, 9);
+    expect(ceLateralYTechoPorGamma(2.0)).toBeCloseTo(-1.1, 9);
   });
 });
 

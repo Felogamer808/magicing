@@ -435,15 +435,20 @@ export default function VientoPage() {
                     valor={fmt(coeficientesSitio.kk, 2)}
                     nota={metodoNombre === "Tensiones admisibles" ? "7.3.1, tensiones admisibles" : "Tabla 6.3, según grupo"}
                   />
-                  {coeficientesSitio.kzPorNivel.map((n) => (
-                    <CampoValorCalculado
-                      key={n.nombre}
-                      id={`kz-${n.nombre}`}
-                      etiqueta={`Kz en ${n.nombre}`}
-                      valor={fmt(n.kz, 3)}
-                      nota={`6.2.5, terreno ${terreno}, z=${fmt(n.zM, 1)} m`}
-                    />
-                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kz por nivel</Label>
+                  <div className="divide-y divide-border/60 rounded-md border">
+                    {coeficientesSitio.kzPorNivel.map((n) => (
+                      <div key={n.nombre} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                        <span className="text-muted-foreground">
+                          {n.nombre} · z={fmt(n.zM, 1)} m
+                        </span>
+                        <span className="font-mono tabular-nums">{fmt(n.kz, 3)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">6.2.5, según terreno {terreno} y la altura de cada nivel</p>
                 </div>
                 <PanelFormulas
                   titulo="Ver cálculo"
@@ -457,10 +462,6 @@ export default function VientoPage() {
                           ? `Tensiones admisibles: Kk=1 (7.3.1)`
                           : `Estados límite, grupo ${grupo}: Kk=${fmt(coeficientesSitio.kk, 2)} (Tabla 6.3)`,
                     },
-                    ...coeficientesSitio.kzPorNivel.map((n) => ({
-                      etiqueta: `Kz en ${n.nombre}`,
-                      valor: `terreno ${terreno}, z=${fmt(n.zM, 1)} m → ${fmt(n.kz, 3)}`,
-                    })),
                     ...(resultado ? [{ etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) }] : []),
                   ]}
                 />
@@ -658,11 +659,28 @@ function BloqueLado({
     return { ...n, pcKNm2, pcKNm, anchoM };
   });
   const resultanteTotalKN = niveles.reduce((acc, n) => acc + n.pcKNm * n.anchoM, 0);
+  const ladoSlug = titulo.replace(/[^a-zA-Z0-9]/g, "");
 
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{titulo}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          {caso.caras.map((cara) => (
+            <CampoValorCalculado
+              key={cara.cara}
+              id={`c-${ladoSlug}-${cara.cara}`}
+              etiqueta={`C ${NOMBRE_CARA[cara.cara]}`}
+              valor={fmt(cara.gobernante, 3)}
+              nota={
+                cara.candidatos.length > 1
+                  ? `art. 8.4, Ce−Ci, el más desfavorable de ${cara.candidatos.map((c) => fmt(c, 3)).join(" / ")}`
+                  : "art. 8.4, Ce−Ci"
+              }
+            />
+          ))}
+        </div>
+
         <div className="rounded-md border p-3 text-sm">
           <p className="font-medium">
             Coeficiente total de arrastre: {fmt(caso.cTotalGobernante, 3)}

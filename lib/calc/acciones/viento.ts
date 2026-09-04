@@ -129,6 +129,16 @@ export interface ResultadoNivelViento extends NivelViento {
 const VELOCIDAD_CARACTERISTICA: Record<TipoVelocidad, number> = { Costero: 43.9, Continental: 37.5 };
 const FACTOR_TOPOGRAFICO: Record<TipoTopografia, number> = { Normal: 1, Expuesto: 1.1, Protegido: 0.9 };
 
+/** Velocidad característica vk del lugar (6.2.2.2). */
+export function velocidadCaracteristica(velocidad: TipoVelocidad): number {
+  return VELOCIDAD_CARACTERISTICA[velocidad];
+}
+
+/** Coeficiente topográfico Kt (Tabla 6.1). */
+export function factorTopografico(topografia: TipoTopografia): number {
+  return FACTOR_TOPOGRAFICO[topografia];
+}
+
 /**
  * Tabla 6.3, columna Kk — sólo el método de estados límite distingue por
  * grupo (7.3.1). El valor de E2 (andamios, encofrados) es un piso mínimo en

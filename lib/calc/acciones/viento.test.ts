@@ -7,7 +7,9 @@ import {
   coeficienteSeguridad,
   coeficientesExterioresLado,
   coeficientesInterioresPorCaso,
+  factorTopografico,
   nivelesDesdeAlturaPiso,
+  velocidadCaracteristica,
 } from "@/lib/calc/acciones/viento";
 
 // Caso real de la hoja "VIENTO2025": edificio 77 x 35 x 14 m, γ0,a=0,94 (lado
@@ -26,6 +28,19 @@ describe("viento: coeficiente de altura (Tabla 6.2)", () => {
   it("reproduce kz en un nivel intermedio (terreno III, z=7 m)", () => {
     // Planilla: L44 = 0,75*((7/10)^0,17)
     expect(coeficienteAltura("III", 7)).toBeCloseTo(0.705875210398619, 9);
+  });
+});
+
+describe("viento: velocidad característica y factor topográfico", () => {
+  it("vk depende de la zona (6.2.2.2)", () => {
+    expect(velocidadCaracteristica("Costero")).toBeCloseTo(43.9, 9);
+    expect(velocidadCaracteristica("Continental")).toBeCloseTo(37.5, 9);
+  });
+
+  it("Kt depende del terreno (Tabla 6.1)", () => {
+    expect(factorTopografico("Normal")).toBeCloseTo(1, 9);
+    expect(factorTopografico("Expuesto")).toBeCloseTo(1.1, 9);
+    expect(factorTopografico("Protegido")).toBeCloseTo(0.9, 9);
   });
 });
 

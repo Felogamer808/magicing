@@ -18,7 +18,11 @@ import {
   calcularCasoApertura,
   calcularFactorFormaGamma0,
   calcularViento,
+  coeficienteAltura,
+  coeficienteSeguridad,
+  factorTopografico,
   nivelesDesdeAlturaPiso,
+  velocidadCaracteristica,
   CASOS_APERTURA,
   GRUPOS_SEGURIDAD,
   METODOS_CALCULO,
@@ -176,6 +180,21 @@ export default function VientoPage() {
       geometria.alturaTotal / geometria.bEnvolvente
     );
   }, [geometria]);
+
+  // vk, Kt, Kk y Kz por nivel sólo dependen del sitio y de la geometría, no
+  // de Ce ni del caso de apertura: se calculan aparte para poder mostrarlos
+  // en "Sitio y seguridad" aunque el resto del formulario no esté completo.
+  const coeficientesSitio = useMemo(() => {
+    if (!geometria) return null;
+    const metodo = METODOS_CALCULO.find((m) => m.nombre === metodoNombre)?.id ?? "estados-limite";
+    const niveles = nivelesDesdeAlturaPiso(geometria.numericos.map((niv) => niv.alturaPisoM));
+    return {
+      vk: velocidadCaracteristica(velocidad),
+      kt: factorTopografico(topografia),
+      kk: coeficienteSeguridad(metodo as MetodoCalculo, grupo),
+      kzPorNivel: niveles.map((n) => ({ nombre: n.nombre, zM: n.zM, kz: coeficienteAltura(terreno, n.zM) })),
+    };
+  }, [geometria, velocidad, topografia, terreno, metodoNombre, grupo]);
 
   const resultado = useMemo(() => {
     if (!geometria) return null;
@@ -354,6 +373,24 @@ export default function VientoPage() {
                   </p>
                 </PanelAyuda>
               </div>
+              {coeficientesSitio && (
+                <div className="col-span-2">
+                  <PanelFormulas
+                    titulo="Ver coeficientes"
+                    filas={[
+                      { etiqueta: "vk (velocidad característica)", valor: `${fmt(coeficientesSitio.vk, 1)} m/s` },
+                      { etiqueta: "Kt (topográfico)", valor: fmt(coeficientesSitio.kt, 2) },
+                      { etiqueta: "Kk (seguridad)", valor: fmt(coeficientesSitio.kk, 2) },
+                      { etiqueta: "Kd,a", valor: fmt(aNumero(kdA), 2) },
+                      { etiqueta: "Kd,b", valor: fmt(aNumero(kdB), 2) },
+                      ...coeficientesSitio.kzPorNivel.map((n) => ({
+                        etiqueta: `Kz en ${n.nombre} (z=${fmt(n.zM, 1)} m)`,
+                        valor: fmt(n.kz, 3),
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

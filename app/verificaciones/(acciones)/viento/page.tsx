@@ -47,20 +47,30 @@ interface NivelForm {
   alturaPiso: string;
   a: string;
   b: string;
+  /** Cuántas veces se repite esta fila (una planta tipo, por ejemplo): cada repetición es un nivel físico propio, a su propia cota. */
+  repeticiones: string;
 }
 
 /** Reproduce el caso real de la planilla VIENTO2025: 77×35 m, 4 pisos de 3,5 m (h total 14 m). */
 const NIVELES_DEFECTO: NivelForm[] = [
-  { alturaPiso: "3.5", a: "77", b: "35" },
-  { alturaPiso: "3.5", a: "77", b: "35" },
-  { alturaPiso: "3.5", a: "77", b: "35" },
-  { alturaPiso: "3.5", a: "77", b: "35" },
+  { alturaPiso: "3.5", a: "77", b: "35", repeticiones: "1" },
+  { alturaPiso: "3.5", a: "77", b: "35", repeticiones: "1" },
+  { alturaPiso: "3.5", a: "77", b: "35", repeticiones: "1" },
+  { alturaPiso: "3.5", a: "77", b: "35", repeticiones: "1" },
 ];
 
 function leerNiveles(crudo: string): NivelForm[] {
   try {
     const valor: unknown = JSON.parse(crudo);
-    if (Array.isArray(valor) && valor.length > 0) return valor as NivelForm[];
+    if (Array.isArray(valor) && valor.length > 0) {
+      // "repeticiones" es nuevo: lo guardado de una sesión anterior no lo trae.
+      return (valor as Partial<NivelForm>[]).map((n) => ({
+        alturaPiso: n.alturaPiso ?? "3.5",
+        a: n.a ?? "",
+        b: n.b ?? "",
+        repeticiones: n.repeticiones ?? "1",
+      }));
+    }
   } catch {
     // Si lo guardado quedó corrupto se vuelve a los valores por defecto en vez de romper la página.
   }
@@ -90,15 +100,25 @@ interface Geometria {
  */
 function derivarGeometria(crudo: string): Geometria | null {
   const niveles = leerNiveles(crudo);
-  const numericos = niveles.map((n) => ({
+  const filas = niveles.map((n) => ({
     alturaPisoM: aNumero(n.alturaPiso),
     aM: aNumero(n.a),
     bM: aNumero(n.b),
+    repeticiones: Math.round(aNumero(n.repeticiones)),
   }));
-  const validos = numericos.every((n) =>
-    [n.alturaPisoM, n.aM, n.bM].every((x) => Number.isFinite(x) && x > 0)
+  const validas = filas.every(
+    (f) =>
+      [f.alturaPisoM, f.aM, f.bM, f.repeticiones].every((x) => Number.isFinite(x)) &&
+      f.alturaPisoM > 0 && f.aM > 0 && f.bM > 0 && f.repeticiones >= 1
   );
-  if (!validos) return null;
+  if (!validas) return null;
+
+  // Cada repetición es un nivel físico propio, a su propia cota (una planta
+  // tipo en el piso 5 y en el piso 6 no está a la misma altura ni tiene el
+  // mismo kz): la fila sólo ahorra tipeo, no colapsa los niveles en uno.
+  const numericos: NivelNumerico[] = filas.flatMap((f) =>
+    Array.from({ length: f.repeticiones }, () => ({ alturaPisoM: f.alturaPisoM, aM: f.aM, bM: f.bM }))
+  );
 
   return {
     niveles,
@@ -227,7 +247,7 @@ export default function VientoPage() {
               <div className="space-y-3">
                 {niveles.map((nivel, i) => (
                   <div key={i} className="flex items-end gap-2">
-                    <div className="grid flex-1 grid-cols-3 gap-3">
+                    <div className="grid flex-1 grid-cols-4 gap-3">
                       <CampoNumerico
                         id={`alturaPiso-${i}`}
                         etiqueta={`Piso ${i + 1}, h`}
@@ -248,6 +268,17 @@ export default function VientoPage() {
                         sufijo="m"
                         valor={nivel.b}
                         onChange={(v) => actualizarNivel(i, "b", v)}
+                      />
+                      <CampoNumerico
+                        id={`repeticiones-${i}`}
+                        etiqueta="Se repite"
+                        valor={nivel.repeticiones}
+                        onChange={(v) => actualizarNivel(i, "repeticiones", v)}
+                        advertencia={
+                          Math.round(aNumero(nivel.repeticiones)) > 1
+                            ? `${Math.round(aNumero(nivel.repeticiones))} niveles, uno arriba del otro`
+                            : undefined
+                        }
                       />
                     </div>
                     {niveles.length > 1 && (
@@ -270,8 +301,8 @@ export default function VientoPage() {
               </Button>
               <p className="text-xs text-muted-foreground">
                 {geometria
-                  ? `Coronación a ${fmt(geometria.alturaTotal)} m · envolvente ${fmt(geometria.aEnvolvente)}×${fmt(geometria.bEnvolvente)} m.`
-                  : "Completá cada nivel con altura de piso, a y b positivos."}
+                  ? `${geometria.numericos.length} niveles · coronación a ${fmt(geometria.alturaTotal)} m · envolvente ${fmt(geometria.aEnvolvente)}×${fmt(geometria.bEnvolvente)} m.`
+                  : "Completá cada nivel con altura de piso, a, b y repeticiones positivos."}
               </p>
             </CardContent>
           </Card>

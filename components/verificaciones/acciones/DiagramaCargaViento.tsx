@@ -66,6 +66,27 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
           fillOpacity="0.4"
         />
 
+        {/* cota de altura total */}
+        <g stroke="currentColor" strokeWidth="0.8" opacity="0.75">
+          <path d={`M${x1 + 10} ${yEstructura} L${x1 + 22} ${yEstructura}`} />
+          <path d={`M${x1 + 10} ${yBase} L${x1 + 22} ${yBase}`} />
+          <path
+            d={`M${x1 + 16} ${yEstructura} L${x1 + 16} ${yBase}`}
+            markerStart="url(#carga-viento-flecha)"
+            markerEnd="url(#carga-viento-flecha)"
+          />
+        </g>
+        <text
+          x={x1 + 32}
+          y={(yEstructura + yBase) / 2}
+          textAnchor="middle"
+          className="fill-current font-mono"
+          fontSize="9.5"
+          transform={`rotate(-90 ${x1 + 32} ${(yEstructura + yBase) / 2})`}
+        >
+          h total = {fmt(alturaTotalM)} m
+        </text>
+
         {niveles.map((n) => {
           const y = yDe(n.zM);
           const largo = Math.max((Math.abs(n.pcKNm) / maxPc) * flechaMaxLargo, 16);

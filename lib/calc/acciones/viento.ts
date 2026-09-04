@@ -295,6 +295,14 @@ export interface CoeficientesInteriores {
    * combina con un ce propio.
    */
   paredAbierta?: number;
+  /**
+   * Cuál cara es la pared realmente abierta (μ≥35%): esa cara usa
+   * `paredAbierta`, no `general` — la Tabla 8.2 da un Ci distinto para "la
+   * cara interior de la pared de μ≥35%" que para "las paredes de μ≤5% y las
+   * vertientes del techo". Sin esto, aplicar `general` a las tres caras por
+   * igual da un Ci equivocado justo en la cara abierta.
+   */
+  caraAbierta?: NombreCara;
 }
 
 /**
@@ -316,11 +324,12 @@ export function coeficientesInterioresPorCaso(caso: CasoApertura, gamma: number)
       };
     case "una-abierta-barlovento":
       // Ci=+0,8 es un valor fijo de la norma, no depende de γ.
-      return { general: [0.8], paredAbierta: conLimiteCi(-0.6 * (1.3 * gamma - 0.8)) };
+      return { general: [0.8], paredAbierta: conLimiteCi(-0.6 * (1.3 * gamma - 0.8)), caraAbierta: "barlovento" };
     case "una-abierta-sotavento":
       return {
         general: [conLimiteCi(-(1.3 * gamma - 0.8))],
         paredAbierta: conLimiteCi(0.6 * (1.8 - 1.3 * gamma)),
+        caraAbierta: "sotavento",
       };
   }
 }
@@ -415,7 +424,10 @@ export function calcularCasoApertura(
       ["lateralYTecho", ce.lateralYTecho],
     ] as [NombreCara, number][]
   ).map(([cara, ceCara]) => {
-    const candidatos = ci.general.map((ciCandidato) => conLimiteResultante(ceCara - ciCandidato));
+    // La cara realmente abierta (μ≥35%, si la hay) usa ci.paredAbierta, no
+    // ci.general — son valores distintos en la Tabla 8.2 (8.3).
+    const ciCandidatos = cara === ci.caraAbierta && ci.paredAbierta !== undefined ? [ci.paredAbierta] : ci.general;
+    const candidatos = ciCandidatos.map((ciCandidato) => conLimiteResultante(ceCara - ciCandidato));
     return { cara, ce: ceCara, candidatos, gobernante: peorPorMagnitud(candidatos) };
   });
 

@@ -229,6 +229,39 @@ describe("viento: combinación ce-ci por cara y coeficiente total (8.4)", () => 
     expect(lateral.candidatos[0]).toBeCloseTo(-1.2000000000000002, 9); // AM18
   });
 
+  // Tabla 8.2 (pág. 38): en "una pared abierta", la cara realmente abierta
+  // (μ≥35%) usa un ci propio ("pared abierta"), distinto del que se aplica
+  // a las otras caras ("paredes μ≤5% y vertientes del techo"). Aplicar el
+  // mismo ci a las tres caras —como hacía esta función antes de corregirse—
+  // subestima mucho la presión sobre la cara abierta: ahí ce y ci casi se
+  // cancelan (0,8 contra 0,8) en vez de sumarse (0,8 contra -0,2532).
+  it("una pared abierta a barlovento: la cara barlovento (la abierta) usa su propio ci, no el general", () => {
+    const r = calcularCasoApertura("una-abierta-barlovento", 0.94, -0.4);
+    const barlov = r.caras.find((c) => c.cara === "barlovento")!;
+    // ce=0,8, ci,paredAbierta=-0,2532 → 0,8-(-0,2532)=1,0532, no 0,8-0,8=0 (topado en 0,3).
+    expect(barlov.candidatos).toEqual([1.0531999999999999]);
+  });
+
+  it("una pared abierta a barlovento: la cara sotavento sigue usando el ci general", () => {
+    const r = calcularCasoApertura("una-abierta-barlovento", 0.94, -0.4);
+    const sotav = r.caras.find((c) => c.cara === "sotavento")!;
+    // ce=-0,422, ci,general=0,8 → -0,422-0,8=-1,222.
+    expect(sotav.candidatos).toEqual([-1.222]);
+    // cTotal = barlovento(1,0532) - sotavento(-1,222), no 0,3-(-1,222)=1,522.
+    expect(r.cTotalCandidatos).toEqual([2.2751999999999997]);
+  });
+
+  it("una pared abierta a sotavento: la cara sotavento (la abierta) usa su propio ci, no el general", () => {
+    const r = calcularCasoApertura("una-abierta-sotavento", 0.94, -0.4);
+    const sotav = r.caras.find((c) => c.cara === "sotavento")!;
+    const barlov = r.caras.find((c) => c.cara === "barlovento")!;
+    // ce=-0,422, ci,paredAbierta=0,3468 → -0,422-0,3468=-0,7688.
+    expect(sotav.candidatos[0]).toBeCloseTo(-0.7688, 9);
+    // barlovento no es la cara abierta acá: sigue con el ci general.
+    expect(barlov.candidatos).toEqual([1.222]);
+    expect(r.cTotalCandidatos).toEqual([1.9908]);
+  });
+
   it("el gobernante de cada cara es el candidato de mayor magnitud", () => {
     const r = calcularCasoApertura("cerrada", 0.94, -0.4);
     const sotavento = r.caras.find((c) => c.cara === "sotavento")!;

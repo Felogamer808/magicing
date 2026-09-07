@@ -40,17 +40,27 @@ const ESPESOR_OPCIONES = ESPESORES_DECKPANEL.map(ETIQUETA_ESPESOR);
 const espesorDesdeEtiqueta = (etiqueta: string): number =>
   ESPESORES_DECKPANEL[ESPESOR_OPCIONES.indexOf(etiqueta)] ?? ESPESOR_DECKPANEL_ESTANDAR_MM;
 
+/** Título de sección con línea, para separar Geometría / Flexión / Rasante a simple vista. */
+function TituloSeccion({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 pt-2 first:pt-0">
+      <h2 className="spec-label shrink-0">{children}</h2>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 /**
  * Antes eran dos páginas. Se fusionan en una porque son la misma pieza: el
  * mismo nervio de chapa colaborante da la flexión, el fuego y el rasante, y
  * separarlas obligaba a cargar la geometría del nervio dos veces para ver las
  * dos comprobaciones que realmente definen la losa.
  *
- * dp, Ap, fyp, φ y separación de la barra, y fyk de la barra son geometría y
- * materiales de la MISMA chapa y la MISMA barra: un solo juego de campos
- * alimenta a los dos cálculos. El resto —mEd y fuego por un lado; luz, m-k,
- * acciones y anclaje por el otro— es exclusivo de cada comprobación y no se
- * comparte, porque no significa lo mismo en las dos.
+ * La página se organiza en tres secciones bien separadas —Geometría,
+ * Flexión, Rasante— con el mismo orden en la columna de datos y en la de
+ * resultados. Geometría es lo que describe la chapa ARMCO Deckpanel elegida
+ * y la barra adicional: alimenta a los dos cálculos por igual, así que va
+ * primero y aparte, no repetida ni mezclada adentro de cada comprobación.
  *
  * Los dos bloques de resultado se calculan por separado (dos useMemo, no uno):
  * son cómputos independientes que sólo comparten algunos datos de entrada, así
@@ -60,13 +70,14 @@ const espesorDesdeEtiqueta = (etiqueta: string): number =>
 export default function LosaSteelDeckPage() {
   const [norma, setNorma] = useCampo("norma", "EC4");
 
-  // --- Compartido: geometría de la chapa y de la barra --------------------
-  // hp, Ap y fyp son del perfil ARMCO Deckpanel — fijos por catálogo (o
-  // derivados de él, ver deckpanel-armco.ts), no datos de proyecto. dp se
-  // deriva de h y del espesor elegido, no se carga a mano: así no puede
-  // quedar desincronizado si se cambia h.
+  // --- GEOMETRÍA: perfil ARMCO Deckpanel y barra adicional -----------------
+  // hp, fyp, el paso de nervio y (derivada) Ap son del perfil ARMCO
+  // Deckpanel — fijos por catálogo, no datos de proyecto. Sólo se elige el
+  // espesor de chapa: no hay forma de cargar un perfil que no sea ARMCO.
+  // dp se deriva de h y del espesor elegido, no se carga a mano: así no
+  // puede quedar desincronizado si se cambia h.
   const [espesorTotal, setEspesorTotal] = useCampo("espesorTotal", "0.15");
-  const [anchoNervio, setAnchoNervio] = useCampo("anchoNervio", "0.15");
+  const [anchoNervioBase, setAnchoNervioBase] = useCampo("anchoNervioBase", "0.15");
   const [espesorDeckpanelTxt, setEspesorDeckpanelTxt] = useCampo(
     "espesorDeckpanel",
     ETIQUETA_ESPESOR(ESPESOR_DECKPANEL_ESTANDAR_MM)
@@ -76,20 +87,20 @@ export default function LosaSteelDeckPage() {
   const alturaNervio = PERFIL_DECKPANEL.alturaNervioM;
   const fyp = FY_ACERO_DECKPANEL_MPA;
   const ap = apDerivadaMm2PorM(espesorDeckpanel);
+  const dp = aNumero(espesorTotal) - yInfChapaM(espesorDeckpanel);
 
-  const [fck, setFck] = useCampo("fck", "25");
   const [fykBarras, setFykBarras] = useCampo("fykBarras", "500");
-
   const [phiBarra, setPhiBarra] = useCampo("phiBarra", "10");
   const [sepBarra, setSepBarra] = useCampo("sepBarra", "200");
   const [recBarra, setRecBarra] = useCampo("recBarra", "0.025");
 
-  // --- Exclusivo de flexión y fuego ----------------------------------------
+  // --- FLEXIÓN: hormigón, solicitación y fuego -----------------------------
+  const [fck, setFck] = useCampo("fck", "25");
   const [mEd, setMEd] = useCampo("mEd", "20");
   const [resistenciaFuego, setResistenciaFuego] = useCampo<ResistenciaFuego>("resistenciaFuego", "R90");
   const [etaFi, setEtaFi] = useCampo("etaFi", "0.7");
 
-  // --- Exclusivo de rasante -------------------------------------------------
+  // --- RASANTE: luz, coeficientes m-k, acciones y anclaje ------------------
   const [luz, setLuz] = useCampo("luz", "4");
   const [anchoTrib, setAnchoTrib] = useCampo("anchoTrib", "1");
 
@@ -110,15 +121,11 @@ export default function LosaSteelDeckPage() {
   const [numeroPernos, setNumeroPernos] = useCampo("numeroPernos", "1");
   const [sepPernos, setSepPernos] = useCampo("sepPernos", "0.3");
 
-  // dp se deriva de h y del espesor de chapa elegido, no se carga a mano:
-  // así no puede quedar desincronizado si se cambia h. Ver deckpanel-armco.ts.
-  const dp = aNumero(espesorTotal) - yInfChapaM(espesorDeckpanel);
-
   const resultadoFlexion = useMemo(() => {
     const n = {
       fyp, fck: aNumero(fck), fykBarras: aNumero(fykBarras),
       espesorTotal: aNumero(espesorTotal), alturaNervio,
-      ap, dp, anchoNervio: aNumero(anchoNervio),
+      ap, dp, anchoNervio: aNumero(anchoNervioBase),
       phiBarra: aNumero(phiBarra), sepBarra: aNumero(sepBarra), recBarra: aNumero(recBarra),
       mEd: aNumero(mEd), etaFi: aNumero(etaFi),
     };
@@ -144,7 +151,7 @@ export default function LosaSteelDeckPage() {
         { resistenciaFuego, etaFi: n.etaFi }
       ),
     };
-  }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp, anchoNervio,
+  }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp, anchoNervioBase,
       phiBarra, sepBarra, recBarra, mEd, resistenciaFuego, etaFi]);
 
   const resultadoRasante = useMemo(() => {
@@ -198,7 +205,7 @@ export default function LosaSteelDeckPage() {
       <Card className="border-primary/30">
         <CardContent className="space-y-2 py-4 text-sm text-muted-foreground">
           <p>
-            Losa mixta con chapa colaborante (steel deck) y armadura adicional por nervio. En frío, la
+            Losa mixta con chapa colaborante ARMCO Deckpanel y armadura adicional por nervio. En frío, la
             chapa y las barras se tratan como un único acero traccionado que equilibra el bloque de
             hormigón comprimido, EN 1994-1-1 §9.7.2; en incendio la chapa se descarta y sólo tracciona la
             armadura, reducida por temperatura según EC2-1-2.
@@ -213,8 +220,12 @@ export default function LosaSteelDeckPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
+          <TituloSeccion>Geometría — perfil y armadura</TituloSeccion>
+
           <Card>
-            <CardHeader><CardTitle className="text-base">Perfil — ARMCO Deckpanel</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Fabricante: ARMCO Deckpanel</CardTitle>
+            </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisNervioSteelDeck />
@@ -222,7 +233,7 @@ export default function LosaSteelDeckPage() {
               <div className="col-span-full">
                 <CampoSeleccion
                   id="espesorDeckpanel"
-                  etiqueta="Espesor de chapa"
+                  etiqueta="Espesor de chapa (único dato que se elige)"
                   valor={espesorDeckpanelTxt}
                   opciones={ESPESOR_OPCIONES}
                   onChange={setEspesorDeckpanelTxt}
@@ -231,21 +242,38 @@ export default function LosaSteelDeckPage() {
               <dl className="col-span-full grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border p-3 font-mono text-xs text-muted-foreground sm:grid-cols-4">
                 <dt>hp (fijo)</dt>
                 <dd className="text-right text-foreground">{fmt(alturaNervio * 1000, 0)} mm</dd>
+                <dt>Paso de nervio (fijo)</dt>
+                <dd className="text-right text-foreground">{fmt(PERFIL_DECKPANEL.pasoNervioM * 1000, 0)} mm</dd>
                 <dt>fyp (fijo)</dt>
                 <dd className="text-right text-foreground">{fmt(fyp, 1)} MPa</dd>
                 <dt>Ap (derivada)</dt>
                 <dd className="text-right text-foreground">{fmt(ap, 0)} mm²/m</dd>
                 <dt>dp (derivada de h)</dt>
                 <dd className="text-right text-foreground">{fmt(dp * 1000, 1)} mm</dd>
+                <dt>Ancho efectivo (fijo)</dt>
+                <dd className="text-right text-foreground">{fmt(PERFIL_DECKPANEL.anchoEfectivoM * 1000, 0)} mm</dd>
               </dl>
-              <CampoNumerico id="espesorTotal" etiqueta="h" sufijo="m" valor={espesorTotal} onChange={setEspesorTotal} />
-              <CampoNumerico id="anchoNervio" etiqueta="Ancho nervio (fuego)" sufijo="m" valor={anchoNervio} onChange={setAnchoNervio} />
+              <CampoNumerico id="espesorTotal" etiqueta="h — espesor total de losa" sufijo="m" valor={espesorTotal} onChange={setEspesorTotal} />
+              <CampoNumerico
+                id="anchoNervioBase"
+                etiqueta="bmin — ancho de nervio en su base (sólo fuego)"
+                sufijo="m"
+                valor={anchoNervioBase}
+                onChange={setAnchoNervioBase}
+              />
               <div className="col-span-full">
                 <PanelAyuda titulo="Qué es fijo, qué se deriva y qué sigue siendo un dato de proyecto">
                   <p>
-                    <strong className="text-foreground">hp y fyp</strong> son del perfil ARMCO
-                    Deckpanel: 63 mm de altura de nervio y acero Grado 37 (fy = 37 ksi), iguales en
-                    los tres espesores del folleto del fabricante. No se cargan a mano.
+                    Esta página es siempre ARMCO Deckpanel: no hay una opción de perfil &ldquo;genérico&rdquo;
+                    ni de cargar otro fabricante. Lo único que se elige es el espesor de chapa, entre
+                    los tres del folleto del fabricante (0,912 mm es el de stock estándar; los otros
+                    dos son &ldquo;a consultar&rdquo;).
+                  </p>
+                  <p>
+                    <strong className="text-foreground">hp, fyp, paso de nervio y ancho efectivo</strong>{" "}
+                    son del perfil: 63 mm de altura de nervio, acero Grado 37 (fy = 37 ksi), 305 mm
+                    entre nervios y 915 mm de ancho de panel (91,5/30,5 = 3 nervios exactos). Iguales
+                    en los tres espesores. No se cargan a mano.
                   </p>
                   <p>
                     <strong className="text-foreground">Ap</strong> no está en el folleto —es una
@@ -261,26 +289,20 @@ export default function LosaSteelDeckPage() {
                     h − esa distancia. Se recalcula solo si cambiás h: no puede quedar desincronizado.
                   </p>
                   <p>
-                    <strong className="text-foreground">h y el ancho de nervio para fuego</strong>{" "}
-                    siguen siendo datos de proyecto: h depende del espesor de hormigón que se elija en
-                    obra (no del catálogo), y el ancho de nervio en su base —para la Tabla 5.5 de
-                    fuego— tampoco está en este folleto comercial.
+                    <strong className="text-foreground">h</strong> sigue siendo un dato de proyecto:
+                    depende del espesor de hormigón que se elija en obra, no del catálogo de la chapa.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">bmin no es lo mismo que el paso de nervio.</strong>{" "}
+                    El paso (305 mm) es la distancia entre nervios consecutivos, y sí está fijo arriba.
+                    bmin es el ancho del fondo de UN nervio, en su punto más angosto —la norma lo pide
+                    sólo para el chequeo de incendio, Tabla 5.5 de EC2-1-2—, y esa dimensión no está en
+                    el folleto comercial: hace falta el plano de perfil o la ficha técnica para
+                    cargarlo con certeza. Si no se dispone de ese dato, una estimación conservadora
+                    (del lado seguro) es tomar bmin bastante menor que el paso, nunca igual a él.
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fck" etiqueta="fck hormigón" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fykBarras" etiqueta="fyk barras" sufijo="MPa" valor={fykBarras} onChange={setFykBarras} />
-              <p className="col-span-full text-xs text-muted-foreground">
-                fyp de la chapa ya no se carga acá: es fija, del perfil ARMCO Deckpanel (tarjeta de
-                arriba). fck sólo interviene en la flexión: el método m-k del rasante no depende de la
-                resistencia del hormigón.
-              </p>
             </CardContent>
           </Card>
 
@@ -290,17 +312,27 @@ export default function LosaSteelDeckPage() {
               <CampoDiametro id="phiBarra" etiqueta="Ø" valor={phiBarra} onChange={setPhiBarra} />
               <CampoNumerico id="sepBarra" etiqueta="Separación" sufijo="mm" valor={sepBarra} onChange={setSepBarra} />
               <CampoNumerico id="recBarra" etiqueta="Recub. inferior" sufijo="m" valor={recBarra} onChange={setRecBarra} />
+              <CampoNumerico id="fykBarras" etiqueta="fyk barras" sufijo="MPa" valor={fykBarras} onChange={setFykBarras} />
               <p className="col-span-full text-xs text-muted-foreground">
                 Ø = 0 para calcular sin barra adicional, sólo con la chapa. El recubrimiento se mide desde
                 la cara inferior de la losa hasta el eje de la barra, y sólo lo usa el chequeo de incendio.
+                Esta barra y su fyk alimentan tanto la flexión como el rasante: es la misma barra en las
+                dos comprobaciones.
               </p>
             </CardContent>
           </Card>
 
+          <TituloSeccion>Flexión y fuego</TituloSeccion>
+
           <Card>
-            <CardHeader><CardTitle className="text-base">Flexión — solicitación</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Hormigón y solicitación</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="fck" etiqueta="fck hormigón" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="mEd" etiqueta="MEd" sufijo="kN·m/m" valor={mEd} onChange={setMEd} />
+              <p className="col-span-full text-xs text-muted-foreground">
+                fck sólo interviene acá: el método m-k del rasante no depende de la resistencia del
+                hormigón.
+              </p>
             </CardContent>
           </Card>
 
@@ -328,27 +360,30 @@ export default function LosaSteelDeckPage() {
                     art. 5.7.5) y la ec. (5.3), que relaciona 1 mm de recubrimiento de más o de menos
                     con 10 °C de menos o de más sobre los 500 °C de referencia de la tabla. Es una
                     aproximación razonable para predimensionar, no el método específico de EN 1994-1-2.
+                    Usa bmin de la tarjeta de geometría, no el paso de nervio.
                   </p>
                 </PanelAyuda>
               </div>
             </CardContent>
           </Card>
 
+          <TituloSeccion>Rasante</TituloSeccion>
+
           <Card>
-            <CardHeader><CardTitle className="text-base">Rasante — luz y ancho tributario</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Luz y ancho tributario</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="luz" etiqueta="Luz L" sufijo="m" valor={luz} onChange={setLuz} />
               <CampoNumerico id="anchoTrib" etiqueta="Ancho tributario b" sufijo="m" valor={anchoTrib} onChange={setAnchoTrib} />
               <p className="col-span-full text-xs text-muted-foreground">
-                No es el ancho del nervio de la primera tarjeta: es la faja de losa que se toma para
-                calcular el cortante total. El cortante de cálculo sale de una carga uniforme sobre tramo
+                No es el ancho de nervio de la geometría: es la faja de losa que se toma para calcular
+                el cortante total. El cortante de cálculo sale de una carga uniforme sobre tramo
                 simplemente apoyado: VEd = wEd·L·b/2.
               </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Rasante — coeficientes m-k</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Coeficientes m-k</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <CampoNumerico id="m" etiqueta="m" sufijo="N/mm²" valor={m} onChange={setM} />
               <CampoNumerico id="k" etiqueta="k" sufijo="N/mm²" valor={k} onChange={setK} />
@@ -369,7 +404,7 @@ export default function LosaSteelDeckPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Rasante — acciones ELU</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Acciones ELU</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="gPp" etiqueta="Gk,pp" sufijo="kN/m²" valor={gPp} onChange={setGPp} />
               <CampoNumerico id="gAdd" etiqueta="Gk,add" sufijo="kN/m²" valor={gAdd} onChange={setGAdd} />
@@ -380,8 +415,8 @@ export default function LosaSteelDeckPage() {
                 <PanelAyuda titulo="Peso propio de catálogo (chapa + hormigón), de referencia">
                   <p>
                     El folleto ARMCO da el peso propio total —chapa más hormigón— según el espesor de
-                    hormigón sobre cresta hc, para la chapa de {fmt(espesorDeckpanel, 3)} mm elegida
-                    arriba. Es un valor de referencia para cargar Gk,pp: si la losa lleva carpeta,
+                    hormigón sobre cresta hc, para la chapa de {fmt(espesorDeckpanel, 3)} mm elegida en
+                    Geometría. Es un valor de referencia para cargar Gk,pp: si la losa lleva carpeta,
                     contrapiso u otra terminación, eso sigue siendo Gk,add aparte.
                   </p>
                   <dl className="grid grid-cols-6 gap-x-2 gap-y-1 text-center font-mono text-[11px]">
@@ -424,11 +459,28 @@ export default function LosaSteelDeckPage() {
         </div>
 
         <div className="space-y-6">
+          <TituloSeccion>Geometría</TituloSeccion>
+          <Card>
+            <CardContent className="space-y-2 py-4 text-sm text-muted-foreground">
+              <p>
+                No hay un resultado propio de esta sección: hp, fyp, Ap y dp de acá abajo son los que
+                entran en los cálculos de Flexión y de Rasante, a la derecha.
+              </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
+                <dt className="text-muted-foreground">Perfil</dt>
+                <dd className="text-right text-foreground">ARMCO Deckpanel, {fmt(espesorDeckpanel, 3)} mm</dd>
+                <dt className="text-muted-foreground">Ap / dp</dt>
+                <dd className="text-right text-foreground">{fmt(ap, 0)} mm²/m / {fmt(dp * 1000, 1)} mm</dd>
+              </dl>
+            </CardContent>
+          </Card>
+
+          <TituloSeccion>Flexión y fuego</TituloSeccion>
           {!resultadoFlexion ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Flexión y fuego: completá la geometría del nervio, los materiales y MEd con valores
-                válidos (hp, dp y el recubrimiento tienen que ser menores que h).
+                Completá la geometría, fck y MEd con valores válidos (hp, dp y el recubrimiento tienen
+                que ser menores que h).
               </CardContent>
             </Card>
           ) : (
@@ -477,7 +529,7 @@ export default function LosaSteelDeckPage() {
                 <CardContent className="space-y-3">
                   {resultadoFlexion.r.fuego.aMinTabMm === null ? (
                     <p className="text-xs text-destructive">
-                      El ancho de nervio cargado queda por debajo del primer par tabulado de la Tabla
+                      bmin cargado en Geometría queda por debajo del primer par tabulado de la Tabla
                       5.5 para {resistenciaFuego}: no hay dato para interpolar. Ensanchá el nervio o
                       revisá con perfiles de temperatura.
                     </p>
@@ -527,17 +579,17 @@ export default function LosaSteelDeckPage() {
             </>
           )}
 
+          <TituloSeccion>Rasante</TituloSeccion>
           {!resultadoRasante ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Rasante: completá la geometría del nervio, la luz, los coeficientes m-k y las acciones
-                con valores válidos.
+                Completá la geometría, la luz, los coeficientes m-k y las acciones con valores válidos.
               </CardContent>
             </Card>
           ) : (
             <>
               <Card>
-                <CardHeader><CardTitle className="text-base">Rasante — acciones</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">Acciones</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -551,7 +603,7 @@ export default function LosaSteelDeckPage() {
               </Card>
 
               <Card>
-                <CardHeader><CardTitle className="text-base">Rasante — método m-k</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">Método m-k</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <ResultadoCheck
                     etiqueta="m-k estricto (EN 1994-1-1 §9.7.3)"

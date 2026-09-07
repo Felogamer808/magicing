@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   apDerivadaMm2PorM,
+  BMIN_NERVIO_ESTIMADO_M,
   CATALOGO_DECKPANEL_ARMCO,
   ESPESOR_DECKPANEL_ESTANDAR_MM,
   FY_ACERO_DECKPANEL_MPA,
@@ -25,6 +26,18 @@ describe("geometría del perfil, igual para los tres espesores", () => {
 describe("acero base, Grado 37", () => {
   it("reproduce fy = 37 ksi en MPa", () => {
     expect(FY_ACERO_DECKPANEL_MPA).toBeCloseTo(255.11, 1);
+  });
+});
+
+describe("bmin: estimación visual, no dato de catálogo", () => {
+  it("es menor que el paso de nervio: el fondo del valle no puede ocupar todo el paso", () => {
+    expect(BMIN_NERVIO_ESTIMADO_M).toBeLessThan(PERFIL_DECKPANEL.pasoNervioM);
+  });
+
+  it("queda en el rango leído del dibujo (100-130mm), del lado conservador (el más chico)", () => {
+    expect(BMIN_NERVIO_ESTIMADO_M).toBe(0.1);
+    expect(BMIN_NERVIO_ESTIMADO_M * 1000).toBeGreaterThanOrEqual(100);
+    expect(BMIN_NERVIO_ESTIMADO_M * 1000).toBeLessThanOrEqual(130);
   });
 });
 

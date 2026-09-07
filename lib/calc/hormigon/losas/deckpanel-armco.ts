@@ -59,6 +59,29 @@ export const FY_ACERO_DECKPANEL_MPA = 37 * KSI_A_MPA;
 /** Tolerancia de fabricación en espesor de chapa, informativa. */
 export const TOLERANCIA_ESPESOR_MM = 0.03;
 
+/**
+ * bmin: ancho del nervio en su base (el fondo plano del valle, el punto más
+ * angosto del perfil trapezoidal), sólo para el chequeo de incendio de la
+ * Tabla 5.5 de EC2-1-2. NO es el paso de nervio (305 mm, la distancia entre
+ * nervios consecutivos): son dos dimensiones distintas.
+ *
+ * A diferencia de hp/fyp/paso/Ap/dp, este valor NO se puede derivar de
+ * ningún número que el folleto imprima: no hay una tercera cota horizontal
+ * que aísle el ancho del fondo, sólo el ancho efectivo total (915 mm) y el
+ * paso (305 mm). Se estima por proporción visual del propio dibujo del
+ * folleto (figura "Geometría"), leyendo a ojo qué fracción del paso ocupa
+ * el tramo recto del fondo del valle frente a las rampas laterales —da un
+ * rango de 100 a 130 mm según cuánto se le calcule a las rampas—, y se
+ * adopta el extremo más chico (100 mm) porque en la Tabla 5.5 un bmin menor
+ * pide más recubrimiento: es el lado conservador si la lectura visual está
+ * un poco corta o un poco larga.
+ *
+ * Es una estimación, no un dato de catálogo ni una cota certificada. Se deja
+ * como valor por defecto, editable: si aparece el plano de perfil real o se
+ * mide sobre una chapa física, ese dato manda y hay que cargarlo en su lugar.
+ */
+export const BMIN_NERVIO_ESTIMADO_M = 0.1;
+
 export interface FilaDeckpanelArmco {
   espesorMm: number;
   /** Peso propio de la chapa sola, kg/m² de superficie cubierta (dato de catálogo). */

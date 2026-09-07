@@ -19,6 +19,7 @@ import {
 import { calcularSteelDeckRasante } from "@/lib/calc/hormigon/losas/steel-deck-rasante";
 import {
   apDerivadaMm2PorM,
+  BMIN_NERVIO_ESTIMADO_M,
   CATALOGO_DECKPANEL_ARMCO,
   ESPESOR_DECKPANEL_ESTANDAR_MM,
   FY_ACERO_DECKPANEL_MPA,
@@ -77,7 +78,14 @@ export default function LosaSteelDeckPage() {
   // dp se deriva de h y del espesor elegido, no se carga a mano: así no
   // puede quedar desincronizado si se cambia h.
   const [espesorTotal, setEspesorTotal] = useCampo("espesorTotal", "0.15");
-  const [anchoNervioBase, setAnchoNervioBase] = useCampo("anchoNervioBase", "0.15");
+  // bmin no está impreso en el folleto: es una estimación visual del propio
+  // dibujo (ver BMIN_NERVIO_ESTIMADO_M), así que se precarga como sugerencia
+  // pero se deja editable, a diferencia de hp/fyp/paso/Ap/dp que sí son
+  // ciertos. Si aparece el plano de perfil real, ese dato manda.
+  const [anchoNervioBase, setAnchoNervioBase] = useCampo(
+    "anchoNervioBase",
+    String(BMIN_NERVIO_ESTIMADO_M)
+  );
   const [espesorDeckpanelTxt, setEspesorDeckpanelTxt] = useCampo(
     "espesorDeckpanel",
     ETIQUETA_ESPESOR(ESPESOR_DECKPANEL_ESTANDAR_MM)
@@ -91,8 +99,17 @@ export default function LosaSteelDeckPage() {
 
   const [fykBarras, setFykBarras] = useCampo("fykBarras", "500");
   const [phiBarra, setPhiBarra] = useCampo("phiBarra", "10");
-  const [sepBarra, setSepBarra] = useCampo("sepBarra", "200");
+  // La separación entre nervios (el paso, 305mm) ya es fija: si se pone la
+  // misma cantidad de barras en cada nervio, la separación entre barras no
+  // es un dato libre, sale de paso/nºBarras. Se carga "cuántas barras por
+  // nervio" —como se especifican en obra, 1Ø10, 2Ø10— y la separación se
+  // deriva sola, no se carga en mm a mano.
+  const [numeroBarrasPorNervio, setNumeroBarrasPorNervio] = useCampo("numeroBarrasPorNervio", "1");
   const [recBarra, setRecBarra] = useCampo("recBarra", "0.025");
+  const sepBarra =
+    aNumero(numeroBarrasPorNervio) > 0
+      ? (PERFIL_DECKPANEL.pasoNervioM * 1000) / aNumero(numeroBarrasPorNervio)
+      : Infinity;
 
   // --- FLEXIÓN: hormigón, solicitación y fuego -----------------------------
   const [fck, setFck] = useCampo("fck", "25");
@@ -126,7 +143,7 @@ export default function LosaSteelDeckPage() {
       fyp, fck: aNumero(fck), fykBarras: aNumero(fykBarras),
       espesorTotal: aNumero(espesorTotal), alturaNervio,
       ap, dp, anchoNervio: aNumero(anchoNervioBase),
-      phiBarra: aNumero(phiBarra), sepBarra: aNumero(sepBarra), recBarra: aNumero(recBarra),
+      phiBarra: aNumero(phiBarra), sepBarra, recBarra: aNumero(recBarra),
       mEd: aNumero(mEd), etaFi: aNumero(etaFi),
     };
     const positivos = [n.fyp, n.fck, n.fykBarras, n.espesorTotal, n.alturaNervio, n.ap, n.dp,
@@ -158,7 +175,7 @@ export default function LosaSteelDeckPage() {
     const n = {
       luz: aNumero(luz), anchoTrib: aNumero(anchoTrib), dp, ap, fyp,
       m: aNumero(m), k: aNumero(k), gammaVs: aNumero(gammaVs), lsSobreL: aNumero(lsSobreL),
-      phiBarra: aNumero(phiBarra), sepBarra: aNumero(sepBarra), fykBarras: aNumero(fykBarras),
+      phiBarra: aNumero(phiBarra), sepBarra, fykBarras: aNumero(fykBarras),
       gPp: aNumero(gPp), gAdd: aNumero(gAdd), q: aNumero(q), gammaG: aNumero(gammaG), gammaQ: aNumero(gammaQ),
       espesorChapa: aNumero(espesorChapa), diametroPerno: aNumero(diametroPerno),
       numeroPernos: aNumero(numeroPernos), sepPernos: aNumero(sepPernos),
@@ -296,10 +313,27 @@ export default function LosaSteelDeckPage() {
                     <strong className="text-foreground">bmin no es lo mismo que el paso de nervio.</strong>{" "}
                     El paso (305 mm) es la distancia entre nervios consecutivos, y sí está fijo arriba.
                     bmin es el ancho del fondo de UN nervio, en su punto más angosto —la norma lo pide
-                    sólo para el chequeo de incendio, Tabla 5.5 de EC2-1-2—, y esa dimensión no está en
-                    el folleto comercial: hace falta el plano de perfil o la ficha técnica para
-                    cargarlo con certeza. Si no se dispone de ese dato, una estimación conservadora
-                    (del lado seguro) es tomar bmin bastante menor que el paso, nunca igual a él.
+                    sólo para el chequeo de incendio, Tabla 5.5 de EC2-1-2—, y esa dimensión no tiene un
+                    número impreso en el folleto comercial: el dibujo de &ldquo;Geometría&rdquo; del
+                    folleto sólo acota el ancho efectivo (915 mm) y el paso (305 mm), no el fondo del
+                    valle por separado.
+                  </p>
+                  <p>
+                    El campo se precarga en {fmt(BMIN_NERVIO_ESTIMADO_M * 1000, 0)} mm, una estimación
+                    leída por proporción visual del propio dibujo del folleto (da un rango de 100 a 130
+                    mm según cuánto se le calcule a las rampas laterales; se adopta el extremo más
+                    chico porque un bmin menor pide más recubrimiento en la Tabla 5.5, el lado
+                    conservador si la lectura está un poco corta o un poco larga). A diferencia de
+                    hp/fyp/paso/Ap/dp, este campo sigue editable: no hay forma de contrastar la lectura
+                    visual contra ningún otro número del folleto, así que si aparece el plano de perfil
+                    real de ARMCO o se mide sobre una chapa física, ese dato manda.
+                  </p>
+                  <p>
+                    No confundir esto con el método del Anexo B de EC2-1-2 (isoterma de 500 °C), que
+                    descarta unos primeros milímetros de hormigón expuesto por temperatura: es un
+                    método distinto y completo, no un ajuste que se le sume a bmin. La Tabla 5.5 ya
+                    tiene ese efecto térmico calibrado adentro de sus propios pares (bmin, a): bmin acá
+                    va con el ancho geométrico real, sin descontarle nada.
                   </p>
                 </PanelAyuda>
               </div>
@@ -310,14 +344,28 @@ export default function LosaSteelDeckPage() {
             <CardHeader><CardTitle className="text-base">Barra adicional por nervio</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoDiametro id="phiBarra" etiqueta="Ø" valor={phiBarra} onChange={setPhiBarra} />
-              <CampoNumerico id="sepBarra" etiqueta="Separación" sufijo="mm" valor={sepBarra} onChange={setSepBarra} />
+              <CampoNumerico
+                id="numeroBarrasPorNervio"
+                etiqueta="Nº de barras por nervio"
+                valor={numeroBarrasPorNervio}
+                onChange={setNumeroBarrasPorNervio}
+              />
               <CampoNumerico id="recBarra" etiqueta="Recub. inferior" sufijo="m" valor={recBarra} onChange={setRecBarra} />
               <CampoNumerico id="fykBarras" etiqueta="fyk barras" sufijo="MPa" valor={fykBarras} onChange={setFykBarras} />
+              <dl className="col-span-full grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border p-3 font-mono text-xs text-muted-foreground">
+                <dt>{fmt(aNumero(numeroBarrasPorNervio), 0)}Ø{fmt(aNumero(phiBarra), 0)} por nervio</dt>
+                <dd className="text-right text-foreground">
+                  separación equivalente {Number.isFinite(sepBarra) ? fmt(sepBarra, 1) : "—"} mm
+                </dd>
+              </dl>
               <p className="col-span-full text-xs text-muted-foreground">
-                Ø = 0 para calcular sin barra adicional, sólo con la chapa. El recubrimiento se mide desde
-                la cara inferior de la losa hasta el eje de la barra, y sólo lo usa el chequeo de incendio.
-                Esta barra y su fyk alimentan tanto la flexión como el rasante: es la misma barra en las
-                dos comprobaciones.
+                Ø = 0 para calcular sin barra adicional, sólo con la chapa. La separación entre barras
+                ya no se carga a mano: sale del paso de nervio fijo (305 mm, tarjeta de Geometría)
+                dividido por la cantidad de barras que se pongan en cada nervio —1Ø10 por nervio da
+                305 mm de separación, 2Ø10 dan 152,5 mm—. El recubrimiento se mide desde la cara
+                inferior de la losa hasta el eje de la barra, y sólo lo usa el chequeo de incendio.
+                Esta barra y su fyk alimentan tanto la flexión como el rasante: es la misma barra en
+                las dos comprobaciones.
               </p>
             </CardContent>
           </Card>

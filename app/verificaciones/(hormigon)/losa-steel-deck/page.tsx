@@ -17,6 +17,14 @@ import {
   type ResistenciaFuego,
 } from "@/lib/calc/hormigon/losas/steel-deck-flexion";
 import { calcularSteelDeckRasante } from "@/lib/calc/hormigon/losas/steel-deck-rasante";
+import {
+  apDerivadaMm2PorM,
+  CATALOGO_DECKPANEL_ARMCO,
+  ESPESOR_DECKPANEL_ESTANDAR_MM,
+  FY_ACERO_DECKPANEL_MPA,
+  PERFIL_DECKPANEL,
+  yInfChapaM,
+} from "@/lib/calc/hormigon/losas/deckpanel-armco";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -24,6 +32,13 @@ const meta = registroVerificaciones.find((v) => v.id === "losa-steel-deck")!;
 
 const RESISTENCIAS_FUEGO: readonly ResistenciaFuego[] = ["R60", "R90", "R120", "R180", "R240"];
 const SI_NO = ["No", "Sí"] as const;
+
+const ESPESORES_DECKPANEL = Object.keys(CATALOGO_DECKPANEL_ARMCO).map(Number).sort((a, b) => a - b);
+const ETIQUETA_ESPESOR = (mm: number) =>
+  mm === ESPESOR_DECKPANEL_ESTANDAR_MM ? `${fmt(mm, 3)} mm — estándar` : `${fmt(mm, 3)} mm — a consultar`;
+const ESPESOR_OPCIONES = ESPESORES_DECKPANEL.map(ETIQUETA_ESPESOR);
+const espesorDesdeEtiqueta = (etiqueta: string): number =>
+  ESPESORES_DECKPANEL[ESPESOR_OPCIONES.indexOf(etiqueta)] ?? ESPESOR_DECKPANEL_ESTANDAR_MM;
 
 /**
  * Antes eran dos páginas. Se fusionan en una porque son la misma pieza: el
@@ -46,13 +61,22 @@ export default function LosaSteelDeckPage() {
   const [norma, setNorma] = useCampo("norma", "EC4");
 
   // --- Compartido: geometría de la chapa y de la barra --------------------
+  // hp, Ap y fyp son del perfil ARMCO Deckpanel — fijos por catálogo (o
+  // derivados de él, ver deckpanel-armco.ts), no datos de proyecto. dp se
+  // deriva de h y del espesor elegido, no se carga a mano: así no puede
+  // quedar desincronizado si se cambia h.
   const [espesorTotal, setEspesorTotal] = useCampo("espesorTotal", "0.15");
-  const [alturaNervio, setAlturaNervio] = useCampo("alturaNervio", "0.063");
   const [anchoNervio, setAnchoNervio] = useCampo("anchoNervio", "0.15");
-  const [dp, setDp] = useCampo("dp", "0.135");
-  const [ap, setAp] = useCampo("ap", "1620");
+  const [espesorDeckpanelTxt, setEspesorDeckpanelTxt] = useCampo(
+    "espesorDeckpanel",
+    ETIQUETA_ESPESOR(ESPESOR_DECKPANEL_ESTANDAR_MM)
+  );
+  const espesorDeckpanel = espesorDesdeEtiqueta(espesorDeckpanelTxt);
 
-  const [fyp, setFyp] = useCampo("fyp", "255.1");
+  const alturaNervio = PERFIL_DECKPANEL.alturaNervioM;
+  const fyp = FY_ACERO_DECKPANEL_MPA;
+  const ap = apDerivadaMm2PorM(espesorDeckpanel);
+
   const [fck, setFck] = useCampo("fck", "25");
   const [fykBarras, setFykBarras] = useCampo("fykBarras", "500");
 
@@ -86,11 +110,15 @@ export default function LosaSteelDeckPage() {
   const [numeroPernos, setNumeroPernos] = useCampo("numeroPernos", "1");
   const [sepPernos, setSepPernos] = useCampo("sepPernos", "0.3");
 
+  // dp se deriva de h y del espesor de chapa elegido, no se carga a mano:
+  // así no puede quedar desincronizado si se cambia h. Ver deckpanel-armco.ts.
+  const dp = aNumero(espesorTotal) - yInfChapaM(espesorDeckpanel);
+
   const resultadoFlexion = useMemo(() => {
     const n = {
-      fyp: aNumero(fyp), fck: aNumero(fck), fykBarras: aNumero(fykBarras),
-      espesorTotal: aNumero(espesorTotal), alturaNervio: aNumero(alturaNervio),
-      ap: aNumero(ap), dp: aNumero(dp), anchoNervio: aNumero(anchoNervio),
+      fyp, fck: aNumero(fck), fykBarras: aNumero(fykBarras),
+      espesorTotal: aNumero(espesorTotal), alturaNervio,
+      ap, dp, anchoNervio: aNumero(anchoNervio),
       phiBarra: aNumero(phiBarra), sepBarra: aNumero(sepBarra), recBarra: aNumero(recBarra),
       mEd: aNumero(mEd), etaFi: aNumero(etaFi),
     };
@@ -121,7 +149,7 @@ export default function LosaSteelDeckPage() {
 
   const resultadoRasante = useMemo(() => {
     const n = {
-      luz: aNumero(luz), anchoTrib: aNumero(anchoTrib), dp: aNumero(dp), ap: aNumero(ap), fyp: aNumero(fyp),
+      luz: aNumero(luz), anchoTrib: aNumero(anchoTrib), dp, ap, fyp,
       m: aNumero(m), k: aNumero(k), gammaVs: aNumero(gammaVs), lsSobreL: aNumero(lsSobreL),
       phiBarra: aNumero(phiBarra), sepBarra: aNumero(sepBarra), fykBarras: aNumero(fykBarras),
       gPp: aNumero(gPp), gAdd: aNumero(gAdd), q: aNumero(q), gammaG: aNumero(gammaG), gammaQ: aNumero(gammaQ),
@@ -186,38 +214,57 @@ export default function LosaSteelDeckPage() {
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-base">Geometría del nervio</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Perfil — ARMCO Deckpanel</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisNervioSteelDeck />
               </div>
-              <CampoNumerico id="espesorTotal" etiqueta="h" sufijo="m" valor={espesorTotal} onChange={setEspesorTotal} />
-              <CampoNumerico id="alturaNervio" etiqueta="hp" sufijo="m" valor={alturaNervio} onChange={setAlturaNervio} />
-              <CampoNumerico id="anchoNervio" etiqueta="Ancho nervio" sufijo="m" valor={anchoNervio} onChange={setAnchoNervio} />
-              <CampoNumerico id="dp" etiqueta="dp" sufijo="m" valor={dp} onChange={setDp} />
-              <CampoNumerico id="ap" etiqueta="Ap chapa" sufijo="mm²/m" valor={ap} onChange={setAp} />
               <div className="col-span-full">
-                <PanelAyuda titulo="Qué es cada dato">
+                <CampoSeleccion
+                  id="espesorDeckpanel"
+                  etiqueta="Espesor de chapa"
+                  valor={espesorDeckpanelTxt}
+                  opciones={ESPESOR_OPCIONES}
+                  onChange={setEspesorDeckpanelTxt}
+                />
+              </div>
+              <dl className="col-span-full grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border p-3 font-mono text-xs text-muted-foreground sm:grid-cols-4">
+                <dt>hp (fijo)</dt>
+                <dd className="text-right text-foreground">{fmt(alturaNervio * 1000, 0)} mm</dd>
+                <dt>fyp (fijo)</dt>
+                <dd className="text-right text-foreground">{fmt(fyp, 1)} MPa</dd>
+                <dt>Ap (derivada)</dt>
+                <dd className="text-right text-foreground">{fmt(ap, 0)} mm²/m</dd>
+                <dt>dp (derivada de h)</dt>
+                <dd className="text-right text-foreground">{fmt(dp * 1000, 1)} mm</dd>
+              </dl>
+              <CampoNumerico id="espesorTotal" etiqueta="h" sufijo="m" valor={espesorTotal} onChange={setEspesorTotal} />
+              <CampoNumerico id="anchoNervio" etiqueta="Ancho nervio (fuego)" sufijo="m" valor={anchoNervio} onChange={setAnchoNervio} />
+              <div className="col-span-full">
+                <PanelAyuda titulo="Qué es fijo, qué se deriva y qué sigue siendo un dato de proyecto">
                   <p>
-                    <strong className="text-foreground">h y hp.</strong> h es el espesor total de la
-                    losa, chapa incluida; hp es la altura del perfil de chapa. La diferencia, hc = h −
-                    hp, es el hormigón macizo sobre la cresta del nervio: si el bloque comprimido no
-                    entra ahí, este cálculo simplificado deja de ser válido y hace falta el
-                    procedimiento nervado completo de EC4.
+                    <strong className="text-foreground">hp y fyp</strong> son del perfil ARMCO
+                    Deckpanel: 63 mm de altura de nervio y acero Grado 37 (fy = 37 ksi), iguales en
+                    los tres espesores del folleto del fabricante. No se cargan a mano.
                   </p>
                   <p>
-                    <strong className="text-foreground">dp.</strong> Profundidad desde la cara superior
-                    del hormigón hasta el centroide de la chapa, no hasta su cara inferior. Sale de la
-                    ficha técnica del perfil.
+                    <strong className="text-foreground">Ap</strong> no está en el folleto —es una
+                    ficha comercial de vanos y sobrecargas admisibles, no la ficha estructural para
+                    diseño plástico EC4—: se deriva del peso de catálogo asumiendo la densidad del
+                    acero (7850 kg/m³). Es una hipótesis razonable, no un valor certificado; si
+                    aparece la ficha estructural de ARMCO con el Ap real, avisá para cargarlo directo.
                   </p>
                   <p>
-                    <strong className="text-foreground">Ap.</strong> Área neta de la chapa por metro de
-                    losa, de catálogo del fabricante — no se deduce de un espesor y un ancho eficaz
-                    supuestos.
+                    <strong className="text-foreground">dp</strong> sí sale del folleto sin
+                    hipótesis: Ix/Sx,inferior da la distancia del centroide de la chapa a la fibra
+                    inferior del perfil (≈31,1 mm, prácticamente igual en los tres espesores), y dp =
+                    h − esa distancia. Se recalcula solo si cambiás h: no puede quedar desincronizado.
                   </p>
                   <p>
-                    Estos cinco datos, junto con la chapa y la barra de las tarjetas siguientes,
-                    alimentan tanto la flexión como el rasante: son la misma chapa y la misma barra.
+                    <strong className="text-foreground">h y el ancho de nervio para fuego</strong>{" "}
+                    siguen siendo datos de proyecto: h depende del espesor de hormigón que se elija en
+                    obra (no del catálogo), y el ancho de nervio en su base —para la Tabla 5.5 de
+                    fuego— tampoco está en este folleto comercial.
                   </p>
                 </PanelAyuda>
               </div>
@@ -227,12 +274,12 @@ export default function LosaSteelDeckPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fyp" etiqueta="fyp chapa" sufijo="MPa" valor={fyp} onChange={setFyp} />
               <CampoNumerico id="fck" etiqueta="fck hormigón" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fykBarras" etiqueta="fyk barras" sufijo="MPa" valor={fykBarras} onChange={setFykBarras} />
               <p className="col-span-full text-xs text-muted-foreground">
-                fck sólo interviene en la flexión: el método m-k del rasante no depende de la resistencia
-                del hormigón.
+                fyp de la chapa ya no se carga acá: es fija, del perfil ARMCO Deckpanel (tarjeta de
+                arriba). fck sólo interviene en la flexión: el método m-k del rasante no depende de la
+                resistencia del hormigón.
               </p>
             </CardContent>
           </Card>
@@ -329,6 +376,29 @@ export default function LosaSteelDeckPage() {
               <CampoNumerico id="q" etiqueta="Qk" sufijo="kN/m²" valor={q} onChange={setQ} />
               <CampoNumerico id="gammaG" etiqueta="γG" valor={gammaG} onChange={setGammaG} />
               <CampoNumerico id="gammaQ" etiqueta="γQ" valor={gammaQ} onChange={setGammaQ} />
+              <div className="col-span-full">
+                <PanelAyuda titulo="Peso propio de catálogo (chapa + hormigón), de referencia">
+                  <p>
+                    El folleto ARMCO da el peso propio total —chapa más hormigón— según el espesor de
+                    hormigón sobre cresta hc, para la chapa de {fmt(espesorDeckpanel, 3)} mm elegida
+                    arriba. Es un valor de referencia para cargar Gk,pp: si la losa lleva carpeta,
+                    contrapiso u otra terminación, eso sigue siendo Gk,add aparte.
+                  </p>
+                  <dl className="grid grid-cols-6 gap-x-2 gap-y-1 text-center font-mono text-[11px]">
+                    <dt className="text-left">hc</dt>
+                    {Object.keys(CATALOGO_DECKPANEL_ARMCO[espesorDeckpanel].pesoPropioTotalPorHcCm).map((hc) => (
+                      <dd key={hc} className="text-foreground">{hc} cm</dd>
+                    ))}
+                    <dt className="text-left">Gk,pp</dt>
+                    {Object.values(CATALOGO_DECKPANEL_ARMCO[espesorDeckpanel].pesoPropioTotalPorHcCm).map(
+                      (kgM2, i) => (
+                        <dd key={i} className="text-foreground">{fmt((kgM2 * 9.81) / 1000, 2)}</dd>
+                      )
+                    )}
+                  </dl>
+                  <p className="text-[11px]">kN/m², con hc = h − hp medido sobre la cresta del nervio.</p>
+                </PanelAyuda>
+              </div>
             </CardContent>
           </Card>
 

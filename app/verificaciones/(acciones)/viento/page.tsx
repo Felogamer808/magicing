@@ -38,7 +38,7 @@ import {
   type TipoVelocidad,
 } from "@/lib/calc/acciones/viento";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
-import { CroquisGeometriaViento } from "@/components/verificaciones/croquis/CroquisVarios";
+import { CroquisGeometriaViento, CroquisPlantaViento } from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "viento")!;
@@ -287,6 +287,7 @@ export default function VientoPage() {
             <CardHeader><CardTitle className="text-base">Geometría y niveles</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <CroquisGeometriaViento />
+              <CroquisPlantaViento />
               <div className="space-y-3">
                 {niveles.map((nivel, i) => (
                   <div key={i} className="flex items-end gap-2">

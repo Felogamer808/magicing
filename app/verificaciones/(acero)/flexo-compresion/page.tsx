@@ -6,6 +6,7 @@ import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -101,12 +102,65 @@ export default function FlexoCompresionPage() {
               <CardTitle className="text-base">Longitudes y material</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="lcxFC" etiqueta="Lc eje fuerte" sufijo="m" valor={lcx} onChange={setLcx} />
-              <CampoNumerico id="lcyFC" etiqueta="Lc eje débil" sufijo="m" valor={lcy} onChange={setLcy} />
-              <CampoNumerico id="lbFC" etiqueta="Lb sin arriostrar" sufijo="m" valor={lb} onChange={setLb} />
-              <CampoNumerico id="cbFC" etiqueta="Cb" valor={cb} onChange={setCb} />
+              <CampoNumerico
+                id="lcxFC"
+                etiqueta="Lc eje fuerte"
+                sufijo="m"
+                valor={lcx}
+                onChange={setLcx}
+                advertencia="Longitud efectiva de pandeo por compresión, Lc=K·L (cap. E), eje x"
+              />
+              <CampoNumerico
+                id="lcyFC"
+                etiqueta="Lc eje débil"
+                sufijo="m"
+                valor={lcy}
+                onChange={setLcy}
+                advertencia="Lo mismo que Lc eje fuerte, pero eje y"
+              />
+              <CampoNumerico
+                id="lbFC"
+                etiqueta="Lb sin arriostrar"
+                sufijo="m"
+                valor={lb}
+                onChange={setLb}
+                advertencia="Distancia entre arriostramientos del ala comprimida (cap. F); no tiene por qué coincidir con Lc"
+              />
+              <CampoNumerico
+                id="cbFC"
+                etiqueta="Cb"
+                valor={cb}
+                onChange={setCb}
+                advertencia="Corrige Mn según la forma del diagrama de momentos en Lb; 1 es siempre válido y conservador"
+              />
               <CampoNumerico id="fyFC" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eFC" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
+              <div className="col-span-2">
+                <PanelAyuda titulo="Qué son Lc, Lb y Cb">
+                  <p>
+                    <strong className="text-foreground">Lc eje fuerte / Lc eje débil.</strong> La
+                    longitud efectiva de pandeo por compresión de cada eje (cap. E), Lc=K·L ya
+                    cargada con K adentro. Son dos porque la barra puede estar arriostrada distinto
+                    en cada dirección — por ejemplo, correas a media altura que la sujetan sólo en
+                    el eje débil.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Lb sin arriostrar.</strong> La distancia
+                    entre los puntos que impiden que el ala comprimida se desplace lateralmente o
+                    gire — el dato que entra en el pandeo lateral-torsional del cap. F. No tiene por
+                    qué coincidir con ningún Lc: un arriostramiento puede frenar el giro del ala sin
+                    frenar el pandeo por compresión de toda la sección, y viceversa.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Cb.</strong> Corrige Mn del cap. F según la
+                    forma del diagrama de momentos dentro de Lb (art. F1, ec. F1-1): un momento
+                    uniforme en todo el tramo —el caso más desfavorable para el pandeo
+                    lateral-torsional— da Cb=1; si el momento varía o cambia de signo dentro del
+                    tramo, Cb sube (hasta 3) y la resistencia real es mayor. Cargar 1 siempre es
+                    válido, aunque conservador.
+                  </p>
+                </PanelAyuda>
+              </div>
             </CardContent>
           </Card>
 

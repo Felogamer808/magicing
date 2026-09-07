@@ -84,7 +84,10 @@ describe("steel-deck-flexion: chapa + barras adicionales", () => {
     expect(r.fuego.ksTheta).toBeCloseTo(ksArmaduraPasiva(500), 9);
     // Np,fi = 125π mm²/m · (ks(500)·500 MPa) / 1000
     expect(r.fuego.npFiKN).toBeCloseTo(125 * Math.PI * (ksArmaduraPasiva(500) * 500) / 1000, 4);
-    expect(r.fuego.mFiRdKNm).toBeCloseTo(11.9618, 2);
+    // xpl,fi se arma con fck directo (30 MPa), no con el fcd frío (20 MPa):
+    // γc,fi = 1,0 en incendio, igual que γs,fi = 1,0 ya aplicado del lado del
+    // acero. z,fi = 0,105 − xpl,fi/2; Mfi,Rd = Np,fi·z,fi.
+    expect(r.fuego.mFiRdKNm).toBeCloseTo(12.0979, 2);
     // MEd,fi = ηfi·MEd = 0,7·15 = 10,5 kNm/m ≤ Mfi,Rd
     expect(r.fuego.mEdFiKNm).toBeCloseTo(10.5, 9);
     expect(r.fuego.verificaFuego).toBe(true);

@@ -583,21 +583,31 @@ export default function LosaSteelDeckPage() {
                     </p>
                   ) : (
                     <>
-                      <ResultadoCheck
-                        etiqueta="Momento resistente en incendio"
-                        verifica={resultadoFlexion.r.fuego.verificaFuego}
-                        comparacion={{
-                          real: { etiqueta: "MEd,fi", valor: resultadoFlexion.r.fuego.mEdFiKNm },
-                          limite: { etiqueta: "Mfi,Rd", valor: resultadoFlexion.r.fuego.mFiRdKNm },
-                          unidad: "kN·m/m",
-                          exige: "≤",
-                        }}
-                      />
-                      {!resultadoFlexion.r.fuego.thetaCrEnRangoValido && (
-                        <p className="text-xs text-destructive">
-                          La temperatura estimada (θcr = {fmt(resultadoFlexion.r.fuego.thetaCrC, 0)} °C) queda
-                          fuera del rango 350–700 °C en el que vale la ec. (5.3): el resultado es una
-                          extrapolación y conviene revisarlo con perfiles de temperatura reales.
+                      {resultadoFlexion.r.fuego.thetaCrEnRangoValido ? (
+                        <ResultadoCheck
+                          etiqueta="Momento resistente en incendio"
+                          verifica={resultadoFlexion.r.fuego.verificaFuego}
+                          comparacion={{
+                            real: { etiqueta: "MEd,fi", valor: resultadoFlexion.r.fuego.mEdFiKNm },
+                            limite: { etiqueta: "Mfi,Rd", valor: resultadoFlexion.r.fuego.mFiRdKNm },
+                            unidad: "kN·m/m",
+                            exige: "≤",
+                          }}
+                        />
+                      ) : (
+                        <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
+                          No se muestra un Mfi,Rd como resultado —sería un número falso de preciso—:
+                          la temperatura estimada (θcr = {fmt(resultadoFlexion.r.fuego.thetaCrC, 0)} °C)
+                          queda muy fuera del rango 350–700 °C en el que vale la ec. (5.3). Esto pasa
+                          cuando el recubrimiento real de la barra (a = {fmt(resultadoFlexion.r.fuego.aRealMm, 0)} mm) está lejos
+                          del mínimo tabulado para esta resistencia al fuego (a tab ={" "}
+                          {fmt(resultadoFlexion.r.fuego.aMinTabMm, 0)} mm): la ec. (5.3) es una
+                          interpolación lineal pensada para ajustes chicos, no para extrapolar tan
+                          lejos. Si hace falta esta resistencia al fuego, hay que aumentar el
+                          recubrimiento de la barra hasta acercarse al mínimo tabulado, o resolver con
+                          perfiles de temperatura reales (Anexo D de EN 1994-1-2) en vez de este método
+                          simplificado. Los números de &ldquo;Ver cálculo&rdquo; de abajo son de
+                          referencia, no un resultado válido.
                         </p>
                       )}
                       <ResultadoCheck

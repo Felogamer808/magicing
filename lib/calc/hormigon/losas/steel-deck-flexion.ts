@@ -267,7 +267,7 @@ function calcularFuego(
   frio: ResultadoFlexionFrio,
   datosFuego: DatosFuegoSteelDeck
 ): ResultadoFlexionFuego {
-  const { fykBarrasMPa } = materiales;
+  const { fykBarrasMPa, fckMPa } = materiales;
   const { anchoNervioM, recubrimientoBarraM } = geometria;
   const { resistenciaFuego, etaFi } = datosFuego;
 
@@ -283,7 +283,13 @@ function calcularFuego(
   const fsdFiMPa = ksTheta * fykBarrasMPa; // γM,fi = 1,0 (EC2-1-2 §2.3, Nota 1)
 
   const npFiKN = (frio.asBarrasMm2PorM * fsdFiMPa) / 1000; // la chapa se descarta en incendio
-  const xplFiM = npFiKN > 0 ? (npFiKN * 1000) / (0.85 * frio.fcdMPa * 1e6) : 0;
+  // γc,fi = 1,0 también para el hormigón (EC2-1-2 §2.3): el bloque comprimido
+  // en incendio se arma con fck directo, no con el fcd frío (que ya trae el
+  // γc = 1,5 de la combinación persistente/transitoria). La zona comprimida
+  // está lejos de la cara expuesta al fuego, así que no hace falta reducirla
+  // por temperatura, pero el coeficiente de seguridad sí cambia con la
+  // situación de cálculo, igual que ya se hace del lado del acero arriba.
+  const xplFiM = npFiKN > 0 ? (npFiKN * 1000) / (0.85 * fckMPa * 1e6) : 0;
   const zFiM = frio.dBarrasM - xplFiM / 2;
   const mFiRdKNm = npFiKN * zFiM;
 

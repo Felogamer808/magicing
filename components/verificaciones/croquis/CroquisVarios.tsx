@@ -70,9 +70,10 @@ export function CroquisFamiliaFisuracion({ numero }: { numero: 1 | 2 }) {
 }
 
 /**
- * Viento: la geometría del edificio en planta y en altura. a y b son los lados
- * y h la altura total; la relación entre ellos es la que entra al gráfico del
- * que se lee γ.
+ * Viento: la geometría del edificio en dos vistas — el alzado escalonado
+ * (CroquisGeometriaViento) y la planta con los ejes de viento
+ * (CroquisPlantaViento). a y b son los lados en planta y h la altura total;
+ * la relación entre ellos es la que entra al gráfico del que se lee γ.
  */
 /**
  * Geometría por nivel: cada nivel tiene su propia altura de piso y su a×b en
@@ -99,6 +100,58 @@ export function CroquisGeometriaViento() {
       <Referencia x={168} y={106} hacia={[140, 100]} texto="a1 × b1" />
       <Referencia x={168} y={72} hacia={[128, 68]} texto="a2 × b2" />
       <Referencia x={168} y={38} hacia={[118, 40]} texto="a3 × b3" />
+    </Croquis>
+  );
+}
+
+/**
+ * Planta del edificio con los dos ejes de viento. El nombre del lado engaña:
+ * el viento del lado A sopla en +X pero bate la cara PERPENDICULAR a esa
+ * dirección, cuyo ancho es a — así que a corre en la dirección Y, no X. Por
+ * la misma lógica, b (la cara que bate el lado B, viento +Y) corre en X.
+ */
+export function CroquisPlantaViento() {
+  const x0 = 88;
+  const x1 = 200;
+  const y0 = 42;
+  const y1 = 120;
+  const ym = (y0 + y1) / 2;
+  const xm = (x0 + x1) / 2;
+
+  return (
+    <Croquis
+      viewBox="0 0 250 190"
+      ancho="max-w-[16rem]"
+      nota="El lado A sopla en +X pero bate la cara de ancho a, que es perpendicular a esa dirección — por eso a corre en Y y b en X, al revés de lo que sugieren los nombres."
+    >
+      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+
+      <CotaH x0={x0} x1={x1} y={26} texto="b" />
+      <CotaV x={216} y0={y0} y1={y1} texto="a" />
+
+      {/* viento lado A: sopla en +X, bate la cara izquierda (ancho a) */}
+      <path
+        d={`M18 ${ym} L${x0 - 2} ${ym}`}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        opacity="0.9"
+        markerEnd="url(#croquis-flecha)"
+      />
+      <text x={18} y={ym - 8} textAnchor="start" className="fill-current font-mono" fontSize="10">
+        Lado A (+X)
+      </text>
+
+      {/* viento lado B: sopla en +Y (hacia arriba en planta), bate la cara inferior (ancho b) */}
+      <path
+        d={`M${xm} 176 L${xm} ${y1 + 2}`}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        opacity="0.9"
+        markerEnd="url(#croquis-flecha)"
+      />
+      <text x={xm + 8} y={168} textAnchor="start" className="fill-current font-mono" fontSize="10">
+        Lado B (+Y)
+      </text>
     </Croquis>
   );
 }

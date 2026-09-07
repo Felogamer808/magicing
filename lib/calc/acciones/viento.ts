@@ -44,13 +44,141 @@ export const CASOS_APERTURA: { id: CasoApertura; nombre: string }[] = [
   { id: "dos-opuestas-paralelas-viento", nombre: "Dos paredes opuestas abiertas, paralelas a la dirección del viento" },
 ];
 
+/**
+ * Factor de forma γ0 para construcciones apoyadas en el suelo (e=0), fig. 8.2.
+ *
+ * La norma sólo da esta fig. en forma de ábaco. Acá se digitalizaron las dos
+ * ramas "simples" (λa<0,5 en función de λb, y λb<1 en función de λa): son
+ * curvas de un solo tramo, lineales entre dos puntos leídos del gráfico. El
+ * quiebre de la rama λa<0,5 se calibró contra dos casos reales, no sólo
+ * contra la lectura visual del ábaco: el ejemplo 4 de la norma (13.13.2, pág.
+ * 105-107, λa=0,1875 → γ0=0,85 y λb=0,5 → γ0=1) y la planilla "VIENTO2025"
+ * (77×35×14 m, λb=0,4 → γ0,a=0,94), que fijan el quiebre en λb=0,25 en vez
+ * del 0,2 que parecía a simple vista en el escaneo.
+ *
+ * Las ramas "λa≥0,5" y "λb≥1" (ábacos de 8 curvas superpuestas, uno por cada
+ * λ entero de 3 a 10) no están digitalizadas: son edificios altos en relación
+ * a su planta, un caso que no se da en la práctica de obra en Uruguay. Para
+ * esos casos la función devuelve null y hay que leer γ0 de la fig. 8.2
+ * directamente.
+ */
+function gammaOLadoA(lambdaB: number): number {
+  if (lambdaB <= 0.25) return 0.85;
+  if (lambdaB >= 0.5) return 1.0;
+  return 0.85 + ((lambdaB - 0.25) / (0.5 - 0.25)) * (1.0 - 0.85);
+}
+
+function gammaOLadoB(lambdaA: number): number {
+  if (lambdaA <= 0.2) return 0.85;
+  if (lambdaA >= 0.3) return 1.0;
+  return 0.85 + ((lambdaA - 0.2) / (0.3 - 0.2)) * (1.0 - 0.85);
+}
+
+export interface FactorFormaGamma0 {
+  /** γ0 para viento ⊥ Sa (usa λa<0,5, en función de λb). null si λa≥0,5: hay que leer la fig. 8.2. */
+  ladoA: number | null;
+  /** γ0 para viento ⊥ Sb (usa λb<1, en función de λa). null si λb≥1: hay que leer la fig. 8.2. */
+  ladoB: number | null;
+}
+
+export function calcularFactorFormaGamma0(lambdaA: number, lambdaB: number): FactorFormaGamma0 {
+  return {
+    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : null,
+    ladoB: lambdaB < 1 ? gammaOLadoB(lambdaA) : null,
+  };
+}
+
+/**
+ * Kd = f1/f2 (fig. 6.2, art. 6.2.6): reduce la acción del viento sobre
+ * superficies grandes, donde la ráfaga no pega pareja en toda el área al
+ * mismo tiempo. f1 depende del área de influencia (Ai) y f2 de la rugosidad
+ * del terreno; los dos dependen además de la altura (z) del centro de esa
+ * área, decayendo hacia 1,0 a medida que z crece.
+ *
+ * El art. 6.2.6.2 aclara que Kd se toma igual a 1 cuando se determinan
+ * presiones puntuales (pc): sólo entra en las acciones (fuerzas integradas,
+ * como la resultante sobre una cara) — ver calcularLado.
+ *
+ * La fig. 6.2 es un ábaco de rectas: cada curva de f1 (una por área) y cada
+ * curva de f2 (una por rugosidad) es un segmento recto que arranca en z=10 m
+ * con un valor propio y converge con las demás en z=250 m, valor 1,0. Los
+ * valores en z=10 se leyeron directamente del gráfico de la norma (no hay
+ * ejemplo resuelto para contrastarlos, a diferencia de γ0); entre área
+ * tabuladas se interpola en log(área), que es como se lee un ábaco de este
+ * tipo cuando el punto cae entre dos curvas dibujadas.
+ */
+const Z_CONVERGENCIA_KD_M = 250;
+
+/** f1 en z=10 m, según el área de influencia (m²) — fig. 6.2. */
+const F1_AREA_Z10: readonly { areaM2: number; f1: number }[] = [
+  { areaM2: 10, f1: 1.0 },
+  { areaM2: 25, f1: 0.99 },
+  { areaM2: 50, f1: 0.98 },
+  { areaM2: 100, f1: 0.96 },
+  { areaM2: 150, f1: 0.955 },
+  { areaM2: 200, f1: 0.93 },
+  { areaM2: 250, f1: 0.92 },
+  { areaM2: 300, f1: 0.91 },
+  { areaM2: 400, f1: 0.895 },
+  { areaM2: 600, f1: 0.88 },
+  { areaM2: 1000, f1: 0.87 },
+  { areaM2: 1500, f1: 0.86 },
+  { areaM2: 2500, f1: 0.85 },
+];
+
+/**
+ * f2 en z=10 m, según la rugosidad — fig. 6.2. La norma sólo dibuja esta
+ * curva contra la regla de f1 (0,85 a 1,00): se convirtió a la escala propia
+ * de f2 (1,00 a 1,05) proporcionalmente, porque las dos reglas ocupan la
+ * misma altura del gráfico.
+ */
+const F2_RUGOSIDAD_Z10: Record<TipoTerreno, number> = {
+  I: 1.0,
+  II: 1.005,
+  III: 1.01,
+  IV: 1.0 + (0.9 - 0.85) / 3,
+};
+
+/** Interpola f1 en z=10 m entre las áreas tabuladas, en escala logarítmica de área. */
+function f1EnZ10(areaM2: number): number {
+  const tabla = F1_AREA_Z10;
+  if (areaM2 <= tabla[0].areaM2) return tabla[0].f1;
+  const ultimo = tabla[tabla.length - 1];
+  if (areaM2 >= ultimo.areaM2) return ultimo.f1;
+  for (let i = 0; i < tabla.length - 1; i++) {
+    const a = tabla[i];
+    const b = tabla[i + 1];
+    if (areaM2 <= b.areaM2) {
+      const t = (Math.log(areaM2) - Math.log(a.areaM2)) / (Math.log(b.areaM2) - Math.log(a.areaM2));
+      return a.f1 + t * (b.f1 - a.f1);
+    }
+  }
+  return ultimo.f1;
+}
+
+/** Interpola linealmente en log(z) desde el valor en z=10 m hasta 1,0 en z=250 m. */
+function decaeHaciaUnoConZ(valorEnZ10: number, zM: number): number {
+  const z = Math.max(zM, 10);
+  if (z >= Z_CONVERGENCIA_KD_M) return 1.0;
+  const t = (Math.log(z) - Math.log(10)) / (Math.log(Z_CONVERGENCIA_KD_M) - Math.log(10));
+  return valorEnZ10 + t * (1.0 - valorEnZ10);
+}
+
+/**
+ * Kd para una superficie de área `areaM2`, cuyo centro está a la altura
+ * `zM`, según la rugosidad del terreno.
+ */
+export function calcularKd(areaM2: number, zM: number, terreno: TipoTerreno): number {
+  const f1 = decaeHaciaUnoConZ(f1EnZ10(areaM2), zM);
+  const f2 = decaeHaciaUnoConZ(F2_RUGOSIDAD_Z10[terreno], zM);
+  return f1 / f2;
+}
+
 export interface DatosLado {
   /** Coeficiente γ₀ leído de la fig. 8.2, según λ y a/b para esta cara expuesta. */
   gamma: number;
   /** Ce de caras laterales y techo (α=0°, Tabla 8.1), leído de la fig. 8.6 según γ. */
   ceLateralYTecho: number;
-  /** Kd de este lado (fig. 6.2, Kd=f1/f2), según el área de influencia expuesta en esta dirección. */
-  kd: number;
 }
 
 export interface DatosViento {
@@ -75,7 +203,12 @@ export interface NivelViento {
 
 export interface ResultadoNivelViento extends NivelViento {
   kz: number;
-  /** Velocidad de cálculo (m/s), ya con el Kd de este lado. */
+  /**
+   * Velocidad de cálculo (m/s), con Kd=1: es la que corresponde a una
+   * presión puntual (art. 6.2.6.2, "Kd se tomará igual a la unidad cuando
+   * se determinen presiones"). Para una acción (Pc, la resultante) hay que
+   * multiplicar por Kd² — ver calcularKd.
+   */
   vcMs: number;
   qKgM2: number;
   /** Altura de influencia del nivel (m) */
@@ -84,6 +217,16 @@ export interface ResultadoNivelViento extends NivelViento {
 
 const VELOCIDAD_CARACTERISTICA: Record<TipoVelocidad, number> = { Costero: 43.9, Continental: 37.5 };
 const FACTOR_TOPOGRAFICO: Record<TipoTopografia, number> = { Normal: 1, Expuesto: 1.1, Protegido: 0.9 };
+
+/** Velocidad característica vk del lugar (6.2.2.2). */
+export function velocidadCaracteristica(velocidad: TipoVelocidad): number {
+  return VELOCIDAD_CARACTERISTICA[velocidad];
+}
+
+/** Coeficiente topográfico Kt (Tabla 6.1). */
+export function factorTopografico(topografia: TipoTopografia): number {
+  return FACTOR_TOPOGRAFICO[topografia];
+}
 
 /**
  * Tabla 6.3, columna Kk — sólo el método de estados límite distingue por
@@ -152,6 +295,14 @@ export interface CoeficientesInteriores {
    * combina con un ce propio.
    */
   paredAbierta?: number;
+  /**
+   * Cuál cara es la pared realmente abierta (μ≥35%): esa cara usa
+   * `paredAbierta`, no `general` — la Tabla 8.2 da un Ci distinto para "la
+   * cara interior de la pared de μ≥35%" que para "las paredes de μ≤5% y las
+   * vertientes del techo". Sin esto, aplicar `general` a las tres caras por
+   * igual da un Ci equivocado justo en la cara abierta.
+   */
+  caraAbierta?: NombreCara;
 }
 
 /**
@@ -173,13 +324,49 @@ export function coeficientesInterioresPorCaso(caso: CasoApertura, gamma: number)
       };
     case "una-abierta-barlovento":
       // Ci=+0,8 es un valor fijo de la norma, no depende de γ.
-      return { general: [0.8], paredAbierta: conLimiteCi(-0.6 * (1.3 * gamma - 0.8)) };
+      return { general: [0.8], paredAbierta: conLimiteCi(-0.6 * (1.3 * gamma - 0.8)), caraAbierta: "barlovento" };
     case "una-abierta-sotavento":
       return {
         general: [conLimiteCi(-(1.3 * gamma - 0.8))],
         paredAbierta: conLimiteCi(0.6 * (1.8 - 1.3 * gamma)),
+        caraAbierta: "sotavento",
       };
   }
+}
+
+/**
+ * Ce de caras laterales y techo (Tabla 8.1, "Otras caras": el coeficiente
+ * para α=0° de la fig. 8.6). La fig. 8.6 da Ce en función del ángulo de
+ * ataque α, con una curva por cada γ (0,85 / 1,00 / 1,50); en α=0° las tres
+ * curvas ya están en su tramo plano (el quiebre pasa antes, cerca de
+ * α=20-25°), así que basta leer el valor de esa recta horizontal e
+ * interpolar linealmente entre las tres según γ.
+ *
+ * Los dos primeros puntos (γ=0,85 → -0,3 y γ=1,00 → -0,5, leídos del
+ * gráfico) coinciden con los valores que ya traía esta página como default
+ * antes de automatizar esto (-0,3 y -0,4 para γ≈0,94, cerca de la
+ * interpolación), lo que da confianza en la lectura.
+ */
+const CE_LATERAL_TECHO_POR_GAMMA: readonly { gamma: number; ce: number }[] = [
+  { gamma: 0.85, ce: -0.3 },
+  { gamma: 1.0, ce: -0.5 },
+  { gamma: 1.5, ce: -1.1 },
+];
+
+export function ceLateralYTechoPorGamma(gamma: number): number {
+  const tabla = CE_LATERAL_TECHO_POR_GAMMA;
+  if (gamma <= tabla[0].gamma) return tabla[0].ce;
+  const ultimo = tabla[tabla.length - 1];
+  if (gamma >= ultimo.gamma) return ultimo.ce;
+  for (let i = 0; i < tabla.length - 1; i++) {
+    const a = tabla[i];
+    const b = tabla[i + 1];
+    if (gamma <= b.gamma) {
+      const t = (gamma - a.gamma) / (b.gamma - a.gamma);
+      return a.ce + t * (b.ce - a.ce);
+    }
+  }
+  return ultimo.ce;
 }
 
 export interface CoeficientesExterioresLado {
@@ -237,7 +424,10 @@ export function calcularCasoApertura(
       ["lateralYTecho", ce.lateralYTecho],
     ] as [NombreCara, number][]
   ).map(([cara, ceCara]) => {
-    const candidatos = ci.general.map((ciCandidato) => conLimiteResultante(ceCara - ciCandidato));
+    // La cara realmente abierta (μ≥35%, si la hay) usa ci.paredAbierta, no
+    // ci.general — son valores distintos en la Tabla 8.2 (8.3).
+    const ciCandidatos = cara === ci.caraAbierta && ci.paredAbierta !== undefined ? [ci.paredAbierta] : ci.general;
+    const candidatos = ciCandidatos.map((ciCandidato) => conLimiteResultante(ceCara - ciCandidato));
     return { cara, ce: ceCara, candidatos, gobernante: peorPorMagnitud(candidatos) };
   });
 
@@ -262,7 +452,6 @@ function alturasInfluencia(niveles: NivelViento[]): number[] {
 export interface ResultadoLado {
   gamma: number;
   ceLateralYTecho: number;
-  kd: number;
   kzCoronacion: number;
   niveles: ResultadoNivelViento[];
 }
@@ -290,14 +479,15 @@ function calcularLado(
   const hInfl = alturasInfluencia(niveles);
   const nivelesCalculados = niveles.map((nivel, i) => {
     const kz = coeficienteAltura(terreno, nivel.zM);
-    const vcMs = vkMs * kt * datos.kd * kk * kz;
+    // Kd=1: esta vc es la de una presión puntual (6.2.6.2). El Kd real sólo
+    // se aplica más arriba, sobre las acciones (Pc, la resultante).
+    const vcMs = vkMs * kt * kk * kz;
     return { ...nivel, kz, vcMs, qKgM2: vcMs ** 2 / 16.3, hInflM: hInfl[i] };
   });
 
   return {
     gamma: datos.gamma,
     ceLateralYTecho: datos.ceLateralYTecho,
-    kd: datos.kd,
     kzCoronacion: coeficienteAltura(terreno, alturaM),
     niveles: nivelesCalculados,
   };
@@ -322,12 +512,17 @@ export function calcularViento(datos: DatosViento, niveles: NivelViento[]): Resu
   };
 }
 
-/** Genera niveles equiespaciados entre una cota inicial y la coronación. */
-export function generarNiveles(zInicialM: number, zFinalM: number, cantidad: number): NivelViento[] {
-  if (cantidad < 2) return [{ nombre: "N1", zM: zFinalM }];
-  const paso = (zFinalM - zInicialM) / (cantidad - 1);
-  return Array.from({ length: cantidad }, (_, i) => ({
-    nombre: `N${i + 1}`,
-    zM: zInicialM + i * paso,
-  }));
+/**
+ * Cota acumulada de cada nivel a partir de su altura de piso: cada nivel se
+ * carga con la altura del piso que tiene debajo (no con la cota absoluta),
+ * para poder armar edificios con pisos de altura despareja sin tener que
+ * sumar a mano. El último nivel cae en la coronación (suma de todas las
+ * alturas de piso).
+ */
+export function nivelesDesdeAlturaPiso(alturasPisoM: readonly number[]): NivelViento[] {
+  let acumulado = 0;
+  return alturasPisoM.map((alturaPisoM, i) => {
+    acumulado += alturaPisoM;
+    return { nombre: `N${i + 1}`, zM: acumulado };
+  });
 }

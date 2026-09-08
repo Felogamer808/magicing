@@ -327,6 +327,21 @@ describe("viento: velocidad y presión dinámica por nivel", () => {
     expect(n3.hInflM).toBeCloseTo((14 - 10.5) / 2, 9);
   });
 
+  it("devuelve las dos mitades por separado, no sólo la suma", () => {
+    const r = calcularViento(datos, niveles);
+    const [n0, n1, , n3] = r.ladoA.niveles;
+    // n0: mitad inferior hacia el suelo implícito (mitad del piso 1), mitad
+    // superior hacia N1 (mitad del piso 2).
+    expect(n0.mitadInferiorM).toBeCloseTo(3.5 / 2, 9);
+    expect(n0.mitadSuperiorM).toBeCloseTo((7 - 3.5) / 2, 9);
+    expect(n0.mitadInferiorM + n0.mitadSuperiorM).toBeCloseTo(n0.hInflM, 9);
+    // n1: interior, las dos mitades son no nulas.
+    expect(n1.mitadInferiorM).toBeCloseTo((7 - 3.5) / 2, 9);
+    expect(n1.mitadSuperiorM).toBeCloseTo((10.5 - 7) / 2, 9);
+    // último nivel: sin vecino de arriba, mitad superior en cero.
+    expect(n3.mitadSuperiorM).toBe(0);
+  });
+
   it("la suma de alturas de influencia cubre toda la altura menos la mitad del primer piso (esa franja reacciona directo en la base)", () => {
     const r = calcularViento(datos, niveles);
     const suma = r.ladoA.niveles.reduce((acc, n) => acc + n.hInflM, 0);

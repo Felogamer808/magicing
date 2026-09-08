@@ -42,6 +42,16 @@ function bandasPorNivel(niveles: NivelCargaViento[], valorDe: (n: NivelCargaVien
   });
 }
 
+/** Cotas donde una banda termina y empieza la siguiente, para trazar la separación entre niveles. */
+function bordesDeNivel(niveles: NivelCargaViento[]): number[] {
+  const cotas = new Set<number>();
+  bandasPorNivel(niveles, () => 0).forEach((b) => {
+    cotas.add(b.topM);
+    cotas.add(b.bottomM);
+  });
+  return Array.from(cotas).sort((a, b) => a - b);
+}
+
 /**
  * Dos vistas del mismo perfil, apiladas: arriba pc como carga distribuida
  * (un peine de flechas por la altura de influencia de cada nivel), abajo Pc
@@ -66,6 +76,22 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
   const bandasPresion = bandasPorNivel(niveles, (n) => n.pcKNm2);
   const maxPresion = Math.max(...bandasPresion.map((b) => Math.abs(b.valor)), 1e-9);
   const maxLineal = Math.max(...niveles.map((n) => Math.abs(n.pcKNm)), 1e-9);
+  const bordes = bordesDeNivel(niveles);
+
+  const lineasDeSeparacion = (
+    <>
+      {bordes.map((zM) => (
+        <path
+          key={`borde-${zM}`}
+          d={`M${margenIzq} ${yDe(zM)} L${x1} ${yDe(zM)}`}
+          stroke="currentColor"
+          strokeWidth="0.7"
+          strokeDasharray="3 3"
+          opacity="0.35"
+        />
+      ))}
+    </>
+  );
 
   const suelo = (
     <>
@@ -108,6 +134,7 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
 
           {suelo}
           {estructura}
+          {lineasDeSeparacion}
 
           {bandasPresion.map((b) => {
             const yTopPx = yDe(b.topM);
@@ -139,6 +166,11 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
             );
           })}
         </svg>
+        <p className="max-w-xl text-center text-xs text-muted-foreground">
+          Las líneas punteadas separan la altura de influencia de cada nivel. El tramo entre el
+          suelo y la primera —medio piso— no tiene banda a propósito: esa franja reacciona directo
+          en la base, no se reparte a ningún nivel.
+        </p>
       </div>
 
       <div className="flex w-full max-w-xl flex-col items-center gap-1.5">
@@ -152,6 +184,7 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
 
           {suelo}
           {estructura}
+          {lineasDeSeparacion}
 
           {/* cota de altura total */}
           <g stroke="currentColor" strokeWidth="1" opacity="0.75">

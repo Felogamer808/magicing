@@ -318,13 +318,19 @@ describe("viento: velocidad y presión dinámica por nivel", () => {
     expect(p3A.vcMs).toBeCloseTo(p3B.vcMs, 9);
   });
 
-  it("reparte las alturas de influencia como media distancia a cada vecino", () => {
+  it("reparte las alturas de influencia como media distancia a cada vecino, con el suelo (z=0) como vecino implícito del primero", () => {
     const r = calcularViento(datos, niveles);
     const [n0, n1, n2, n3] = r.ladoA.niveles;
-    expect(n0.hInflM).toBeCloseTo((7 - 3.5) / 2, 9);
+    expect(n0.hInflM).toBeCloseTo(3.5 / 2 + (7 - 3.5) / 2, 9);
     expect(n1.hInflM).toBeCloseTo((7 - 3.5) / 2 + (10.5 - 7) / 2, 9);
     expect(n2.hInflM).toBeCloseTo((10.5 - 7) / 2 + (14 - 10.5) / 2, 9);
     expect(n3.hInflM).toBeCloseTo((14 - 10.5) / 2, 9);
+  });
+
+  it("la suma de alturas de influencia cubre toda la altura menos la mitad del primer piso (esa franja reacciona directo en la base)", () => {
+    const r = calcularViento(datos, niveles);
+    const suma = r.ladoA.niveles.reduce((acc, n) => acc + n.hInflM, 0);
+    expect(suma).toBeCloseTo(14 - 3.5 / 2, 9);
   });
 });
 

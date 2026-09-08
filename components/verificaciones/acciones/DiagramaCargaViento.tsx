@@ -24,15 +24,19 @@ interface Banda {
 
 /**
  * La altura de influencia de cada nivel (mitad hacia el vecino de abajo,
- * mitad hacia el de arriba) es la misma que usa calcularLado para integrar
- * Pc — se recalcula acá con las mismas mitades para que el peine de
- * flechas de pc quede exactamente del alto que corresponde a cada nivel.
+ * mitad hacia el de arriba) es la misma que usa alturasInfluencia en
+ * viento.ts para integrar Pc — se recalcula acá con las mismas mitades para
+ * que el peine de flechas de pc quede exactamente del alto que corresponde
+ * a cada nivel. El suelo (z=0) es el vecino implícito del primer nivel, así
+ * que su banda baja hasta la mitad del primer piso, no hasta su propia
+ * cota: la otra mitad queda sin banda a propósito (reacciona directo en la
+ * base, no se reparte a ningún nivel).
  */
 function bandasPorNivel(niveles: NivelCargaViento[], valorDe: (n: NivelCargaViento) => number): Banda[] {
   return niveles.map((n, i) => {
     const anterior = niveles[i - 1];
     const siguiente = niveles[i + 1];
-    const mitadInferior = anterior ? (n.zM - anterior.zM) / 2 : 0;
+    const mitadInferior = anterior ? (n.zM - anterior.zM) / 2 : n.zM / 2;
     const mitadSuperior = siguiente ? (siguiente.zM - n.zM) / 2 : 0;
     return { nombre: n.nombre, bottomM: n.zM - mitadInferior, topM: n.zM + mitadSuperior, valor: valorDe(n) };
   });

@@ -438,12 +438,19 @@ export function calcularCasoApertura(
   return { caso, ci, caras, cTotalCandidatos, cTotalGobernante: peorPorMagnitud(cTotalCandidatos) };
 }
 
-/** Alturas de influencia: media distancia a cada nivel vecino. */
+/**
+ * Alturas de influencia: media distancia a cada nivel vecino. El suelo
+ * (z=0) es el vecino implícito del primer nivel —la otra mitad de ese primer
+ * piso queda fuera de todo nivel a propósito, porque esa franja reacciona
+ * directo en la base y no hay que repartirla en ningún nodo—, así que el
+ * primer nivel usa la misma regla que cualquier otro, no una mitad inferior
+ * en cero.
+ */
 function alturasInfluencia(niveles: NivelViento[]): number[] {
   return niveles.map((nivel, i) => {
     const anterior = niveles[i - 1];
     const siguiente = niveles[i + 1];
-    const mitadInferior = anterior ? (nivel.zM - anterior.zM) / 2 : 0;
+    const mitadInferior = anterior ? (nivel.zM - anterior.zM) / 2 : nivel.zM / 2;
     const mitadSuperior = siguiente ? (siguiente.zM - nivel.zM) / 2 : 0;
     return mitadInferior + mitadSuperior;
   });

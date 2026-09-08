@@ -211,8 +211,22 @@ export interface ResultadoNivelViento extends NivelViento {
    */
   vcMs: number;
   qKgM2: number;
-  /** Altura de influencia del nivel (m) */
+  /** Altura de influencia del nivel (m): mitadInferiorM + mitadSuperiorM. */
   hInflM: number;
+  /**
+   * Mitad de la altura de influencia hacia abajo: la mitad del piso cuyo
+   * tope es este nivel (o hacia el suelo en el primero). Para la carga
+   * lineal por nodo, esta mitad se pondera con la presión de ESTE nivel
+   * —es el piso que corona—, no con una presión promedio.
+   */
+  mitadInferiorM: number;
+  /**
+   * Mitad de la altura de influencia hacia arriba: la mitad del piso
+   * siguiente, cuyo tope es el próximo nivel (0 en el último). Esta mitad
+   * hay que ponderarla con la presión del nivel de ARRIBA, no con la de
+   * este nivel: es el piso de arriba el que corona esa franja.
+   */
+  mitadSuperiorM: number;
 }
 
 const VELOCIDAD_CARACTERISTICA: Record<TipoVelocidad, number> = { Costero: 43.9, Continental: 37.5 };
@@ -439,20 +453,26 @@ export function calcularCasoApertura(
 }
 
 /**
- * Alturas de influencia: media distancia a cada nivel vecino. El suelo
- * (z=0) es el vecino implícito del primer nivel —la otra mitad de ese primer
- * piso queda fuera de todo nivel a propósito, porque esa franja reacciona
- * directo en la base y no hay que repartirla en ningún nodo—, así que el
- * primer nivel usa la misma regla que cualquier otro, no una mitad inferior
- * en cero.
+ * Las dos mitades de la altura de influencia de cada nivel: hacia el vecino
+ * de abajo y hacia el de arriba. Se devuelven por separado (no ya sumadas)
+ * porque cada mitad pertenece a un piso real distinto —la de abajo es la
+ * mitad superior del piso que corona este nivel, la de arriba es la mitad
+ * inferior del piso siguiente— y hay que ponderar cada una con la presión
+ * de SU propio piso, no con una única presión para las dos.
+ *
+ * El suelo (z=0) es el vecino implícito del primer nivel —la otra mitad de
+ * ese primer piso queda fuera de todo nivel a propósito, porque esa franja
+ * reacciona directo en la base y no hay que repartirla en ningún nodo—, así
+ * que el primer nivel usa la misma regla que cualquier otro, no una mitad
+ * inferior en cero.
  */
-function alturasInfluencia(niveles: NivelViento[]): number[] {
+function alturasInfluencia(niveles: NivelViento[]): { mitadInferior: number; mitadSuperior: number }[] {
   return niveles.map((nivel, i) => {
     const anterior = niveles[i - 1];
     const siguiente = niveles[i + 1];
     const mitadInferior = anterior ? (nivel.zM - anterior.zM) / 2 : nivel.zM / 2;
     const mitadSuperior = siguiente ? (siguiente.zM - nivel.zM) / 2 : 0;
-    return mitadInferior + mitadSuperior;
+    return { mitadInferior, mitadSuperior };
   });
 }
 
@@ -483,13 +503,22 @@ function calcularLado(
   kt: number,
   kk: number
 ): ResultadoLado {
-  const hInfl = alturasInfluencia(niveles);
+  const mitades = alturasInfluencia(niveles);
   const nivelesCalculados = niveles.map((nivel, i) => {
     const kz = coeficienteAltura(terreno, nivel.zM);
     // Kd=1: esta vc es la de una presión puntual (6.2.6.2). El Kd real sólo
     // se aplica más arriba, sobre las acciones (Pc, la resultante).
     const vcMs = vkMs * kt * kk * kz;
-    return { ...nivel, kz, vcMs, qKgM2: vcMs ** 2 / 16.3, hInflM: hInfl[i] };
+    const { mitadInferior, mitadSuperior } = mitades[i];
+    return {
+      ...nivel,
+      kz,
+      vcMs,
+      qKgM2: vcMs ** 2 / 16.3,
+      hInflM: mitadInferior + mitadSuperior,
+      mitadInferiorM: mitadInferior,
+      mitadSuperiorM: mitadSuperior,
+    };
   });
 
   return {

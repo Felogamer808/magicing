@@ -638,16 +638,30 @@ function BloqueLado({
   anchosExpuestosM: number[];
   alturaTotalM: number;
 }) {
-  const niveles = ladoR.niveles.map((n, i) => {
-    // pc es una presión puntual: Kd=1 (ya viene así en qKgM2, ver calcularLado).
-    const pcKNm2 = (n.qKgM2 * caso.cTotalGobernante) / 100;
+  // Primera pasada: pc puntual de cada nivel (Kd=1, ver calcularLado). Hace
+  // falta calcularlos todos antes de la carga lineal, porque cada nodo pesa
+  // la mitad de arriba con el pc del nivel SIGUIENTE, no con el propio.
+  const nivelesConPc = ladoR.niveles.map((n) => ({
+    ...n,
+    pcKNm2: (n.qKgM2 * caso.cTotalGobernante) / 100,
+  }));
+
+  const niveles = nivelesConPc.map((n, i) => {
     const anchoM = anchosExpuestosM[i];
     const kd = calcularKd(anchoM * n.hInflM, n.zM, terreno);
+    // La carga lineal por nodo suma dos franjas de pisos reales distintos:
+    // la mitad de abajo es la mitad superior del piso que corona este
+    // nivel (se pesa con SU pc), la mitad de arriba es la mitad inferior
+    // del piso siguiente (se pesa con el pc del nivel de arriba, que es
+    // más alto). Sirve para modelar con cargas superficiales por piso: el
+    // pc de cada nivel es directamente el valor de la carga superficial de
+    // TODO ese piso (ver el diagrama de presión, alineado a pisos reales).
+    const pcSiguienteKNm2 = nivelesConPc[i + 1]?.pcKNm2 ?? n.pcKNm2;
     // Pc es una acción (fuerza integrada): entra el Kd real. Kd multiplica a
     // vc, que después se eleva al cuadrado para dar la presión — por eso acá
     // entra Kd² y no Kd.
-    const pcKNm = pcKNm2 * kd ** 2 * n.hInflM;
-    return { ...n, pcKNm2, kd, pcKNm, anchoM };
+    const pcKNm = kd ** 2 * (n.mitadInferiorM * n.pcKNm2 + n.mitadSuperiorM * pcSiguienteKNm2);
+    return { ...n, kd, pcKNm, anchoM };
   });
   const resultanteTotalKN = niveles.reduce((acc, n) => acc + n.pcKNm * n.anchoM, 0);
   const ladoSlug = titulo.replace(/[^a-zA-Z0-9]/g, "");
@@ -747,8 +761,9 @@ function BloqueLado({
           <p className="font-medium">Resultante sobre una cara: {fmt(resultanteTotalKN)} kN</p>
           <p className="text-xs text-muted-foreground">
             Con el coeficiente total de arrastre gobernante y el Kd propio de cada nivel (es una
-            acción, no una presión puntual), suma de la presión de cada nivel por su altura de
-            influencia y el ancho expuesto de ese nivel.
+            acción, no una presión puntual), suma en cada nodo la presión del piso que corona más
+            la del piso de arriba, cada una ponderada por su propia mitad de altura de influencia,
+            y el ancho expuesto de ese nivel.
           </p>
         </div>
 

@@ -23,14 +23,27 @@ interface Banda {
 }
 
 /**
+ * Un panel por piso real, de piso a piso (el de abajo hasta el suelo en el
+ * primero), con el valor de SU nivel (el que corona ese piso) — es el mismo
+ * valor a usar como carga superficial de todo el panel al modelar (en Robot
+ * o cualquier software que pida un área de carga por piso, no por nodo).
+ * A diferencia de la altura de influencia de un nodo (que reparte medio
+ * piso de abajo y medio de arriba alrededor de su propia cota), acá cada
+ * panel es un piso completo y no queda ningún hueco: cubren toda la altura.
+ */
+function panelesPorPiso(niveles: NivelCargaViento[], valorDe: (n: NivelCargaViento) => number): Banda[] {
+  return niveles.map((n, i) => {
+    const anterior = niveles[i - 1];
+    return { nombre: n.nombre, bottomM: anterior ? anterior.zM : 0, topM: n.zM, valor: valorDe(n) };
+  });
+}
+
+/**
  * La altura de influencia de cada nivel (mitad hacia el vecino de abajo,
  * mitad hacia el de arriba) es la misma que usa alturasInfluencia en
  * viento.ts para integrar Pc — se recalcula acá con las mismas mitades para
- * que el peine de flechas de pc quede exactamente del alto que corresponde
- * a cada nivel. El suelo (z=0) es el vecino implícito del primer nivel, así
- * que su banda baja hasta la mitad del primer piso, no hasta su propia
- * cota: la otra mitad queda sin banda a propósito (reacciona directo en la
- * base, no se reparte a ningún nivel).
+ * marcar, en el dibujo de carga lineal, qué franja de altura le corresponde
+ * a cada nodo. El suelo (z=0) es el vecino implícito del primer nivel.
  */
 function bandasPorNivel(niveles: NivelCargaViento[], valorDe: (n: NivelCargaViento) => number): Banda[] {
   return niveles.map((n, i) => {
@@ -43,9 +56,9 @@ function bandasPorNivel(niveles: NivelCargaViento[], valorDe: (n: NivelCargaVien
 }
 
 /** Cotas donde una banda termina y empieza la siguiente, para trazar la separación entre niveles. */
-function bordesDeNivel(niveles: NivelCargaViento[]): number[] {
+function bordesDe(bandas: Banda[]): number[] {
   const cotas = new Set<number>();
-  bandasPorNivel(niveles, () => 0).forEach((b) => {
+  bandas.forEach((b) => {
     cotas.add(b.topM);
     cotas.add(b.bottomM);
   });
@@ -53,13 +66,14 @@ function bordesDeNivel(niveles: NivelCargaViento[]): number[] {
 }
 
 /**
- * Dos vistas del mismo perfil, apiladas: arriba pc como carga distribuida
- * (un peine de flechas por la altura de influencia de cada nivel), abajo Pc
- * ya integrada con Kd, una única flecha por nivel. Van apiladas y no lado a
- * lado —aunque el diagrama en sí es angosto— para que cada una ocupe todo
- * el ancho de la tarjeta en vez de la mitad: es lo que hace que el texto se
- * pueda leer. La tabla numérica tiene el detalle exacto; esto es para ver
- * de un vistazo cómo se reparte cada una en altura.
+ * Dos vistas del mismo perfil, apiladas: arriba pc como carga superficial
+ * por panel (un peine de flechas por piso real, para cargar en un modelo
+ * por área), abajo Pc ya integrada por nodo con Kd, una única flecha por
+ * nivel. Van apiladas y no lado a lado —aunque el diagrama en sí es
+ * angosto— para que cada una ocupe todo el ancho de la tarjeta en vez de la
+ * mitad: es lo que hace que el texto se pueda leer. La tabla numérica tiene
+ * el detalle exacto; esto es para ver de un vistazo cómo se reparte cada
+ * una en altura.
  */
 export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVientoProps) {
   const W = 260;
@@ -73,12 +87,13 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
   const yDe = (zM: number) => yBase - Math.min(zM / alturaTotalM, 1) * (yBase - yTop);
   const yEstructura = yDe(alturaTotalM);
 
-  const bandasPresion = bandasPorNivel(niveles, (n) => n.pcKNm2);
-  const maxPresion = Math.max(...bandasPresion.map((b) => Math.abs(b.valor)), 1e-9);
+  const panelesPresion = panelesPorPiso(niveles, (n) => n.pcKNm2);
+  const maxPresion = Math.max(...panelesPresion.map((b) => Math.abs(b.valor)), 1e-9);
   const maxLineal = Math.max(...niveles.map((n) => Math.abs(n.pcKNm)), 1e-9);
-  const bordes = bordesDeNivel(niveles);
+  const bordesPiso = bordesDe(panelesPresion);
+  const bordesNodo = bordesDe(bandasPorNivel(niveles, () => 0));
 
-  const lineasDeSeparacion = (
+  const lineasDe = (bordes: number[]) => (
     <>
       {bordes.map((zM) => (
         <path
@@ -134,9 +149,9 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
 
           {suelo}
           {estructura}
-          {lineasDeSeparacion}
+          {lineasDe(bordesPiso)}
 
-          {bandasPresion.map((b) => {
+          {panelesPresion.map((b) => {
             const yTopPx = yDe(b.topM);
             const yBottomPx = yDe(b.bottomM);
             const bandHeightPx = Math.max(yBottomPx - yTopPx, 1);
@@ -167,9 +182,8 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
           })}
         </svg>
         <p className="max-w-xl text-center text-xs text-muted-foreground">
-          Las líneas punteadas separan la altura de influencia de cada nivel. El tramo entre el
-          suelo y la primera —medio piso— no tiene banda a propósito: esa franja reacciona directo
-          en la base, no se reparte a ningún nivel.
+          Cada banda es el panel real de ese piso, de piso a piso, con la presión en su tope —es el
+          valor a cargar como acción superficial en todo ese panel al modelar.
         </p>
       </div>
 
@@ -184,7 +198,7 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
 
           {suelo}
           {estructura}
-          {lineasDeSeparacion}
+          {lineasDe(bordesNodo)}
 
           {/* cota de altura total */}
           <g stroke="currentColor" strokeWidth="1" opacity="0.75">
@@ -239,8 +253,9 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
       </div>
 
       <p className="max-w-xl text-center text-sm text-muted-foreground">
-        Arriba, pc como carga distribuida sobre la altura de influencia de cada nivel; abajo, Pc ya
-        integrada (con Kd) como una única acción por nivel. Los largos son proporcionales dentro de
+        Arriba, pc como carga superficial de cada piso real (para modelar por panel); abajo, Pc
+        integrada por nodo —medio piso de abajo con su presión, medio piso de arriba con la
+        suya, más Kd— como una única acción por nivel. Los largos son proporcionales dentro de
         cada gráfico, no una escala absoluta.
       </p>
     </div>

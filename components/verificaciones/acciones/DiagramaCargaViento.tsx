@@ -38,23 +38,6 @@ function panelesPorPiso(niveles: NivelCargaViento[], valorDe: (n: NivelCargaVien
   });
 }
 
-/**
- * La altura de influencia de cada nivel (mitad hacia el vecino de abajo,
- * mitad hacia el de arriba) es la misma que usa alturasInfluencia en
- * viento.ts para integrar Pc — se recalcula acá con las mismas mitades para
- * marcar, en el dibujo de carga lineal, qué franja de altura le corresponde
- * a cada nodo. El suelo (z=0) es el vecino implícito del primer nivel.
- */
-function bandasPorNivel(niveles: NivelCargaViento[], valorDe: (n: NivelCargaViento) => number): Banda[] {
-  return niveles.map((n, i) => {
-    const anterior = niveles[i - 1];
-    const siguiente = niveles[i + 1];
-    const mitadInferior = anterior ? (n.zM - anterior.zM) / 2 : n.zM / 2;
-    const mitadSuperior = siguiente ? (siguiente.zM - n.zM) / 2 : 0;
-    return { nombre: n.nombre, bottomM: n.zM - mitadInferior, topM: n.zM + mitadSuperior, valor: valorDe(n) };
-  });
-}
-
 /** Cotas donde una banda termina y empieza la siguiente, para trazar la separación entre niveles. */
 function bordesDe(bandas: Banda[]): number[] {
   const cotas = new Set<number>();
@@ -91,7 +74,6 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
   const maxPresion = Math.max(...panelesPresion.map((b) => Math.abs(b.valor)), 1e-9);
   const maxLineal = Math.max(...niveles.map((n) => Math.abs(n.pcKNm)), 1e-9);
   const bordesPiso = bordesDe(panelesPresion);
-  const bordesNodo = bordesDe(bandasPorNivel(niveles, () => 0));
 
   const lineasDe = (bordes: number[]) => (
     <>
@@ -198,7 +180,6 @@ export function DiagramaCargaViento({ alturaTotalM, niveles }: DiagramaCargaVien
 
           {suelo}
           {estructura}
-          {lineasDe(bordesNodo)}
 
           {/* cota de altura total */}
           <g stroke="currentColor" strokeWidth="1" opacity="0.75">

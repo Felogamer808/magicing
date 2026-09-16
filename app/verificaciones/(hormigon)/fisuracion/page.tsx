@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
@@ -21,6 +23,34 @@ import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
 
+/**
+ * La separación sigue importando —es la que decide si las zonas de influencia
+ * de las barras se solapan, ec. (7.11) contra el tope de la (7.14)—, pero sale
+ * del número de barras en vez de cargarse a mano. Se muestra acá para no perder
+ * de vista el dato al que uno está acostumbrado a mirar.
+ */
+function SeparacionEquivalente({
+  anchoTxt,
+  numeroTxt,
+  diametroTxt,
+}: {
+  anchoTxt: string;
+  numeroTxt: string;
+  diametroTxt: string;
+}) {
+  const ancho = aNumero(anchoTxt);
+  const numero = aNumero(numeroTxt);
+  const diametro = aNumero(diametroTxt);
+  if (!Number.isFinite(ancho) || !Number.isFinite(numero) || ancho <= 0 || numero <= 0) return null;
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      {fmt(numero, 0)}Ø{fmt(diametro, 0)} en {fmt(ancho, 2)} m · separación equivalente{" "}
+      {fmt((ancho / numero) * 1000, 0)} mm
+    </p>
+  );
+}
+
 export default function FisuracionPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
 
@@ -35,27 +65,37 @@ export default function FisuracionPage() {
   const [b, setB] = useCampo("b", "1");
   const [mqp, setMqp] = useCampo("mqp", "22");
 
-  // Cada familia se define por separación (más habitual en losas) y diámetro.
-  const [s1, setS1] = useCampo("s1", "0.15");
+  // Cada familia se define por número de barras en el ancho b y diámetro, igual
+  // que en las páginas de viga. Antes se pedía la separación y la página la
+  // convertía a número (n = b/s), que es lo que el cálculo usa de verdad: pedir
+  // las barras saca esa conversión del medio y, sobre todo, hace que lo que se
+  // carga acá y lo que llega encadenado desde una viga sean el mismo dato.
+  const [numero1, setNumero1] = useCampo("numero1", "7");
   const [phi1, setPhi1] = useCampo("phi1", "8");
-  const [s2, setS2] = useCampo("s2", "0.2");
+  // La segunda familia es opcional y arranca oculta: sin esto quedaba siempre
+  // en pantalla un bloque apagado que no se usa casi nunca.
+  const [familia2, setFamilia2] = useCampo("familia2", "No");
+  const [numero2, setNumero2] = useCampo("numero2", "4");
   const [phi2, setPhi2] = useCampo("phi2", "10");
+
+  const hayFamilia2 = familia2 === "Sí";
 
   const resultado = useMemo(() => {
     const n = {
       fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa), rg: aNumero(rg),
       k2: aNumero(k2), wAdm: aNumero(wAdm),
       h: aNumero(h), b: aNumero(b), mqp: aNumero(mqp),
-      s1: aNumero(s1), phi1: aNumero(phi1), s2: aNumero(s2), phi2: aNumero(phi2),
+      numero1: aNumero(numero1), phi1: aNumero(phi1),
+      numero2: aNumero(numero2), phi2: aNumero(phi2),
     };
     if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
     if (n.fck <= 0 || n.fyk <= 0 || n.esGPa <= 0 || n.h <= 0 || n.b <= 0) return null;
-    if (n.s1 <= 0 || n.phi1 <= 0 || n.wAdm <= 0) return null;
+    if (n.numero1 <= 0 || n.phi1 <= 0 || n.wAdm <= 0) return null;
     if (n.mqp <= 0) return null;
 
     const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    const n1 = n.b / n.s1;
-    const n2 = n.s2 > 0 && n.phi2 > 0 ? n.b / n.s2 : 0;
+    const n1 = n.numero1;
+    const n2 = hayFamilia2 && n.numero2 > 0 && n.phi2 > 0 ? n.numero2 : 0;
 
     return {
       n,
@@ -67,7 +107,7 @@ export default function FisuracionPage() {
         { hM: n.h, bM: n.b, n1, diametro1Mm: n.phi1, n2, diametro2Mm: n.phi2, mqpKNm: n.mqp }
       ),
     };
-  }, [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, s1, phi1, s2, phi2]);
+  }, [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, hayFamilia2]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -129,19 +169,72 @@ export default function FisuracionPage() {
                   <CroquisFamiliaFisuracion numero={1} />
                 </div>
                 <CampoDiametro id="phi1" etiqueta="Ø" valor={phi1} onChange={setPhi1} />
-                <CampoNumerico id="s1" etiqueta="Separación" sufijo="m" valor={s1} onChange={setS1} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base">Familia 2 (opcional)</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+                <CampoNumerico
+                  id="numero1"
+                  etiqueta="Nº de barras"
+                  valor={numero1}
+                  onChange={setNumero1}
+                />
                 <div className="col-span-full">
-                  <CroquisFamiliaFisuracion numero={2} />
+                  <SeparacionEquivalente anchoTxt={b} numeroTxt={numero1} diametroTxt={phi1} />
                 </div>
-                <CampoDiametro id="phi2" etiqueta="Ø" valor={phi2} onChange={setPhi2} />
-                <CampoNumerico id="s2" etiqueta="Separación" sufijo="m" valor={s2} onChange={setS2} />
               </CardContent>
             </Card>
+
+            {hayFamilia2 ? (
+              <Card>
+                <CardHeader className="flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-base">Familia 2</CardTitle>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Quitar la segunda familia"
+                    onClick={() => setFamilia2("No")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div className="col-span-full">
+                    <CroquisFamiliaFisuracion numero={2} />
+                  </div>
+                  <CampoDiametro id="phi2" etiqueta="Ø" valor={phi2} onChange={setPhi2} />
+                  <CampoNumerico
+                    id="numero2"
+                    etiqueta="Nº de barras"
+                    valor={numero2}
+                    onChange={setNumero2}
+                  />
+                  <div className="col-span-full">
+                    <SeparacionEquivalente anchoTxt={b} numeroTxt={numero2} diametroTxt={phi2} />
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="flex h-full flex-col items-start justify-center gap-2 py-6">
+                  <p className="text-sm text-muted-foreground">
+                    Una segunda familia de otro diámetro, si la sección la tiene.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Si quedó un diámetro inservible de una sesión anterior,
+                      // se repone: agregar la familia y que aparezca en "Ø0" no
+                      // le sirve a nadie.
+                      if (!(aNumero(phi2) > 0)) setPhi2("10");
+                      if (!(aNumero(numero2) > 0)) setNumero2("4");
+                      setFamilia2("Sí");
+                    }}
+                  >
+                    <Plus className="h-4 w-4" /> Agregar segunda familia
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -194,8 +287,10 @@ export default function FisuracionPage() {
                       { etiqueta: "Fibra neutra x", valor: `${fmt(resultado.r.xM * 1000, 1)} mm` },
                       { etiqueta: "Diámetro equivalente Øeq", valor: `${fmt(resultado.r.diametroEqMm, 1)} mm` },
                       { etiqueta: "Separación entre barras s", valor: `${fmt(resultado.r.sMm, 1)} mm` },
-                      { etiqueta: "Barras/m familia 1", valor: fmt(resultado.n1, 2) },
-                      { etiqueta: "Barras/m familia 2", valor: fmt(resultado.n2, 2) },
+                      // Son las barras que hay en el ancho b, no por metro: con
+                      // b=1 coinciden, pero en una viga de 0,30 no.
+                      { etiqueta: "Barras familia 1 (en b)", valor: fmt(resultado.n1, 0) },
+                      { etiqueta: "Barras familia 2 (en b)", valor: fmt(resultado.n2, 0) },
                       { etiqueta: "As total", valor: `${fmt(resultado.r.asM2 * 10000, 2)} cm²` },
                       { etiqueta: "Canto eficaz hc,ef", valor: `${fmt(resultado.r.hcEfM * 1000, 1)} mm` },
                       { etiqueta: "Ac eficaz", valor: `${fmt(resultado.r.acEficazM2 * 10000, 1)} cm²` },

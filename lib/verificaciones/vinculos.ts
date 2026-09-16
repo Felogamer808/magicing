@@ -76,18 +76,6 @@ export interface Vinculo {
 const txt = (n: number, decimales: number) => n.toFixed(decimales);
 
 /**
- * Separación equivalente de una familia de barras repartida en el ancho b, que
- * es como pide la armadura la página de fisuración. Es la inversa exacta de lo
- * que hace esa página (n = b/s), así que el ida y vuelta no pierde barras.
- */
-function separacionDesdeBarras(b: string, numero: string): string {
-  const anchoM = Number(b.replace(",", "."));
-  const barras = Number(numero.replace(",", "."));
-  if (!Number.isFinite(anchoM) || !Number.isFinite(barras) || barras <= 0) return "";
-  return txt(anchoM / barras, 4);
-}
-
-/**
  * Destinos de servicio, comunes a las dos páginas de ELU: se calcula la viga
  * en agotamiento y desde ahí se sigue con fisuración y flecha.
  */
@@ -96,7 +84,7 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
     id: "fisuracion",
     titulo: "Fisuración (ELS)",
     ruta: "/verificaciones/fisuracion",
-    lleva: "materiales, sección y la armadura de tracción como separación equivalente",
+    lleva: "materiales, sección y la armadura de tracción tal cual, barra por barra",
     falta: "el momento en combinación cuasipermanente, que no sale del de cálculo",
     campos: (d) => {
       const numero2 = d.numeroPos2 ?? "0";
@@ -107,14 +95,13 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
         b: d.b,
         h: d.h,
         rg: d.recubrimiento,
-        s1: separacionDesdeBarras(d.b, d.numeroPos),
+        // Fisuración pide las barras con los mismos nombres que la viga, así que
+        // el arrastre es 1:1 y no hay conversión donde equivocarse.
+        numero1: d.numeroPos,
         phi1: d.diametroPos,
-        // Sin 2ª capa alcanza con apagar el diámetro —así entiende "no hay" la
-        // página de fisuración— y no se toca la separación: escribirle un vacío
-        // dejaría un campo numérico en blanco sin necesidad.
-        ...(hay2aCapa
-          ? { s2: separacionDesdeBarras(d.b, numero2), phi2: d.diametroPos2 ?? "0" }
-          : { phi2: "0" }),
+        // La 2ª familia sólo se enciende si la viga tiene 2ª capa.
+        familia2: hay2aCapa ? "Sí" : "No",
+        ...(hay2aCapa ? { numero2, phi2: d.diametroPos2 ?? "0" } : {}),
       };
     },
   },

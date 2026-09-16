@@ -85,10 +85,28 @@ export function useCampo(nombre: string, inicial: string): [string, (valor: stri
  * arrastre automático haría que abrir una verificación para mirar un caso
  * aparte te destruyera lo que tenías cargado en ella.
  */
-export function guardarCamposDeRuta(ruta: string, valores: Record<string, string>) {
+export function guardarCamposDeRuta(
+  ruta: string,
+  valores: Record<string, string>,
+  /**
+   * Campos que el vínculo no puede llenar y que conviene dejar en blanco en vez
+   * de que queden con el valor por defecto de la página: si no, al llegar se ve
+   * una flecha o una fisura con cara de calculada que en realidad sale de una
+   * luz y un momento de ejemplo.
+   *
+   * Sólo se blanquean si nunca se escribieron en esa ruta. Quien ya los cargó
+   * está iterando —vuelve a la viga, cambia la armadura y encadena de nuevo— y
+   * perder lo tipeado en cada vuelta sería peor que el problema que se evita.
+   */
+  blanquearSiFaltan: string[] = []
+) {
   try {
     for (const [nombre, valor] of Object.entries(valores)) {
       window.localStorage.setItem(claveDe(ruta, nombre), valor);
+    }
+    for (const nombre of blanquearSiFaltan) {
+      const clave = claveDe(ruta, nombre);
+      if (leer(clave) === null) window.localStorage.setItem(clave, "");
     }
   } catch {
     // Si el almacenamiento no está disponible, la navegación igual sirve:

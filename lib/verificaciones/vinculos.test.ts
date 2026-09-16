@@ -80,15 +80,32 @@ describe("vínculos desde la viga: fisuración", () => {
 });
 
 describe("vínculos desde la viga: deformaciones", () => {
-  it("lleva el canto útil y las dos áreas de armadura que la viga ya calculó", () => {
+  it("lleva el canto útil y la armadura de tracción como barras", () => {
     const campos = vinculoDe("deformaciones").campos(viga);
     expect(Number(campos.d)).toBeCloseTo(0.655, 6);
-    expect(Number(campos.asProv)).toBeCloseTo(7.85, 6);
+    expect(campos.numeroAs).toBe("10");
+    expect(campos.phiAs).toBe("10");
+    expect(campos.capa2).toBe("No");
+  });
+
+  it("enciende la segunda capa cuando la viga la tiene", () => {
+    const campos = vinculoDe("deformaciones").campos({
+      ...viga, numeroPos2: "4", diametroPos2: "16",
+    });
+    expect(campos.capa2).toBe("Sí");
+    expect(campos.numeroAs2).toBe("4");
+    expect(campos.phiAs2).toBe("16");
+  });
+
+  /** La necesaria en ELU es una demanda, no un despiece: sigue siendo un área. */
+  it("lleva la As necesaria como área, no como barras", () => {
+    const campos = vinculoDe("deformaciones").campos(viga);
     expect(Number(campos.asReq)).toBeCloseTo(1.42, 6);
+    expect(campos).not.toHaveProperty("numeroAsReq");
   });
 
   it("deja la armadura de compresión en cero: contarla es una decisión de quien calcula", () => {
-    expect(vinculoDe("deformaciones").campos(viga).asComp).toBe("0");
+    expect(vinculoDe("deformaciones").campos(viga).numeroAsComp).toBe("0");
   });
 
   it("arma d' con el recubrimiento y el radio de la barra superior", () => {
@@ -114,6 +131,26 @@ describe("vínculos: lo que no se puede deducir no viaja", () => {
     expect(campos).not.toHaveProperty("luz");
     expect(campos).not.toHaveProperty("phi");
     expect(campos).not.toHaveProperty("epsilonCs");
+  });
+
+  /**
+   * Lo que el destino necesita sí o sí y la viga no puede dar se blanquea al
+   * llegar: si quedara con el valor por defecto de la página, se vería una
+   * flecha o una fisura calculadas con una luz y un momento de ejemplo.
+   */
+  it("blanquea en el destino los datos de servicio que no puede aportar", () => {
+    expect(vinculoDe("fisuracion").blanquear).toContain("mqp");
+    expect(vinculoDe("deformaciones").blanquear).toContain("mqp");
+    expect(vinculoDe("deformaciones").blanquear).toContain("luz");
+  });
+
+  it("no blanquea nada que el vínculo sí esté llenando", () => {
+    for (const v of VINCULOS_SERVICIO) {
+      const escritos = Object.keys(v.campos(viga));
+      for (const nombre of v.blanquear ?? []) {
+        expect(escritos).not.toContain(nombre);
+      }
+    }
   });
 
   it("cada vínculo avisa qué falta cargar del otro lado", () => {

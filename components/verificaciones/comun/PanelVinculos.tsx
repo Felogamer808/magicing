@@ -25,7 +25,7 @@ export function PanelVinculos({ vinculos, datos }: Props) {
   const router = useRouter();
 
   const seguirCon = (vinculo: Vinculo) => {
-    guardarCamposDeRuta(vinculo.ruta, vinculo.campos(datos));
+    guardarCamposDeRuta(vinculo.ruta, vinculo.campos(datos), vinculo.blanquear);
     router.push(vinculo.ruta);
   };
 

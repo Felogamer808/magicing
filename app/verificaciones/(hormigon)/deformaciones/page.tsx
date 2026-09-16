@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
@@ -33,6 +36,15 @@ const sistemaDesdeNombre = (nombre: string): SistemaEstructural =>
 
 const OPCIONES_ESQUEMA = [...COEF_FLECHA.map((c) => c.nombre), "Otro (cargar k a mano)"];
 
+/** Área de un grupo de barras, en cm². Devuelve 0 si los datos no sirven todavía. */
+function areaBarrasCm2(numeroTxt: string, diametroTxt: string): number {
+  const numero = aNumero(numeroTxt);
+  const diametroMm = aNumero(diametroTxt);
+  if (!Number.isFinite(numero) || !Number.isFinite(diametroMm)) return 0;
+  if (numero <= 0 || diametroMm <= 0) return 0;
+  return (numero * Math.PI * diametroMm ** 2) / 4 / 100;
+}
+
 /** Separador de sección, para que no se mezcle el método simplificado con el cálculo. */
 function TituloSeccion({ children }: { children: React.ReactNode }) {
   return (
@@ -56,10 +68,24 @@ export default function DeformacionesPage() {
   const [dComp, setDComp] = useCampo("dComp", "0.05");
   const [luz, setLuz] = useCampo("luz", "6");
 
-  // Armadura.
-  const [asProv, setAsProv] = useCampo("asProv", "10");
-  const [asComp, setAsComp] = useCampo("asComp", "0");
+  // Armadura, por barras y no por área: es como se carga en las páginas de
+  // viga y en fisuración, así que lo que se encadena llega tal cual. El cálculo
+  // sólo necesita el área, y se arma acá.
+  const [numeroAs, setNumeroAs] = useCampo("numeroAs", "4");
+  const [phiAs, setPhiAs] = useCampo("phiAs", "16");
+  const [capa2, setCapa2] = useCampo("capa2", "No");
+  const [numeroAs2, setNumeroAs2] = useCampo("numeroAs2", "2");
+  const [phiAs2, setPhiAs2] = useCampo("phiAs2", "16");
+  const [numeroAsComp, setNumeroAsComp] = useCampo("numeroAsComp", "0");
+  const [phiAsComp, setPhiAsComp] = useCampo("phiAsComp", "12");
+  // La necesaria en ELU sí es un área: es una demanda, no un despiece, y casi
+  // nunca cae en un número entero de barras.
   const [asReq, setAsReq] = useCampo("asReq", "10");
+
+  const hayCapa2 = capa2 === "Sí";
+  const asProvCm2 =
+    areaBarrasCm2(numeroAs, phiAs) + (hayCapa2 ? areaBarrasCm2(numeroAs2, phiAs2) : 0);
+  const asCompCm2 = areaBarrasCm2(numeroAsComp, phiAsComp);
 
   // Luz/canto.
   const [sistemaTxt, setSistemaTxt] = useCampo("sistema", NOMBRE_SISTEMA["simplemente-apoyada"]);
@@ -91,7 +117,7 @@ export default function DeformacionesPage() {
     const n = {
       fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa),
       b: aNumero(b), h: aNumero(h), d: aNumero(d), dComp: aNumero(dComp), luz: aNumero(luz),
-      asProv: aNumero(asProv), asComp: aNumero(asComp), asReq: aNumero(asReq),
+      asProv: asProvCm2, asComp: asCompCm2, asReq: aNumero(asReq),
       mqp: aNumero(mqp), phi: aNumero(phi), epsilonCs: aNumero(epsilonCs),
     };
     if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
@@ -142,7 +168,7 @@ export default function DeformacionesPage() {
       }),
     };
   }, [
-    fck, fyk, esGPa, b, h, d, dComp, luz, asProv, asComp, asReq,
+    fck, fyk, esGPa, b, h, d, dComp, luz, asProvCm2, asCompCm2, asReq,
     mqp, phi, epsilonCs, sistema, alaEnT, tabiques, coefFlecha,
   ]);
 
@@ -206,32 +232,92 @@ export default function DeformacionesPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Armadura</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <CardHeader><CardTitle className="text-base">Armadura de tracción</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <CampoDiametro id="phiAs" etiqueta="Ø" valor={phiAs} onChange={setPhiAs} />
               <CampoNumerico
-                id="asProv"
-                etiqueta="As dispuesta"
-                sufijo="cm²"
-                valor={asProv}
-                onChange={setAsProv}
+                id="numeroAs"
+                etiqueta="Nº de barras"
+                valor={numeroAs}
+                onChange={setNumeroAs}
+              />
+              {hayCapa2 ? (
+                <>
+                  <CampoDiametro id="phiAs2" etiqueta="Ø 2ª capa" valor={phiAs2} onChange={setPhiAs2} />
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <CampoNumerico
+                        id="numeroAs2"
+                        etiqueta="Nº de barras 2ª capa"
+                        valor={numeroAs2}
+                        onChange={setNumeroAs2}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Quitar la segunda capa"
+                      onClick={() => setCapa2("No")}
+                      className="mb-1.5"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!(aNumero(phiAs2) > 0)) setPhiAs2("16");
+                      if (!(aNumero(numeroAs2) > 0)) setNumeroAs2("2");
+                      setCapa2("Sí");
+                    }}
+                  >
+                    <Plus className="h-4 w-4" /> Agregar segunda capa
+                  </Button>
+                </div>
+              )}
+              <p className="col-span-full text-xs text-muted-foreground">
+                As dispuesta {fmt(asProvCm2)} cm²
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Armadura de compresión y demanda</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <CampoDiametro
+                id="phiAsComp"
+                etiqueta="Ø compresión"
+                valor={phiAsComp}
+                onChange={setPhiAsComp}
               />
               <CampoNumerico
-                id="asComp"
-                etiqueta="A's compresión"
-                sufijo="cm²"
-                valor={asComp}
-                onChange={setAsComp}
+                id="numeroAsComp"
+                etiqueta="Nº de barras"
+                valor={numeroAsComp}
+                onChange={setNumeroAsComp}
+                advertencia="Cero si no se cuenta la armadura superior como comprimida"
               />
-              <CampoNumerico
-                id="asReq"
-                etiqueta="As necesaria (ELU)"
-                sufijo="cm²"
-                valor={asReq}
-                onChange={setAsReq}
-                advertencia="Sólo entra en la corrección 310/σs del método luz/canto"
-              />
+              <p className="col-span-full text-xs text-muted-foreground">
+                A&apos;s compresión {fmt(asCompCm2)} cm²
+              </p>
               <div className="col-span-full">
-                <PanelAyuda titulo="Por qué se piden las dos áreas de armadura">
+                <CampoNumerico
+                  id="asReq"
+                  etiqueta="As necesaria en ELU"
+                  sufijo="cm²"
+                  valor={asReq}
+                  onChange={setAsReq}
+                  advertencia="Es una demanda, no un despiece: va como área. Sólo entra en la corrección 310/σs"
+                />
+              </div>
+              <div className="col-span-full">
+                <PanelAyuda titulo="Por qué se piden las dos armaduras">
                   <p>
                     La <strong className="text-foreground">dispuesta</strong> es la que hay en la
                     sección: gobierna la inercia fisurada y, con ella, la flecha real.

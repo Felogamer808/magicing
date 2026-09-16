@@ -42,35 +42,36 @@ describe("vínculos: destinos ofrecidos", () => {
     for (const v of VINCULOS_SERVICIO) {
       expect(() => v.campos(sinSegundaCapa)).not.toThrow();
     }
-    expect(vinculoDe("fisuracion").campos(sinSegundaCapa).phi2).toBe("0");
+    expect(vinculoDe("fisuracion").campos(sinSegundaCapa).familia2).toBe("No");
   });
 });
 
 describe("vínculos desde la viga: fisuración", () => {
   /**
-   * La página de fisuración reconstruye el número de barras como n = b/s. Si la
-   * separación que se le manda no es exactamente la inversa, la armadura que
-   * aparece del otro lado no es la que se dibujó en la viga.
+   * Las dos páginas hablan de barras, así que el arrastre es literal: lo que se
+   * dibujó en la viga es lo que aparece del otro lado, sin conversión de por
+   * medio donde se pueda perder una barra.
    */
-  it("convierte barras a separación de forma que el destino recupere las mismas barras", () => {
+  it("lleva las barras tal cual, sin convertir a separación", () => {
     const campos = vinculoDe("fisuracion").campos(viga);
-    const barrasRecuperadas = Number(viga.b) / Number(campos.s1);
-    expect(barrasRecuperadas).toBeCloseTo(Number(viga.numeroPos), 6);
+    expect(campos.numero1).toBe("10");
     expect(campos.phi1).toBe("10");
+    expect(campos).not.toHaveProperty("s1");
   });
 
-  it("apaga la segunda familia cuando la viga no tiene segunda capa, sin dejar la separación en blanco", () => {
+  it("deja apagada la segunda familia cuando la viga no tiene segunda capa", () => {
     const campos = vinculoDe("fisuracion").campos(viga);
-    expect(campos.phi2).toBe("0");
-    expect(campos).not.toHaveProperty("s2");
+    expect(campos.familia2).toBe("No");
+    expect(campos).not.toHaveProperty("numero2");
   });
 
-  it("lleva la segunda familia cuando existe", () => {
+  it("enciende y llena la segunda familia cuando existe", () => {
     const campos = vinculoDe("fisuracion").campos({
       ...viga, numeroPos2: "4", diametroPos2: "16",
     });
+    expect(campos.familia2).toBe("Sí");
+    expect(campos.numero2).toBe("4");
     expect(campos.phi2).toBe("16");
-    expect(Number(viga.b) / Number(campos.s2)).toBeCloseTo(4, 6);
   });
 
   it("manda el recubrimiento al campo que usa esa página", () => {

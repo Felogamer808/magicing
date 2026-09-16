@@ -75,6 +75,7 @@ export type IdVerificacion =
   | "muros-contencion"
   | "muros"
   | "fisuracion"
+  | "deformaciones"
   | "longitudes-anclaje"
   | "viento"
   | "compresion-acero"
@@ -432,6 +433,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Abertura característica de fisura por separación media, en vigas y losas.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/fisuracion",
+    disponible: true,
+  },
+  {
+    id: "deformaciones",
+    nombre: "Deformaciones (ELS)",
+    seccion: "hormigon-armado",
+    categoria: "Estado límite de servicio",
+    descripcion:
+      "Relación luz/canto del art. 7.4.2 y flecha calculada interpolando entre sección sin fisurar y fisurada, con fluencia y retracción.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/deformaciones",
     disponible: true,
   },
   {

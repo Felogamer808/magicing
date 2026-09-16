@@ -1,3 +1,4 @@
+import { moduloSecanteGPa } from "@/lib/calc/hormigon/comun/materiales";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
 /**
@@ -83,11 +84,6 @@ export interface ResultadoFisuracion {
   /** Abertura característica de fisura (mm) */
   wkMm: number;
   verifica: boolean;
-}
-
-/** Módulo secante del hormigón, art. 3.1.3: Ecm = 22·((fck+8)/10)^0,3, en GPa. */
-function moduloSecanteGPa(fckMPa: number): number {
-  return 22 * ((fckMPa + 8) / 10) ** 0.3;
 }
 
 export function calcularFisuracion(

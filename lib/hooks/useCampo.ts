@@ -76,6 +76,27 @@ export function useCampo(nombre: string, inicial: string): [string, (valor: stri
   return useCampoBase(nombre, inicial);
 }
 
+/**
+ * Escribe campos de OTRA ruta, para encadenar verificaciones sin recargar a
+ * mano lo que ya se cargó una vez (ver lib/verificaciones/vinculos.ts).
+ *
+ * Pisa lo que hubiera en el destino, y eso es deliberado: se dispara sólo
+ * cuando alguien aprieta el botón de llevar los datos, no en cada tecla. Un
+ * arrastre automático haría que abrir una verificación para mirar un caso
+ * aparte te destruyera lo que tenías cargado en ella.
+ */
+export function guardarCamposDeRuta(ruta: string, valores: Record<string, string>) {
+  try {
+    for (const [nombre, valor] of Object.entries(valores)) {
+      window.localStorage.setItem(claveDe(ruta, nombre), valor);
+    }
+  } catch {
+    // Si el almacenamiento no está disponible, la navegación igual sirve:
+    // el destino se abre con sus valores por defecto.
+  }
+  window.dispatchEvent(new Event(EVENTO_CAMBIO));
+}
+
 /** Borra los valores guardados de una ruta y devuelve los campos a su valor por defecto. */
 export function restablecerCampos(ruta: string) {
   try {

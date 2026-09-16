@@ -47,31 +47,31 @@ export default function DeformacionesPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
 
   // Materiales y geometría, compartidos por los dos métodos.
-  const [fck, setFck] = useCampo("fckDef", "30");
-  const [fyk, setFyk] = useCampo("fykDef", "500");
-  const [esGPa, setEsGPa] = useCampo("esGPaDef", "200");
-  const [b, setB] = useCampo("bDef", "0.3");
-  const [h, setH] = useCampo("hDef", "0.5");
-  const [d, setD] = useCampo("dDef", "0.45");
-  const [dComp, setDComp] = useCampo("dCompDef", "0.05");
-  const [luz, setLuz] = useCampo("luzDef", "6");
+  const [fck, setFck] = useCampo("fck", "30");
+  const [fyk, setFyk] = useCampo("fyk", "500");
+  const [esGPa, setEsGPa] = useCampo("esGPa", "200");
+  const [b, setB] = useCampo("b", "0.3");
+  const [h, setH] = useCampo("h", "0.5");
+  const [d, setD] = useCampo("d", "0.45");
+  const [dComp, setDComp] = useCampo("dComp", "0.05");
+  const [luz, setLuz] = useCampo("luz", "6");
 
   // Armadura.
-  const [asProv, setAsProv] = useCampo("asProvDef", "10");
-  const [asComp, setAsComp] = useCampo("asCompDef", "0");
-  const [asReq, setAsReq] = useCampo("asReqDef", "10");
+  const [asProv, setAsProv] = useCampo("asProv", "10");
+  const [asComp, setAsComp] = useCampo("asComp", "0");
+  const [asReq, setAsReq] = useCampo("asReq", "10");
 
   // Luz/canto.
-  const [sistemaTxt, setSistemaTxt] = useCampo("sistemaDef", NOMBRE_SISTEMA["simplemente-apoyada"]);
-  const [alaEnT, setAlaEnT] = useCampo("alaEnTDef", "No");
-  const [tabiques, setTabiques] = useCampo("tabiquesDef", "No");
+  const [sistemaTxt, setSistemaTxt] = useCampo("sistema", NOMBRE_SISTEMA["simplemente-apoyada"]);
+  const [alaEnT, setAlaEnT] = useCampo("alaEnT", "No");
+  const [tabiques, setTabiques] = useCampo("tabiques", "No");
 
   // Flecha calculada.
-  const [mqp, setMqp] = useCampo("mqpDef", "80");
-  const [phi, setPhi] = useCampo("phiDef", "2");
-  const [epsilonCs, setEpsilonCs] = useCampo("epsilonCsDef", "0.0003");
-  const [esquemaTxt, setEsquemaTxt] = useCampo("esquemaDef", COEF_FLECHA[0].nombre);
-  const [coefManual, setCoefManual] = useCampo("coefManualDef", "0.104");
+  const [mqp, setMqp] = useCampo("mqp", "80");
+  const [phi, setPhi] = useCampo("phi", "2");
+  const [epsilonCs, setEpsilonCs] = useCampo("epsilonCs", "0.0003");
+  const [esquemaTxt, setEsquemaTxt] = useCampo("esquema", COEF_FLECHA[0].nombre);
+  const [coefManual, setCoefManual] = useCampo("coefManual", "0.104");
 
   const sistema = sistemaDesdeNombre(sistemaTxt);
   const esquemaElegido = COEF_FLECHA.find((c) => c.nombre === esquemaTxt);
@@ -176,27 +176,27 @@ export default function DeformacionesPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fckDef" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fykDef" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="esGPaDef" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
+              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+              <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Sección y luz</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="bDef" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
-              <CampoNumerico id="hDef" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-              <CampoNumerico id="dDef" etiqueta="d (canto útil)" sufijo="m" valor={d} onChange={setD} />
+              <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+              <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
+              <CampoNumerico id="d" etiqueta="d (canto útil)" sufijo="m" valor={d} onChange={setD} />
               <CampoNumerico
-                id="dCompDef"
+                id="dComp"
                 etiqueta="d' (a la comprimida)"
                 sufijo="m"
                 valor={dComp}
                 onChange={setDComp}
               />
               <CampoNumerico
-                id="luzDef"
+                id="luz"
                 etiqueta="Luz efectiva leff"
                 sufijo="m"
                 valor={luz}
@@ -209,21 +209,21 @@ export default function DeformacionesPage() {
             <CardHeader><CardTitle className="text-base">Armadura</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico
-                id="asProvDef"
+                id="asProv"
                 etiqueta="As dispuesta"
                 sufijo="cm²"
                 valor={asProv}
                 onChange={setAsProv}
               />
               <CampoNumerico
-                id="asCompDef"
+                id="asComp"
                 etiqueta="A's compresión"
                 sufijo="cm²"
                 valor={asComp}
                 onChange={setAsComp}
               />
               <CampoNumerico
-                id="asReqDef"
+                id="asReq"
                 etiqueta="As necesaria (ELU)"
                 sufijo="cm²"
                 valor={asReq}
@@ -254,7 +254,7 @@ export default function DeformacionesPage() {
             <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <CampoSeleccion
-                  id="sistemaDef"
+                  id="sistema"
                   etiqueta="Sistema estructural (tabla A19.7.4)"
                   valor={sistemaTxt}
                   opciones={OPCIONES_SISTEMA}
@@ -262,14 +262,14 @@ export default function DeformacionesPage() {
                 />
               </div>
               <CampoSeleccion
-                id="alaEnTDef"
+                id="alaEnT"
                 etiqueta="Sección en T con ala/alma > 3"
                 valor={alaEnT}
                 opciones={["No", "Sí"]}
                 onChange={setAlaEnT}
               />
               <CampoSeleccion
-                id="tabiquesDef"
+                id="tabiques"
                 etiqueta="Soporta tabiques frágiles"
                 valor={tabiques}
                 opciones={["No", "Sí"]}
@@ -298,21 +298,21 @@ export default function DeformacionesPage() {
             <CardHeader><CardTitle className="text-base">Carga, tiempo y esquema</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <CampoNumerico
-                id="mqpDef"
+                id="mqp"
                 etiqueta="M cuasipermanente"
                 sufijo="kN·m"
                 valor={mqp}
                 onChange={setMqp}
               />
               <CampoNumerico
-                id="phiDef"
+                id="phi"
                 etiqueta="φ(∞,t0) fluencia"
                 valor={phi}
                 onChange={setPhi}
                 advertencia="Art. 3.1.4. En interior de edificio suele caer entre 1,5 y 2,5"
               />
               <CampoNumerico
-                id="epsilonCsDef"
+                id="epsilonCs"
                 etiqueta="εcs retracción"
                 valor={epsilonCs}
                 onChange={setEpsilonCs}
@@ -320,7 +320,7 @@ export default function DeformacionesPage() {
               />
               <div className="col-span-full">
                 <CampoSeleccion
-                  id="esquemaDef"
+                  id="esquema"
                   etiqueta="Esquema de carga (coeficiente k de a = k·L²·(1/r))"
                   valor={esquemaTxt}
                   opciones={OPCIONES_ESQUEMA}
@@ -329,7 +329,7 @@ export default function DeformacionesPage() {
               </div>
               {!esquemaElegido && (
                 <CampoNumerico
-                  id="coefManualDef"
+                  id="coefManual"
                   etiqueta="k a mano"
                   valor={coefManual}
                   onChange={setCoefManual}

@@ -70,6 +70,12 @@ export interface Vinculo {
   /** Qué queda por cargar del otro lado, si algo. */
   falta?: string;
   campos: (d: DatosVigaCompartidos) => Record<string, string>;
+  /**
+   * Campos que el destino tiene que pedir sí o sí y que la viga no puede
+   * aportar. Se dejan en blanco al llegar —si nunca se cargaron— para que la
+   * página no muestre un resultado armado con sus valores de ejemplo.
+   */
+  blanquear?: string[];
 }
 
 /** Número a texto con el formato que esperan los campos (coma decimal admitida). */
@@ -86,6 +92,7 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
     ruta: "/verificaciones/fisuracion",
     lleva: "materiales, sección y la armadura de tracción tal cual, barra por barra",
     falta: "el momento en combinación cuasipermanente, que no sale del de cálculo",
+    blanquear: ["mqp"],
     campos: (d) => {
       const numero2 = d.numeroPos2 ?? "0";
       const hay2aCapa = Number(numero2.replace(",", ".")) > 0;
@@ -109,26 +116,38 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
     id: "deformaciones",
     titulo: "Deformaciones (ELS)",
     ruta: "/verificaciones/deformaciones",
-    lleva: "materiales, sección, el canto útil y las dos áreas de armadura ya calculadas",
+    lleva: "materiales, sección, el canto útil y la armadura, barra por barra",
     falta: "la luz, el momento cuasipermanente, la fluencia y el esquema de carga",
-    campos: (d) => ({
-      fck: d.fck,
-      fyk: d.fyk,
-      b: d.b,
-      h: d.h,
-      d: txt(d.dUtilM, 4),
-      asProv: txt(d.asRealPosCm2, 2),
-      asReq: txt(d.asNecPosCm2, 2),
-      // d' es geometría de la cara comprimida: viaja por si se decide contar la
-      // armadura superior como de compresión. A's se deja en cero a propósito
-      // —que la negativa comprima en centro de vano es una decisión de quien
-      // calcula, no algo que se pueda deducir de la página de flexión—.
-      dComp: txt(
-        Number(d.recubrimiento.replace(",", ".")) +
-          Number(d.diametroNeg.replace(",", ".")) / 2000,
-        4
-      ),
-      asComp: "0",
-    }),
+    blanquear: ["luz", "mqp"],
+    campos: (d) => {
+      const numero2 = d.numeroPos2 ?? "0";
+      const hay2aCapa = Number(numero2.replace(",", ".")) > 0;
+      return {
+        fck: d.fck,
+        fyk: d.fyk,
+        b: d.b,
+        h: d.h,
+        d: txt(d.dUtilM, 4),
+        // La armadura de tracción viaja como barras, igual que en fisuración:
+        // el área la arma la página sola y no hay dos versiones del mismo dato.
+        numeroAs: d.numeroPos,
+        phiAs: d.diametroPos,
+        capa2: hay2aCapa ? "Sí" : "No",
+        ...(hay2aCapa ? { numeroAs2: numero2, phiAs2: d.diametroPos2 ?? "0" } : {}),
+        // La necesaria en ELU sigue siendo un área: es una demanda, no un
+        // despiece, y casi nunca cae en un número entero de barras.
+        asReq: txt(d.asNecPosCm2, 2),
+        // d' es geometría de la cara comprimida: viaja por si se decide contar
+        // la armadura superior como de compresión. Las barras comprimidas se
+        // dejan en cero a propósito —que la negativa comprima en centro de vano
+        // es una decisión de quien calcula, no algo deducible de la flexión—.
+        dComp: txt(
+          Number(d.recubrimiento.replace(",", ".")) +
+            Number(d.diametroNeg.replace(",", ".")) / 2000,
+          4
+        ),
+        numeroAsComp: "0",
+      };
+    },
   },
 ];

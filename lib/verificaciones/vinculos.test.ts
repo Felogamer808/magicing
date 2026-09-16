@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VINCULOS_VIGA, type DatosVigaCompartidos } from "./vinculos";
+import { VINCULOS_SERVICIO, type DatosVigaCompartidos } from "./vinculos";
 
 const viga: DatosVigaCompartidos = {
   fck: "30",
@@ -11,37 +11,38 @@ const viga: DatosVigaCompartidos = {
   diametroPos: "10",
   numeroPos2: "0",
   diametroPos2: "10",
-  numeroNeg: "5",
   diametroNeg: "12",
-  momentoPos: "32",
-  momentoNeg: "14",
-  vd: "1076",
-  diametroEstribo: "10",
-  numeroRamas: "6",
   dUtilM: 0.655,
   asNecPosCm2: 1.42,
   asRealPosCm2: 7.85,
 };
 
-const vinculoDe = (id: string) => VINCULOS_VIGA.find((v) => v.id === id)!;
+const vinculoDe = (id: string) => VINCULOS_SERVICIO.find((v) => v.id === id)!;
 
-describe("vínculos desde la viga: torsión", () => {
-  it("lleva materiales, sección, armadura y cortante con los mismos nombres de campo", () => {
-    const campos = vinculoDe("vigas-torsion").campos(viga);
-    expect(campos.fck).toBe("30");
-    expect(campos.fyk).toBe("500");
-    expect(campos.b).toBe("0.9");
-    expect(campos.h).toBe("0.7");
-    expect(campos.recubrimiento).toBe("0.04");
-    expect(campos.numeroPos).toBe("10");
-    expect(campos.diametroPos).toBe("10");
-    expect(campos.vd).toBe("1076");
-    expect(campos.numeroRamas).toBe("6");
+describe("vínculos: destinos ofrecidos", () => {
+  it("van sólo a las dos verificaciones de servicio", () => {
+    expect(VINCULOS_SERVICIO.map((v) => v.id)).toEqual(["fisuracion", "deformaciones"]);
   });
 
-  it("no lleva el torsor: es el dato propio de esa verificación", () => {
-    expect(vinculoDe("vigas-torsion").campos(viga)).not.toHaveProperty("td");
-    expect(vinculoDe("vigas-torsion").falta).toMatch(/Td/);
+  /**
+   * Flexión y torsión no se encadenan entre sí: torsión ya resuelve la flexión
+   * y el cortante de la misma viga, así que no son dos pasos sino dos formas de
+   * calcular lo mismo. Quien tiene torsión arranca ahí.
+   */
+  it("no ofrece saltar de una verificación de ELU a la otra", () => {
+    expect(VINCULOS_SERVICIO.map((v) => v.id)).not.toContain("vigas-torsion");
+    expect(VINCULOS_SERVICIO.map((v) => v.id)).not.toContain("vigas-flexion-cortante");
+  });
+
+  /** La página de torsión no tiene 2ª capa y no debería tener que fingir una. */
+  it("funciona sin los campos de segunda capa", () => {
+    const sinSegundaCapa: DatosVigaCompartidos = { ...viga };
+    delete sinSegundaCapa.numeroPos2;
+    delete sinSegundaCapa.diametroPos2;
+    for (const v of VINCULOS_SERVICIO) {
+      expect(() => v.campos(sinSegundaCapa)).not.toThrow();
+    }
+    expect(vinculoDe("fisuracion").campos(sinSegundaCapa).phi2).toBe("0");
   });
 });
 
@@ -115,7 +116,7 @@ describe("vínculos: lo que no se puede deducir no viaja", () => {
   });
 
   it("cada vínculo avisa qué falta cargar del otro lado", () => {
-    for (const v of VINCULOS_VIGA) {
+    for (const v of VINCULOS_SERVICIO) {
       expect(v.falta).toBeTruthy();
     }
   });

@@ -4,11 +4,17 @@ import type { IdVerificacion } from "./registry";
  * Encadenado de verificaciones: llevar lo ya cargado en una a otra que comparte
  * los mismos datos.
  *
- * Una viga se verifica a flexión y cortante, pero después hay que mirarle la
- * torsión, la fisuración y la flecha — y son la misma viga: el mismo hormigón,
- * la misma sección, la misma armadura. Volver a tipear todo en cada página es
- * trabajo repetido y, peor, una oportunidad de que las cuatro verificaciones
- * terminen hablando de vigas distintas.
+ * Una viga se verifica en ELU —a flexión y cortante, o a flexión, cortante y
+ * torsión si la hay— y después hay que mirarle la fisuración y la flecha, que
+ * son la misma viga: el mismo hormigón, la misma sección, la misma armadura.
+ * Volver a tipear todo en cada página es trabajo repetido y, peor, una
+ * oportunidad de que las verificaciones terminen hablando de vigas distintas.
+ *
+ * El encadenado va siempre de ELU a servicio, y por eso la misma lista sirve
+ * para las dos páginas de origen. Entre flexión y torsión no hay vínculo: no
+ * son dos pasos de lo mismo sino dos formas de calcular la misma viga —torsión
+ * ya resuelve la flexión y el cortante—, así que quien tiene torsión arranca
+ * ahí directamente.
  *
  * Cómo está resuelto y por qué así:
  *
@@ -28,7 +34,11 @@ import type { IdVerificacion } from "./registry";
 /**
  * Lo que una viga puede exportar: los datos de entrada tal como están escritos
  * —en texto, para que no haya un ida y vuelta de formato— y los tres resultados
- * que otras verificaciones piden como dato de entrada.
+ * que las verificaciones de servicio piden como dato de entrada.
+ *
+ * Lo llenan por igual la página de flexión y cortante y la de torsión. En la de
+ * torsión, la As necesaria que sale ya trae sumado el aporte longitudinal de
+ * torsión (Al/4 por cara), que es justo lo que corresponde arrastrar.
  */
 export interface DatosVigaCompartidos {
   fck: string;
@@ -38,15 +48,11 @@ export interface DatosVigaCompartidos {
   recubrimiento: string;
   numeroPos: string;
   diametroPos: string;
-  numeroPos2: string;
-  diametroPos2: string;
-  numeroNeg: string;
+  /** 2ª capa de la armadura positiva. La página de torsión no la contempla. */
+  numeroPos2?: string;
+  diametroPos2?: string;
+  /** Diámetro de la armadura superior, sólo para situar d'. */
   diametroNeg: string;
-  momentoPos: string;
-  momentoNeg: string;
-  vd: string;
-  diametroEstribo: string;
-  numeroRamas: string;
   /** Canto útil de la armadura positiva (m), que la viga ya calculó. */
   dUtilM: number;
   /** As necesaria en ELU de la positiva (cm²). */
@@ -81,30 +87,11 @@ function separacionDesdeBarras(b: string, numero: string): string {
   return txt(anchoM / barras, 4);
 }
 
-export const VINCULOS_VIGA: Vinculo[] = [
-  {
-    id: "vigas-torsion",
-    titulo: "Vigas con torsión",
-    ruta: "/verificaciones/vigas-torsion",
-    lleva: "materiales, sección, armadura longitudinal, estribos y el cortante",
-    falta: "el torsor de cálculo Td",
-    campos: (d) => ({
-      fck: d.fck,
-      fyk: d.fyk,
-      b: d.b,
-      h: d.h,
-      recubrimiento: d.recubrimiento,
-      momentoPos: d.momentoPos,
-      numeroPos: d.numeroPos,
-      diametroPos: d.diametroPos,
-      momentoNeg: d.momentoNeg,
-      numeroNeg: d.numeroNeg,
-      diametroNeg: d.diametroNeg,
-      vd: d.vd,
-      diametroEstribo: d.diametroEstribo,
-      numeroRamas: d.numeroRamas,
-    }),
-  },
+/**
+ * Destinos de servicio, comunes a las dos páginas de ELU: se calcula la viga
+ * en agotamiento y desde ahí se sigue con fisuración y flecha.
+ */
+export const VINCULOS_SERVICIO: Vinculo[] = [
   {
     id: "fisuracion",
     titulo: "Fisuración (ELS)",
@@ -112,7 +99,8 @@ export const VINCULOS_VIGA: Vinculo[] = [
     lleva: "materiales, sección y la armadura de tracción como separación equivalente",
     falta: "el momento en combinación cuasipermanente, que no sale del de cálculo",
     campos: (d) => {
-      const hay2aCapa = Number(d.numeroPos2.replace(",", ".")) > 0;
+      const numero2 = d.numeroPos2 ?? "0";
+      const hay2aCapa = Number(numero2.replace(",", ".")) > 0;
       return {
         fck: d.fck,
         fyk: d.fyk,
@@ -125,7 +113,7 @@ export const VINCULOS_VIGA: Vinculo[] = [
         // página de fisuración— y no se toca la separación: escribirle un vacío
         // dejaría un campo numérico en blanco sin necesidad.
         ...(hay2aCapa
-          ? { s2: separacionDesdeBarras(d.b, d.numeroPos2), phi2: d.diametroPos2 }
+          ? { s2: separacionDesdeBarras(d.b, numero2), phi2: d.diametroPos2 ?? "0" }
           : { phi2: "0" }),
       };
     },

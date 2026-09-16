@@ -12,6 +12,8 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
 import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesVigaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
+import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
@@ -395,6 +397,21 @@ export default function VigasTorsionPage() {
                   />
                 </CardContent>
               </Card>
+
+              <PanelVinculos
+                vinculos={VINCULOS_SERVICIO}
+                datos={{
+                  fck, fyk, b, h, recubrimiento,
+                  numeroPos, diametroPos,
+                  diametroNeg,
+                  dUtilM: resultado.d,
+                  // Esta As necesaria ya trae sumado el aporte longitudinal de
+                  // torsión (Al/4 por cara), que es lo que hay que arrastrar:
+                  // es la armadura que el ELU realmente exige en esta viga.
+                  asNecPosCm2: resultado.flexionPositiva.asNecCm2,
+                  asRealPosCm2: resultado.flexionPositiva.asRealCm2,
+                }}
+              />
             </>
           )}
         </div>

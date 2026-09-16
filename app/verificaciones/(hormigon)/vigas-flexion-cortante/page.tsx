@@ -21,6 +21,8 @@ import {
   CroquisRamasEstribo,
 } from "@/components/verificaciones/croquis/CroquisViga";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
+import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { ArmaduraElegida } from "@/lib/calc/hormigon/comun/types";
 import {
@@ -521,6 +523,18 @@ export default function VigasFlexionCortantePage() {
                   />
                 </CardContent>
               </Card>
+
+              <PanelVinculos
+                vinculos={VINCULOS_SERVICIO}
+                datos={{
+                  fck, fyk, b, h, recubrimiento,
+                  numeroPos, diametroPos, numeroPos2, diametroPos2,
+                  diametroNeg,
+                  dUtilM: resultado.d,
+                  asNecPosCm2: resultado.flexionPositiva.asNecCm2,
+                  asRealPosCm2: resultado.flexionPositiva.asRealCm2,
+                }}
+              />
             </>
           )}
         </div>

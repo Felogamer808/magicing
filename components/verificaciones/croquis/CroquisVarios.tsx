@@ -48,8 +48,8 @@ export function CroquisFamiliaFisuracion({ numero }: { numero: 1 | 2 }) {
       ancho="max-w-[14rem]"
       nota={
         esPrimera
-          ? "La familia 1 es la principal. φ y separación definen cuántas barras entran por metro."
-          : "La familia 2 es opcional: si no hay segunda familia, se deja el diámetro en cero."
+          ? "La familia 1 es la principal. El número es el de barras que hay en el ancho b, y de ahí sale la separación."
+          : "La familia 2 es una segunda tanda de otro diámetro en la misma cara traccionada."
       }
     >
       <rect x="26" y="26" width="154" height="44" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.4" />

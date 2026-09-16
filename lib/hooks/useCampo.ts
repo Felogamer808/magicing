@@ -76,6 +76,45 @@ export function useCampo(nombre: string, inicial: string): [string, (valor: stri
   return useCampoBase(nombre, inicial);
 }
 
+/**
+ * Escribe campos de OTRA ruta, para encadenar verificaciones sin recargar a
+ * mano lo que ya se cargó una vez (ver lib/verificaciones/vinculos.ts).
+ *
+ * Pisa lo que hubiera en el destino, y eso es deliberado: se dispara sólo
+ * cuando alguien aprieta el botón de llevar los datos, no en cada tecla. Un
+ * arrastre automático haría que abrir una verificación para mirar un caso
+ * aparte te destruyera lo que tenías cargado en ella.
+ */
+export function guardarCamposDeRuta(
+  ruta: string,
+  valores: Record<string, string>,
+  /**
+   * Campos que el vínculo no puede llenar y que conviene dejar en blanco en vez
+   * de que queden con el valor por defecto de la página: si no, al llegar se ve
+   * una flecha o una fisura con cara de calculada que en realidad sale de una
+   * luz y un momento de ejemplo.
+   *
+   * Sólo se blanquean si nunca se escribieron en esa ruta. Quien ya los cargó
+   * está iterando —vuelve a la viga, cambia la armadura y encadena de nuevo— y
+   * perder lo tipeado en cada vuelta sería peor que el problema que se evita.
+   */
+  blanquearSiFaltan: string[] = []
+) {
+  try {
+    for (const [nombre, valor] of Object.entries(valores)) {
+      window.localStorage.setItem(claveDe(ruta, nombre), valor);
+    }
+    for (const nombre of blanquearSiFaltan) {
+      const clave = claveDe(ruta, nombre);
+      if (leer(clave) === null) window.localStorage.setItem(clave, "");
+    }
+  } catch {
+    // Si el almacenamiento no está disponible, la navegación igual sirve:
+    // el destino se abre con sus valores por defecto.
+  }
+  window.dispatchEvent(new Event(EVENTO_CAMBIO));
+}
+
 /** Borra los valores guardados de una ruta y devuelve los campos a su valor por defecto. */
 export function restablecerCampos(ruta: string) {
   try {

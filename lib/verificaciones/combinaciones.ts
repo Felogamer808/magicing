@@ -56,7 +56,7 @@ const SERVICIO_CUASIPERMANENTE: Combinacion = {
   regimen: "servicio",
   etiqueta: "ELS · combinación cuasipermanente",
   detalle:
-    "El momento es el de servicio en combinación cuasipermanente, no el de cálculo. Usar el mayorado da aberturas de fisura irreales.",
+    "El momento es el de servicio en combinación cuasipermanente, no el de cálculo. Usar el mayorado da resultados irreales: tanto la abertura de fisura como la flecha se comprueban en servicio.",
 };
 
 const SERVICIO_ASD: Combinacion = {
@@ -234,6 +234,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   pilotes: PILOTES,
   cabezales: CABEZAL,
   fisuracion: SERVICIO_CUASIPERMANENTE,
+  deformaciones: SERVICIO_CUASIPERMANENTE,
   "longitudes-anclaje": ANCLAJE_REFERENCIA,
   "muros-contencion": MURO,
   muros: MURO_PORTANTE,

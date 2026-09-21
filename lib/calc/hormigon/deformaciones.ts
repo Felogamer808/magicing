@@ -90,7 +90,28 @@ export interface ResultadoLuzCanto {
   /** l/d real del elemento */
   ldReal: number;
   verifica: boolean;
+  /**
+   * True cuando ρ queda tan por debajo de ρ0 que la ec. (7.16.a) está
+   * extrapolando fuera de la zona de la que salió. No invalida el resultado
+   * —el elemento cumple, y con holgura— pero el número deja de ser un límite
+   * con sentido físico: ver UMBRAL_EXTRAPOLACION.
+   */
+  fueraDeCalibracion: boolean;
+  /** ρ0/ρ, que es lo que dispara el término cúbico de la (7.16.a). */
+  relacionRho0Rho: number;
 }
+
+/**
+ * A partir de ρ0/ρ = 2 se considera que la (7.16.a) quedó extrapolada.
+ *
+ * El apoyo es la propia tabla A19.7.4: su caso menos armado es ρ=0,5 %, que
+ * según el hormigón cae entre ρ0/ρ = 1,00 (C25) y 1,41 (C50). O sea que el
+ * articulado nunca ilustra nada por debajo de ≈1,4. En 2,0 el término
+ * 3,2·√fck·(ρ0/ρ − 1)^1,5 ya domina la expresión y el l/d admisible pasa de 45
+ * con K=1 —ningún elemento real llega—; de ahí para abajo crece sin techo
+ * (en ρ0/ρ = 10 devuelve 566).
+ */
+export const UMBRAL_EXTRAPOLACION = 2;
 
 export function calcularLuzCanto(datos: DatosLuzCanto): ResultadoLuzCanto {
   const {
@@ -135,11 +156,17 @@ export function calcularLuzCanto(datos: DatosLuzCanto): ResultadoLuzCanto {
   const ldAdm = ldBase * factorTension * factorAla * factorLuzLarga;
   const ldReal = dM > 0 ? luzEfM / dM : Infinity;
 
+  // Sólo la rama poco armada extrapola: la (7.16.b) no tiene el término que se
+  // dispara, y con ρ > ρ0 la relación es menor que 1 de entrada.
+  const relacionRho0Rho = rho > 0 ? rho0 / rho : Infinity;
+  const fueraDeCalibracion = !usaRamaArmada && relacionRho0Rho > UMBRAL_EXTRAPOLACION;
+
   return {
     k, rho0, usaRamaArmada, ldBase,
     factorTension, factorAla, factorLuzLarga,
     ldAdm, ldReal,
     verifica: ldReal <= ldAdm,
+    fueraDeCalibracion, relacionRho0Rho,
   };
 }
 

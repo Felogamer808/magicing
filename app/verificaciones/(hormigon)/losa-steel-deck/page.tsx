@@ -106,7 +106,7 @@ export default function LosaSteelDeckPage() {
   // --- FLEXIÓN: hormigón, solicitación y fuego -----------------------------
   const [fck, setFck] = useCampo("fck", "25");
   const [mEd, setMEd] = useCampo("mEd", "20");
-  const [resistenciaFuego, setResistenciaFuego] = useCampo<ResistenciaFuego>("resistenciaFuego", "R90");
+  const [resistenciaFuego, setResistenciaFuego] = useCampo<ResistenciaFuego>("resistenciaFuego", "R60");
   const [etaFi, setEtaFi] = useCampo("etaFi", "0.7");
 
   // --- RASANTE: luz, coeficientes m-k, acciones y anclaje ------------------
@@ -166,6 +166,18 @@ export default function LosaSteelDeckPage() {
     };
   }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp,
       phiBarra, sepBarra, recBarra, mEd, resistenciaFuego, etaFi]);
+
+  /**
+   * La posición de la barra dentro del nervio es la palanca más fuerte del
+   * chequeo de incendio y la menos evidente: entre quedarse corto y llegar al
+   * valor tabulado se va más de la mitad del límite elástico que conserva el
+   * acero, sin agregar un gramo de armadura. Por eso el dato se muestra al
+   * lado del resultado y no enterrado en "Ver cálculo".
+   */
+  const fuegoBarraCorta =
+    resultadoFlexion !== null &&
+    resultadoFlexion.r.fuego.aMinTabMm !== null &&
+    resultadoFlexion.r.fuego.aRealMm < resultadoFlexion.r.fuego.aMinTabMm;
 
   const resultadoRasante = useMemo(() => {
     const n = {
@@ -612,16 +624,39 @@ export default function LosaSteelDeckPage() {
                           de §4.4. Con R30 y R60 sí hay resultado: probalos en el selector.
                         </p>
                       ) : resultadoFlexion.r.fuego.thetaCrEnRangoValido ? (
-                        <ResultadoCheck
-                          etiqueta="Momento resistente en incendio"
-                          verifica={resultadoFlexion.r.fuego.verificaFuego}
-                          comparacion={{
-                            real: { etiqueta: "MEd,fi", valor: resultadoFlexion.r.fuego.mEdFiKNm },
-                            limite: { etiqueta: "Mfi,Rd", valor: resultadoFlexion.r.fuego.mFiRdKNm },
-                            unidad: "kN·m/m",
-                            exige: "≤",
-                          }}
-                        />
+                        <>
+                          <ResultadoCheck
+                            etiqueta="Momento resistente en incendio"
+                            verifica={resultadoFlexion.r.fuego.verificaFuego}
+                            comparacion={{
+                              real: { etiqueta: "MEd,fi", valor: resultadoFlexion.r.fuego.mEdFiKNm },
+                              limite: { etiqueta: "Mfi,Rd", valor: resultadoFlexion.r.fuego.mFiRdKNm },
+                              unidad: "kN·m/m",
+                              exige: "≤",
+                            }}
+                          />
+                          <p
+                            className={`rounded-md border p-3 text-xs text-muted-foreground ${
+                              fuegoBarraCorta ? "border-destructive/40 bg-destructive/[0.06]" : ""
+                            }`}
+                          >
+                            La barra está a{" "}
+                            <strong className="text-foreground">
+                              a = {fmt(resultadoFlexion.r.fuego.aRealMm, 0)} mm
+                            </strong>{" "}
+                            del fondo del nervio y la Tabla 5.5 pide{" "}
+                            <strong className="text-foreground">
+                              a tab = {fmt(resultadoFlexion.r.fuego.aMinTabMm ?? 0, 0)} mm
+                            </strong>{" "}
+                            para un nervio de {fmt(PERFIL_DECKPANEL.anchoValleM * 1000, 0)} mm en{" "}
+                            {resistenciaFuego}: con ese recubrimiento la armadura trabaja a{" "}
+                            {fmt(resultadoFlexion.r.fuego.thetaCrC, 0)} °C y conserva el{" "}
+                            {fmt(resultadoFlexion.r.fuego.ksTheta * 100, 0)} % de su límite elástico.{" "}
+                            {fuegoBarraCorta
+                              ? "Subirla hasta el mínimo tabulado es la corrección más barata: no agrega acero, y en este tramo la curva ks cae muy rápido con la temperatura."
+                              : "Alejarla más del fondo baja todavía más la temperatura, pero a costa del brazo mecánico en frío."}
+                          </p>
+                        </>
                       ) : (
                         <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
                           No se muestra un Mfi,Rd como resultado —sería un número falso de preciso—:

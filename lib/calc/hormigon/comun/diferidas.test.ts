@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   ALPHA_CEMENTO,
   calcularFluencia,
+  calcularRetraccion,
+  coeficienteKh,
   perimetroExpuestoM,
   tamanoTeoricoMm,
+  type ClaseCemento,
   type DatosFluencia,
-} from "./fluencia";
+  type DatosRetraccion,
+} from "./diferidas";
 
 // Caso base: viga 0,30×0,50 de C30 con losa encima, ambiente interior húmedo
 // 70 %, cargada a 28 días con cemento normal.
@@ -123,5 +127,106 @@ describe("fluencia: corrección por tipo de cemento (ec. B.9)", () => {
     // Carga muy temprana con cemento lento: sin el tope, t0 bajaría de 0,5.
     const r = calcularFluencia({ ...base, t0Dias: 0.5, claseCemento: "S" });
     expect(r.t0CorregidoDias).toBeGreaterThanOrEqual(0.5);
+  });
+});
+
+const baseRetraccion: DatosRetraccion = {
+  fckMPa: 30,
+  hrPct: 70,
+  claseCemento: "N",
+  h0Mm: tamanoTeoricoMm(0.3 * 0.5, perimetroExpuestoM("tres-caras", 0.3, 0.5)),
+};
+
+describe("retracción: kh (tabla A19.3.3)", () => {
+  it("devuelve los valores tabulados en sus puntos", () => {
+    expect(coeficienteKh(100)).toBeCloseTo(1.0, 9);
+    expect(coeficienteKh(200)).toBeCloseTo(0.85, 9);
+    expect(coeficienteKh(300)).toBeCloseTo(0.75, 9);
+    expect(coeficienteKh(500)).toBeCloseTo(0.7, 9);
+  });
+
+  it("interpola linealmente entre puntos", () => {
+    expect(coeficienteKh(150)).toBeCloseTo(0.925, 9);
+    expect(coeficienteKh(400)).toBeCloseTo(0.725, 9);
+  });
+
+  it("no extrapola fuera de la tabla: se queda en los extremos", () => {
+    expect(coeficienteKh(50)).toBeCloseTo(1.0, 9);
+    expect(coeficienteKh(2000)).toBeCloseTo(0.7, 9);
+  });
+});
+
+describe("retracción: contraste contra la tabla A19.3.2", () => {
+  /**
+   * La tabla publica εcd,0 en ‰ para cemento Clase N. Son los mismos valores
+   * que tiene que devolver la ec. (B.11), así que sirven de control externo de
+   * la implementación — 30 celdas, no un caso suelto.
+   */
+  const HRS = [20, 40, 60, 80, 90, 100];
+  const TABLA: Record<number, number[]> = {
+    20: [0.62, 0.58, 0.49, 0.3, 0.17, 0.0],
+    40: [0.48, 0.46, 0.38, 0.24, 0.13, 0.0],
+    60: [0.38, 0.36, 0.3, 0.19, 0.1, 0.0],
+    80: [0.3, 0.28, 0.24, 0.15, 0.08, 0.0],
+    90: [0.27, 0.25, 0.21, 0.13, 0.07, 0.0],
+  };
+
+  it("reproduce las 30 celdas dentro del redondeo de la tabla", () => {
+    for (const [fckTxt, esperados] of Object.entries(TABLA)) {
+      HRS.forEach((hrPct, i) => {
+        const r = calcularRetraccion({
+          fckMPa: Number(fckTxt), hrPct, claseCemento: "N", h0Mm: 200,
+        });
+        // La tabla está redondeada a dos decimales de ‰.
+        expect(Math.abs(r.epsilonCd0 * 1000 - esperados[i])).toBeLessThan(0.006);
+      });
+    }
+  });
+
+  it("se anula con el hormigón sumergido: βHR es cero en HR=100 %", () => {
+    const r = calcularRetraccion({ ...baseRetraccion, hrPct: 100 });
+    expect(r.betaHR).toBeCloseTo(0, 12);
+    expect(r.epsilonCd).toBeCloseTo(0, 12);
+    // La autógena no depende del ambiente: sigue estando.
+    expect(r.epsilonCa).toBeGreaterThan(0);
+  });
+});
+
+describe("retracción: total εcs = εcd + εca (art. 3.1.4(6))", () => {
+  it("suma la parte por secado y la autógena", () => {
+    const r = calcularRetraccion(baseRetraccion);
+    expect(r.epsilonCd).toBeCloseTo(r.kh * r.epsilonCd0, 12);
+    expect(r.epsilonCs).toBeCloseTo(r.epsilonCd + r.epsilonCa, 12);
+  });
+
+  it("la autógena sale de la ec. (3.12) y sólo depende de fck", () => {
+    expect(calcularRetraccion(baseRetraccion).epsilonCa).toBeCloseTo(2.5 * (30 - 10) * 1e-6, 12);
+    expect(calcularRetraccion({ ...baseRetraccion, fckMPa: 50 }).epsilonCa)
+      .toBeCloseTo(2.5 * (50 - 10) * 1e-6, 12);
+    // Con el ambiente cambiado, la autógena no se mueve.
+    const seco = calcularRetraccion({ ...baseRetraccion, hrPct: 40 });
+    const humedo = calcularRetraccion({ ...baseRetraccion, hrPct: 90 });
+    expect(seco.epsilonCa).toBeCloseTo(humedo.epsilonCa, 12);
+    expect(seco.epsilonCd).toBeGreaterThan(humedo.epsilonCd);
+  });
+
+  it("da un orden de magnitud razonable para una viga de interior", () => {
+    // El valor que la página traía cargado a mano era 0,0003.
+    const r = calcularRetraccion(baseRetraccion);
+    expect(r.epsilonCs).toBeGreaterThan(1e-4);
+    expect(r.epsilonCs).toBeLessThan(6e-4);
+  });
+
+  it("una sección más gruesa retrae menos, por kh", () => {
+    const delgada = calcularRetraccion({ ...baseRetraccion, h0Mm: 100 });
+    const gruesa = calcularRetraccion({ ...baseRetraccion, h0Mm: 600 });
+    expect(gruesa.epsilonCd).toBeLessThan(delgada.epsilonCd);
+  });
+
+  it("el cemento rápido retrae más por secado que el lento", () => {
+    const porClase = (claseCemento: ClaseCemento) =>
+      calcularRetraccion({ ...baseRetraccion, claseCemento }).epsilonCd0;
+    expect(porClase("R")).toBeGreaterThan(porClase("N"));
+    expect(porClase("N")).toBeGreaterThan(porClase("S"));
   });
 });

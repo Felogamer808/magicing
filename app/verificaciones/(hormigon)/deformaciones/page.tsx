@@ -27,11 +27,12 @@ import {
   NOMBRE_CEMENTO,
   NOMBRE_EXPOSICION,
   calcularFluencia,
+  calcularRetraccion,
   perimetroExpuestoM,
   tamanoTeoricoMm,
   type ClaseCemento,
   type ExposicionSeccion,
-} from "@/lib/calc/hormigon/comun/fluencia";
+} from "@/lib/calc/hormigon/comun/diferidas";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -113,13 +114,13 @@ export default function DeformacionesPage() {
 
   // Flecha calculada.
   const [mqp, setMqp] = useCampo("mqp", "80");
-  // La fluencia no se carga a mano: sale del Apéndice B con el ambiente, la
-  // edad de puesta en carga, el cemento y el tamaño teórico de la sección.
+  // Ni la fluencia ni la retracción se cargan a mano: salen del art. 3.1.4 y
+  // del Apéndice B con el ambiente, la edad de puesta en carga, el cemento y el
+  // tamaño teórico de la sección. Comparten casi todos los datos.
   const [hr, setHr] = useCampo("hr", "70");
   const [t0, setT0] = useCampo("t0", "28");
   const [cementoTxt, setCementoTxt] = useCampo("cemento", NOMBRE_CEMENTO.N);
   const [exposicionTxt, setExposicionTxt] = useCampo("exposicion", NOMBRE_EXPOSICION["tres-caras"]);
-  const [epsilonCs, setEpsilonCs] = useCampo("epsilonCs", "0.0003");
   const [esquemaTxt, setEsquemaTxt] = useCampo("esquema", COEF_FLECHA[0].nombre);
   const [coefManual, setCoefManual] = useCampo("coefManual", "0.104");
 
@@ -143,7 +144,18 @@ export default function DeformacionesPage() {
       }),
     [fck, hr, t0, cemento, h0Mm]
   );
+  const retraccion = useMemo(
+    () =>
+      calcularRetraccion({
+        fckMPa: aNumero(fck),
+        hrPct: aNumero(hr),
+        claseCemento: cemento,
+        h0Mm,
+      }),
+    [fck, hr, cemento, h0Mm]
+  );
   const phiFluencia = fluencia.phi;
+  const epsilonCsCalculado = retraccion.epsilonCs;
 
   const sistema = sistemaDesdeNombre(sistemaTxt);
   const esquemaElegido = COEF_FLECHA.find((c) => c.nombre === esquemaTxt);
@@ -164,7 +176,7 @@ export default function DeformacionesPage() {
       fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa),
       b: aNumero(b), h: aNumero(h), d: aNumero(d), dComp: aNumero(dComp), luz: aNumero(luz),
       asProv: asProvCm2, asComp: asCompCm2, asReq: aNumero(asReq),
-      mqp: aNumero(mqp), phi: phiFluencia, epsilonCs: aNumero(epsilonCs),
+      mqp: aNumero(mqp), phi: phiFluencia, epsilonCs: epsilonCsCalculado,
     };
     if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
     if (n.fck <= 0 || n.fyk <= 0 || n.esGPa <= 0) return null;
@@ -215,7 +227,7 @@ export default function DeformacionesPage() {
     };
   }, [
     fck, fyk, esGPa, b, h, d, dComp, luz, asProvCm2, asCompCm2, asReq,
-    mqp, phiFluencia, epsilonCs, sistema, alaEnT, tabiques, coefFlecha,
+    mqp, phiFluencia, epsilonCsCalculado, sistema, alaEnT, tabiques, coefFlecha,
   ]);
 
   return (
@@ -436,13 +448,7 @@ export default function DeformacionesPage() {
                 valor={mqp}
                 onChange={setMqp}
               />
-              <CampoNumerico
-                id="epsilonCs"
-                etiqueta="εcs retracción"
-                valor={epsilonCs}
-                onChange={setEpsilonCs}
-                advertencia="Art. 3.1.4. Del orden de 0,0003 en ambiente normal; 0 la desactiva"
-              />
+              <div />
               <div className="col-span-full">
                 <CampoSeleccion
                   id="esquema"
@@ -481,7 +487,9 @@ export default function DeformacionesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fluencia — Apéndice B</CardTitle>
+              <CardTitle className="text-base">
+                Fluencia y retracción — art. 3.1.4 y Apéndice B
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <CampoNumerico
@@ -518,19 +526,42 @@ export default function DeformacionesPage() {
                   onChange={setExposicionTxt}
                 />
               </div>
-              <div className="col-span-full rounded-md border p-3 text-sm">
-                <p className="font-medium">φ(∞,t0) = {fmt(fluencia.phi, 3)}</p>
+              <div className="col-span-full space-y-2 rounded-md border p-3 text-sm">
                 <p className="font-mono text-xs text-muted-foreground">
-                  h0 = {fmt(h0Mm, 0)} mm · φHR {fmt(fluencia.phiHR, 3)} · β(fcm){" "}
-                  {fmt(fluencia.betaFcm, 3)} · β(t0) {fmt(fluencia.betaT0, 3)}
+                  h0 = 2Ac/u = {fmt(h0Mm, 0)} mm
                 </p>
+                <div>
+                  <p className="font-medium">φ(∞,t0) = {fmt(fluencia.phi, 3)}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    φHR {fmt(fluencia.phiHR, 3)} · β(fcm) {fmt(fluencia.betaFcm, 3)} · β(t0){" "}
+                    {fmt(fluencia.betaT0, 3)}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium">
+                    εcs = {fmt(retraccion.epsilonCs * 1000, 3)} ‰
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    secado {fmt(retraccion.epsilonCd * 1000, 3)} ‰ (kh {fmt(retraccion.kh, 2)} ·
+                    εcd,0 {fmt(retraccion.epsilonCd0 * 1000, 3)} ‰) + autógena{" "}
+                    {fmt(retraccion.epsilonCa * 1000, 3)} ‰
+                  </p>
+                </div>
               </div>
               <div className="col-span-full">
-                <PanelAyuda titulo="Cómo se calcula la fluencia">
+                <PanelAyuda titulo="Cómo se calculan la fluencia y la retracción">
                   <p>
-                    Sale de la ec. (B.2): φ0 = φHR·β(fcm)·β(t0). Se toma a tiempo infinito, que es
-                    lo que pide la comprobación de flecha, y ahí el factor de evolución βc de la ec.
-                    (B.1) vale 1, así que φ(∞,t0) se reduce al coeficiente básico.
+                    <strong className="text-foreground">Fluencia.</strong> Sale de la ec. (B.2): φ0
+                    = φHR·β(fcm)·β(t0). Se toma a tiempo infinito, que es lo que pide la
+                    comprobación de flecha, y ahí el factor de evolución βc de la ec. (B.1) vale 1,
+                    así que φ(∞,t0) se reduce al coeficiente básico.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Retracción.</strong> εcs = εcd + εca (art.
+                    3.1.4(6)). La de secado sale de la ec. (B.11) afectada por el kh de la tabla
+                    A19.3.3, y depende del ambiente y del espesor porque es migración de agua. La
+                    autógena es la ec. (3.12), 2,5·(fck−10)·10⁻⁶: sólo depende de la resistencia y
+                    se desarrolla en los primeros días. A tiempo infinito las dos están completas.
                   </p>
                   <p>
                     <strong className="text-foreground">Caras que secan.</strong> Fija el perímetro

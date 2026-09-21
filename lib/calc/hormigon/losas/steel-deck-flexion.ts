@@ -32,7 +32,19 @@ import { GAMMA_C, GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
  */
 const GAMMA_CHAPA = 1.15;
 
-export type ResistenciaFuego = "R60" | "R90" | "R120" | "R180" | "R240";
+export type ResistenciaFuego = "R30" | "R60" | "R90" | "R120" | "R180" | "R240";
+
+/**
+ * R30 no se calcula: EN 1994-1-2 §4.3.2(5) lo concede por el solo hecho de
+ * estar dimensionada en frío según EN 1994-1-1 —"la resistencia al fuego de
+ * las losas mixtas con chapas nervadas de acero, con o sin armadura adicional
+ * es de, al menos, 30 min", bajo el criterio de capacidad portante "R"—.
+ *
+ * Es cláusula normativa, no del Anexo D (que es informativo). El criterio de
+ * aislamiento "I" sí hay que comprobarlo aparte, con el espesor de la Tabla
+ * 5.8, y eso se sigue haciendo.
+ */
+export const RESISTENCIA_CONCEDIDA_POR_EC4: ResistenciaFuego = "R30";
 
 /**
  * Tabla 5.5 de EC2-1-2 — vigas simplemente apoyadas: combinaciones posibles
@@ -40,6 +52,9 @@ export type ResistenciaFuego = "R60" | "R90" | "R120" | "R180" | "R240";
  * losa mixta se trata como el alma de una viga, art. 5.7.5(1).
  */
 const TABLA_5_5: Record<ResistenciaFuego, { bMinMm: number; aMm: number }[]> = {
+  // La Tabla 5.5 no tiene fila R30: esa resistencia no se verifica por acá
+  // sino por la concesión de EN 1994-1-2 §4.3.2(5).
+  R30: [],
   R60: [
     { bMinMm: 120, aMm: 40 },
     { bMinMm: 160, aMm: 35 },
@@ -74,6 +89,7 @@ const TABLA_5_5: Record<ResistenciaFuego, { bMinMm: number; aMm: number }[]> = {
 
 /** Tabla 5.8 de EC2-1-2, columna 2 — espesor mínimo de losa (función separadora). */
 const TABLA_5_8_ESPESOR_MM: Record<ResistenciaFuego, number> = {
+  R30: 60,
   R60: 80,
   R90: 100,
   R120: 120,
@@ -89,6 +105,7 @@ const TABLA_5_8_ESPESOR_MM: Record<ResistenciaFuego, number> = {
  */
 export function aMinTabuladoMm(resistenciaFuego: ResistenciaFuego, bMinRealMm: number): number | null {
   const combos = TABLA_5_5[resistenciaFuego];
+  if (combos.length === 0) return null; // R30: no se resuelve por esta tabla
   if (bMinRealMm < combos[0].bMinMm) return null;
   if (bMinRealMm >= combos[combos.length - 1].bMinMm) return combos[combos.length - 1].aMm;
 
@@ -187,6 +204,19 @@ export interface ResultadoFlexionFuego {
   thetaCrC: number;
   /** La temperatura crítica cae dentro del rango de validez de la ec. (5.3): 350 °C – 700 °C. */
   thetaCrEnRangoValido: boolean;
+  /**
+   * R concedida por EN 1994-1-2 §4.3.2(5) sin necesidad de calcular: no se
+   * mira la Tabla 5.5 ni la ec. (5.3), sólo el criterio de aislamiento.
+   */
+  concedidaPorEc4: boolean;
+  /**
+   * El nervio es más angosto que el primer bmin que tabula la Tabla 5.5 para
+   * esta resistencia, así que no hay dato del que partir. No es un problema
+   * de recubrimiento: ningún `a` arregla un nervio demasiado fino.
+   */
+  nervioMasAngostoQueLaTabla: boolean;
+  /** Primer bmin que la Tabla 5.5 tabula para esta resistencia (mm). null en R30. */
+  bMinTabuladoMinimoMm: number | null;
   ksTheta: number;
   fsdFiMPa: number;
   npFiKN: number;
@@ -272,7 +302,16 @@ function calcularFuego(
   const { resistenciaFuego, etaFi } = datosFuego;
 
   const aRealMm = recubrimientoBarraM * 1000;
+  const concedidaPorEc4 = resistenciaFuego === RESISTENCIA_CONCEDIDA_POR_EC4;
+
+  const combos = TABLA_5_5[resistenciaFuego];
+  const bMinTabuladoMinimoMm = combos.length > 0 ? combos[0].bMinMm : null;
   const aMinTabMm = aMinTabuladoMm(resistenciaFuego, anchoNervioM * 1000);
+  // Dos motivos distintos para no tener dato tabulado, que conviene no
+  // confundir: en R30 es porque no corresponde mirar esta tabla; en el resto
+  // es porque el nervio es más fino que el caso más angosto que cubre.
+  const nervioMasAngostoQueLaTabla =
+    !concedidaPorEc4 && bMinTabuladoMinimoMm !== null && anchoNervioM * 1000 < bMinTabuladoMinimoMm;
 
   // ec. (5.3): Δa = 0,1·(500 − θcr) [mm], invertida contra el a real disponible.
   const deltaAMm = aMinTabMm !== null ? aRealMm - aMinTabMm : 0;
@@ -301,6 +340,9 @@ function calcularFuego(
     aRealMm,
     thetaCrC,
     thetaCrEnRangoValido,
+    concedidaPorEc4,
+    nervioMasAngostoQueLaTabla,
+    bMinTabuladoMinimoMm,
     ksTheta,
     fsdFiMPa,
     npFiKN,
@@ -308,7 +350,10 @@ function calcularFuego(
     zFiM,
     mFiRdKNm,
     mEdFiKNm,
-    verificaFuego: mEdFiKNm <= mFiRdKNm,
+    // En R30 la capacidad portante la concede el articulado, no el momento
+    // calculado acá: ese Mfi,Rd queda como referencia pero no es lo que
+    // decide (ver `concedidaPorEc4`).
+    verificaFuego: concedidaPorEc4 || mEdFiKNm <= mFiRdKNm,
     aprovechamientoFuego: mFiRdKNm > 0 ? mEdFiKNm / mFiRdKNm : Infinity,
     espesorAlaMinMm,
     verificaEspesorAla: frio.hcM * 1000 >= espesorAlaMinMm,

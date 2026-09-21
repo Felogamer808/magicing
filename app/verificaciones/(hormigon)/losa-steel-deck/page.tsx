@@ -31,7 +31,7 @@ import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-steel-deck")!;
 
-const RESISTENCIAS_FUEGO: readonly ResistenciaFuego[] = ["R60", "R90", "R120", "R180", "R240"];
+const RESISTENCIAS_FUEGO: readonly ResistenciaFuego[] = ["R30", "R60", "R90", "R120", "R180", "R240"];
 const SI_NO = ["No", "Sí"] as const;
 
 const ESPESORES_DECKPANEL = Object.keys(CATALOGO_DECKPANEL_ARMCO).map(Number).sort((a, b) => a - b);
@@ -577,15 +577,41 @@ export default function LosaSteelDeckPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Situación de incendio</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {resultadoFlexion.r.fuego.aMinTabMm === null ? (
-                    <p className="text-xs text-destructive">
-                      bmin cargado en Geometría queda por debajo del primer par tabulado de la Tabla
-                      5.5 para {resistenciaFuego}: no hay dato para interpolar. Ensanchá el nervio o
-                      revisá con perfiles de temperatura.
-                    </p>
-                  ) : (
+                  {
                     <>
-                      {resultadoFlexion.r.fuego.thetaCrEnRangoValido ? (
+                      {resultadoFlexion.r.fuego.concedidaPorEc4 ? (
+                        <>
+                          <ResultadoCheck
+                            etiqueta="Capacidad portante R30"
+                            verifica
+                            detalle="Concedida por EN 1994-1-2 §4.3.2(5), sin cálculo"
+                          />
+                          <p className="rounded-md border p-3 text-xs text-muted-foreground">
+                            El articulado da R30 por el solo hecho de estar dimensionada en frío
+                            según EN 1994-1-1: &ldquo;la resistencia al fuego de las losas mixtas con
+                            chapas nervadas de acero, con o sin armadura adicional es de, al menos,
+                            30 min&rdquo;. Es cláusula normativa, no del Anexo D. No se mira la Tabla
+                            5.5 ni la ec. (5.3), así que acá no hay un Mfi,Rd que calcular. Lo que sí
+                            hay que comprobar es el criterio de aislamiento, que va acá abajo.
+                          </p>
+                        </>
+                      ) : resultadoFlexion.r.fuego.nervioMasAngostoQueLaTabla ? (
+                        <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
+                          El nervio del Deckpanel mide{" "}
+                          {fmt(PERFIL_DECKPANEL.anchoValleM * 1000, 0)} mm en su base, y la Tabla 5.5
+                          de EC2-1-2 para {resistenciaFuego} arranca en{" "}
+                          {fmt(resultadoFlexion.r.fuego.bMinTabuladoMinimoMm ?? 0, 0)} mm: el perfil
+                          queda por debajo del caso más angosto que cubre. Esto{" "}
+                          <strong>no se arregla con recubrimiento</strong> —ningún valor de a
+                          compensa un nervio demasiado fino, porque el fuego entra por los dos
+                          laterales a la vez—, así que por esta vía {resistenciaFuego} no es
+                          alcanzable sin protección. Las salidas son de proyecto: cielorraso de
+                          protección (EN 1994-1-2 §4.3.3, y ahí el criterio pasa a ser que la chapa
+                          se mantenga bajo 350 °C), apoyarse en la armadura negativa de continuidad
+                          sobre los apoyos —que está arriba y lejos del fuego—, o el método avanzado
+                          de §4.4. Con R30 y R60 sí hay resultado: probalos en el selector.
+                        </p>
+                      ) : resultadoFlexion.r.fuego.thetaCrEnRangoValido ? (
                         <ResultadoCheck
                           etiqueta="Momento resistente en incendio"
                           verifica={resultadoFlexion.r.fuego.verificaFuego}
@@ -600,15 +626,13 @@ export default function LosaSteelDeckPage() {
                         <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
                           No se muestra un Mfi,Rd como resultado —sería un número falso de preciso—:
                           la temperatura estimada (θcr = {fmt(resultadoFlexion.r.fuego.thetaCrC, 0)} °C)
-                          queda muy fuera del rango 350–700 °C en el que vale la ec. (5.3). Esto pasa
+                          queda fuera del rango 350–700 °C en el que vale la ec. (5.3). Esto pasa
                           cuando el recubrimiento real de la barra (a = {fmt(resultadoFlexion.r.fuego.aRealMm, 0)} mm) está lejos
                           del mínimo tabulado para esta resistencia al fuego (a tab ={" "}
-                          {fmt(resultadoFlexion.r.fuego.aMinTabMm, 0)} mm): la ec. (5.3) es una
+                          {fmt(resultadoFlexion.r.fuego.aMinTabMm ?? 0, 0)} mm): la ec. (5.3) es una
                           interpolación lineal pensada para ajustes chicos, no para extrapolar tan
-                          lejos. Si hace falta esta resistencia al fuego, hay que aumentar el
-                          recubrimiento de la barra hasta acercarse al mínimo tabulado, o resolver con
-                          perfiles de temperatura reales (Anexo D de EN 1994-1-2) en vez de este método
-                          simplificado. Los números de &ldquo;Ver cálculo&rdquo; de abajo son de
+                          lejos. Ajustá el recubrimiento de la barra para acercarte al mínimo
+                          tabulado. Los números de &ldquo;Ver cálculo&rdquo; de abajo son de
                           referencia, no un resultado válido.
                         </p>
                       )}
@@ -617,6 +641,10 @@ export default function LosaSteelDeckPage() {
                         verifica={resultadoFlexion.r.fuego.verificaEspesorAla}
                         detalle={`hc ${fmt(resultadoFlexion.r.frio.hcM * 1000, 0)} mm / mín. tabulado ${resultadoFlexion.r.fuego.espesorAlaMinMm} mm (Tabla 5.8)`}
                       />
+                      {/* Sin dato tabulado no hay cadena de cálculo que mostrar:
+                          ni en R30 (que no pasa por esta tabla) ni con el nervio
+                          más angosto de lo que cubre. */}
+                      {resultadoFlexion.r.fuego.aMinTabMm !== null && (
                       <PanelFormulas
                         titulo="Ver cálculo"
                         filas={[
@@ -632,8 +660,9 @@ export default function LosaSteelDeckPage() {
                           { etiqueta: "MEd,fi = ηfi·MEd", valor: `${fmt(resultadoFlexion.r.fuego.mEdFiKNm)} kN·m/m` },
                         ]}
                       />
+                      )}
                     </>
-                  )}
+                  }
                 </CardContent>
               </Card>
             </>

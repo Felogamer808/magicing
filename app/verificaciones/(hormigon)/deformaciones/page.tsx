@@ -485,6 +485,19 @@ export default function DeformacionesPage() {
                       { etiqueta: "l/d real", valor: fmt(resultado.luzCanto.ldReal) },
                     ]}
                   />
+                  {resultado.luzCanto.fueraDeCalibracion && (
+                    <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
+                      ρ = {fmt(resultado.rho * 100, 3)} % es menos de la mitad de ρ0 ={" "}
+                      {fmt(resultado.luzCanto.rho0 * 100, 3)} %, y ahí la ec. (7.16.a) está
+                      extrapolando: el término 3,2·√fck·(ρ0/ρ − 1)^1,5 domina y hace crecer el l/d
+                      admisible sin techo. Los {fmt(resultado.luzCanto.ldAdm)} de arriba no son un
+                      límite con sentido físico —la expresión sale de un estudio paramétrico sobre
+                      cuantías del orden de 0,5 a 1,5 %, y la tabla A19.7.4 no ilustra nada tan poco
+                      armado—. Lo que el resultado sí dice es que la sección está holgada de canto
+                      para la armadura que lleva. Si hace falta un número, la flecha calculada de
+                      acá abajo (art. 7.4.3) no tiene este problema.
+                    </p>
+                  )}
                   {resultado.luzCanto.factorTension > 1.5 && (
                     <p className="rounded-md border border-primary/40 p-3 text-xs text-muted-foreground">
                       La corrección 310/σs quedó en {fmt(resultado.luzCanto.factorTension)}, bastante

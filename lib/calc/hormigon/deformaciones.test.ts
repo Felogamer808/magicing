@@ -120,6 +120,43 @@ describe("deformaciones: relación luz/canto (art. 7.4.2)", () => {
     expect(losaCorta.factorLuzLarga).toBe(1);
   });
 
+  describe("aviso de extrapolación de la (7.16.a)", () => {
+    const rho0 = 1e-3 * Math.sqrt(30);
+
+    it("no avisa en la zona que el articulado sí ilustra", () => {
+      // El caso menos armado de la tabla A19.7.4 es ρ=0,5 %, que con C30 da
+      // ρ0/ρ = 1,10: bien dentro de lo calibrado.
+      const tabla = calcularLuzCanto({ ...baseLuzCanto, rho: 0.005 });
+      expect(tabla.relacionRho0Rho).toBeCloseTo(rho0 / 0.005, 9);
+      expect(tabla.fueraDeCalibracion).toBe(false);
+
+      // Justo en ρ0 tampoco: ahí el término cúbico se anula.
+      expect(calcularLuzCanto({ ...baseLuzCanto, rho: rho0 }).fueraDeCalibracion).toBe(false);
+    });
+
+    it("avisa cuando ρ cae por debajo de la mitad de ρ0", () => {
+      const justoEnElUmbral = calcularLuzCanto({ ...baseLuzCanto, rho: rho0 / 2 });
+      expect(justoEnElUmbral.fueraDeCalibracion).toBe(false);
+
+      const pasado = calcularLuzCanto({ ...baseLuzCanto, rho: rho0 / 2.5 });
+      expect(pasado.fueraDeCalibracion).toBe(true);
+      // Y para entonces el admisible ya dejó de ser un número de elemento real.
+      expect(pasado.ldAdm).toBeGreaterThan(45);
+    });
+
+    it("nunca avisa en la rama armada: la (7.16.b) no tiene el término que se dispara", () => {
+      const armada = calcularLuzCanto({ ...baseLuzCanto, rho: 0.015, rhoComp: 0.002 });
+      expect(armada.usaRamaArmada).toBe(true);
+      expect(armada.fueraDeCalibracion).toBe(false);
+    });
+
+    it("avisar no cambia el veredicto: el elemento sigue cumpliendo", () => {
+      const r = calcularLuzCanto({ ...baseLuzCanto, rho: rho0 / 4 });
+      expect(r.fueraDeCalibracion).toBe(true);
+      expect(r.verifica).toBe(true);
+    });
+  });
+
   it("verifica comparando l/d real contra el admisible", () => {
     // d=0,45 y luz 6 m dan l/d=13,3, holgado contra los ~26 admisibles.
     const holgado = calcularLuzCanto(baseLuzCanto);

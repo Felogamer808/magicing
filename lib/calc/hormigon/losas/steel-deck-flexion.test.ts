@@ -5,6 +5,7 @@ import {
   ksArmaduraPasiva,
   type GeometriaSteelDeckFlexion,
   type MaterialesSteelDeckFlexion,
+  type ResistenciaFuego,
 } from "./steel-deck-flexion";
 
 // Este módulo no viene de una única hoja del Excel de referencia: la hoja
@@ -139,5 +140,92 @@ describe("aMinTabuladoMm: Tabla 5.5 de EC2-1-2 (vigas simplemente apoyadas)", ()
   it("no da dato por debajo del primer nervio tabulado, y adopta el último valor por encima", () => {
     expect(aMinTabuladoMm("R90", 100)).toBeNull();
     expect(aMinTabuladoMm("R90", 1000)).toBe(35);
+  });
+});
+
+describe("fuego: R30 lo concede EN 1994-1-2 §4.3.2(5), sin calcular", () => {
+  const materiales: MaterialesSteelDeckFlexion = { fypkMPa: 230, fckMPa: 30, fykBarrasMPa: 500 };
+  // Nervio del ARMCO Deckpanel: 122 mm, más angosto que la Tabla 5.5 para R90.
+  const geometria: GeometriaSteelDeckFlexion = {
+    espesorTotalM: 0.15,
+    alturaNervioM: 0.063,
+    apMm2PorM: 1130,
+    dpM: 0.119,
+    diametroBarraMm: 10,
+    separacionBarraMm: 305,
+    recubrimientoBarraM: 0.025,
+    anchoNervioM: 0.122,
+  };
+  const paraR = (resistenciaFuego: ResistenciaFuego) =>
+    calcularSteelDeckFlexion(materiales, geometria, 10, { resistenciaFuego, etaFi: 0.7 }).fuego;
+
+  it("marca R30 como concedida y no la resuelve por la Tabla 5.5", () => {
+    const r = paraR("R30");
+    expect(r.concedidaPorEc4).toBe(true);
+    expect(r.aMinTabMm).toBeNull();
+    expect(r.bMinTabuladoMinimoMm).toBeNull();
+    expect(r.verificaFuego).toBe(true);
+  });
+
+  it("no confunde la concesión con el nervio angosto: son motivos distintos", () => {
+    expect(paraR("R30").nervioMasAngostoQueLaTabla).toBe(false);
+    expect(paraR("R90").concedidaPorEc4).toBe(false);
+  });
+
+  it("en R30 el criterio de aislamiento se sigue comprobando", () => {
+    // Tabla 5.8, columna 2: 60 mm para REI 30.
+    expect(paraR("R30").espesorAlaMinMm).toBe(60);
+  });
+});
+
+describe("fuego: el nervio del Deckpanel contra la Tabla 5.5", () => {
+  const materiales: MaterialesSteelDeckFlexion = { fypkMPa: 230, fckMPa: 30, fykBarrasMPa: 500 };
+  const geometria: GeometriaSteelDeckFlexion = {
+    espesorTotalM: 0.15,
+    alturaNervioM: 0.063,
+    apMm2PorM: 1130,
+    dpM: 0.119,
+    diametroBarraMm: 10,
+    separacionBarraMm: 305,
+    recubrimientoBarraM: 0.025,
+    anchoNervioM: 0.122,
+  };
+  const paraR = (resistenciaFuego: ResistenciaFuego) =>
+    calcularSteelDeckFlexion(materiales, geometria, 10, { resistenciaFuego, etaFi: 0.7 }).fuego;
+
+  /** R60 arranca en bmin=120 y el nervio tiene 122: entra, por poco. */
+  it("R60 entra en la tabla y da resultado", () => {
+    const r = paraR("R60");
+    expect(r.nervioMasAngostoQueLaTabla).toBe(false);
+    expect(r.bMinTabuladoMinimoMm).toBe(120);
+    expect(r.aMinTabMm).not.toBeNull();
+    expect(r.mFiRdKNm).toBeGreaterThan(0);
+  });
+
+  /** De R90 en adelante la tabla arranca en 150, 200, 240 y 280. */
+  it("R90 y superiores quedan fuera por nervio angosto, no por recubrimiento", () => {
+    for (const resistencia of ["R90", "R120", "R180", "R240"] as const) {
+      const r = paraR(resistencia);
+      expect(r.nervioMasAngostoQueLaTabla).toBe(true);
+      expect(r.aMinTabMm).toBeNull();
+      expect(r.bMinTabuladoMinimoMm).toBeGreaterThan(122);
+    }
+  });
+
+  it("subir el recubrimiento no destraba el nervio angosto", () => {
+    const conMasRecubrimiento = calcularSteelDeckFlexion(
+      materiales, { ...geometria, recubrimientoBarraM: 0.05 }, 10,
+      { resistenciaFuego: "R90", etaFi: 0.7 }
+    ).fuego;
+    expect(conMasRecubrimiento.nervioMasAngostoQueLaTabla).toBe(true);
+  });
+
+  it("un nervio más ancho sí destraba R90", () => {
+    const nervioAncho = calcularSteelDeckFlexion(
+      materiales, { ...geometria, anchoNervioM: 0.2 }, 10,
+      { resistenciaFuego: "R90", etaFi: 0.7 }
+    ).fuego;
+    expect(nervioAncho.nervioMasAngostoQueLaTabla).toBe(false);
+    expect(nervioAncho.aMinTabMm).toBe(45);
   });
 });

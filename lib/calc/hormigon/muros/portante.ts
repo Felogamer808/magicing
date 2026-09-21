@@ -62,8 +62,20 @@ export interface EsfuerzosMuro {
   /** Momentos de empotramiento de primer orden (kN·m/m), |M02| ≥ |M01|. */
   m01KNm: number;
   m02KNm: number;
-  /** Coeficiente de fluencia eficaz. Si no se conoce, el art. 5.8.3.1 da A = 0,7. */
-  fluenciaEficaz?: number;
+  /**
+   * Coeficiente básico de fluencia φ(∞,t0), art. 3.1.4 y Apéndice B.
+   *
+   * No es el que entra en las fórmulas de esbeltez: ésas usan el eficaz φef,
+   * que sale de la ec. (5.19) escalando éste por la relación de momentos. Se
+   * piden los dos por separado para no obligar a quien calcula a hacer esa
+   * multiplicación a mano. Si no se conoce, el art. 5.8.3.1 admite A = 0,7.
+   */
+  fluenciaBasica?: number;
+  /**
+   * M0Eqp/M0Ed de la ec. (5.19): cuánto del momento de cálculo es
+   * cuasipermanente. La fluencia la produce la carga sostenida, no la total.
+   */
+  relacionMomentoCuasipermanente?: number;
 }
 
 export interface ResultadoClasificacion {
@@ -87,6 +99,31 @@ export interface ResultadoEsbeltez {
   factorC: number;
   /** true si λ ≤ λlim: los efectos de segundo orden se pueden ignorar. */
   ignoraSegundoOrden: boolean;
+}
+
+/**
+ * Fluencia del art. 5.8.4: el paso de φ(∞,t0) a φef, y si el articulado
+ * permite saltearla del todo.
+ */
+export interface ResultadoFluenciaMuro {
+  /** φ(∞,t0) que entró; 0 si no se cargó. */
+  basica: number;
+  /** φef = φ(∞,t0)·M0Eqp/M0Ed, ec. (5.19). */
+  eficaz: number;
+  /** true si se cargó φ(∞,t0); si no, factorA cae en el 0,7 del art. 5.8.3.1. */
+  conocida: boolean;
+  /** φ(∞,t0) ≤ 2, 1ª condición del art. 5.8.4(4). */
+  cumpleFluenciaAcotada: boolean;
+  /** λ ≤ 75, 2ª condición. */
+  cumpleEsbeltez: boolean;
+  /** M0Ed/NEd ≥ h, 3ª condición. */
+  cumpleExcentricidad: boolean;
+  /**
+   * Las tres a la vez: el art. 5.8.4(4) permite entonces tomar φef = 0. Es una
+   * autorización, no una obligación, y tomarla agranda λlim —o sea que es menos
+   * conservador—, así que se informa y la decisión queda de quien calcula.
+   */
+  puedeIgnorarse: boolean;
 }
 
 export interface ResultadoMomentos {
@@ -143,6 +180,7 @@ export interface ResultadoResistencia {
 export interface ResultadoMuro {
   clasificacion: ResultadoClasificacion;
   esbeltez: ResultadoEsbeltez;
+  fluencia: ResultadoFluenciaMuro;
   momentos: ResultadoMomentos;
   armado: ResultadoArmadoMuro;
   resistencia: ResultadoResistencia;
@@ -271,10 +309,15 @@ export function calcularMuro(
   const axilReducido = nEdKN / (areaHormigonM2 * fcd * 1000);
   const cuantiaMecanica = (asVerticalCm2 / 1e4 * fyd) / (areaHormigonM2 * fcd);
 
+  // ec. (5.19): la fluencia que entra en la esbeltez es la eficaz, no la
+  // básica. La escala la fracción cuasipermanente del momento, porque la
+  // fluencia la produce la carga sostenida y no la total.
+  const fluenciaConocida = esfuerzos.fluenciaBasica !== undefined;
+  const fluenciaBasica = esfuerzos.fluenciaBasica ?? 0;
+  const fluenciaEficaz = fluenciaBasica * (esfuerzos.relacionMomentoCuasipermanente ?? 1);
+
   // Factores de la ec. (5.13). Sin φef conocido el articulado admite A = 0,7.
-  const factorA = esfuerzos.fluenciaEficaz !== undefined
-    ? 1 / (1 + 0.2 * esfuerzos.fluenciaEficaz)
-    : 0.7;
+  const factorA = fluenciaConocida ? 1 / (1 + 0.2 * fluenciaEficaz) : 0.7;
   const factorB = Math.sqrt(1 + 2 * cuantiaMecanica);
   /*
    * C = 1,7 − rm. En muros el momento de primer orden viene casi siempre de
@@ -301,7 +344,7 @@ export function calcularMuro(
     // Curvatura de la ec. (5.34), con Kr de la (5.36) y Kφ de la (5.37).
     const nu = 1 + cuantiaMecanica;
     const kr = Math.min((nu - axilReducido) / (nu - 0.4), 1);
-    const kPhi = Math.max(1 + 0.35 * (esfuerzos.fluenciaEficaz ?? 0), 1);
+    const kPhi = Math.max(1 + 0.35 * fluenciaEficaz, 1);
     const curvaturaBase = fyd / ES_MPA / (0.45 * dEficaz);
     curvatura = kr * kPhi * curvaturaBase;
     // c = 10 para sección constante, art. 5.8.8.2(4).
@@ -309,6 +352,12 @@ export function calcularMuro(
   }
   const m2KNm = nEdKN * e2M;
   const mEdKNm = m0EdKNm + m2KNm;
+
+  // art. 5.8.4(4): con las tres condiciones a la vez se puede tomar φef = 0.
+  // Se evalúan acá y no antes porque la tercera necesita M0Ed.
+  const cumpleFluenciaAcotada = fluenciaBasica <= 2;
+  const cumpleEsbeltez = lambda <= 75;
+  const cumpleExcentricidad = nEdKN > 0 ? m0EdKNm / nEdKN >= h : false;
 
   // --- 4. Armado, art. 9.6 -------------------------------------------------
   const areaHormigonCm2 = areaHormigonM2 * 1e4;
@@ -352,6 +401,15 @@ export function calcularMuro(
       factorB,
       factorC,
       ignoraSegundoOrden,
+    },
+    fluencia: {
+      basica: fluenciaBasica,
+      eficaz: fluenciaEficaz,
+      conocida: fluenciaConocida,
+      cumpleFluenciaAcotada,
+      cumpleEsbeltez,
+      cumpleExcentricidad,
+      puedeIgnorarse: cumpleFluenciaAcotada && cumpleEsbeltez && cumpleExcentricidad,
     },
     momentos: {
       excentricidadMinimaM,

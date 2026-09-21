@@ -19,7 +19,7 @@ import {
 import { calcularSteelDeckRasante } from "@/lib/calc/hormigon/losas/steel-deck-rasante";
 import {
   apDerivadaMm2PorM,
-  BMIN_NERVIO_ESTIMADO_M,
+  BMIN_NERVIO_M,
   CATALOGO_DECKPANEL_ARMCO,
   ESPESOR_DECKPANEL_ESTANDAR_MM,
   FY_ACERO_DECKPANEL_MPA,
@@ -78,14 +78,6 @@ export default function LosaSteelDeckPage() {
   // dp se deriva de h y del espesor elegido, no se carga a mano: así no
   // puede quedar desincronizado si se cambia h.
   const [espesorTotal, setEspesorTotal] = useCampo("espesorTotal", "0.15");
-  // bmin no está impreso en el folleto: es una estimación visual del propio
-  // dibujo (ver BMIN_NERVIO_ESTIMADO_M), así que se precarga como sugerencia
-  // pero se deja editable, a diferencia de hp/fyp/paso/Ap/dp que sí son
-  // ciertos. Si aparece el plano de perfil real, ese dato manda.
-  const [anchoNervioBase, setAnchoNervioBase] = useCampo(
-    "anchoNervioBase",
-    String(BMIN_NERVIO_ESTIMADO_M)
-  );
   const [espesorDeckpanelTxt, setEspesorDeckpanelTxt] = useCampo(
     "espesorDeckpanel",
     ETIQUETA_ESPESOR(ESPESOR_DECKPANEL_ESTANDAR_MM)
@@ -133,7 +125,11 @@ export default function LosaSteelDeckPage() {
   const [gammaQ, setGammaQ] = useCampo("gammaQ", "1.5");
 
   const [anclajePresente, setAnclajePresente] = useCampo<(typeof SI_NO)[number]>("anclajePresente", "No");
-  const [espesorChapa, setEspesorChapa] = useCampo("espesorChapa", "0.89");
+  // El espesor que entra en el anclaje de extremo es el de ESTA chapa, la que
+  // ya se eligió arriba: antes se cargaba a mano y se podía terminar con dos
+  // espesores distintos para la misma chapa. Se toma el acero base y no el
+  // espesor del panel porque el galvanizado no aporta al aplastamiento.
+  const espesorChapaMm = CATALOGO_DECKPANEL_ARMCO[espesorDeckpanel].espesorAceroBaseMm;
   const [diametroPerno, setDiametroPerno] = useCampo("diametroPerno", "25.4");
   const [numeroPernos, setNumeroPernos] = useCampo("numeroPernos", "1");
   const [sepPernos, setSepPernos] = useCampo("sepPernos", "0.3");
@@ -142,7 +138,7 @@ export default function LosaSteelDeckPage() {
     const n = {
       fyp, fck: aNumero(fck), fykBarras: aNumero(fykBarras),
       espesorTotal: aNumero(espesorTotal), alturaNervio,
-      ap, dp, anchoNervio: aNumero(anchoNervioBase),
+      ap, dp, anchoNervio: BMIN_NERVIO_M,
       phiBarra: aNumero(phiBarra), sepBarra, recBarra: aNumero(recBarra),
       mEd: aNumero(mEd), etaFi: aNumero(etaFi),
     };
@@ -168,7 +164,7 @@ export default function LosaSteelDeckPage() {
         { resistenciaFuego, etaFi: n.etaFi }
       ),
     };
-  }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp, anchoNervioBase,
+  }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp,
       phiBarra, sepBarra, recBarra, mEd, resistenciaFuego, etaFi]);
 
   const resultadoRasante = useMemo(() => {
@@ -177,7 +173,7 @@ export default function LosaSteelDeckPage() {
       m: aNumero(m), k: aNumero(k), gammaVs: aNumero(gammaVs), lsSobreL: aNumero(lsSobreL),
       phiBarra: aNumero(phiBarra), sepBarra, fykBarras: aNumero(fykBarras),
       gPp: aNumero(gPp), gAdd: aNumero(gAdd), q: aNumero(q), gammaG: aNumero(gammaG), gammaQ: aNumero(gammaQ),
-      espesorChapa: aNumero(espesorChapa), diametroPerno: aNumero(diametroPerno),
+      espesorChapa: espesorChapaMm, diametroPerno: aNumero(diametroPerno),
       numeroPernos: aNumero(numeroPernos), sepPernos: aNumero(sepPernos),
     };
     const positivos = [n.luz, n.anchoTrib, n.dp, n.ap, n.fyp, n.gammaVs, n.lsSobreL, n.sepBarra, n.fykBarras];
@@ -205,7 +201,7 @@ export default function LosaSteelDeckPage() {
       ),
     };
   }, [luz, anchoTrib, dp, ap, fyp, m, k, gammaVs, lsSobreL, phiBarra, sepBarra, fykBarras,
-      gPp, gAdd, q, gammaG, gammaQ, anclajePresente, espesorChapa, diametroPerno, numeroPernos, sepPernos]);
+      gPp, gAdd, q, gammaG, gammaQ, anclajePresente, espesorChapaMm, diametroPerno, numeroPernos, sepPernos]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -269,41 +265,41 @@ export default function LosaSteelDeckPage() {
                 <dd className="text-right text-foreground">{fmt(dp * 1000, 1)} mm</dd>
                 <dt>Ancho efectivo (fijo)</dt>
                 <dd className="text-right text-foreground">{fmt(PERFIL_DECKPANEL.anchoEfectivoM * 1000, 0)} mm</dd>
+                <dt>bmin — fondo del nervio (fijo)</dt>
+                <dd className="text-right text-foreground">{fmt(BMIN_NERVIO_M * 1000, 0)} mm</dd>
               </dl>
               <CampoNumerico id="espesorTotal" etiqueta="h — espesor total de losa" sufijo="m" valor={espesorTotal} onChange={setEspesorTotal} />
-              <CampoNumerico
-                id="anchoNervioBase"
-                etiqueta="bmin — ancho de nervio en su base (sólo fuego)"
-                sufijo="m"
-                valor={anchoNervioBase}
-                onChange={setAnchoNervioBase}
-              />
               <div className="col-span-full">
                 <PanelAyuda titulo="Qué es fijo, qué se deriva y qué sigue siendo un dato de proyecto">
                   <p>
                     Esta página es siempre ARMCO Deckpanel: no hay una opción de perfil &ldquo;genérico&rdquo;
                     ni de cargar otro fabricante. Lo único que se elige es el espesor de chapa, entre
-                    los tres del folleto del fabricante (0,912 mm es el de stock estándar; los otros
+                    los tres del folleto del fabricante (0,89 mm es el estándar de obra; los otros
                     dos son &ldquo;a consultar&rdquo;).
                   </p>
                   <p>
                     <strong className="text-foreground">hp, fyp, paso de nervio y ancho efectivo</strong>{" "}
-                    son del perfil: 63 mm de altura de nervio, acero Grado 37 (fy = 37 ksi), 305 mm
+                    son del perfil: 63 mm de altura de nervio, acero ASTM A653 SS grado 37 (fy = 255,1 MPa), 305 mm
                     entre nervios y 915 mm de ancho de panel (91,5/30,5 = 3 nervios exactos). Iguales
                     en los tres espesores. No se cargan a mano.
                   </p>
                   <p>
                     <strong className="text-foreground">Ap</strong> no está en el folleto —es una
                     ficha comercial de vanos y sobrecargas admisibles, no la ficha estructural para
-                    diseño plástico EC4—: se deriva del peso de catálogo asumiendo la densidad del
-                    acero (7850 kg/m³). Es una hipótesis razonable, no un valor certificado; si
-                    aparece la ficha estructural de ARMCO con el Ap real, avisá para cargarlo directo.
+                    diseño plástico EC4—: se deriva del peso de catálogo, descontando el galvanizado
+                    (Z180, 180 gr/m²) y con la densidad del acero (7850 kg/m³). Sigue sin ser un Ap
+                    certificado, pero se puede contrastar: dividido por el espesor de acero base que
+                    el folleto sí publica da cuánto se desarrolla el perfil respecto de su proyección
+                    plana, y sale 1,29-1,31 en los tres espesores. Que coincidan es lo que confirma la
+                    cuenta, porque la forma del perfil no cambia con el espesor de la chapa.
                   </p>
                   <p>
-                    <strong className="text-foreground">dp</strong> sí sale del folleto sin
-                    hipótesis: Ix/Sx,inferior da la distancia del centroide de la chapa a la fibra
-                    inferior del perfil (≈31,1 mm, prácticamente igual en los tres espesores), y dp =
-                    h − esa distancia. Se recalcula solo si cambiás h: no puede quedar desincronizado.
+                    <strong className="text-foreground">dp</strong> sale del folleto sin hipótesis:
+                    el módulo resistente publicado es el de la fibra superior, así que 63 − Ix/Wx da la
+                    distancia del centroide de la chapa a la fibra inferior (≈31,1 mm, prácticamente
+                    igual en los tres espesores) y dp = h − esa distancia. Coincide con lo que daba la
+                    edición anterior del folleto, que publicaba Sx,inferior por separado. Se recalcula
+                    solo si cambiás h: no puede quedar desincronizado.
                   </p>
                   <p>
                     <strong className="text-foreground">h</strong> sigue siendo un dato de proyecto:
@@ -311,22 +307,20 @@ export default function LosaSteelDeckPage() {
                   </p>
                   <p>
                     <strong className="text-foreground">bmin no es lo mismo que el paso de nervio.</strong>{" "}
-                    El paso (305 mm) es la distancia entre nervios consecutivos, y sí está fijo arriba.
-                    bmin es el ancho del fondo de UN nervio, en su punto más angosto —la norma lo pide
-                    sólo para el chequeo de incendio, Tabla 5.5 de EC2-1-2—, y esa dimensión no tiene un
-                    número impreso en el folleto comercial: el dibujo de &ldquo;Geometría&rdquo; del
-                    folleto sólo acota el ancho efectivo (915 mm) y el paso (305 mm), no el fondo del
-                    valle por separado.
+                    El paso (305 mm) es la distancia entre nervios consecutivos. bmin es el ancho del
+                    fondo de UN nervio, en su punto más angosto, y la norma lo pide sólo para el
+                    chequeo de incendio (Tabla 5.5 de EC2-1-2).
                   </p>
                   <p>
-                    El campo se precarga en {fmt(BMIN_NERVIO_ESTIMADO_M * 1000, 0)} mm, una estimación
-                    leída por proporción visual del propio dibujo del folleto (da un rango de 100 a 130
-                    mm según cuánto se le calcule a las rampas laterales; se adopta el extremo más
-                    chico porque un bmin menor pide más recubrimiento en la Tabla 5.5, el lado
-                    conservador si la lectura está un poco corta o un poco larga). A diferencia de
-                    hp/fyp/paso/Ap/dp, este campo sigue editable: no hay forma de contrastar la lectura
-                    visual contra ningún otro número del folleto, así que si aparece el plano de perfil
-                    real de ARMCO o se mide sobre una chapa física, ese dato manda.
+                    Con la edición anterior del folleto esto era una estimación visual del dibujo y
+                    por eso se dejaba editable. Ya no: esta edición acota el perfil abajo
+                    (61 | 183 | 122 | 183 | 122 | 183 | 61 = 915), que se lee como un valle plano de{" "}
+                    {fmt(BMIN_NERVIO_M * 1000, 0)} mm, una cresta plana de 122 y almas que proyectan
+                    30,5 cada una —cierra el paso: 122 + 122 + 2·30,5 = 305—. El volumen de hormigón
+                    de la Tabla 2 lo confirma por otro lado: descontando el hormigón sobre cresta, los
+                    valles aportan 0,0316 m³/m² en los cinco espesores tabulados, lo que exige un
+                    trapecio de 306 mm entre base y techo; con el techo en 183 la base cae en 122. Por
+                    eso ahora es fijo como hp, el paso o el ancho efectivo.
                   </p>
                   <p>
                     No confundir esto con el método del Anexo B de EC2-1-2 (isoterma de 500 °C), que
@@ -491,7 +485,15 @@ export default function LosaSteelDeckPage() {
               <CampoSeleccion id="anclajePresente" etiqueta="¿Tiene pernos de anclaje?" valor={anclajePresente} opciones={SI_NO} onChange={(v) => setAnclajePresente(v as (typeof SI_NO)[number])} />
               {anclajePresente === "Sí" && (
                 <>
-                  <CampoNumerico id="espesorChapa" etiqueta="Espesor chapa t" sufijo="mm" valor={espesorChapa} onChange={setEspesorChapa} />
+                  <div className="space-y-1.5">
+                    <p className="spec-label">Espesor chapa t</p>
+                    <p className="text-sm">
+                      {fmt(espesorChapaMm, 2)} mm
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        acero base del perfil elegido
+                      </span>
+                    </p>
+                  </div>
                   <CampoNumerico id="diametroPerno" etiqueta="⌀ perno" sufijo="mm" valor={diametroPerno} onChange={setDiametroPerno} />
                   <CampoNumerico id="numeroPernos" etiqueta="Nº pernos por nervio" valor={numeroPernos} onChange={setNumeroPernos} />
                   <CampoNumerico id="sepPernos" etiqueta="Separación pernos" sufijo="m" valor={sepPernos} onChange={setSepPernos} />

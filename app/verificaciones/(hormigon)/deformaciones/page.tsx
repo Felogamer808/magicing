@@ -23,6 +23,15 @@ import {
   calcularLuzCanto,
   type SistemaEstructural,
 } from "@/lib/calc/hormigon/deformaciones";
+import {
+  NOMBRE_CEMENTO,
+  NOMBRE_EXPOSICION,
+  calcularFluencia,
+  perimetroExpuestoM,
+  tamanoTeoricoMm,
+  type ClaseCemento,
+  type ExposicionSeccion,
+} from "@/lib/calc/hormigon/comun/fluencia";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -35,6 +44,16 @@ const sistemaDesdeNombre = (nombre: string): SistemaEstructural =>
   SISTEMAS.find((s) => NOMBRE_SISTEMA[s] === nombre) ?? "simplemente-apoyada";
 
 const OPCIONES_ESQUEMA = [...COEF_FLECHA.map((c) => c.nombre), "Otro (cargar k a mano)"];
+
+const CEMENTOS = Object.keys(NOMBRE_CEMENTO) as ClaseCemento[];
+const OPCIONES_CEMENTO = CEMENTOS.map((c) => NOMBRE_CEMENTO[c]);
+const cementoDesdeNombre = (nombre: string): ClaseCemento =>
+  CEMENTOS.find((c) => NOMBRE_CEMENTO[c] === nombre) ?? "N";
+
+const EXPOSICIONES = Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion[];
+const OPCIONES_EXPOSICION = EXPOSICIONES.map((e) => NOMBRE_EXPOSICION[e]);
+const exposicionDesdeNombre = (nombre: string): ExposicionSeccion =>
+  EXPOSICIONES.find((e) => NOMBRE_EXPOSICION[e] === nombre) ?? "tres-caras";
 
 /** Área de un grupo de barras, en cm². Devuelve 0 si los datos no sirven todavía. */
 function areaBarrasCm2(numeroTxt: string, diametroTxt: string): number {
@@ -94,10 +113,37 @@ export default function DeformacionesPage() {
 
   // Flecha calculada.
   const [mqp, setMqp] = useCampo("mqp", "80");
-  const [phi, setPhi] = useCampo("phi", "2");
+  // La fluencia no se carga a mano: sale del Apéndice B con el ambiente, la
+  // edad de puesta en carga, el cemento y el tamaño teórico de la sección.
+  const [hr, setHr] = useCampo("hr", "70");
+  const [t0, setT0] = useCampo("t0", "28");
+  const [cementoTxt, setCementoTxt] = useCampo("cemento", NOMBRE_CEMENTO.N);
+  const [exposicionTxt, setExposicionTxt] = useCampo("exposicion", NOMBRE_EXPOSICION["tres-caras"]);
   const [epsilonCs, setEpsilonCs] = useCampo("epsilonCs", "0.0003");
   const [esquemaTxt, setEsquemaTxt] = useCampo("esquema", COEF_FLECHA[0].nombre);
   const [coefManual, setCoefManual] = useCampo("coefManual", "0.104");
+
+  const cemento = cementoDesdeNombre(cementoTxt);
+  const exposicion = exposicionDesdeNombre(exposicionTxt);
+
+  // h0 y φ dependen de la sección, así que se arman acá y no dentro del useMemo
+  // del resultado: se muestran aunque el resto del formulario todavía no cierre.
+  const h0Mm = tamanoTeoricoMm(
+    aNumero(b) * aNumero(h),
+    perimetroExpuestoM(exposicion, aNumero(b), aNumero(h))
+  );
+  const fluencia = useMemo(
+    () =>
+      calcularFluencia({
+        fckMPa: aNumero(fck),
+        hrPct: aNumero(hr),
+        t0Dias: aNumero(t0),
+        claseCemento: cemento,
+        h0Mm,
+      }),
+    [fck, hr, t0, cemento, h0Mm]
+  );
+  const phiFluencia = fluencia.phi;
 
   const sistema = sistemaDesdeNombre(sistemaTxt);
   const esquemaElegido = COEF_FLECHA.find((c) => c.nombre === esquemaTxt);
@@ -118,7 +164,7 @@ export default function DeformacionesPage() {
       fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa),
       b: aNumero(b), h: aNumero(h), d: aNumero(d), dComp: aNumero(dComp), luz: aNumero(luz),
       asProv: asProvCm2, asComp: asCompCm2, asReq: aNumero(asReq),
-      mqp: aNumero(mqp), phi: aNumero(phi), epsilonCs: aNumero(epsilonCs),
+      mqp: aNumero(mqp), phi: phiFluencia, epsilonCs: aNumero(epsilonCs),
     };
     if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
     if (n.fck <= 0 || n.fyk <= 0 || n.esGPa <= 0) return null;
@@ -169,7 +215,7 @@ export default function DeformacionesPage() {
     };
   }, [
     fck, fyk, esGPa, b, h, d, dComp, luz, asProvCm2, asCompCm2, asReq,
-    mqp, phi, epsilonCs, sistema, alaEnT, tabiques, coefFlecha,
+    mqp, phiFluencia, epsilonCs, sistema, alaEnT, tabiques, coefFlecha,
   ]);
 
   return (
@@ -391,13 +437,6 @@ export default function DeformacionesPage() {
                 onChange={setMqp}
               />
               <CampoNumerico
-                id="phi"
-                etiqueta="φ(∞,t0) fluencia"
-                valor={phi}
-                onChange={setPhi}
-                advertencia="Art. 3.1.4. En interior de edificio suele caer entre 1,5 y 2,5"
-              />
-              <CampoNumerico
                 id="epsilonCs"
                 etiqueta="εcs retracción"
                 valor={epsilonCs}
@@ -434,6 +473,79 @@ export default function DeformacionesPage() {
                     Un vano extremo de viga continua queda entre 1/16 y 5/48 según cuánto empotre el
                     apoyo interior, y por eso no se tabula: ahí conviene cargar k a mano con el valor
                     que salga del análisis.
+                  </p>
+                </PanelAyuda>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Fluencia — Apéndice B</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <CampoNumerico
+                id="hr"
+                etiqueta="Humedad relativa"
+                sufijo="%"
+                valor={hr}
+                onChange={setHr}
+                advertencia="Interior de edificio ≈50-70 %; a la intemperie ≈80 %"
+              />
+              <CampoNumerico
+                id="t0"
+                etiqueta="Edad de puesta en carga"
+                sufijo="días"
+                valor={t0}
+                onChange={setT0}
+                advertencia="Cuándo entra la carga sostenida, no cuándo se desencofra"
+              />
+              <div className="col-span-full">
+                <CampoSeleccion
+                  id="cemento"
+                  etiqueta="Clase de cemento"
+                  valor={cementoTxt}
+                  opciones={OPCIONES_CEMENTO}
+                  onChange={setCementoTxt}
+                />
+              </div>
+              <div className="col-span-full">
+                <CampoSeleccion
+                  id="exposicion"
+                  etiqueta="Caras que secan"
+                  valor={exposicionTxt}
+                  opciones={OPCIONES_EXPOSICION}
+                  onChange={setExposicionTxt}
+                />
+              </div>
+              <div className="col-span-full rounded-md border p-3 text-sm">
+                <p className="font-medium">φ(∞,t0) = {fmt(fluencia.phi, 3)}</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  h0 = {fmt(h0Mm, 0)} mm · φHR {fmt(fluencia.phiHR, 3)} · β(fcm){" "}
+                  {fmt(fluencia.betaFcm, 3)} · β(t0) {fmt(fluencia.betaT0, 3)}
+                </p>
+              </div>
+              <div className="col-span-full">
+                <PanelAyuda titulo="Cómo se calcula la fluencia">
+                  <p>
+                    Sale de la ec. (B.2): φ0 = φHR·β(fcm)·β(t0). Se toma a tiempo infinito, que es
+                    lo que pide la comprobación de flecha, y ahí el factor de evolución βc de la ec.
+                    (B.1) vale 1, así que φ(∞,t0) se reduce al coeficiente básico.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Caras que secan.</strong> Fija el perímetro
+                    u de la ec. (B.6) y con él h0 = 2Ac/u. Una viga con la losa encima no seca por
+                    arriba, y eso sube h0 y baja la fluencia. En una losa corrida h0 termina siendo
+                    su propio espesor.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Clase de cemento.</strong> No entra directo:
+                    corre la edad de puesta en carga por la ec. (B.9), con exponente −1, 0 o +1
+                    según sea S, N o R. Con clase N la corrección es neutra.
+                  </p>
+                  <p>
+                    No se aplica la corrección por temperatura de la ec. (B.10): se supone curado a
+                    temperatura ambiente normal.
                   </p>
                 </PanelAyuda>
               </div>

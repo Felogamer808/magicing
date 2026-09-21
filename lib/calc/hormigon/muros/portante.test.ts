@@ -216,3 +216,85 @@ describe("diagrama de interacción", () => {
     );
   });
 });
+
+describe("fluencia, arts. 5.8.3.1 y 5.8.4", () => {
+  const conFluencia = (fluenciaBasica: number, relacion = 1) =>
+    calcularMuro(materiales, geometria, armadura,
+      { ...esfuerzos, fluenciaBasica, relacionMomentoCuasipermanente: relacion }, 500);
+
+  it("sin φ(∞,t0) cae en el A = 0,7 que admite el art. 5.8.3.1", () => {
+    expect(r.fluencia.conocida).toBe(false);
+    expect(r.esbeltez.factorA).toBeCloseTo(0.7, 9);
+  });
+
+  /** ec. (5.19): la fluencia que entra es la eficaz, no la básica. */
+  it("escala φ(∞,t0) por la fracción cuasipermanente del momento", () => {
+    const completo = conFluencia(2, 1);
+    expect(completo.fluencia.eficaz).toBeCloseTo(2, 9);
+
+    const mitad = conFluencia(2, 0.5);
+    expect(mitad.fluencia.basica).toBeCloseTo(2, 9);
+    expect(mitad.fluencia.eficaz).toBeCloseTo(1, 9);
+    // Y con menos fluencia eficaz el límite de esbeltez se afloja.
+    expect(mitad.esbeltez.factorA).toBeGreaterThan(completo.esbeltez.factorA);
+    expect(mitad.esbeltez.lambdaLimite).toBeGreaterThan(completo.esbeltez.lambdaLimite);
+  });
+
+  it("el factor A sale de la ec. (5.13) con la eficaz", () => {
+    const m = conFluencia(2.4, 0.5); // φef = 1,2
+    expect(m.esbeltez.factorA).toBeCloseTo(1 / (1 + 0.2 * 1.2), 9);
+  });
+
+  it("con φ(∞,t0) = 0 la fluencia no ablanda nada: A = 1", () => {
+    expect(conFluencia(0).esbeltez.factorA).toBeCloseTo(1, 9);
+  });
+
+  describe("las tres condiciones del art. 5.8.4(4)", () => {
+    it("marca la de fluencia acotada en φ(∞,t0) = 2", () => {
+      expect(conFluencia(2).fluencia.cumpleFluenciaAcotada).toBe(true);
+      expect(conFluencia(2.1).fluencia.cumpleFluenciaAcotada).toBe(false);
+    });
+
+    it("marca la de esbeltez contra λ = 75", () => {
+      // El caso base tiene λ ≈ 28,9, cómodamente por debajo.
+      expect(conFluencia(2).fluencia.cumpleEsbeltez).toBe(true);
+      expect(conFluencia(2).esbeltez.lambda).toBeLessThan(75);
+
+      // Un muro mucho más esbelto: 15 cm de espesor y 6 m de altura.
+      const esbelto = calcularMuro(
+        materiales, { ...geometria, espesorM: 0.15, alturaLibreM: 6 }, armadura,
+        { ...esfuerzos, fluenciaBasica: 2 }, 500
+      );
+      expect(esbelto.esbeltez.lambda).toBeGreaterThan(75);
+      expect(esbelto.fluencia.cumpleEsbeltez).toBe(false);
+    });
+
+    it("marca la de excentricidad contra M0Ed/NEd ≥ h", () => {
+      // Sin momento aplicado manda la excentricidad mínima e0 = máx(h/30, 20 mm),
+      // que es mucho menor que h: la condición no se cumple.
+      const sinMomento = conFluencia(2);
+      expect(sinMomento.fluencia.cumpleExcentricidad).toBe(false);
+      expect(sinMomento.fluencia.puedeIgnorarse).toBe(false);
+
+      // Con un momento que da una excentricidad mayor que el espesor sí.
+      const conMomento = calcularMuro(
+        materiales, geometria, armadura,
+        { nEdKN: 600, m01KNm: 200, m02KNm: 200, fluenciaBasica: 2 }, 500
+      );
+      expect(conMomento.momentos.m0EdKNm / 600).toBeGreaterThanOrEqual(geometria.espesorM);
+      expect(conMomento.fluencia.cumpleExcentricidad).toBe(true);
+      expect(conMomento.fluencia.puedeIgnorarse).toBe(true);
+    });
+
+    it("no aplica la autorización sola: φef sigue entrando en el cálculo", () => {
+      const puede = calcularMuro(
+        materiales, geometria, armadura,
+        { nEdKN: 600, m01KNm: 200, m02KNm: 200, fluenciaBasica: 2 }, 500
+      );
+      expect(puede.fluencia.puedeIgnorarse).toBe(true);
+      // Si se hubiera aplicado, A valdría 1.
+      expect(puede.fluencia.eficaz).toBeCloseTo(2, 9);
+      expect(puede.esbeltez.factorA).toBeCloseTo(1 / (1 + 0.2 * 2), 9);
+    });
+  });
+});

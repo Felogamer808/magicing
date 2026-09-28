@@ -226,6 +226,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "carga-colgada": ELU_MAYORADAS,
   "mensula-corta": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
+  punzonamiento: ELU_MAYORADAS,
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
   "zapata-medianeria": ZAPATAS,

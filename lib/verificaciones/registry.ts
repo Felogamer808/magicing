@@ -64,6 +64,7 @@ export type IdVerificacion =
   | "carga-colgada"
   | "mensula-corta"
   | "losas"
+  | "punzonamiento"
   | "secciones-mixtas"
   | "zapatas"
   | "zapata-corrida"
@@ -302,6 +303,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Armado a flexión en dos direcciones, con anclaje y momento resistente de la malla.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/losas",
+    disponible: true,
+  },
+  {
+    id: "punzonamiento",
+    nombre: "Punzonamiento",
+    seccion: "hormigon-armado",
+    categoria: "Losas",
+    descripcion:
+      "Losa maciza sobre pilar interior, de borde o de esquina: biela en la cara del pilar, perímetro crítico a 2d, armadura de punzonamiento y perímetro uout.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/punzonamiento",
     disponible: true,
   },
   {

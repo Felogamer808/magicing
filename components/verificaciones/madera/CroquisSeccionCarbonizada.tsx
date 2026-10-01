@@ -25,16 +25,16 @@ interface Props {
 }
 
 const ANCHO = 340;
-const ALTO = 260;
+const ALTO = 215;
 
 export function CroquisSeccionCarbonizada({ anchoM, cantoM, reducida, caras }: Props) {
   if (!(anchoM > 0) || !(cantoM > 0)) return null;
 
-  const escala = Math.min(150 / anchoM, 150 / cantoM);
+  const escala = Math.min(190 / anchoM, 190 / cantoM);
   const b = anchoM * escala;
   const h = cantoM * escala;
   const cx = ANCHO / 2 + 10;
-  const cy = ALTO / 2 + 6;
+  const cy = ALTO / 2;
   const x0 = cx - b / 2;
   const y0 = cy - h / 2;
 
@@ -100,19 +100,6 @@ export function CroquisSeccionCarbonizada({ anchoM, cantoM, reducida, caras }: P
           </>
         )}
 
-        {/* Leyenda, con margen suficiente abajo para los descendentes. */}
-        <rect x={12} y={ALTO - 49} width={11} height={11} className="fill-neutral-800/70" />
-        <text x={28} y={ALTO - 40} className="fill-muted-foreground text-[10px]">
-          carbonizado · {fmt(reducida.profundidadCarbonizadaM * 1000, 1)} mm
-        </text>
-        <rect x={12} y={ALTO - 33} width={11} height={11} className="fill-amber-700/40" />
-        <text x={28} y={ALTO - 24} className="fill-muted-foreground text-[10px]">
-          capa sin resistencia · k0·d0 = {fmt(reducida.k0 * 7, 1)} mm
-        </text>
-        <rect x={12} y={ALTO - 17} width={11} height={11} className="fill-amber-500/40" />
-        <text x={28} y={ALTO - 8} className="fill-muted-foreground text-[10px]">
-          sección eficaz · {fmt(reducida.fraccionAreaRestante * 100, 0)} % del área
-        </text>
       </svg>
       <figcaption className="text-xs text-muted-foreground">
         La capa intermedia no está carbonizada: son 7 mm de madera caliente a la que el art.

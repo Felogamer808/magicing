@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
 import { cn } from "@/lib/utils";
 import { fmt } from "@/lib/verificaciones/formato";
 
@@ -114,6 +115,24 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">
             se exige {comparacion.real.etiqueta} {comparacion.exige} {comparacion.limite.etiqueta}
           </p>
+
+          {/*
+            La desigualdad dice si pasa; la barra dice por cuánto. El margen es
+            lo que decide si la pieza se puede afinar o está al límite, y era
+            justamente lo que había que leer entre líneas.
+
+            Con "≥" la razón se da vuelta: lo exigido es el límite y lo que
+            sobra es lo real, así que la utilización es límite/real. En los dos
+            sentidos, por debajo de 1 significa que cumple.
+          */}
+          <div className="mt-3">
+            <BarraDemandaCapacidad
+              demanda={comparacion.exige === "≤" ? comparacion.real.valor : comparacion.limite.valor}
+              capacidad={comparacion.exige === "≤" ? comparacion.limite.valor : comparacion.real.valor}
+              decimales={comparacion.decimales}
+              mostrarValores={false}
+            />
+          </div>
 
           {detalle && (
             <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>

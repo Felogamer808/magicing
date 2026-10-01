@@ -277,11 +277,6 @@ export default function MaderaFuegoPage() {
                         <LeyendaTecnica
                           entradas={[
                             {
-                              color: "var(--mat-madera)",
-                              etiqueta: "Sección original",
-                              nota: "la escuadría en frío",
-                            },
-                            {
                               color: "var(--mat-carbon)",
                               etiqueta: "Capa carbonizada",
                               nota: `dchar,n = ${fmt(r.reducida.profundidadCarbonizadaM * 1000, 1)} mm`,

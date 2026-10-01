@@ -1,5 +1,6 @@
 "use client";
 
+import { CapaMaterial, IndicadorFuego } from "@/components/verificaciones/croquis/Primitivas";
 import type { CarasExpuestas, SeccionReducida } from "@/lib/calc/madera/fuego";
 import { fmt } from "@/lib/verificaciones/formato";
 
@@ -66,27 +67,31 @@ export function CroquisSeccionCarbonizada({ anchoM, cantoM, reducida, caras }: P
     <figure className="space-y-1">
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Sección eficaz en incendio: ${fmt(reducida.anchoEficazM, 3)} por ${fmt(reducida.cantoEficazM, 3)} metros`}>
-        {/* Capa carbonizada. */}
-        <rect x={x0} y={y0} width={b} height={h}
-              className="fill-neutral-800/70 stroke-foreground/60" strokeWidth={1.2} />
-        {/* Sección residual: lo que no se quemó. */}
-        <rect x={residual.x} y={residual.y} width={residual.w} height={residual.h}
-              className="fill-amber-700/40 stroke-amber-900" strokeWidth={1} strokeDasharray="4 3" />
-        {/* Sección eficaz: la que resiste. */}
-        <rect x={eficaz.x} y={eficaz.y} width={eficaz.w} height={eficaz.h}
-              className="fill-amber-500/40 stroke-amber-800" strokeWidth={1.6} />
+        {/* De afuera hacia adentro: lo carbonizado, la capa caliente sin
+            resistencia, y el núcleo que sigue trabajando. */}
+        <CapaMaterial x={x0} y={y0} ancho={b} alto={h} material="carbon" />
+        <CapaMaterial
+          x={residual.x} y={residual.y} ancho={residual.w} alto={residual.h}
+          material="calentada" rayado
+        />
+        <CapaMaterial
+          x={eficaz.x} y={eficaz.y} ancho={eficaz.w} alto={eficaz.h}
+          material="eficaz"
+        />
 
-        {/* Llamas en las caras expuestas. */}
-        {caras.enCanto >= 1 &&
-          [0.3, 0.5, 0.7].map((f) => (
-            <path key={`i${f}`} d={`M ${x0 + b * f} ${y0 + h + 8} q 4 -6 0 -10 q 5 3 3 10 Z`}
-                  className="fill-destructive/70" />
-          ))}
-        {caras.enAnchura >= 1 &&
-          [0.35, 0.65].map((f) => (
-            <path key={`l${f}`} d={`M ${x0 - 8} ${y0 + h * f} q 6 4 10 0 q -3 5 -10 3 Z`}
-                  className="fill-destructive/70" />
-          ))}
+        {/* Exposición: ondas térmicas entrando por cada cara que arde. */}
+        {caras.enCanto >= 1 && (
+          <IndicadorFuego x0={x0} y0={y0 + h} x1={x0 + b} y1={y0 + h} haciaGrados={-90} />
+        )}
+        {caras.enCanto >= 2 && (
+          <IndicadorFuego x0={x0} y0={y0} x1={x0 + b} y1={y0} haciaGrados={90} />
+        )}
+        {caras.enAnchura >= 1 && (
+          <IndicadorFuego x0={x0} y0={y0} x1={x0} y1={y0 + h} haciaGrados={0} />
+        )}
+        {caras.enAnchura >= 2 && (
+          <IndicadorFuego x0={x0 + b} y0={y0} x1={x0 + b} y1={y0 + h} haciaGrados={180} />
+        )}
 
         {/* Cota de def, sobre la cara inferior si arde. */}
         {caras.enCanto >= 1 && dEf > 3 && (

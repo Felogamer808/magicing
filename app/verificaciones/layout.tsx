@@ -3,6 +3,7 @@ import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
 import { BarraMovil } from "@/components/verificaciones/comun/BarraMovil";
 import { NavVerificaciones } from "@/components/verificaciones/comun/NavVerificaciones";
+import { PieVerificacion } from "@/components/verificaciones/comun/PieVerificacion";
 
 export default function VerificacionesLayout({ children }: LayoutProps<"/verificaciones">) {
   return (
@@ -21,7 +22,15 @@ export default function VerificacionesLayout({ children }: LayoutProps<"/verific
         </div>
       </aside>
 
-      <div className="esquemas-acotados min-w-0 flex-1">{children}</div>
+      {/*
+        El pie va acá y no en cada página: son 42 y un aviso que hay que
+        acordarse de poner es un aviso que alguna no tiene. Además se imprime,
+        que es donde más falta hace.
+      */}
+      <div className="esquemas-acotados flex min-w-0 flex-1 flex-col">
+        <div className="flex-1">{children}</div>
+        <PieVerificacion />
+      </div>
     </div>
   );
 }

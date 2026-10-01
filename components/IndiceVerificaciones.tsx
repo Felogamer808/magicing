@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { agruparPorCategoria, verificacionesDeSeccion } from "@/lib/verificaciones/registry";
+import { validacionDe } from "@/lib/verificaciones/validacion";
 
 /** Quita tildes para que "fisuracion" encuentre "Fisuración". */
 function normalizar(texto: string) {
@@ -84,12 +85,33 @@ export function IndiceVerificaciones({ seccion }: { seccion: string }) {
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <p className="text-sm text-muted-foreground">{item.descripcion}</p>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {item.normasDisponibles.map((norma) => (
                             <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
                               {norma}
                             </Badge>
                           ))}
+                          {/*
+                            El nivel de comprobación se muestra al elegir y no
+                            recién adentro: es parte de decidir si este módulo
+                            sirve para lo que se va a hacer con él. Sólo se
+                            rotulan los extremos — lo auditado y lo preliminar—,
+                            porque marcar también el término medio convierte la
+                            insignia en ruido y deja de leerse ninguna.
+                          */}
+                          {item.disponible && validacionDe(item.id).nivel === "auditada" && (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-600/40 text-emerald-700 dark:text-emerald-400"
+                            >
+                              Auditada
+                            </Badge>
+                          )}
+                          {item.disponible && validacionDe(item.id).nivel === "preliminar" && (
+                            <Badge variant="outline" className="border-destructive/40 text-destructive">
+                              Preliminar
+                            </Badge>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

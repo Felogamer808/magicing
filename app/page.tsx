@@ -33,6 +33,19 @@ export default function Home() {
           Verificaciones con el detalle de fórmulas a la vista, para poder auditar cada
           resultado. Elegí un área para empezar.
         </p>
+        {/*
+          El alcance se ofrece desde la portada y no sólo desde el pie de cada
+          verificación. Que el resultado venga con artículo y página es lo que lo
+          hace creíble, y por eso mismo hay que decir de entrada hasta dónde
+          llega esa comprobación: la confianza que no se acota es la que termina
+          sustituyendo al repaso.
+        */}
+        <Link
+          href="/alcance"
+          className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+        >
+          Qué respalda cada número, y qué no
+        </Link>
       </div>
 
       <div className="space-y-3">
@@ -78,6 +91,15 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
+        MagicIng es una herramienta de verificación: no reemplaza el criterio del proyectista ni la
+        firma de un técnico habilitado, y el resultado no vale como memoria de cálculo por sí solo.{" "}
+        <Link href="/alcance" className="underline underline-offset-2 hover:text-foreground">
+          Alcance y responsabilidad
+        </Link>
+        .
+      </p>
     </main>
   );
 }

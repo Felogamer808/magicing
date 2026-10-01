@@ -127,13 +127,13 @@ export function DiagramaFlecha({ resultado, luzM, voladizo, mqpKNm }: Props) {
           y1={yLimApariencia}
           x2={xDer}
           y2={yLimApariencia}
-          className="stroke-emerald-700"
+          className="stroke-exito"
           strokeWidth={1.2}
           strokeDasharray="3 3"
         />
         {/* Separada del apoyo: con flechas grandes la escala comprime el límite
             contra la viga y la etiqueta se montaba sobre el triángulo. */}
-        <text x={xDer + 14} y={yLimApariencia + 3} className="fill-emerald-700 text-[9.5px]">
+        <text x={xDer + 14} y={yLimApariencia + 3} className="fill-exito text-[9.5px]">
           L/250
         </text>
 
@@ -222,7 +222,7 @@ export function DiagramaFlecha({ resultado, luzM, voladizo, mqpKNm }: Props) {
                 y={y}
                 width={Math.max(c.limite * escalaBarra, 0)}
                 height={20}
-                className="fill-emerald-600/12"
+                className="fill-exito/12"
               />
               <rect
                 x={xBarra}
@@ -239,7 +239,7 @@ export function DiagramaFlecha({ resultado, luzM, voladizo, mqpKNm }: Props) {
                 y1={y - 4}
                 x2={xLim}
                 y2={y + 24}
-                className="stroke-emerald-700"
+                className="stroke-exito"
                 strokeWidth={1.2}
                 strokeDasharray="3 2"
               />

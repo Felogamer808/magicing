@@ -43,6 +43,20 @@
   --color-celeste: var(--celeste);
   --color-exito: var(--exito);
   --color-superficie-tecnica: var(--superficie-tecnica);
+  /* La gramática de material, como utilidades: fill-mat-madera, stroke-mat-cota… */
+  --color-mat-hormigon: var(--mat-hormigon);
+  --color-mat-hormigon-borde: var(--mat-hormigon-borde);
+  --color-mat-armadura: var(--mat-armadura);
+  --color-mat-acero: var(--mat-acero);
+  --color-mat-acero-borde: var(--mat-acero-borde);
+  --color-mat-madera: var(--mat-madera);
+  --color-mat-madera-borde: var(--mat-madera-borde);
+  --color-mat-carbon: var(--mat-carbon);
+  --color-mat-calentada: var(--mat-calentada);
+  --color-mat-eficaz: var(--mat-eficaz);
+  --color-mat-mamposteria: var(--mat-mamposteria);
+  --color-mat-cota: var(--mat-cota);
+  --color-mat-fuego: var(--mat-fuego);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

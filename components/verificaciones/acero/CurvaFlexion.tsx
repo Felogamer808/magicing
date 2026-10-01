@@ -67,8 +67,8 @@ export function CurvaFlexion({
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Momento resistente contra longitud sin arriostrar; Lb = ${fmt(lbM, 2)} m`}>
         {/* Las tres zonas del artículo, de fondo. */}
-        {zona(0, Math.min(lpM, lbMax), "fill-emerald-600/10")}
-        {zona(Math.min(lpM, lbMax), Math.min(lrM, lbMax), "fill-amber-500/10")}
+        {zona(0, Math.min(lpM, lbMax), "fill-exito/10")}
+        {zona(Math.min(lpM, lbMax), Math.min(lrM, lbMax), "fill-mat-fuego/10")}
         {zona(Math.min(lrM, lbMax), lbMax, "fill-destructive/10")}
 
         <line x1={IZQ} y1={TOP - 6} x2={IZQ} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />

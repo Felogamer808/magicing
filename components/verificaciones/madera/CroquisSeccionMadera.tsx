@@ -47,14 +47,14 @@ export function CroquisSeccionMadera({ anchoM, cantoM, anchoEficazM }: Props) {
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Sección de ${fmt(anchoM, 3)} por ${fmt(cantoM, 3)} metros`}>
         <rect x={x0} y={y0} width={b} height={h} rx={1}
-              className="fill-amber-600/15 stroke-amber-800" strokeWidth={1.6} />
+              className="fill-mat-madera/15 stroke-mat-madera-borde" strokeWidth={1.6} />
 
         {bef !== null && (
           <>
             <rect x={cx - bef / 2} y={y0} width={bef} height={h}
-                  className="fill-amber-700/30" />
+                  className="fill-mat-madera/30" />
             <text x={cx} y={y0 + h + 26} textAnchor="middle"
-                  className="fill-amber-800 text-[11px]">
+                  className="fill-mat-madera-borde text-[11px]">
               bef = {fmt(anchoEficazM!, 3)} m
             </text>
           </>
@@ -99,7 +99,7 @@ export function CroquisSeccionMadera({ anchoM, cantoM, anchoEficazM }: Props) {
         {/* Fibra, para no perder de vista que el material es anisótropo. */}
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1={x0 + 4} y1={y0 + h * f} x2={x0 + b - 4} y2={y0 + h * f}
-                className="stroke-amber-800/30" strokeWidth={0.7} />
+                className="stroke-mat-madera-borde/30" strokeWidth={0.7} />
         ))}
       </svg>
       <figcaption className="text-xs text-muted-foreground">

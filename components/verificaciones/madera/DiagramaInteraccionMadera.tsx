@@ -63,7 +63,7 @@ export function DiagramaInteraccionMadera({
            aria-label={`Interacción axil-flexión, aprovechamiento ${fmt(aprovechamiento, 3)}`}>
         {/* Zona segura bajo la frontera que corresponde al modo. */}
         <polygon points={`${x(0)},${y(0)} ${frontera(esParabola)} ${x(0)},${y(0)}`}
-                 className="fill-emerald-600/10" />
+                 className="fill-exito/10" />
 
         {/* La frontera que NO se aplica, de referencia. */}
         <polyline points={frontera(!esParabola)} fill="none"
@@ -88,11 +88,11 @@ export function DiagramaInteraccionMadera({
         <line x1={x(ratioAxil)} y1={y(ratioFlexion)} x2={IZQ} y2={y(ratioFlexion)}
               className="stroke-muted-foreground/50" strokeWidth={1} strokeDasharray="3 2" />
         <circle cx={x(ratioAxil)} cy={y(ratioFlexion)} r={5.5}
-                className={verifica ? "fill-emerald-600" : "fill-destructive"} />
+                className={verifica ? "fill-exito" : "fill-destructive"} />
         <text x={rotuloDerecha ? x(ratioAxil) + 9 : x(ratioAxil) - 9}
               y={y(ratioFlexion) - 9}
               textAnchor={rotuloDerecha ? "start" : "end"}
-              className={`text-[11px] font-medium ${verifica ? "fill-emerald-700" : "fill-destructive"}`}>
+              className={`text-[11px] font-medium ${verifica ? "fill-exito" : "fill-destructive"}`}>
           {fmt(aprovechamiento, 3)}
         </text>
       </svg>

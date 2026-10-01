@@ -74,7 +74,7 @@ export function CroquisEntalladura({
               className="fill-none stroke-muted-foreground/40" strokeWidth={0.8}
               strokeDasharray="4 3" />
 
-        <path d={contorno} className="fill-amber-600/20 stroke-amber-800" strokeWidth={1.6} />
+        <path d={contorno} className="fill-mat-madera/20 stroke-mat-madera-borde" strokeWidth={1.6} />
 
         {/* Apoyo, dibujado como triángulo bajo el eje de la reacción. */}
         <polygon

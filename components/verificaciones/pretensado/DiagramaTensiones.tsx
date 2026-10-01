@@ -57,12 +57,12 @@ export function DiagramaTensiones({ situacion, hM, escalaMPa }: Props) {
           y={yTop - 6}
           width={Math.abs(xTraccion - xCompresion)}
           height={yBot - yTop + 12}
-          className="fill-emerald-600/10"
+          className="fill-exito/10"
         />
         <line x1={xTraccion} y1={yTop - 6} x2={xTraccion} y2={yBot + 6}
-              className="stroke-emerald-700/50" strokeWidth={1} strokeDasharray="3 2" />
+              className="stroke-exito/50" strokeWidth={1} strokeDasharray="3 2" />
         <line x1={xCompresion} y1={yTop - 6} x2={xCompresion} y2={yBot + 6}
-              className="stroke-emerald-700/50" strokeWidth={1} strokeDasharray="3 2" />
+              className="stroke-exito/50" strokeWidth={1} strokeDasharray="3 2" />
 
         {/* Canto de la sección, a escala del alto disponible. */}
         <rect x={X_SECCION} y={yTop} width={ANCHO_SECCION} height={yBot - yTop}
@@ -82,9 +82,9 @@ export function DiagramaTensiones({ situacion, hM, escalaMPa }: Props) {
 
         {/* Valores en cada fibra, con el color del resultado. */}
         <circle cx={xSup} cy={yTop} r={2.6}
-                className={situacion.verificaSup ? "fill-emerald-600" : "fill-destructive"} />
+                className={situacion.verificaSup ? "fill-exito" : "fill-destructive"} />
         <circle cx={xInf} cy={yBot} r={2.6}
-                className={situacion.verificaInf ? "fill-emerald-600" : "fill-destructive"} />
+                className={situacion.verificaInf ? "fill-exito" : "fill-destructive"} />
 
         <text x={xSup + (situacion.sigmaSupMPa >= 0 ? 5 : -5)} y={yTop + 3}
               textAnchor={situacion.sigmaSupMPa >= 0 ? "start" : "end"}

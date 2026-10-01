@@ -66,9 +66,9 @@ export function DiagramaPresionSuelo({ distribucion, lM, sigmaAdmisibleKPa, etiq
 
         {/* Núcleo central: mientras la resultante caiga acá dentro, apoya entera. */}
         <line x1={xNucleoIzq} y1={Y_BASE - 26} x2={xNucleoDer} y2={Y_BASE - 26}
-              className="stroke-emerald-700" strokeWidth={2} />
+              className="stroke-exito" strokeWidth={2} />
         <text x={(xNucleoIzq + xNucleoDer) / 2} y={Y_BASE - 30} textAnchor="middle"
-              className="fill-emerald-700 text-[10.5px]">núcleo central</text>
+              className="fill-exito text-[10.5px]">núcleo central</text>
 
         {/* Resultante vertical, con su excentricidad. */}
         <line x1={xResultante} y1={Y_BASE - 52} x2={xResultante} y2={Y_BASE - 22}

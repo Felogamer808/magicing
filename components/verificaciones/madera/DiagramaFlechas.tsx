@@ -63,14 +63,14 @@ export function DiagramaFlechas({ componentes: c, contraflechaMm }: Props) {
       etiqueta: "wfin · final",
       valor: c.finalMm,
       px: c.finalMm * escala,
-      clase: "stroke-amber-600",
+      clase: "stroke-mat-fuego",
       guiones: undefined,
     },
     {
       etiqueta: "wnet,fin · neta final",
       valor: c.netaFinalMm,
       px: c.netaFinalMm * escala,
-      clase: "stroke-emerald-600",
+      clase: "stroke-exito",
       guiones: "6 3",
     },
   ];

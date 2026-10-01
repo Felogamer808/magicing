@@ -86,7 +86,7 @@ export function DiagramaRotura({
         <text x={xDef + anchoDef + 3} y={TOP + 4} className="fill-primary text-[10.5px]">3,5 ‰</text>
         <text x={xDef - (anchoDef * Math.min(deformacionAcero, 0.02)) / 0.02 - 3} y={yD + 3}
               textAnchor="end"
-              className={`text-[10.5px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${fluye ? "fill-exito" : "fill-destructive font-medium"}`}>
           {fmt(deformacionAcero * 1000, 2)} ‰
         </text>
         <text x={xDef + anchoDef / 2} y={BASE + 13} textAnchor="middle"
@@ -128,7 +128,7 @@ export function DiagramaRotura({
         </text>
 
         <text x={ANCHO - 4} y={12} textAnchor="end"
-              className={`text-[10.5px] ${fluye ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${fluye ? "fill-exito" : "fill-destructive font-medium"}`}>
           {fluye ? "el acero fluye antes que rompa el hormigón" : "sobrearmada: el acero no llega a fluir"}
         </text>
       </svg>

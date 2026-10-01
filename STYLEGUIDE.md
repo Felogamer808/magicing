@@ -80,8 +80,23 @@ inequívoco por contexto.
 
 - Tailwind v4 con tokens definidos en `globals.css`. Usar los tokens
   (`text-muted-foreground`, `border-border`), no colores literales.
-- Excepción vigente: el verde de "Verifica" usa `emerald-600` directo, porque no
-  hay token semántico de éxito.
+- **No quedan colores de paleta sueltos en los dibujos.** El verde de "Verifica"
+  usaba `emerald-600` directo mientras no hubo token semántico; ahora es
+  `exito`, y lo mismo con el resto.
+- **Gramática de material**: un color por sustancia, igual en toda la
+  herramienta — `mat-hormigon`, `mat-armadura`, `mat-acero`, `mat-madera`,
+  `mat-mamposteria`, más `mat-carbon`, `mat-calentada` y `mat-eficaz` para
+  incendio, `mat-cota` para las acotaciones y `mat-fuego` para la exposición y
+  los avisos. El hormigón tiene que verse igual en una viga, en una zapata y en
+  una sección mixta; sin tabla única, cada croquis elige sus colores y el dibujo
+  deja de ser un lenguaje.
+- **El color nunca es el único canal.** Contorno, patrón, rótulo y leyenda
+  acompañan siempre: una diferencia que sólo existe en el tono no la ve quien no
+  distingue esos tonos, y en la hoja impresa en blanco y negro no la ve nadie.
+- Las primitivas de dibujo compartidas están en
+  `components/verificaciones/croquis/Primitivas.tsx` —apoyos, flechas de carga y
+  momento, capas de material, punto crítico, exposición al fuego—. Antes de
+  dibujar un apoyo o una flecha, mirar si ya está.
 - Grillas de formulario: arrancar en 1 o 2 columnas y expandir con `sm:`/`lg:`.
   Tres columnas fijas cortan las etiquetas en un teléfono.
 - `print:hidden` en lo que no debe salir impreso.

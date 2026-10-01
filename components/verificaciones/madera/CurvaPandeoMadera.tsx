@@ -67,8 +67,8 @@ export function CurvaPandeoMadera({
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Curva de pandeo: kc ${fmt(puntoCritico.k, 3)} en el eje ${puntoCritico.eje}`}>
         {/* Zona sin reducción, art. 6.3.2(2). */}
-        <rect x={IZQ} y={TOP} width={x(0.3) - IZQ} height={BASE - TOP} className="fill-emerald-600/10" />
-        <text x={x(0.3) + 4} y={TOP + 11} className="fill-emerald-700 text-[10px]">
+        <rect x={IZQ} y={TOP} width={x(0.3) - IZQ} height={BASE - TOP} className="fill-exito/10" />
+        <text x={x(0.3) + 4} y={TOP + 11} className="fill-exito text-[10px]">
           λrel ≤ 0,3 · sin reducción (art. 6.2.4)
         </text>
 

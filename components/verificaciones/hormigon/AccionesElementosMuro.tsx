@@ -124,10 +124,10 @@ export function AccionesElementosMuro({
                 <>
                   <polygon
                     points={`${xZapata},${Y_BASE + 26} ${xZapata + px(punteraM)},${Y_BASE + 12} ${xZapata + px(punteraM)},${Y_BASE} ${xZapata},${Y_BASE}`}
-                    className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1} />
+                    className="fill-exito/25 stroke-exito" strokeWidth={1} />
                   {/* Al costado del triángulo: debajo pisaba la leyenda del pie. */}
                   <text x={xZapata - 4} y={Y_BASE + 20} textAnchor="end"
-                        className="fill-emerald-700 text-[10.5px]">σ</text>
+                        className="fill-exito text-[10.5px]">σ</text>
                   <MomentoCurvo x={xHastial} y={yTopZapata + px(cantoZapataM) / 2} etiqueta="Mp" sentido={1} />
                 </>
               )}

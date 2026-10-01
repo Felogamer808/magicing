@@ -1,0 +1,203 @@
+/*
+ * Temas candidatos para el laboratorio de estilo.
+ *
+ * Cada clase redefine los mismos tokens que `globals.css` pone en `:root`, pero
+ * sobre un contenedor en vez de sobre el documento. Como las custom properties
+ * heredan, el subárbol entero —tarjetas, campos, croquis— se repinta con los
+ * valores de la variante sin tocar un solo componente. Eso es exactamente lo que
+ * hace barato el cambio real: la estética vive en los tokens, no en el markup.
+ *
+ * Las variantes `.dark` llevan las dos clases para ganarle en especificidad al
+ * `.dark` de `globals.css`, que se aplica sobre el mismo elemento.
+ *
+ * Este archivo es descartable: se borra junto con la ruta cuando la dirección
+ * esté elegida.
+ */
+
+/* ------------------------------------------------------------------ */
+/* A — Actual. No redefine nada: hereda lo que ya está en globals.css. */
+/* ------------------------------------------------------------------ */
+
+.tema-actual {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ------------------------------------------------------------------ */
+/* B — Afinada. Mismo idioma de plano técnico, bajado de volumen.      */
+/*                                                                     */
+/* La identidad no cambia: sigue siendo tinta azul sobre papel frío y  */
+/* la serif editorial en los títulos. Lo que cambia es cuánto pesa el  */
+/* decorado contra el contenido: la grilla pasa a ser una textura que  */
+/* se intuye, los bordes se afinan, y el azul se reserva para lo que   */
+/* significa algo. Más aire y menos ruido, sin perder el carácter.     */
+/* ------------------------------------------------------------------ */
+
+.tema-afinada {
+  --background: oklch(0.985 0.003 250);
+  --foreground: oklch(0.21 0.025 256);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.025 256);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.025 256);
+  --primary: oklch(0.45 0.115 255);
+  --primary-foreground: oklch(0.99 0.003 250);
+  --secondary: oklch(0.965 0.006 250);
+  --secondary-foreground: oklch(0.26 0.03 256);
+  --muted: oklch(0.97 0.004 250);
+  --muted-foreground: oklch(0.52 0.02 252);
+  --accent: oklch(0.955 0.015 245);
+  --accent-foreground: oklch(0.26 0.03 256);
+  --destructive: oklch(0.55 0.2 25);
+  /* El borde era el elemento más ruidoso: lo dibujaba todo y además pintaba la
+     grilla de fondo. Acá se afina casi a la mitad de croma. */
+  --border: oklch(0.925 0.006 250);
+  --input: oklch(0.9 0.008 250);
+  --ring: oklch(0.62 0.09 252);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.975 0.004 250);
+  --sidebar-foreground: oklch(0.21 0.025 256);
+  --sidebar-primary: oklch(0.45 0.115 255);
+  --sidebar-primary-foreground: oklch(0.99 0.003 250);
+  --sidebar-accent: oklch(0.955 0.015 245);
+  --sidebar-accent-foreground: oklch(0.26 0.03 256);
+  --sidebar-border: oklch(0.925 0.006 250);
+
+  /* La grilla sigue, pero como textura de fondo: el doble de paso y a un
+     tercio de opacidad. Se intuye el papel cuadriculado sin que cada tarjeta
+     tenga que pelearle al fondo. */
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center;
+}
+
+.tema-afinada.dark {
+  --background: oklch(0.18 0.025 256);
+  --foreground: oklch(0.94 0.01 240);
+  --card: oklch(0.225 0.028 256);
+  --card-foreground: oklch(0.94 0.01 240);
+  --popover: oklch(0.225 0.028 256);
+  --popover-foreground: oklch(0.94 0.01 240);
+  --primary: oklch(0.8 0.11 230);
+  --primary-foreground: oklch(0.18 0.025 256);
+  --secondary: oklch(0.27 0.03 256);
+  --secondary-foreground: oklch(0.94 0.01 240);
+  --muted: oklch(0.25 0.028 256);
+  --muted-foreground: oklch(0.71 0.02 240);
+  --accent: oklch(0.29 0.04 240);
+  --accent-foreground: oklch(0.94 0.01 240);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.62 0.09 235);
+  --sidebar: oklch(0.2 0.026 256);
+  --sidebar-border: oklch(1 0 0 / 9%);
+}
+
+/* Las marcas de registro quedan, pero dejan de ser un marco: media línea menos
+   de grosor y apagadas, para que sean una firma y no un borde más. */
+.tema-afinada .drafting-marks::before,
+.tema-afinada .drafting-marks::after {
+  width: 11px;
+  height: 11px;
+  border-width: 1px;
+  opacity: 0.45;
+}
+
+/* ------------------------------------------------------------------ */
+/* C — Identidad nueva. Herramienta de software, no plano de obra.     */
+/*                                                                     */
+/* Se va el papel cuadriculado, se van las marcas de registro y se va  */
+/* la serif: todo en la sans, con los títulos más apretados. La paleta */
+/* pasa a grises casi neutros con un solo acento, para que el único    */
+/* color con significado sea el del estado de la verificación. Los     */
+/* números siguen en monoespaciada, que eso no se negocia.             */
+/* ------------------------------------------------------------------ */
+
+.tema-nueva {
+  --background: oklch(0.985 0.001 250);
+  --foreground: oklch(0.17 0.008 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.008 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.008 260);
+  --primary: oklch(0.52 0.19 268);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.965 0.002 250);
+  --secondary-foreground: oklch(0.25 0.008 260);
+  --muted: oklch(0.968 0.002 250);
+  --muted-foreground: oklch(0.52 0.01 258);
+  --accent: oklch(0.96 0.012 268);
+  --accent-foreground: oklch(0.3 0.06 268);
+  --destructive: oklch(0.57 0.21 27);
+  --border: oklch(0.92 0.002 250);
+  --input: oklch(0.89 0.003 250);
+  --ring: oklch(0.52 0.19 268);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.975 0.001 250);
+  --sidebar-foreground: oklch(0.17 0.008 260);
+  --sidebar-primary: oklch(0.52 0.19 268);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0.012 268);
+  --sidebar-accent-foreground: oklch(0.3 0.06 268);
+  --sidebar-border: oklch(0.92 0.002 250);
+
+  /*
+   * Los títulos dejan la serif y pasan a la misma sans del cuerpo.
+   *
+   * Se pisa --font-display y no --font-heading: globals.css declara la familia
+   * dentro de un bloque @theme inline, y "inline" significa que Tailwind
+   * sustituye el valor al compilar. O sea que la utilidad font-heading termina
+   * siendo font-family: var(--font-display, ...) directo, y --font-heading ya no
+   * existe en tiempo de ejecución para pisarlo.
+   */
+  --font-display: var(--font-lab-sans);
+  background-image: none;
+}
+
+.tema-nueva.dark {
+  --background: oklch(0.155 0.006 265);
+  --foreground: oklch(0.95 0.002 250);
+  --card: oklch(0.195 0.007 265);
+  --card-foreground: oklch(0.95 0.002 250);
+  --popover: oklch(0.195 0.007 265);
+  --popover-foreground: oklch(0.95 0.002 250);
+  --primary: oklch(0.7 0.16 268);
+  --primary-foreground: oklch(0.155 0.006 265);
+  --secondary: oklch(0.25 0.008 265);
+  --secondary-foreground: oklch(0.95 0.002 250);
+  --muted: oklch(0.23 0.007 265);
+  --muted-foreground: oklch(0.68 0.008 258);
+  --accent: oklch(0.28 0.04 268);
+  --accent-foreground: oklch(0.92 0.02 268);
+  --destructive: oklch(0.68 0.2 25);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.16 268);
+  --sidebar: oklch(0.175 0.007 265);
+  --sidebar-border: oklch(1 0 0 / 10%);
+}
+
+/* Sin marco de plano: los títulos se sostienen solos con el peso y el interletrado. */
+.tema-nueva .drafting-marks::before,
+.tema-nueva .drafting-marks::after {
+  display: none;
+}
+
+.tema-nueva h1,
+.tema-nueva h2 {
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+/* La etiqueta de especificación deja la versalita monoespaciada y pasa a ser
+   un rótulo de sección normal: menos tratamiento, más legible de corrido. */
+.tema-nueva .spec-label {
+  font-family: var(--font-lab-sans), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  font-size: 11.5px;
+}

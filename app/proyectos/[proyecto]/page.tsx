@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Plus, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Check, Download, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { TemaToggle } from "@/components/TemaToggle";
+import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
+import { useProyectoActivo } from "@/lib/proyectos/activo";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
 import {
   actualizarProyecto,
@@ -30,7 +32,9 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
  */
 export default function ProyectoPage() {
   const params = useParams<{ proyecto: string }>();
+  const router = useRouter();
   const { proyectos, guardar, eliminar } = useProyectos();
+  const [idActivo, activar] = useProyectoActivo();
   const proyecto = proyectos.find((p) => p.id === params.proyecto);
 
   const [nombreElemento, setNombreElemento] = useState("");
@@ -103,14 +107,36 @@ export default function ProyectoPage() {
             {contarCalculos(proyecto) === 1 ? "cálculo guardado" : "cálculos guardados"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => descargarProyectos([proyecto], proyecto)}
-          className="flex h-9 items-center gap-2 rounded-lg border border-input px-3 text-sm transition-colors hover:bg-secondary print:hidden"
-        >
-          <Download className="h-4 w-4" />
-          Exportar este proyecto
-        </button>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          {/*
+            Activar el proyecto es lo que hace aparecer la barra de guardado en
+            las verificaciones. Se elige una vez y queda: calculando diez vigas
+            de la misma obra, preguntarlo en cada guardado es repreguntar algo
+            ya contestado.
+          */}
+          {idActivo === proyecto.id ? (
+            <span className="flex h-9 items-center gap-2 rounded-lg border border-emerald-600/40 px-3 text-sm text-emerald-700 dark:text-emerald-400">
+              <Check className="h-4 w-4" />
+              Proyecto activo
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => activar(proyecto.id)}
+              className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Trabajar en este proyecto
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => descargarProyectos([proyecto], proyecto)}
+            className="flex h-9 items-center gap-2 rounded-lg border border-input px-3 text-sm transition-colors hover:bg-secondary"
+          >
+            <Download className="h-4 w-4" />
+            Exportar
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -233,10 +259,30 @@ export default function ProyectoPage() {
                           const meta = registroVerificaciones.find(
                             (v) => v.id === calculo.verificacion
                           );
+                          if (!meta) {
+                            return (
+                              <Badge key={calculo.id} variant="outline">
+                                {calculo.verificacion} (ya no existe)
+                              </Badge>
+                            );
+                          }
                           return (
-                            <Badge key={calculo.id} variant="secondary">
-                              {meta?.nombre ?? calculo.verificacion}
-                            </Badge>
+                            <button
+                              key={calculo.id}
+                              type="button"
+                              onClick={() => {
+                                // Reabrir es volver a escribir los campos en su
+                                // ruta y navegar: el resultado se recalcula con
+                                // el motor de hoy, no se guarda congelado.
+                                guardarCamposDeRuta(meta.ruta, calculo.campos);
+                                activar(proyecto.id);
+                                router.push(meta.ruta);
+                              }}
+                              className="flex items-center gap-1 rounded-md border border-input px-2 py-0.5 text-xs transition-colors hover:border-primary/40 hover:bg-secondary"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              {meta.nombre}
+                            </button>
                           );
                         })}
                       </div>

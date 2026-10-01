@@ -130,7 +130,6 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   "madera-uniones": { nivel: "probada" },
   "madera-seccion-variable": { nivel: "probada" },
 
-  "conducto-circular": { nivel: "probada" },
   "propiedades-geometricas": { nivel: "probada" },
   "formulario-vigas": { nivel: "probada" },
 

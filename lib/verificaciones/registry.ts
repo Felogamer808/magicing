@@ -7,7 +7,7 @@
  * que quien viene a dimensionar un colector tenga que pasar por delante de seis
  * secciones de hormigón que no le sirven.
  */
-export type IdArea = "estructural" | "hidraulica";
+export type IdArea = "estructural";
 
 export interface AreaMeta {
   id: IdArea;
@@ -23,13 +23,6 @@ export const registroAreas: AreaMeta[] = [
     descripcion:
       "Hormigón armado y pretensado, estructuras metálicas, cimentaciones y acciones sobre la estructura.",
     ruta: "/areas/estructural",
-  },
-  {
-    id: "hidraulica",
-    nombre: "Cálculo hidráulico",
-    descripcion:
-      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
-    ruta: "/areas/hidraulica",
   },
 ];
 
@@ -87,7 +80,6 @@ export type IdVerificacion =
   | "flexo-compresion"
   | "soldaduras"
   | "tornillos-acero"
-  | "conducto-circular"
   | "propiedades-geometricas"
   | "formulario-vigas"
   | "formulario-torsion"
@@ -206,28 +198,6 @@ export const registroSecciones: SeccionMeta[] = [
     normasDisponibles: ["EC6"],
     ruta: "/secciones/mamposteria",
     disponible: false,
-  },
-  {
-    id: "conducciones",
-    area: "hidraulica",
-    /*
-     * "Materiales" no le queda bien a un conducto: no es un material, es un
-     * elemento hidráulico. Grupo propio para no forzar el mismo rótulo que
-     * usa el lado estructural para hormigón, acero y madera.
-     */
-    grupo: "Elementos",
-    nombre: "Conducciones",
-    descripcion:
-      "Escurrimiento en conductos y canales: caudal, velocidad y grado de llenado.",
-    /*
-     * Manning es una fórmula empírica, no un articulado: vale igual en cualquier
-     * país. Lo que cambia con el reglamento son los límites que se le exigen al
-     * resultado, y por eso van como dato de entrada. Cuando la sección adopte una
-     * norma concreta, se declara acá y aparece como insignia.
-     */
-    normasDisponibles: [],
-    ruta: "/secciones/conducciones",
-    disponible: true,
   },
 ];
 
@@ -564,17 +534,6 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Bulón por corte del vástago, aplastamiento y arrancamiento de chapa, reparto elástico en grupo excéntrico, y bloque de corte del extremo conectado.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/tornillos-acero",
-    disponible: true,
-  },
-  {
-    id: "conducto-circular",
-    nombre: "Conducto circular",
-    seccion: "conducciones",
-    categoria: "Conducciones",
-    descripcion:
-      "Escurrimiento a superficie libre por Manning: altura de agua, velocidad y grado de llenado.",
-    normasDisponibles: [],
-    ruta: "/verificaciones/conducto-circular",
     disponible: true,
   },
   {

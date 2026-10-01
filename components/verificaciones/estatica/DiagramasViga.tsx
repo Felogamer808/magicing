@@ -14,6 +14,7 @@
  * Recibe el resultado ya calculado. No calcula nada.
  */
 
+import { SimboloApoyo } from "@/components/verificaciones/croquis/Primitivas";
 import type {
   CargaViga,
   NodoViga,
@@ -262,26 +263,22 @@ function Esquema({
   );
 }
 
+/**
+ * El símbolo lo dibuja la primitiva compartida; lo que queda acá es traducir el
+ * vocabulario del motor —"simple"— al del dibujo —"articulado"—, que sí es
+ * propio de este diagrama.
+ */
 function Apoyo({ x, y, tipo }: { x: number; y: number; tipo: NodoViga["apoyo"] }) {
   if (tipo === "libre") return null;
-  if (tipo === "empotrado") {
-    return (
-      <g>
-        <line x1={x} y1={y - 11} x2={x} y2={y + 11} className="stroke-foreground" strokeWidth={2} />
-        {[-8, -4, 0, 4, 8].map((d) => (
-          <line
-            key={d}
-            x1={x} y1={y + d} x2={x + (x < 40 ? -6 : 6)} y2={y + d + 4}
-            className="stroke-muted-foreground" strokeWidth={0.9}
-          />
-        ))}
-      </g>
-    );
-  }
   return (
-    <g>
-      <path d={`M${x},${y} l-6,10 l12,0 Z`} className="fill-background stroke-foreground" strokeWidth={1.2} />
-      <line x1={x - 8} y1={y + 12} x2={x + 8} y2={y + 12} className="stroke-foreground" strokeWidth={1.2} />
+    <g className="text-foreground">
+      <SimboloApoyo
+        x={x}
+        y={y}
+        tipo={tipo === "empotrado" ? "empotrado" : "articulado"}
+        ladoEmpotrado={x < 40 ? "izquierda" : "derecha"}
+        escala={0.85}
+      />
     </g>
   );
 }

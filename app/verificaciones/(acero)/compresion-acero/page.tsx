@@ -289,10 +289,11 @@ export default function CompresionAceroPage() {
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — compresión admisible`}
                     verifica={resultado.verifica === true}
-                    detalle={`${fmt(aNumero(pRequerida), 1)} kN / ${fmt(resultado.admisibleKN, 1)} kN · aprovechamiento ${fmt(
-                      (resultado.aprovechamiento ?? 0) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "P requerida", valor: aNumero(pRequerida) },
+                      limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
+                      unidad: "kN", exige: "≤", decimales: 1,
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
@@ -368,10 +369,12 @@ export default function CompresionAceroPage() {
                     <ResultadoCheck
                       etiqueta="Separación entre conectores"
                       verifica={resultado.columnaArmada.cumpleSeparacionMaxima}
-                      detalle={`${fmt(aNumero(separacionConectores), 3)} m / máx ${fmt(
-                        resultado.columnaArmada.separacionMaximaM,
-                        3
-                      )} m · art. E6.2(a): a ≤ 0,75 · (Lc/r)m · ri`}
+                      comparacion={{
+                        real: { etiqueta: "a", valor: aNumero(separacionConectores) },
+                        limite: { etiqueta: "máxima", valor: resultado.columnaArmada.separacionMaximaM },
+                        unidad: "m", exige: "≤", decimales: 3,
+                      }}
+                      detalle="art. E6.2(a): a ≤ 0,75 · (Lc/r)m · ri"
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"

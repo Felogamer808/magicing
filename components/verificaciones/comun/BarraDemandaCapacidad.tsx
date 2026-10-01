@@ -45,9 +45,19 @@ export function BarraDemandaCapacidad({
   const utilizacion = capacidad > 0 ? demanda / capacidad : Infinity;
   const verifica = Number.isFinite(utilizacion) && utilizacion <= 1;
   const alLimite = verifica && utilizacion >= AL_LIMITE;
-  // Por encima de 1 la barra se llena y el exceso se dice con el número: una
-  // barra que se saliera del riel no se podría comparar con las demás.
-  const porcentajeDibujado = Math.min(Number.isFinite(utilizacion) ? utilizacion : 1, 1) * 100;
+  /*
+   * Por encima de 1 la barra se llena y el exceso se dice con el número: una
+   * barra que se saliera del riel no se podría comparar con las demás.
+   *
+   * Se redondea a dos decimales y no se deja el flotante crudo porque el ancho
+   * va en un estilo en línea, y servidor y navegador no lo serializan igual:
+   * uno escribía 63,0587 % y el otro 63,05865226864352 %. React lo detecta como
+   * HTML distinto del que esperaba y avisa que no lo va a parchear. La
+   * diferencia es de una milésima de píxel; el desajuste de hidratación, no.
+   */
+  const porcentajeDibujado = (
+    Math.min(Number.isFinite(utilizacion) ? utilizacion : 1, 1) * 100
+  ).toFixed(2);
 
   const color = !verifica
     ? "var(--destructive)"
@@ -95,9 +105,12 @@ export function BarraDemandaCapacidad({
             width: `${porcentajeDibujado}%`,
             backgroundColor: color,
             // Rayado cuando no verifica: el exceso se distingue sin depender del color.
-            backgroundImage: verifica
-              ? undefined
-              : "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)",
+            ...(verifica
+              ? {}
+              : {
+                  backgroundImage:
+                    "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)",
+                }),
           }}
         />
       </div>

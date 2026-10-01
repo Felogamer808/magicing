@@ -185,10 +185,11 @@ export default function FlexionAceroPage() {
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — momento admisible (art. ${resultado.articulo})`}
                     verifica={resultado.verifica === true}
-                    detalle={`${fmt(aNumero(mRequerido), 1)} kN·m / ${fmt(resultado.admisibleKNm, 1)} kN·m · aprovechamiento ${fmt(
-                      (resultado.aprovechamiento ?? 0) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "M requerido", valor: aNumero(mRequerido) },
+                      limite: { etiqueta: "admisible", valor: resultado.admisibleKNm },
+                      unidad: "kN·m", exige: "≤", decimales: 1,
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     {resultado.articulo === "F2" && (

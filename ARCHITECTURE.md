@@ -7,9 +7,9 @@ Aplicación de una sola pieza, sin backend: todo el cálculo corre en el navegad
 ```
 app/
   layout.tsx                       Fuentes, metadata, script de tema
-  page.tsx                         Portada: elegir área (server)
+  page.tsx                         Portada: secciones, o áreas si hubiera más de una (server)
   globals.css                      Tokens de color, tema claro/oscuro, estilos de impresión
-  areas/[area]/page.tsx            Secciones de un área (estructural | hidraulica)
+  areas/[area]/page.tsx            Secciones de un área (hoy sólo estructural)
   secciones/[seccion]/page.tsx     Índice de verificaciones de una sección
   verificaciones/
     layout.tsx                     Barra lateral (escritorio) + BarraMovil
@@ -17,7 +17,6 @@ app/
     (acero)/<id>/page.tsx
     (madera)/<id>/page.tsx
     (pretensado)/<id>/page.tsx
-    (hidraulica)/<id>/page.tsx
     (acciones)/<id>/page.tsx
     (herramientas)/<id>/page.tsx
 
@@ -29,7 +28,7 @@ components/
                                     cualquier verificación sin importar el material
     croquis/                       Croquis chicos que acompañan cada tarjeta de datos
     hormigon/  acero/  madera/     Diagramas específicos de un material
-    pretensado/  hidraulica/
+    pretensado/
     estatica/  geometria/          Diagramas de las herramientas de análisis
   TemaToggle.tsx                   Claro/oscuro + script que evita el destello inicial
   IndiceVerificaciones.tsx         Índice con buscador
@@ -51,7 +50,6 @@ lib/
                                     flexo-compresión, uniones, sección mixta (CFT)
     madera/                        EC5: axil, cortante, flexión, uniones, fuego...
     acciones/                      CIRSOC 102 (viento) — no es un material, es una carga
-    hidraulica/                    Manning en conducto circular
     geometria/                     Propiedades de sección, catálogo de perfiles
     estatica/                      Vigas continuas por rigidez directa
     armaduras.ts                   Serie comercial de diámetros (todo hormigón armado)
@@ -92,7 +90,7 @@ que se construye, no a la norma que hay que abrir para verificarlo.**
 interfaces de entrada y devuelven interfaces de resultado. Cada archivo tiene su
 `*.test.ts` al lado, comparando contra valores reales de la planilla original
 (o, donde no existía planilla, contra geometría exacta y propiedades que tienen
-que cumplirse sí o sí — así arrancó `hidraulica/`).
+que cumplirse sí o sí).
 
 Se puede trabajar acá **sin abrir nada de UI**, y es lo más barato en contexto.
 
@@ -141,11 +139,13 @@ Todo vive en `localStorage`, con claves `magicing:v1:<ruta>:<campo>`.
 `lib/verificaciones/registry.ts` es la fuente única de la que salen la portada,
 la barra lateral y el buscador. Tiene tres tablas:
 
-- `registroAreas` — hoy `estructural` e `hidraulica`. Es lo primero que se
-  elige, porque las dos disciplinas no comparten normas ni vocabulario.
-- `registroSecciones` — cada una declara su `area`. `hormigon-armado`,
-  `estructuras-metalicas`, `madera`... del lado estructural; `conducciones`
-  del lado hidráulico.
+- `registroAreas` — hoy sólo `estructural`. Es el primer nivel cuando hay más
+  de una disciplina, porque no comparten normas ni vocabulario; con una sola, la
+  portada lo saltea y lista las secciones directamente. La tabla se mantiene
+  —y `/areas/[area]` sigue andando— para no rehacer la navegación el día que
+  entre otra disciplina.
+- `registroSecciones` — cada una declara su `area`: `hormigon-armado`,
+  `estructuras-metalicas`, `madera`...
 - `registroVerificaciones` — cada una declara su `seccion`. El tipo
   `IdVerificacion` las enumera a mano (no `string`) para que agregar una sin
   declarar su combinación de acciones rompa la compilación en vez de fallar

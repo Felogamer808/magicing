@@ -226,7 +226,11 @@ export default function ZapataCombinadaPage() {
                   <ResultadoCheck
                     etiqueta="Tensión admisible del suelo"
                     verifica={resultado.zapata.geotecnico.verificaTension}
-                    detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.zapata.geotecnico.sigmaKPa },
+                      limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
+                      unidad: "kN/m²", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -247,7 +251,11 @@ export default function ZapataCombinadaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.inferior.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.inferior.asRealCm2PorM)} cm²/m / As nec ${fmt(resultado.zapata.inferior.asNecCm2PorM)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.inferior.asRealCm2PorM },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.inferior.asNecCm2PorM },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     M = {fmt(resultado.zapata.inferior.mKNm)} kN·m, en x = {fmt(resultado.zapata.inferior.posicionM, 2)} m
@@ -263,7 +271,11 @@ export default function ZapataCombinadaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.superior.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.superior.asRealCm2PorM)} cm²/m / As nec ${fmt(resultado.zapata.superior.asNecCm2PorM)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.superior.asRealCm2PorM },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.superior.asNecCm2PorM },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     M = {fmt(resultado.zapata.superior.mKNm)} kN·m, en x = {fmt(resultado.zapata.superior.posicionM, 2)} m
@@ -279,12 +291,20 @@ export default function ZapataCombinadaPage() {
                   <ResultadoCheck
                     etiqueta="Cortante (EC2 6.2.2)"
                     verifica={resultado.zapata.cortante.verificaCorte}
-                    detalle={`Vd ${fmt(resultado.zapata.cortante.vEdKN)} kN / VRd,c ${fmt(resultado.zapata.cortante.vRdCKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: resultado.zapata.cortante.vEdKN },
+                      limite: { etiqueta: "VRd,c", valor: resultado.zapata.cortante.vRdCKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura de reparto"
                     verifica={resultado.zapata.secundario.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.secundario.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.secundario.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.secundario.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.secundario.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                 </CardContent>
               </Card>

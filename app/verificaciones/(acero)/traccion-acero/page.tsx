@@ -277,10 +277,11 @@ export default function TraccionAceroPage() {
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — tracción admisible`}
                     verifica={resultado.verifica === true}
-                    detalle={`${fmt(aNumero(pRequerida), 1)} kN / ${fmt(resultado.admisibleKN, 1)} kN · aprovechamiento ${fmt(
-                      (resultado.aprovechamiento ?? 0) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "P requerida", valor: aNumero(pRequerida) },
+                      limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
+                      unidad: "kN", exige: "≤", decimales: 1,
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">

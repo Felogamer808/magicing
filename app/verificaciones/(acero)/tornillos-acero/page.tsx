@@ -462,10 +462,11 @@ export default function TornillosAceroPage() {
                   <ResultadoCheck
                     etiqueta={`Bulón más exigido — gobierna ${resultado.bulon.modoDeFalla}`}
                     verifica={resultado.critico.vKN <= resultado.bulon.admisibleKN}
-                    detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.bulon.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                      (resultado.critico.vKN / resultado.bulon.admisibleKN) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "V", valor: resultado.critico.vKN },
+                      limite: { etiqueta: "admisible", valor: resultado.bulon.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <p className="font-mono text-xs text-muted-foreground">
                     {resultado.n.filas * resultado.n.columnas} bulones · Vx = {fmt(resultado.critico.vxKN, 2)} kN ·
@@ -512,10 +513,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Tracción con corte simultáneo"
                       verifica={resultado.traccionReqKN <= resultado.traccion.admisibleKN}
-                      detalle={`${fmt(resultado.traccionReqKN, 2)} kN / ${fmt(resultado.traccion.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.traccionReqKN / resultado.traccion.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "T", valor: resultado.traccionReqKN },
+                        limite: { etiqueta: "admisible", valor: resultado.traccion.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"
@@ -537,10 +539,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Deslizamiento (slip-critical)"
                       verifica={resultado.critico.vKN <= resultado.deslizamiento.admisibleKN}
-                      detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.deslizamiento.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.critico.vKN / resultado.deslizamiento.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "V", valor: resultado.critico.vKN },
+                        limite: { etiqueta: "admisible", valor: resultado.deslizamiento.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"
@@ -560,10 +563,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Bloque de corte — art. J4.3"
                       verifica={resultado.critico.vKN <= resultado.bloque.admisibleKN}
-                      detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.bloque.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.critico.vKN / resultado.bloque.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "V", valor: resultado.critico.vKN },
+                        limite: { etiqueta: "admisible", valor: resultado.bloque.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"

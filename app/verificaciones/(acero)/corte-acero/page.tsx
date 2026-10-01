@@ -201,10 +201,11 @@ export default function CorteAceroPage() {
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — corte admisible (art. ${resultado.articulo})`}
                     verifica={resultado.verifica === true}
-                    detalle={`${fmt(aNumero(vRequerido), 1)} kN / ${fmt(resultado.admisibleKN, 1)} kN · aprovechamiento ${fmt(
-                      (resultado.aprovechamiento ?? 0) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "V requerido", valor: aNumero(vRequerido) },
+                      limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
+                      unidad: "kN", exige: "≤", decimales: 1,
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     {resultado.articulo === "G2" && (

@@ -1,26 +1,22 @@
 import type { Metadata } from "next";
-import { Fredoka, IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { Fredoka, IBM_Plex_Mono, Manrope } from "next/font/google";
+import { Shell } from "@/components/shell/Shell";
 import { scriptTemaInicial } from "@/components/TemaToggle";
 import "./globals.css";
 
 /**
- * Tres cortes con un rol cada uno, en línea con el lenguaje de plano técnico:
- * una serif editorial para los títulos (autoridad de memoria de cálculo), una
- * sans técnica para el cuerpo y los formularios densos, y una monoespaciada
- * para números, cotas y etiquetas de especificación.
+ * Dos cortes con un rol cada uno. Manrope para toda la interfaz, incluidos los
+ * títulos: la serif editorial que había antes le daba a la página un aire de
+ * documento impreso que competía con el de herramienta.
+ *
+ * La monoespaciada se queda, y no es decorativa: números, cotas y unidades van
+ * en ancho fijo para que no bailen al recalcular mientras se tipea.
  */
-const display = Newsreader({
-  variable: "--font-display",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600"],
-});
-
-const sans = IBM_Plex_Sans({
+const sans = Manrope({
   variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const mono = IBM_Plex_Mono({
@@ -65,14 +61,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${display.variable} ${sans.variable} ${mono.variable} ${logo.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} ${logo.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
         {/* Aplica el tema guardado antes del primer pintado, para que no destelle en claro. */}
         <script dangerouslySetInnerHTML={{ __html: scriptTemaInicial }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Shell>{children}</Shell>
+      </body>
     </html>
   );
 }

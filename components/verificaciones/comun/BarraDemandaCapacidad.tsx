@@ -22,6 +22,12 @@ interface BarraDemandaCapacidadProps {
   etiquetaDemanda?: string;
   etiquetaCapacidad?: string;
   decimales?: number;
+  /**
+   * Repetir arriba de la barra la solicitación y la resistencia. Se apaga
+   * cuando quien la monta ya las muestra —ResultadoCheck, por ejemplo—, para
+   * no decir dos veces los mismos dos números.
+   */
+  mostrarValores?: boolean;
 }
 
 /** Umbral a partir del cual conviene avisar que queda poco margen. */
@@ -34,6 +40,7 @@ export function BarraDemandaCapacidad({
   etiquetaDemanda = "Solicitación",
   etiquetaCapacidad = "Resistencia",
   decimales = 2,
+  mostrarValores = true,
 }: BarraDemandaCapacidadProps) {
   const utilizacion = capacidad > 0 ? demanda / capacidad : Infinity;
   const verifica = Number.isFinite(utilizacion) && utilizacion <= 1;
@@ -51,7 +58,11 @@ export function BarraDemandaCapacidad({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-sm tabular-nums">
+        <div
+          className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-sm tabular-nums ${
+            mostrarValores ? "" : "hidden"
+          }`}
+        >
           <span>
             <span className="text-[11px] text-muted-foreground">{etiquetaDemanda} </span>
             {fmt(demanda, decimales)}
@@ -98,7 +109,7 @@ export function BarraDemandaCapacidad({
           <>
             Cumple, con un margen del{" "}
             <strong className="text-foreground">{fmt((1 - utilizacion) * 100, 0)} %</strong>.
-            {alLimite && " Queda poco margen: cualquier cambio de carga la deja al límite."}
+            {alLimite && " Queda poco margen: un cambio chico en los datos la deja al límite."}
           </>
         ) : (
           <>

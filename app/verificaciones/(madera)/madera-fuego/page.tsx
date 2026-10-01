@@ -10,7 +10,6 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
-import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
 import { LeyendaTecnica } from "@/components/verificaciones/comun/LeyendaTecnica";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { CroquisSeccionCarbonizada } from "@/components/verificaciones/madera/CroquisSeccionCarbonizada";
@@ -242,15 +241,6 @@ export default function MaderaFuegoPage() {
                       }}
                     />
                   )}
-                  {aNumero(momento) > 0 && (
-                    <BarraDemandaCapacidad
-                      demanda={r.sigmaM}
-                      capacidad={r.fmdFi}
-                      unidad="MPa"
-                      etiquetaDemanda="σm,d,fi"
-                      etiquetaCapacidad="fm,d,fi"
-                    />
-                  )}
                   {aNumero(axil) > 0 && (
                     <ResultadoCheck
                       etiqueta="Compresión con pandeo sobre la sección eficaz"
@@ -260,15 +250,6 @@ export default function MaderaFuegoPage() {
                         limite: { etiqueta: "kc·fc,0,d,fi", valor: r.ejeZ.kc * r.fc0dFi },
                         unidad: "MPa", exige: "≤", decimales: 2,
                       }}
-                    />
-                  )}
-                  {aNumero(axil) > 0 && (
-                    <BarraDemandaCapacidad
-                      demanda={r.sigmaC}
-                      capacidad={r.ejeZ.kc * r.fc0dFi}
-                      unidad="MPa"
-                      etiquetaDemanda="σc,0,d,fi"
-                      etiquetaCapacidad="kc·fc,0,d,fi"
                     />
                   )}
                   <p className="text-xs text-muted-foreground">

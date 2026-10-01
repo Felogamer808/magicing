@@ -53,14 +53,14 @@ export function CurvaVuelco({ lambdaRelM, kcritActual, arriostrado }: Props) {
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`kcrit ${fmt(kcritActual, 3)} para una esbeltez relativa de ${fmt(lambdaRelM, 3)}`}>
         {/* Franjas de los tres tramos. */}
-        <rect x={IZQ} y={TOP} width={x(0.75) - IZQ} height={BASE - TOP} className="fill-emerald-600/10" />
-        <rect x={x(0.75)} y={TOP} width={x(1.4) - x(0.75)} height={BASE - TOP} className="fill-amber-500/10" />
+        <rect x={IZQ} y={TOP} width={x(0.75) - IZQ} height={BASE - TOP} className="fill-exito/10" />
+        <rect x={x(0.75)} y={TOP} width={x(1.4) - x(0.75)} height={BASE - TOP} className="fill-mat-fuego/10" />
         <rect x={x(1.4)} y={TOP} width={DER - x(1.4)} height={BASE - TOP} className="fill-destructive/10" />
 
         <text x={(IZQ + x(0.75)) / 2} y={TOP + 12} textAnchor="middle"
-              className="fill-emerald-700 text-[10px]">sin reducción</text>
+              className="fill-exito text-[10px]">sin reducción</text>
         <text x={(x(0.75) + x(1.4)) / 2} y={TOP + 12} textAnchor="middle"
-              className="fill-amber-700 text-[10px]">tramo lineal</text>
+              className="fill-mat-fuego text-[10px]">tramo lineal</text>
         <text x={(x(1.4) + DER) / 2} y={TOP + 12} textAnchor="middle"
               className="fill-destructive text-[10px]">1/λ²</text>
 

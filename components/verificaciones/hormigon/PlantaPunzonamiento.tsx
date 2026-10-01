@@ -158,7 +158,7 @@ export function PlantaPunzonamiento({ planta, dM, u1M, verificaCritico }: Planta
         <path
           d={pathDe(u1, aX, aY, escala)}
           strokeWidth="2.4"
-          className={verificaCritico ? "stroke-emerald-600" : "stroke-destructive"}
+          className={verificaCritico ? "stroke-exito" : "stroke-destructive"}
         />
 
         {/* Pilar. */}
@@ -207,7 +207,7 @@ export function PlantaPunzonamiento({ planta, dM, u1M, verificaCritico }: Planta
       <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
         <li className="flex items-center gap-1.5">
           <span
-            className={`inline-block h-0.5 w-5 ${verificaCritico ? "bg-emerald-600" : "bg-destructive"}`}
+            className={`inline-block h-0.5 w-5 ${verificaCritico ? "bg-exito" : "bg-destructive"}`}
           />
           perímetro crítico u1 = {fmt(u1M * 100, 0)} cm
         </li>

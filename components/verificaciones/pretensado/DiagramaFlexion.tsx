@@ -105,7 +105,7 @@ export function DiagramaFlexion({
 
         {/* Lectura de ductilidad. */}
         <text x={xIzq} y={ALTO - 8}
-              className={`text-[11.5px] ${controladaPorTraccion ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[11.5px] ${controladaPorTraccion ? "fill-exito" : "fill-destructive font-medium"}`}>
           εt = {fmt(deformacionNeta * 1000, 2)} ‰ —{" "}
           {controladaPorTraccion ? "controlada por tracción (φ = 0,9)" : "sobrearmada, φ reducido"}
         </text>

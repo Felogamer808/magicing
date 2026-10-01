@@ -89,7 +89,7 @@ export function DiagramaPerdidas({
           return (
             <g key={b.etiqueta}>
               <rect x={xDe(b.i)} y={arriba} width={anchoColumna} height={Math.max(alto, 1)}
-                    className={recupera ? "fill-emerald-600/30 stroke-emerald-700" : "fill-destructive/30 stroke-destructive/70"}
+                    className={recupera ? "fill-exito/30 stroke-exito" : "fill-destructive/30 stroke-destructive/70"}
                     strokeWidth={1} />
               {/* Línea de continuidad hasta la columna siguiente. */}
               <line x1={xDe(b.i)} y1={y(b.desde)} x2={xDe(b.i) - (paso - anchoColumna)} y2={y(b.desde)}

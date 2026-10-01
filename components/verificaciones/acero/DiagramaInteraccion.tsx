@@ -53,7 +53,7 @@ export function DiagramaInteraccion({
            aria-label={`Interacción ${fmt(interaccion)} por ${ecuacion}`}>
         {/* Zona segura, debajo de la envolvente. */}
         <polygon points={`${x(0)},${y(0)} ${envolvente.join(" ")}`}
-                 className="fill-emerald-600/10" />
+                 className="fill-exito/10" />
 
         <line x1={IZQ} y1={TOP - 6} x2={IZQ} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
         <line x1={IZQ} y1={BASE} x2={DER} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
@@ -73,14 +73,14 @@ export function DiagramaInteraccion({
         <line x1={x(terminoFlexion)} y1={y(relacionAxial)} x2={IZQ} y2={y(relacionAxial)}
               className="stroke-muted-foreground/60" strokeWidth={0.8} strokeDasharray="2 2" />
         <circle cx={x(terminoFlexion)} cy={y(relacionAxial)} r={4.5}
-                className={verifica ? "fill-emerald-600" : "fill-destructive"} />
+                className={verifica ? "fill-exito" : "fill-destructive"} />
 
         <text x={IZQ - 40} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[10.5px]">Pr/Pc</text>
         <text x={DER} y={LADO - 6} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           ΣMr/Mc
         </text>
         <text x={IZQ + 4} y={TOP + 2}
-              className={`text-[10.5px] ${verifica ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${verifica ? "fill-exito" : "fill-destructive font-medium"}`}>
           {ecuacion} = {fmt(interaccion)}
         </text>
       </svg>

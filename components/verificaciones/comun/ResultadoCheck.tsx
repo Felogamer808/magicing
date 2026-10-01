@@ -73,7 +73,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
       className={cn(
         "shrink-0 rounded-sm border font-mono text-[12.5px] uppercase tracking-[0.08em] transition-colors duration-300",
         verifica
-          ? "-rotate-2 border-emerald-700 bg-emerald-600 text-white [a]:hover:bg-emerald-600"
+          ? "-rotate-2 border-exito bg-exito text-white [a]:hover:bg-exito"
           : "border-destructive/40"
       )}
     >
@@ -90,8 +90,8 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
        */
       className={cn(
         "rounded-md border p-3 transition-colors duration-300",
-        verifica ? "border-emerald-600/40" : "border-destructive/40",
-        comparacion && (verifica ? "bg-emerald-600/[0.06]" : "bg-destructive/[0.06]")
+        verifica ? "border-exito/40" : "border-destructive/40",
+        comparacion && (verifica ? "bg-exito/[0.06]" : "bg-destructive/[0.06]")
       )}
     >
       {comparacion ? (
@@ -108,7 +108,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
           <p
             className={cn(
               "mt-2 flex flex-wrap items-baseline gap-x-2 font-mono text-lg font-semibold tabular-nums transition-colors duration-300",
-              verifica ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+              verifica ? "text-exito" : "text-destructive"
             )}
           >
             <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">

@@ -127,9 +127,9 @@ export function DiagramaEmpujesMuro({
           <>
             <rect x={X_MURO + px(espesorMuroM)} y={yCoronacion}
                   width={pp(presionSobrecarga)} height={Y_BASE - yCoronacion}
-                  className="fill-amber-500/25 stroke-amber-600" strokeWidth={1.2} />
+                  className="fill-mat-fuego/25 stroke-mat-fuego" strokeWidth={1.2} />
             <text x={X_MURO + px(espesorMuroM) + pp(presionSobrecarga) + pp(presionSueloBase) + 30}
-                  y={py(alturaSueloActivoM * 0.72) + 3} className="fill-amber-700 text-[10.5px]">
+                  y={py(alturaSueloActivoM * 0.72) + 3} className="fill-mat-fuego text-[10.5px]">
               Eq = {fmt(empujeSobrecargaKN, 0)} kN · h/2
             </text>
           </>
@@ -140,10 +140,10 @@ export function DiagramaEmpujesMuro({
           <>
             <polygon
               points={`${xBordeZapata},${py(alturaSueloPasivoM)} ${xBordeZapata - pp(presionPasivaBase)},${Y_BASE} ${xBordeZapata},${Y_BASE}`}
-              className="fill-emerald-600/25 stroke-emerald-700" strokeWidth={1.2} />
+              className="fill-exito/25 stroke-exito" strokeWidth={1.2} />
             <text x={xBordeZapata - pp(presionPasivaBase) - 4}
                   y={py(alturaSueloPasivoM / 3) + 3} textAnchor="end"
-                  className="fill-emerald-700 text-[10.5px]">
+                  className="fill-exito text-[10.5px]">
               Ep = {fmt(empujePasivoKN, 0)} kN
             </text>
           </>

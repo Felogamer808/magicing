@@ -107,8 +107,8 @@ function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { an
       unidad: "kN",
       valores: resultado.puntos.map((p) => p.cortanteKN),
       extremo: resultado.cortanteMax,
-      trazo: "stroke-sky-600",
-      relleno: "fill-sky-500/15",
+      trazo: "stroke-brillante",
+      relleno: "fill-brillante/15",
     },
     {
       clave: "momento" as const,
@@ -128,8 +128,8 @@ function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { an
       unidad: "mm",
       valores: resultado.puntos.map((p) => p.flechaMm),
       extremo: resultado.flechaMax,
-      trazo: "stroke-emerald-600",
-      relleno: "fill-emerald-500/10",
+      trazo: "stroke-exito",
+      relleno: "fill-exito/10",
     },
   ];
 
@@ -198,14 +198,14 @@ function Esquema({
           <g key={`q${i}`}>
             <path
               d={`M${x0},${yViga - 8} L${x0},${y0} L${x1},${y1} L${x1},${yViga - 8} Z`}
-              className="fill-sky-500/20 stroke-sky-600"
+              className="fill-brillante/20 stroke-brillante"
               strokeWidth={0.8}
             />
             <text
               x={(x0 + x1) / 2}
               y={Math.min(y0, y1) - 3}
               textAnchor="middle"
-              className="fill-sky-700 text-[8px]"
+              className="fill-brillante text-[8px]"
             >
               {num(Math.max(Math.abs(c.qInicialKNm), Math.abs(c.qFinalKNm)), 2)} kN/m
             </text>

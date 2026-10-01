@@ -50,6 +50,21 @@ function signoReal(real: number, limite: number): string {
   return "=";
 }
 
+/**
+ * La barra sólo se dibuja si los dos números que se muestran explican por sí
+ * solos el veredicto.
+ *
+ * Hay comprobaciones cuyo "verifica" sale de más de una condición y cuya
+ * comparación visible es apenas una de ellas: ahí la barra diría que cumple
+ * con margen al lado de una insignia que dice que no cumple. Entre mostrar una
+ * barra que contradice al veredicto y no mostrarla, no mostrarla.
+ */
+function laBarraExplicaElVeredicto(verifica: boolean, c: ComparacionCheck): boolean {
+  const cumpleSegunNumeros =
+    c.exige === "≤" ? c.real.valor <= c.limite.valor : c.real.valor >= c.limite.valor;
+  return cumpleSegunNumeros === verifica;
+}
+
 export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: ResultadoCheckProps) {
   const insignia = (
     <Badge
@@ -125,6 +140,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
             sobra es lo real, así que la utilización es límite/real. En los dos
             sentidos, por debajo de 1 significa que cumple.
           */}
+          {laBarraExplicaElVeredicto(verifica, comparacion) && (
           <div className="mt-3">
             <BarraDemandaCapacidad
               demanda={comparacion.exige === "≤" ? comparacion.real.valor : comparacion.limite.valor}
@@ -133,6 +149,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
               mostrarValores={false}
             />
           </div>
+          )}
 
           {detalle && (
             <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>

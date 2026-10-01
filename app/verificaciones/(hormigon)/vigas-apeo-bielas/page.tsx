@@ -390,24 +390,41 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Cabe la cabeza comprimida"
                     verifica={resultado.r.modelo.verificaCabezaComprimida}
-                    detalle={`z = ${fmt(resultado.r.modelo.zAdoptadoM, 3)} m de d = ${fmt(resultado.r.modelo.dM, 3)} m`}
+                    comparacion={{
+                      real: { etiqueta: "z", valor: resultado.r.modelo.zAdoptadoM },
+                      limite: { etiqueta: "d", valor: resultado.r.modelo.dM },
+                      unidad: "m", exige: "≤", decimales: 3,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura del tirante suficiente"
                     verifica={resultado.r.tirante.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.tirante.asRealCm2)} cm² / As nec ${fmt(resultado.r.tirante.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.tirante.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.tirante.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Las barras entran en el ancho"
                     verifica={resultado.r.tirante.verificaBNec}
-                    detalle={`b nec ${fmt(resultado.r.tirante.bNecM, 3)} m / b = ${fmt(resultado.n.b)} m · separación libre ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
+                    comparacion={{
+                      real: { etiqueta: "b nec", valor: resultado.r.tirante.bNecM },
+                      limite: { etiqueta: "b", valor: resultado.n.b },
+                      unidad: "m", exige: "≤", decimales: 3,
+                    }}
+                    detalle={`separación libre ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
                   />
                   {resultado.r.tirante.capas.capas.length > 1 && (
                     <>
                       <ResultadoCheck
                         etiqueta="Las dos capas entran en la franja de reparto"
                         verifica={resultado.r.tirante.capas.verificaDentroDelReparto}
-                        detalle={`ocupan ${fmt(resultado.r.tirante.capas.alturaOcupadaM, 3)} m de los ${fmt(resultado.r.tirante.alturaRepartoM, 3)} m de 0,12·L`}
+                        comparacion={{
+                      real: { etiqueta: "ocupan", valor: resultado.r.tirante.capas.alturaOcupadaM },
+                      limite: { etiqueta: "0,12·L", valor: resultado.r.tirante.alturaRepartoM },
+                      unidad: "m", exige: "≤", decimales: 3,
+                    }}
                       />
                       <ResultadoCheck
                         etiqueta="Mismo número de barras por capa (pasa el vibrador)"
@@ -487,7 +504,11 @@ export default function VigaApeoBielasPage() {
                       <ResultadoCheck
                         etiqueta="La horquilla cabe en el ancho de la viga"
                         verifica={resultado.r.anclaje.geometriaHorquilla.cabeEnElAncho}
-                        detalle={`ocupa ${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm de los ${fmt(resultado.r.anclaje.geometriaHorquilla.anchoLibreM * 1000, 0)} mm libres entre estribos`}
+                        comparacion={{
+                      real: { etiqueta: "ocupa", valor: resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000 },
+                      limite: { etiqueta: "libre entre estribos", valor: resultado.r.anclaje.geometriaHorquilla.anchoLibreM * 1000 },
+                      unidad: "mm", exige: "≤", decimales: 0,
+                    }}
                       />
                     </>
                   )}
@@ -583,32 +604,63 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Biela izquierda"
                     verifica={resultado.r.bielas.bielaIzq.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.bielaIzq.sigmaMPa)} / ${fmt(resultado.r.bielas.bielaIzq.sigmaMaxMPa)} MPa · η = ${fmt(resultado.r.bielas.bielaIzq.aprovechamiento)}`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.bielaIzq.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.bielaIzq.sigmaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Biela derecha"
                     verifica={resultado.r.bielas.bielaDer.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.bielaDer.sigmaMPa)} / ${fmt(resultado.r.bielas.bielaDer.sigmaMaxMPa)} MPa · η = ${fmt(resultado.r.bielas.bielaDer.aprovechamiento)}`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.bielaDer.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.bielaDer.sigmaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo bajo el pilar apeado (CCC, k1 = 1,0)"
                     verifica={resultado.r.bielas.nudoSuperior.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.nudoSuperior.sigmaMPa)} / ${fmt(resultado.r.bielas.nudoSuperior.sigmaMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoSuperior.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoSuperior.sigmaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo apoyo izq. — Anejo 19 (CCT, k2 = 0,85)"
                     verifica={resultado.r.bielas.nudoApoyoIzq.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.nudoApoyoIzq.sigmaMPa)} / ${fmt(resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo apoyo izq. — Montoya (0,7·fcd)"
                     verifica={resultado.r.bielas.nudoApoyoIzqMontoya.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMPa)} / ${fmt(resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo apoyo der. — el más desfavorable de los dos"
                     verifica={resultado.r.bielas.nudoApoyoDer.verifica && resultado.r.bielas.nudoApoyoDerMontoya.verifica}
-                    detalle={`σ ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMPa)} MPa / topes ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa)} y ${fmt(resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoDer.sigmaMPa },
+                      limite: {
+                        etiqueta: "σ máx",
+                        valor: Math.min(
+                          resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa,
+                          resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa
+                        ),
+                      },
+                      unidad: "MPa", exige: "≤",
+                    }}
+                    detalle={`topes ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa)} (Anejo 19) y ${fmt(resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa)} (Montoya) MPa`}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -640,17 +692,30 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Malla vertical para la tracción transversal"
                     verifica={resultado.r.traccionTransversal.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.traccionTransversal.asRealCm2)} cm² / As nec ${fmt(resultado.r.traccionTransversal.asNecCm2)} cm² · T = ${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.traccionTransversal.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.traccionTransversal.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
+                    detalle={`T = ${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN`}
                   />
                   <ResultadoCheck
                     etiqueta="Malla horizontal ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaHorizontal}
-                    detalle={`${fmt(resultado.r.malla.horizontalCm2PorM)} / ${fmt(resultado.r.malla.asMinCm2PorM)} cm²/m por cara`}
+                    comparacion={{
+                      real: { etiqueta: "dispuesta", valor: resultado.r.malla.horizontalCm2PorM },
+                      limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM },
+                      unidad: "cm²/m por cara", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Malla vertical ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaVertical}
-                    detalle={`${fmt(resultado.r.malla.verticalCm2PorM)} / ${fmt(resultado.r.malla.asMinCm2PorM)} cm²/m por cara`}
+                    comparacion={{
+                      real: { etiqueta: "dispuesta", valor: resultado.r.malla.verticalCm2PorM },
+                      limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM },
+                      unidad: "cm²/m por cara", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Separaciones ≤ mín(300 mm; 2·b), art. 9.7(2)"
@@ -684,12 +749,20 @@ export default function VigaApeoBielasPage() {
                     <ResultadoCheck
                       etiqueta="Estribos de cuelgue suficientes"
                       verifica={resultado.r.cuelgue.verificaAs}
-                      detalle={`As real ${fmt(resultado.r.cuelgue.asRealCm2)} cm² / As nec ${fmt(resultado.r.cuelgue.asNecCm2)} cm²`}
+                      comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                     />
                     <ResultadoCheck
                       etiqueta="Canto suficiente para que se formen las bielas (h ≥ 1,2·a)"
                       verifica={resultado.r.cuelgue.verificaCantoMinimo}
-                      detalle={`h = ${fmt(resultado.n.h)} m / mínimo ${fmt(resultado.r.cuelgue.cantoMinimoM)} m`}
+                      comparacion={{
+                      real: { etiqueta: "h", valor: resultado.n.h },
+                      limite: { etiqueta: "1,2·a", valor: resultado.r.cuelgue.cantoMinimoM },
+                      unidad: "m", exige: "≥",
+                    }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"

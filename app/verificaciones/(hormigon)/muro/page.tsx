@@ -302,7 +302,11 @@ export default function MuroPage() {
                   <ResultadoCheck
                     etiqueta="Es un muro (L ≥ 4·h, art. 9.6.1)"
                     verifica={resultado.r.clasificacion.esMuro}
-                    detalle={`L/h = ${fmt(resultado.r.clasificacion.relacionLongitudEspesor, 1)}`}
+                    comparacion={{
+                      real: { etiqueta: "L/h", valor: resultado.r.clasificacion.relacionLongitudEspesor },
+                      limite: { etiqueta: "mínimo", valor: 4 },
+                      unidad: "", exige: "≥", decimales: 1,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Resistencia (NEd, MEd) dentro del diagrama"

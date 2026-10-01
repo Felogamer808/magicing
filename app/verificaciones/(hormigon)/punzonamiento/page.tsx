@@ -543,7 +543,11 @@ export default function PunzonamientoPage() {
                       <ResultadoCheck
                         etiqueta="Al menos 2 perímetros"
                         verifica={resultado.r.detallado.verificaNumeroPerimetros}
-                        detalle={`${fmt(resultado.n.nPerimetros, 0)} dispuestos`}
+                        comparacion={{
+                            real: { etiqueta: "dispuestos", valor: resultado.n.nPerimetros },
+                            limite: { etiqueta: "mínimo", valor: 2 },
+                            unidad: "perímetros", exige: "≥", decimales: 0,
+                          }}
                       />
                       <ResultadoCheck
                         etiqueta="sr ≤ 0,75d"

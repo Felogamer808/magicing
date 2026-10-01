@@ -1,6 +1,13 @@
 /**
- * Uniones abulonadas — AISC 360-22, artículo J3, por el método ASD, igual que
- * el resto de los módulos AISC de este repositorio. Se cubren conexiones de
+ * Uniones abulonadas — AISC 360-16, artículo J3, por el método ASD, igual que
+ * el resto de los módulos AISC de este repositorio.
+ *
+ * La cabecera decía 360-22 y era un rótulo equivocado: lo implementado es
+ * 360-16. Se comprobó contra el documento y coincide en los tres frentes que
+ * podrían haber delatado otra edición: la numeración de ecuaciones —(J3-1),
+ * (J3-3a/b), (J3-4) y (J3-6a) a (J3-6d), con aplastamiento y arrancamiento
+ * todavía bajo la misma (J3-6)—, los valores de la tabla J3.2 que se usan más
+ * abajo, y el Du = 1,13 del art. J3.8. Se corrigió el rótulo, no el cálculo. Se cubren conexiones de
  * contacto (no *slip-critical*), que son las de uso corriente en edificación
  * de baja altura.
  *
@@ -129,7 +136,7 @@ const PHI_DESLIZAMIENTO: Record<TipoAgujeroDeslizamiento, number> = {
 
 /**
  * Du: multiplicador que corrige la pretensión mínima especificada a un
- * valor medio al instalar. Es una constante fija de la norma (AISC 360-22
+ * valor medio al instalar. Es una constante fija de la norma (AISC 360-16
  * J3.8), no depende del bulón, la clase de superficie ni el tipo de agujero.
  */
 export const DU_DESLIZAMIENTO = 1.13;

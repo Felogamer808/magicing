@@ -185,9 +185,9 @@ export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
   },
   "AISC 360": {
     titulo: "Specification for Structural Steel Buildings",
-    edicion: "360-16 en la mayoría de los módulos; 360-22 en tracción y en tornillos",
+    edicion: "AISC 360-16, en los ocho módulos de acero",
     observacion:
-      "Dos ediciones conviviendo, sin unificar. Está anotado como pendiente: mientras siga así, conviene mirar la cita concreta de cada módulo antes de apoyarse en el resultado.",
+      "Es la edición con la que trabaja la herramienta, por decisión de proyecto y no por omisión. Tracción y tornillos llegaron a decir 360-22, que era un rótulo equivocado: lo implementado era 360-16 en los dos casos, comprobado contra el documento —numeración de ecuaciones, valores de la tabla J3.2 y el Du del art. J3.8—. Se corrigió el rótulo sin tocar ningún cálculo.",
   },
   "ACI 318": {
     titulo: "Building Code Requirements for Structural Concrete",

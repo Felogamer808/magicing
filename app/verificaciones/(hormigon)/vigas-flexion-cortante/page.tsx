@@ -23,25 +23,12 @@ import {
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import type { ArmaduraElegida } from "@/lib/calc/hormigon/comun/types";
-import {
-  calcularCantoUtil,
-  calcularCortante,
-  calcularDisposicionArmadura,
-  calcularFlexion,
-} from "@/lib/calc/hormigon/vigas/flexion-cortante";
+import { armarGrupos, resolverVigaFlexionCortante } from "@/lib/calc/hormigon/vigas/resolver";
+import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-flexion-cortante")!;
-
-/** Arma los grupos de armadura para el motor: la 2ª capa sólo entra si tiene barras cargadas. */
-function armarGrupos(numero: number, diametroMm: number, numero2: number, diametroMm2: number): ArmaduraElegida[] {
-  const grupos: ArmaduraElegida[] = [{ numero, diametroMm }];
-  if (numero2 > 0) grupos.push({ numero: numero2, diametroMm: diametroMm2 });
-  return grupos;
-}
 
 export default function VigasFlexionCortantePage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -69,75 +56,25 @@ export default function VigasFlexionCortantePage() {
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck),
-      fyk: aNumero(fyk),
-      b: aNumero(b),
-      h: aNumero(h),
-      recubrimiento: aNumero(recubrimiento),
-      momentoPos: aNumero(momentoPos),
-      numeroPos: aNumero(numeroPos),
-      diametroPos: aNumero(diametroPos),
-      numeroPos2: aNumero(numeroPos2),
-      diametroPos2: aNumero(diametroPos2),
-      momentoNeg: aNumero(momentoNeg),
-      numeroNeg: aNumero(numeroNeg),
-      diametroNeg: aNumero(diametroNeg),
-      numeroNeg2: aNumero(numeroNeg2),
-      diametroNeg2: aNumero(diametroNeg2),
-      vd: aNumero(vd),
-      diametroEstribo: aNumero(diametroEstribo),
-      numeroRamas: aNumero(numeroRamas),
-    };
-
-    const todosValidos = Object.values(v).every((n) => Number.isFinite(n) && n >= 0);
-    const geometriaValida = v.b > 0 && v.h > 0;
-    const materialesValidos = v.fck > 0 && v.fyk > 0;
-    const armadurasValidas = v.numeroPos > 0 && v.diametroPos > 0 && v.numeroNeg > 0 && v.diametroNeg > 0;
-    // La 2ª capa es opcional (0 barras = apagada), pero si tiene barras necesita diámetro.
-    const segundasCapasValidas =
-      (v.numeroPos2 === 0 || v.diametroPos2 > 0) && (v.numeroNeg2 === 0 || v.diametroNeg2 > 0);
-    const cortanteValido = v.numeroRamas > 0 && v.diametroEstribo > 0;
-
-    if (
-      !todosValidos ||
-      !geometriaValida ||
-      !materialesValidos ||
-      !armadurasValidas ||
-      !segundasCapasValidas ||
-      !cortanteValido
-    ) {
-      return null;
-    }
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
-    const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
-    const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
-    const d = calcularCantoUtil(geometria, gruposPositiva);
-
-    const flexionPositiva = calcularFlexion(materiales, geometria, d, {
-      momento: v.momentoPos,
-      armaduraReal: gruposPositiva,
-    });
-    const flexionNegativa = calcularFlexion(materiales, geometria, d, {
-      momento: v.momentoNeg,
-      armaduraReal: gruposNegativa,
-    });
-    const cortante = calcularCortante(materiales, geometria, d, flexionNegativa.asRealCm2, {
-      vd: v.vd,
-      diametroEstriboMm: v.diametroEstribo,
-      numeroRamas: v.numeroRamas,
-    });
-
-    return { materiales, d, flexionPositiva, flexionNegativa, cortante };
-  }, [
+  // El cálculo vive en lib/calc/.../resolver.ts y no acá: la memoria de cálculo
+  // tiene que volver a correr un cálculo guardado meses después, y con la
+  // conversión duplicada tarde o temprano el documento firmado mostraría un
+  // número distinto del que muestra esta pantalla.
+  const resultado = useMemo(
+    () =>
+      resolverVigaFlexionCortante({
+        fck, fyk, b, h, recubrimiento,
+        momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
+        momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
+        vd, diametroEstribo, numeroRamas,
+      }),
+    [
     fck, fyk, b, h, recubrimiento,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas,
-  ]);
+    ]
+  );
 
   // La sección se dibuja con los datos de geometría y armadura, aunque el
   // resto del formulario (cortante) todavía no sea válido.

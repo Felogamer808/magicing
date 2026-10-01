@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -128,6 +128,13 @@ export default function ProyectoPage() {
               Trabajar en este proyecto
             </button>
           )}
+          <Link
+            href={`/proyectos/${proyecto.id}/memoria`}
+            className="flex h-9 items-center gap-2 rounded-lg border border-input px-3 text-sm transition-colors hover:bg-secondary"
+          >
+            <FileText className="h-4 w-4" />
+            Memoria de cálculo
+          </Link>
           <button
             type="button"
             onClick={() => descargarProyectos([proyecto], proyecto)}

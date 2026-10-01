@@ -674,7 +674,12 @@ export default function LosaSteelDeckPage() {
                       <ResultadoCheck
                         etiqueta="Espesor de ala (función separadora, informativo)"
                         verifica={resultadoFlexion.r.fuego.verificaEspesorAla}
-                        detalle={`hc ${fmt(resultadoFlexion.r.frio.hcM * 1000, 0)} mm / mín. tabulado ${resultadoFlexion.r.fuego.espesorAlaMinMm} mm (Tabla 5.8)`}
+                        comparacion={{
+                          real: { etiqueta: "hc", valor: resultadoFlexion.r.frio.hcM * 1000 },
+                          limite: { etiqueta: "mín. tabulado", valor: resultadoFlexion.r.fuego.espesorAlaMinMm },
+                          unidad: "mm", exige: "≥", decimales: 0,
+                        }}
+                        detalle={`Tabla 5.8`}
                       />
                       {/* Sin dato tabulado no hay cadena de cálculo que mostrar:
                           ni en R30 (que no pasa por esta tabla) ni con el nervio

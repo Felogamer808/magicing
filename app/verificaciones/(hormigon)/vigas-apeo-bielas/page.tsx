@@ -481,12 +481,22 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Anclaje recto, apoyo izquierdo"
                     verifica={resultado.r.anclaje.recto.verificaIzq && resultado.r.anclaje.recto.verificaIzqMontoya}
-                    detalle={`lbd ${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm · disponible ${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
+                    comparacion={{
+                        real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm },
+                        limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleIzqM, resultado.r.anclaje.disponibleMontoyaIzqM) * 1000 },
+                        unidad: "mm", exige: "≤", decimales: 0,
+                      }}
+                      detalle={`${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
                   />
                   <ResultadoCheck
                     etiqueta="Anclaje recto, apoyo derecho"
                     verifica={resultado.r.anclaje.recto.verificaDer && resultado.r.anclaje.recto.verificaDerMontoya}
-                    detalle={`lbd ${fmt(resultado.r.anclaje.recto.lbdMm, 0)} mm · disponible ${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
+                    comparacion={{
+                        real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm },
+                        limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleDerM, resultado.r.anclaje.disponibleMontoyaDerM) * 1000 },
+                        unidad: "mm", exige: "≤", decimales: 0,
+                      }}
+                      detalle={`${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
                   />
 
                   {!resultado.r.anclaje.verificaRecto && (
@@ -720,7 +730,11 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Separaciones ≤ mín(300 mm; 2·b), art. 9.7(2)"
                     verifica={resultado.r.malla.verificaSeparacionHorizontal && resultado.r.malla.verificaSeparacionVertical}
-                    detalle={`máx ${fmt(resultado.r.malla.separacionMaxM * 100, 0)} cm`}
+                    comparacion={{
+                        real: { etiqueta: "máx dispuesta", valor: resultado.r.malla.separacionMaxM * 100 },
+                        limite: { etiqueta: "tope", valor: Math.min(30, resultado.n.b * 200) },
+                        unidad: "cm", exige: "≤", decimales: 0,
+                      }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"

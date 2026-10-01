@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FolderOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GrillaSecciones } from "@/components/GrillaSecciones";
@@ -50,6 +50,18 @@ export default function Home() {
           llega esa comprobación: la confianza que no se acota es la que termina
           sustituyendo al repaso.
         */}
+        {/*
+          Dos caminos desde la portada, y son distintos a propósito: entrar por
+          el material es calcular algo suelto; entrar por el proyecto es seguir
+          una obra. El segundo va como botón porque es el que acumula trabajo.
+        */}
+        <Link
+          href="/proyectos"
+          className="flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <FolderOpen className="h-4 w-4" />
+          Mis proyectos
+        </Link>
         <Link
           href="/alcance"
           className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"

@@ -231,7 +231,10 @@ export default function AlcancePage() {
             por las cimentaciones.
           </li>
           <li>
-            · Unificar la edición de AISC 360 en los módulos de acero: hoy conviven 360-16 y 360-22.
+            · Migrar los módulos de acero de AISC 360-16 a 360-22, que es la edición vigente. Hace
+            falta el texto de esa edición: hoy no está entre las fuentes del proyecto, y re-etiquetar
+            sin comprobar las expresiones sería justo el fallo silencioso que esta página busca
+            evitar.
           </li>
           <li>
             · Declarar la edición del EC7 que usa la parte geotécnica del muro de contención.

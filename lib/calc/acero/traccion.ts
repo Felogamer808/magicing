@@ -1,6 +1,13 @@
 /**
- * Tracción — AISC 360-22, capítulo D, por el método ASD, igual que el resto de
+ * Tracción — AISC 360-16, capítulo D, por el método ASD, igual que el resto de
  * los módulos AISC de este repositorio.
+ *
+ * La cabecera decía 360-22 y era un rótulo equivocado: lo que está escrito acá
+ * abajo es 360-16. Se comprobó contra el documento —las ecuaciones (D2-1),
+ * (D2-2) y (D3-1) y el Caso 2 de la tabla D3.1 están en 360-16 con esa misma
+ * numeración— y se corrigió el rótulo en vez de la implementación. Migrar de
+ * verdad a 360-22 es otro trabajo y necesita el texto de esa edición, que no
+ * está entre las fuentes del proyecto.
  *
  * Cubre las dos comprobaciones que manda el capítulo:
  *

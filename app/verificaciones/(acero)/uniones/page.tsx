@@ -162,7 +162,11 @@ export default function UnionesPage() {
                 <ResultadoCheck
                   etiqueta={`Tensión admisible del electrodo ${electrodo}`}
                   verifica={soldadura.verifica}
-                  detalle={`τ ${fmt(soldadura.tauKPa / 1000, 1)} MPa / τ adm ${fmt(soldadura.tauAdmKPa / 1000, 1)} MPa`}
+                  comparacion={{
+                      real: { etiqueta: "τ", valor: soldadura.tauKPa / 1000 },
+                      limite: { etiqueta: "τ adm", valor: soldadura.tauAdmKPa / 1000 },
+                      unidad: "MPa", exige: "≤", decimales: 1,
+                    }}
                 />
                 <ResultadoCheck
                   etiqueta="Lado del cordón dentro del rango admitido"
@@ -250,27 +254,47 @@ export default function UnionesPage() {
                   <ResultadoCheck
                     etiqueta="I. Aplastamiento del hormigón"
                     verifica={chapa.aplastamientoHormigon.verifica}
-                    detalle={`N ${fmt(chapa.aplastamientoHormigon.solicitacionKN)} / adm ${fmt(chapa.aplastamientoHormigon.admisibleKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "N", valor: chapa.aplastamientoHormigon.solicitacionKN },
+                      limite: { etiqueta: "admisible", valor: chapa.aplastamientoHormigon.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="II. Aplastamiento de la chapa"
                     verifica={chapa.aplastamientoChapa.verifica}
-                    detalle={`R ${fmt(chapa.aplastamientoChapa.solicitacionKN)} / adm ${fmt(chapa.aplastamientoChapa.admisibleKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "R", valor: chapa.aplastamientoChapa.solicitacionKN },
+                      limite: { etiqueta: "admisible", valor: chapa.aplastamientoChapa.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="III. Tracción en la chapa"
                     verifica={chapa.traccionChapa.verifica}
-                    detalle={`N ${fmt(chapa.traccionChapa.solicitacionKN)} / adm ${fmt(chapa.traccionChapa.admisibleKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "N", valor: chapa.traccionChapa.solicitacionKN },
+                      limite: { etiqueta: "admisible", valor: chapa.traccionChapa.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="IV. Corte en los pernos"
                     verifica={chapa.cortePernos.verifica}
-                    detalle={`R ${fmt(chapa.cortePernos.solicitacionKN)} / adm ${fmt(chapa.cortePernos.admisibleKN)} kN por perno`}
+                    comparacion={{
+                      real: { etiqueta: "R", valor: chapa.cortePernos.solicitacionKN },
+                      limite: { etiqueta: "admisible", valor: chapa.cortePernos.admisibleKN },
+                      unidad: "kN por perno", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="V. Tracción en los pernos"
                     verifica={chapa.traccionPernos.verifica}
-                    detalle={`F1 ${fmt(chapa.traccionPernos.solicitacionKN)} / adm ${fmt(chapa.traccionPernos.admisibleKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "F1", valor: chapa.traccionPernos.solicitacionKN },
+                      limite: { etiqueta: "admisible", valor: chapa.traccionPernos.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                 </CardContent>
               </Card>

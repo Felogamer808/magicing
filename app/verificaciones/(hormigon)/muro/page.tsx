@@ -307,32 +307,57 @@ export default function MuroPage() {
                   <ResultadoCheck
                     etiqueta="Resistencia (NEd, MEd) dentro del diagrama"
                     verifica={resultado.r.resistencia.verifica}
-                    detalle={`MEd ${fmt(resultado.r.momentos.mEdKNm, 1)} / MRd ${fmt(resultado.r.resistencia.mRdKNm, 1)} kN·m/m · aprovechamiento ${fmt(resultado.r.resistencia.aprovechamiento * 100, 1)} %`}
+                    comparacion={{
+                      real: { etiqueta: "MEd", valor: resultado.r.momentos.mEdKNm },
+                      limite: { etiqueta: "MRd", valor: resultado.r.resistencia.mRdKNm },
+                      unidad: "kN·m/m", exige: "≤", decimales: 1,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía vertical mínima (0,002·Ac)"
                     verifica={resultado.r.armado.verificaVerticalMinima}
-                    detalle={`As,v ${fmt(resultado.r.armado.asVerticalCm2)} / ${fmt(resultado.r.armado.asVerticalMinimaCm2)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As,v", valor: resultado.r.armado.asVerticalCm2 },
+                      limite: { etiqueta: "mínima", valor: resultado.r.armado.asVerticalMinimaCm2 },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía vertical máxima (0,04·Ac)"
                     verifica={resultado.r.armado.verificaVerticalMaxima}
-                    detalle={`As,v ${fmt(resultado.r.armado.asVerticalCm2)} / ${fmt(resultado.r.armado.asVerticalMaximaCm2)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As,v", valor: resultado.r.armado.asVerticalCm2 },
+                      limite: { etiqueta: "máxima", valor: resultado.r.armado.asVerticalMaximaCm2 },
+                      unidad: "cm²/m", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía horizontal mínima (art. 9.6.3)"
                     verifica={resultado.r.armado.verificaHorizontalMinima}
-                    detalle={`As,h ${fmt(resultado.r.armado.asHorizontalCm2)} / ${fmt(resultado.r.armado.asHorizontalMinimaCm2)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As,h", valor: resultado.r.armado.asHorizontalCm2 },
+                      limite: { etiqueta: "mínima", valor: resultado.r.armado.asHorizontalMinimaCm2 },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Separación vertical"
                     verifica={resultado.r.armado.verificaSeparacionVertical}
-                    detalle={`${fmt(resultado.n.sepV, 0)} / máx ${fmt(resultado.r.armado.separacionVerticalMaximaMm, 0)} mm (mín. entre 400 y 3h)`}
+                    comparacion={{
+                      real: { etiqueta: "sv", valor: resultado.n.sepV },
+                      limite: { etiqueta: "máxima", valor: resultado.r.armado.separacionVerticalMaximaMm },
+                      unidad: "mm", exige: "≤", decimales: 0,
+                    }}
+                    detalle={`el máximo es el menor entre 400 mm y 3h`}
                   />
                   <ResultadoCheck
                     etiqueta="Separación horizontal"
                     verifica={resultado.r.armado.verificaSeparacionHorizontal}
-                    detalle={`${fmt(resultado.n.sepH, 0)} / máx 400 mm`}
+                    comparacion={{
+                      real: { etiqueta: "sh", valor: resultado.n.sepH },
+                      limite: { etiqueta: "máxima", valor: 400 },
+                      unidad: "mm", exige: "≤", decimales: 0,
+                    }}
                   />
                   {resultado.r.armado.requiereArmaduraTransversal && (
                     <p className="text-xs text-destructive">
@@ -358,7 +383,11 @@ export default function MuroPage() {
                       ? "λ ≤ λlim: el segundo orden se ignora"
                       : "λ > λlim: hay que sumar el segundo orden"}
                     verifica={resultado.r.esbeltez.ignoraSegundoOrden}
-                    detalle={`λ = ${fmt(resultado.r.esbeltez.lambda, 1)} · λlim = ${fmt(resultado.r.esbeltez.lambdaLimite, 1)}`}
+                    comparacion={{
+                      real: { etiqueta: "λ", valor: resultado.r.esbeltez.lambda },
+                      limite: { etiqueta: "λlim", valor: resultado.r.esbeltez.lambdaLimite },
+                      unidad: "", exige: "≤", decimales: 1,
+                    }}
                   />
                   {resultado.r.fluencia.puedeIgnorarse && (
                     <p className="rounded-md border border-primary/40 p-3 text-xs text-muted-foreground">

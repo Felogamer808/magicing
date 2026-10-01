@@ -34,20 +34,22 @@ export function NavVerificaciones({ onNavegar }: NavVerificacionesProps) {
         <Link
           href={seccion.ruta}
           onClick={onNavegar}
-          className="block px-2 text-sm font-medium tracking-tight transition-colors hover:text-primary"
+          className="block px-2 text-sm font-medium tracking-tight text-sidebar-foreground transition-colors hover:text-sidebar-accent-foreground"
         >
           ← {seccion.nombre}
         </Link>
       )}
       {categorias.map(([categoria, items]) => (
         <div key={categoria} className="space-y-1">
-          <p className="spec-label px-2">{categoria}</p>
+          <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+            {categoria}
+          </p>
           {items.map((item) => {
             if (!item.disponible) {
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground/60"
+                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/45"
                 >
                   <span>{item.nombre}</span>
                   <Badge variant="outline" className="shrink-0 text-[11.5px]">
@@ -65,10 +67,10 @@ export function NavVerificaciones({ onNavegar }: NavVerificacionesProps) {
                 onClick={onNavegar}
                 aria-current={activo ? "page" : undefined}
                 className={cn(
-                  "flex items-center justify-between rounded-md border-l-2 px-2 py-1.5 text-sm transition-colors",
+                  "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors",
                   activo
-                    ? "border-primary bg-sidebar-accent font-medium text-foreground"
-                    : "border-transparent text-foreground/80 hover:border-primary/40 hover:bg-sidebar-accent/60 hover:text-foreground"
+                    ? "bg-sidebar-primary font-semibold text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
                 {item.nombre}

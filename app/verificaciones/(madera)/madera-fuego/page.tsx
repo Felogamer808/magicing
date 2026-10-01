@@ -10,6 +10,9 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
+import { LeyendaTecnica } from "@/components/verificaciones/comun/LeyendaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { CroquisSeccionCarbonizada } from "@/components/verificaciones/madera/CroquisSeccionCarbonizada";
 import {
   NOMBRE_MADERA,
@@ -239,6 +242,15 @@ export default function MaderaFuegoPage() {
                       }}
                     />
                   )}
+                  {aNumero(momento) > 0 && (
+                    <BarraDemandaCapacidad
+                      demanda={r.sigmaM}
+                      capacidad={r.fmdFi}
+                      unidad="MPa"
+                      etiquetaDemanda="σm,d,fi"
+                      etiquetaCapacidad="fm,d,fi"
+                    />
+                  )}
                   {aNumero(axil) > 0 && (
                     <ResultadoCheck
                       etiqueta="Compresión con pandeo sobre la sección eficaz"
@@ -248,6 +260,15 @@ export default function MaderaFuegoPage() {
                         limite: { etiqueta: "kc·fc,0,d,fi", valor: r.ejeZ.kc * r.fc0dFi },
                         unidad: "MPa", exige: "≤", decimales: 2,
                       }}
+                    />
+                  )}
+                  {aNumero(axil) > 0 && (
+                    <BarraDemandaCapacidad
+                      demanda={r.sigmaC}
+                      capacidad={r.ejeZ.kc * r.fc0dFi}
+                      unidad="MPa"
+                      etiquetaDemanda="σc,0,d,fi"
+                      etiquetaCapacidad="kc·fc,0,d,fi"
                     />
                   )}
                   <p className="text-xs text-muted-foreground">
@@ -261,9 +282,71 @@ export default function MaderaFuegoPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Sección carbonizada</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <CroquisSeccionCarbonizada
-                    anchoM={r.b} cantoM={r.h} reducida={r.reducida} caras={r.caras}
-                  />
+                  {/*
+                    La sección deja de ser un dibujito dentro de una tarjeta
+                    vacía: ocupa el ancho, lleva su leyenda debajo y las
+                    métricas al costado, donde no compiten con las cotas.
+                  */}
+                  <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                    <div className="min-w-0">
+                      <CroquisSeccionCarbonizada
+                        anchoM={r.b} cantoM={r.h} reducida={r.reducida} caras={r.caras}
+                      />
+                      <div className="mt-3">
+                        <LeyendaTecnica
+                          entradas={[
+                            {
+                              color: "var(--mat-madera)",
+                              etiqueta: "Sección original",
+                              nota: "la escuadría en frío",
+                            },
+                            {
+                              color: "var(--mat-carbon)",
+                              etiqueta: "Capa carbonizada",
+                              nota: `dchar,n = ${fmt(r.reducida.profundidadCarbonizadaM * 1000, 1)} mm`,
+                            },
+                            {
+                              color: "var(--mat-calentada)",
+                              etiqueta: "Capa caliente",
+                              nota: "no está quemada; la norma le supone resistencia nula",
+                              rayado: true,
+                            },
+                            {
+                              color: "var(--mat-eficaz)",
+                              etiqueta: "Sección eficaz",
+                              nota: "la que se verifica",
+                            },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <PanelMetricas
+                      metricas={[
+                        {
+                          etiqueta: "Área remanente",
+                          valor: `${fmt(r.reducida.fraccionAreaRestante * 100, 0)} %`,
+                          nota: "de la sección en frío",
+                          destacada: true,
+                        },
+                        {
+                          etiqueta: "Canto eficaz",
+                          valor: `${fmt(r.reducida.cantoEficazM * 1000, 0)} mm`,
+                          nota: `de ${fmt(r.h * 1000, 0)} mm`,
+                        },
+                        {
+                          etiqueta: "Ancho eficaz",
+                          valor: `${fmt(r.reducida.anchoEficazM * 1000, 0)} mm`,
+                          nota: `de ${fmt(r.b * 1000, 0)} mm`,
+                        },
+                        {
+                          etiqueta: "Descuento por cara",
+                          valor: `${fmt(r.reducida.profundidadEficazM * 1000, 1)} mm`,
+                          nota: "carbonizada más capa caliente",
+                        },
+                      ]}
+                    />
+                  </div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

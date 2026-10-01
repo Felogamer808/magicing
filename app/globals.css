@@ -144,6 +144,55 @@
   --sidebar-ring: #2c92e1;
 }
 
+
+/*
+ * Gramática de material: un color por sustancia, igual en toda la herramienta.
+ *
+ * Existe para que el hormigón se vea igual en una viga, en una zapata y en una
+ * sección mixta, y para que el gris de la madera carbonizada signifique siempre
+ * lo mismo. Sin una tabla única, cada calculadora termina eligiendo sus propios
+ * colores y el dibujo deja de ser un lenguaje.
+ *
+ * El color nunca es el único canal: los dibujos llevan además contorno, patrón,
+ * rótulo y leyenda, porque una diferencia que sólo existe en el tono no la ve
+ * quien no distingue esos tonos, y en papel en blanco y negro no la ve nadie.
+ */
+:root {
+  --mat-hormigon: #d8dde2;
+  --mat-hormigon-borde: #9aa6b1;
+  --mat-armadura: #1769aa;
+  --mat-acero: #b9c3cc;
+  --mat-acero-borde: #5d6e7d;
+  --mat-madera: #a97c50;
+  --mat-madera-borde: #7d5a36;
+  /* Incendio: carbón, capa caliente sin resistencia y sección eficaz. */
+  --mat-carbon: #3a3a3c;
+  --mat-calentada: #e8a87c;
+  --mat-eficaz: #f2d98d;
+  --mat-mamposteria: #b4705a;
+  --mat-mamposteria-junta: #d9cfc5;
+  /* Anotación: cotas en azul, exposición al fuego en naranja intenso. */
+  --mat-cota: #2c92e1;
+  --mat-fuego: #c65b32;
+}
+
+.dark {
+  --mat-hormigon: #39464f;
+  --mat-hormigon-borde: #7d8b96;
+  --mat-armadura: #7cc6f5;
+  --mat-acero: #4a5661;
+  --mat-acero-borde: #93a1ab;
+  --mat-madera: #8a6540;
+  --mat-madera-borde: #c2946a;
+  --mat-carbon: #26262a;
+  --mat-calentada: #c98257;
+  --mat-eficaz: #cbb16a;
+  --mat-mamposteria: #8d5745;
+  --mat-mamposteria-junta: #5a5048;
+  --mat-cota: #7cc6f5;
+  --mat-fuego: #e0724a;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

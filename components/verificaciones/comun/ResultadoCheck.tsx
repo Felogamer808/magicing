@@ -1,6 +1,8 @@
-import { Badge } from "@/components/ui/badge";
 import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
-import { cn } from "@/lib/utils";
+import {
+  EstadoVerificacionChip,
+  type EstadoVerificacion,
+} from "@/components/verificaciones/comun/EstadoVerificacion";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /** Una de las dos magnitudes que se enfrentan en la comprobación. */
@@ -25,6 +27,11 @@ interface ComparacionCheck {
 interface ResultadoCheckProps {
   etiqueta: string;
   verifica: boolean;
+  /**
+   * Estado explícito, para lo que no es ni cumple ni no cumple: no aplica, no
+   * evaluado, datos insuficientes. Sin él, sale de `verifica`.
+   */
+  estado?: EstadoVerificacion;
   detalle?: string;
   /**
    * Comparación principal de la verificación, escrita como desigualdad.
@@ -65,106 +72,71 @@ function laBarraExplicaElVeredicto(verifica: boolean, c: ComparacionCheck): bool
   return cumpleSegunNumeros === verifica;
 }
 
-export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: ResultadoCheckProps) {
-  const insignia = (
-    <Badge
-      variant={verifica ? "default" : "destructive"}
-      aria-live="polite"
-      className={cn(
-        "shrink-0 rounded-sm border font-mono text-[12.5px] uppercase tracking-[0.08em] transition-colors duration-300",
-        verifica
-          ? "-rotate-2 border-exito bg-exito text-white [a]:hover:bg-exito"
-          : "border-destructive/40"
-      )}
-    >
-      {verifica ? "Verifica" : "No verifica"}
-    </Badge>
-  );
+export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacion }: ResultadoCheckProps) {
+  const estadoFinal: EstadoVerificacion = estado ?? (verifica ? "cumple" : "no-cumple");
+  const evaluada = estadoFinal === "cumple" || estadoFinal === "no-cumple";
 
+  /*
+   * Fila, no tarjeta: las comprobaciones se leen una debajo de otra con la
+   * misma estructura —qué se verifica, la desigualdad, cuánto se usa, estado—
+   * y el separador alcanza para distinguirlas. El color queda para el estado y
+   * la barra, que es donde significa algo; un fondo verde en cada bloque sólo
+   * hacía ruido.
+   */
   return (
-    <div
-      /*
-       * El estado cambia mientras se tipea en el formulario. La transición de
-       * color evita el parpadeo seco al pasar de verifica a no verifica y deja
-       * ver cuál de los chequeos fue el que cambió.
-       */
-      className={cn(
-        "rounded-md border p-3 transition-colors duration-300",
-        verifica ? "border-exito/40" : "border-destructive/40",
-        comparacion && (verifica ? "bg-exito/[0.06]" : "bg-destructive/[0.06]")
-      )}
-    >
-      {comparacion ? (
-        <>
-          <div className="flex items-start justify-between gap-4">
-            <p className="text-sm font-medium">{etiqueta}</p>
-            {insignia}
-          </div>
+    <div className="border-b border-border/60 py-3 first:pt-0 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-sm font-medium">{etiqueta}</p>
+        <EstadoVerificacionChip estado={estadoFinal} />
+      </div>
 
+      {comparacion && evaluada && (
+        <>
           {/*
             La desigualdad completa en una línea: los símbolos en gris para que
-            los que resalten sean los números, que es lo que se compara.
+            resalten los números, que es lo que se compara. En el color del
+            texto, no: el estado ya lo dice al lado.
           */}
-          <p
-            className={cn(
-              "mt-2 flex flex-wrap items-baseline gap-x-2 font-mono text-lg font-semibold tabular-nums transition-colors duration-300",
-              verifica ? "text-exito" : "text-destructive"
-            )}
-          >
-            <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">
+          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 font-mono text-base font-semibold tabular-nums">
+            <span className="text-[11px] font-normal tracking-[0.08em] text-muted-foreground">
               {comparacion.real.etiqueta}
             </span>
             <span>{fmt(comparacion.real.valor, comparacion.decimales)}</span>
-            <span className="px-0.5 text-base font-normal opacity-70">
+            <span className="px-0.5 text-sm font-normal text-muted-foreground">
               {signoReal(comparacion.real.valor, comparacion.limite.valor)}
             </span>
-            <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">
+            <span className="text-[11px] font-normal tracking-[0.08em] text-muted-foreground">
               {comparacion.limite.etiqueta}
             </span>
             <span>{fmt(comparacion.limite.valor, comparacion.decimales)}</span>
             {comparacion.unidad && (
-              <span className="text-[11px] font-normal opacity-70">{comparacion.unidad}</span>
+              <span className="text-[11px] font-normal text-muted-foreground">{comparacion.unidad}</span>
             )}
-          </p>
-
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-            se exige {comparacion.real.etiqueta} {comparacion.exige} {comparacion.limite.etiqueta}
+            <span className="ml-auto text-[11px] font-normal text-muted-foreground">
+              se exige {comparacion.real.etiqueta} {comparacion.exige} {comparacion.limite.etiqueta}
+            </span>
           </p>
 
           {/*
-            La desigualdad dice si pasa; la barra dice por cuánto. El margen es
-            lo que decide si la pieza se puede afinar o está al límite, y era
-            justamente lo que había que leer entre líneas.
-
             Con "≥" la razón se da vuelta: lo exigido es el límite y lo que
             sobra es lo real, así que la utilización es límite/real. En los dos
             sentidos, por debajo de 1 significa que cumple.
           */}
           {laBarraExplicaElVeredicto(verifica, comparacion) && (
-          <div className="mt-3">
-            <BarraDemandaCapacidad
-              demanda={comparacion.exige === "≤" ? comparacion.real.valor : comparacion.limite.valor}
-              capacidad={comparacion.exige === "≤" ? comparacion.limite.valor : comparacion.real.valor}
-              decimales={comparacion.decimales}
-              mostrarValores={false}
-            />
-          </div>
-          )}
-
-          {detalle && (
-            <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>
+            <div className="mt-2">
+              <BarraDemandaCapacidad
+                demanda={comparacion.exige === "≤" ? comparacion.real.valor : comparacion.limite.valor}
+                capacidad={comparacion.exige === "≤" ? comparacion.limite.valor : comparacion.real.valor}
+                decimales={comparacion.decimales}
+                mostrarValores={false}
+              />
+            </div>
           )}
         </>
-      ) : (
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">{etiqueta}</p>
-            {detalle && (
-              <p className="font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>
-            )}
-          </div>
-          {insignia}
-        </div>
+      )}
+
+      {detalle && (
+        <p className="mt-1 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>
       )}
     </div>
   );

@@ -33,6 +33,9 @@ interface BarraDemandaCapacidadProps {
 /** Umbral a partir del cual conviene avisar que queda poco margen. */
 const AL_LIMITE = 0.9;
 
+/** Utilización hasta la que la barra se estira para mostrar el exceso. */
+const ESCALA_MAXIMA = 3;
+
 export function BarraDemandaCapacidad({
   demanda,
   capacidad,
@@ -46,18 +49,21 @@ export function BarraDemandaCapacidad({
   const verifica = Number.isFinite(utilizacion) && utilizacion <= 1;
   const alLimite = verifica && utilizacion >= AL_LIMITE;
   /*
-   * Por encima de 1 la barra se llena y el exceso se dice con el número: una
-   * barra que se saliera del riel no se podría comparar con las demás.
+   * Escala de la barra. Hasta 1 el riel entero es la capacidad. Por encima, el
+   * riel se estira hasta la utilización para que el exceso se vea como exceso:
+   * un 312 % dibujado como barra llena se confunde con un 100 %. La marca del
+   * 100 % queda siempre visible, y pasado ESCALA_MAXIMA se recorta y se avisa.
    *
-   * Se redondea a dos decimales y no se deja el flotante crudo porque el ancho
-   * va en un estilo en línea, y servidor y navegador no lo serializan igual:
-   * uno escribía 63,0587 % y el otro 63,05865226864352 %. React lo detecta como
-   * HTML distinto del que esperaba y avisa que no lo va a parchear. La
-   * diferencia es de una milésima de píxel; el desajuste de hidratación, no.
+   * Los anchos se redondean a dos decimales porque van en estilos en línea, y
+   * servidor y navegador no serializan igual el flotante crudo: React lo toma
+   * como HTML distinto y avisa que no lo va a parchear.
    */
-  const porcentajeDibujado = (
-    Math.min(Number.isFinite(utilizacion) ? utilizacion : 1, 1) * 100
-  ).toFixed(2);
+  const u = Number.isFinite(utilizacion) ? utilizacion : ESCALA_MAXIMA;
+  const escala = u <= 1 ? 1 : Math.min(u, ESCALA_MAXIMA);
+  const recortada = u > ESCALA_MAXIMA;
+  const anchoAdmisible = ((1 / escala) * 100).toFixed(2);
+  const anchoUsoAdmisible = ((Math.min(u, 1) / escala) * 100).toFixed(2);
+  const anchoExceso = u > 1 ? (((Math.min(u, escala) - 1) / escala) * 100).toFixed(2) : "0";
 
   const color = !verifica
     ? "var(--destructive)"
@@ -86,48 +92,61 @@ export function BarraDemandaCapacidad({
         <p className="font-mono text-sm font-semibold tabular-nums" style={{ color }}>
           {Number.isFinite(utilizacion) ? `${fmt(utilizacion * 100, 0)} %` : "—"}
           <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
-            de la capacidad
+            utilización
           </span>
         </p>
       </div>
 
       <div
-        className="h-2.5 overflow-hidden rounded-full bg-muted"
+        className="relative h-2.5 rounded-full bg-muted"
         role="meter"
         aria-valuenow={Number.isFinite(utilizacion) ? Math.round(utilizacion * 100) : undefined}
         aria-valuemin={0}
-        aria-valuemax={100}
+        aria-valuemax={Math.round(escala * 100)}
         aria-label={`Utilización: ${etiquetaDemanda} ${fmt(demanda, decimales)} sobre ${etiquetaCapacidad} ${fmt(capacidad, decimales)}`}
       >
         <div
-          className="h-full rounded-full transition-[width] duration-300"
-          style={{
-            width: `${porcentajeDibujado}%`,
-            backgroundColor: color,
-            // Rayado cuando no verifica: el exceso se distingue sin depender del color.
-            ...(verifica
-              ? {}
-              : {
-                  backgroundImage:
-                    "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)",
-                }),
-          }}
+          className="absolute inset-y-0 left-0 rounded-l-full transition-[width] duration-300"
+          style={{ width: `${anchoUsoAdmisible}%`, backgroundColor: color }}
         />
+        {u > 1 && (
+          <div
+            className="absolute inset-y-0 rounded-r-full transition-[width] duration-300"
+            style={{
+              left: `${anchoAdmisible}%`,
+              width: `${anchoExceso}%`,
+              backgroundColor: "var(--destructive)",
+              // Rayado en el exceso: se distingue de la zona admisible sin depender del color.
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(255,255,255,0.4) 0 3px, transparent 3px 7px)",
+            }}
+          />
+        )}
+        {u > 1 && (
+          <div
+            className="absolute -inset-y-1 w-px bg-foreground"
+            style={{ left: `${anchoAdmisible}%` }}
+            aria-hidden="true"
+          />
+        )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="font-mono text-xs tabular-nums text-muted-foreground">
         {!Number.isFinite(utilizacion) ? (
-          "Sin capacidad calculable con estos datos."
+          <span className="font-sans">Sin capacidad calculable con estos datos.</span>
         ) : verifica ? (
           <>
-            Cumple, con un margen del{" "}
-            <strong className="text-foreground">{fmt((1 - utilizacion) * 100, 0)} %</strong>.
-            {alLimite && " Queda poco margen: un cambio chico en los datos la deja al límite."}
+            Capacidad remanente{" "}
+            <strong className="text-foreground">{fmt((1 - utilizacion) * 100, 0)} %</strong>
+            {alLimite && (
+              <span className="font-sans"> · queda poco margen: un cambio chico la deja al límite</span>
+            )}
           </>
         ) : (
           <>
-            No cumple: la solicitación supera la resistencia en{" "}
-            <strong className="text-destructive">{fmt((utilizacion - 1) * 100, 0)} %</strong>.
+            Límite admisible 100 % · exceso sobre la capacidad{" "}
+            <strong className="text-destructive">{fmt((utilizacion - 1) * 100, 0)} %</strong>
+            {recortada && ` · escala recortada en ${fmt(ESCALA_MAXIMA * 100, 0)} %`}
           </>
         )}
       </p>

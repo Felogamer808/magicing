@@ -7,6 +7,7 @@ import {
   calcularCortante,
   calcularDisposicionArmadura,
   calcularFlexion,
+  momentoReducidoLimite,
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 
 // Caso real extraído de la planilla "CALCULOS TODO.xlsx", hoja "VIGAS 1", bloque "VIGA".
@@ -289,5 +290,42 @@ describe("geometría del agotamiento", () => {
     expect(r.deformacionAcero).toBeCloseTo((0.0035 * (d - r.xM)) / r.xM, 9);
     // Con esta armadura y este momento la sección es dúctil: el acero fluye.
     expect(r.deformacionAcero).toBeGreaterThan(materiales.fyd / 200000);
+  });
+});
+
+/*
+ * Límite para que la armadura de tracción fluya. A mano, B500 (fyd = 434,78):
+ *   εyd = 434,78/200000 = 2,1739 ‰
+ *   ξlim = 3,5/(3,5 + 2,1739) = 0,61686   (tabla 3.1 y art. 3.2.7 (4))
+ *   ωlim = 0,8·0,61686 = 0,49349           (art. 3.1.7 (3), ec. (3.19))
+ *   μlim = 0,49349·(1 − 0,49349/2) = 0,37172
+ */
+describe("límite de μ: el acero tiene que fluir", () => {
+  const materiales = derivarMateriales({ fck: 30, fyk: 500 });
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.03 };
+  const d = 0.45;
+  const armadura = [{ numero: 6, diametroMm: 25 }];
+
+  it("μlim de B500 = 0,37172", () => {
+    expect(momentoReducidoLimite(materiales.fyd)).toBeCloseTo(0.371722, 5);
+  });
+
+  it("por debajo del límite calcula As y el acero fluye", () => {
+    // μ = 0,36: M = 0,36·0,3·0,45²·20·1000 = 437,4 kN·m
+    const r = calcularFlexion(materiales, geometria, d, { momento: 437.4, armaduraReal: armadura });
+    expect(r.sobrearmada).toBe(false);
+    expect(r.mu).toBeCloseTo(0.36, 9);
+    expect(r.deformacionAcero).toBeGreaterThanOrEqual(materiales.fyd / 200000);
+  });
+
+  it("por encima del límite marca la sección sobrearmada, sin As inventada", () => {
+    // μ = 0,40: M = 486 kN·m. Con μ > 0,5 antes daba NaN sin explicación.
+    for (const momento of [486, 700]) {
+      const r = calcularFlexion(materiales, geometria, d, { momento, armaduraReal: armadura });
+      expect(r.sobrearmada).toBe(true);
+      expect(r.verificaAs).toBe(false);
+      expect(Number.isNaN(r.asNecCm2)).toBe(true);
+      expect(Number.isFinite(r.mu)).toBe(true);
+    }
   });
 });

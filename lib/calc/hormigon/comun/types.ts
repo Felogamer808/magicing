@@ -67,6 +67,18 @@ export interface ResultadoFlexion {
   deformacionAcero: number;
   /** As requerido por momento (cm²) */
   asCalculadoCm2: number;
+  /**
+   * Momento reducido límite: el mayor μ con el que la armadura de tracción
+   * todavía fluye (εs ≥ εyd) al agotarse el hormigón (εc = εcu3).
+   */
+  muLim: number;
+  /**
+   * μ > μlim: con sólo armadura de tracción el acero no llega a fluir y la
+   * sección rompe frágil. As, ω, x y z quedan sin valor (NaN): no hay una
+   * armadura de tracción sola que verifique, hace falta armadura de compresión
+   * o más canto.
+   */
+  sobrearmada: boolean;
   /** Resistencia media a flexotracción fctm,fl (MPa), Anejo 19 art. 3.1.8, ec. (3.23). */
   fctmFlMPa: number;
   /** As,min de la armadura de tracción (cm²), Anejo 19 art. 9.2.1.1 (1), ec. (9.1). */

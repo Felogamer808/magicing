@@ -15,6 +15,7 @@ import {
   tensionCortanteMinima,
 } from "@/lib/calc/hormigon/comun/cortante";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
+import { EPSILON_CU3, ES_MPA, LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
 
 /** Recubrimiento de estribo asumido (m), fijo según el criterio de oficina de la planilla original. */
 const DIAMETRO_ESTRIBO_CALADO_M = 0.006;
@@ -149,6 +150,24 @@ export function armaduraMinimaFlexionCm2(geometria: GeometriaViga, fctmFlMPa: nu
   return 100 ** 2 * (moduloResistente / brazo) * (fctmFlMPa / fydMPa);
 }
 
+/**
+ * Momento reducido límite para que la armadura de tracción fluya.
+ *
+ * Con el hormigón agotado (εc = εcu3) y el acero justo en fluencia
+ * (εs = εyd = fyd/Es), por compatibilidad de deformaciones
+ *   ξlim = xlim/d = εcu3 / (εcu3 + εyd)
+ * y con el bloque rectangular de canto λ·x
+ *   ωlim = λ·ξlim,   μlim = ωlim·(1 − ωlim/2)
+ *
+ * Para B500 da ξlim = 0,617 y μlim = 0,372. Por encima, As = ω·b·d·fcd/fyd
+ * dejaría de valer: supone una tensión fyd que el acero no alcanza.
+ */
+export function momentoReducidoLimite(fydMPa: number): number {
+  const xiLim = EPSILON_CU3 / (EPSILON_CU3 + fydMPa / ES_MPA);
+  const omegaLim = LAMBDA_BLOQUE * xiLim;
+  return omegaLim * (1 - omegaLim / 2);
+}
+
 export function calcularFlexion(
   materiales: MaterialesDerivados,
   geometria: GeometriaViga,
@@ -160,7 +179,11 @@ export function calcularFlexion(
   const { momento, armaduraReal, asAdicionalCm2 = 0 } = datos;
 
   const mu = momento / (b * d ** 2 * fcd * 1000);
-  const omega = 1 - Math.sqrt(1 - 2 * mu);
+  const muLim = momentoReducidoLimite(fyd);
+  const sobrearmada = mu > muLim;
+  // Sobrearmada no hay ω válido: se deja NaN a propósito, y no un número que
+  // parezca una armadura, para que nada aguas abajo lo use como resultado.
+  const omega = sobrearmada ? NaN : 1 - Math.sqrt(1 - 2 * mu);
   const asCalculadoCm2 = (100 ** 2 * omega * b * d * fcd) / fyd;
 
   // El mínimo se aplica igual a la armadura positiva y a la negativa: en una
@@ -175,16 +198,18 @@ export function calcularFlexion(
   const asNecCm2 = Math.max(asCalculadoCm2, asMinCm2) + asAdicionalCm2;
   const asRealCm2 = disposicion.areaTotalCm2;
   const aprovechamiento = asNecCm2 / asRealCm2;
-  const verificaAs = asRealCm2 >= asNecCm2;
+  const verificaAs = !sobrearmada && asRealCm2 >= asNecCm2;
 
   // Geometría del agotamiento, para poder dibujarlo: ω·d = 0,8·x y z = d·(1 − ω/2).
-  const xM = (omega * d) / 0.8;
+  const xM = (omega * d) / LAMBDA_BLOQUE;
   const zM = d * (1 - omega / 2);
-  const deformacionAcero = xM > 0 ? (0.0035 * (d - xM)) / xM : Infinity;
+  const deformacionAcero = xM > 0 ? (EPSILON_CU3 * (d - xM)) / xM : sobrearmada ? NaN : Infinity;
 
   return {
     d,
     mu,
+    muLim,
+    sobrearmada,
     omega,
     xM,
     zM,

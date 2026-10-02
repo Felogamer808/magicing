@@ -219,7 +219,12 @@ export default function TornillosAceroPage() {
       });
     }
 
-    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, deslizamiento, bloque, n };
+    // El bloque se arranca con toda la fuerza que la unión le pasa a la pieza,
+    // no con la de un bulón: es la resultante en el plano. El momento sólo
+    // reparte entre bulones y no suma fuerza neta.
+    const fuerzaUnionKN = Math.hypot(n.fx, n.fy);
+
+    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, deslizamiento, bloque, fuerzaUnionKN, n };
   }, [
     filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte,
     espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2,
@@ -454,7 +459,7 @@ export default function TornillosAceroPage() {
               "Reparto elástico: chapa rígida que gira sobre el centroide del grupo.",
               "Tracción simultánea por la ec. (J3-3b), con la tracción por bulón como dato: no resuelve apalancamiento.",
               "El deslizamiento (J3.8) se suma a las comprobaciones de contacto, no las reemplaza.",
-              "Bloque de corte (J4.3) con Fy = 248 MPa (A36).",
+              "Bloque de corte (J4.3) con Fy = 248 MPa (A36), comparado contra la fuerza total de la unión √(Fx² + Fy²).",
             ]}
             avisos={avisos}
           />
@@ -629,9 +634,10 @@ export default function TornillosAceroPage() {
                   <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Bloque de corte"
-                      verifica={resultado.critico.vKN <= resultado.bloque.admisibleKN}
+                      verifica={resultado.fuerzaUnionKN <= resultado.bloque.admisibleKN}
+                      detalle="Contra la fuerza total de la unión, √(Fx² + Fy²), no la de un bulón."
                       comparacion={{
-                        real: { etiqueta: "V", valor: resultado.critico.vKN },
+                        real: { etiqueta: "F unión", valor: resultado.fuerzaUnionKN },
                         limite: { etiqueta: "admisible", valor: resultado.bloque.admisibleKN },
                         unidad: "kN", exige: "≤",
                       }}

@@ -17,8 +17,15 @@ interface Props {
   params: ParametrosPerfil;
 }
 
-const RELLENO = "currentColor";
-const OPACIDAD = 0.14;
+/*
+ * El perfil se pinta con la gramática de material y no con el color de texto:
+ * así el acero se ve igual acá, en una sección mixta y en una conexión. El
+ * relleno es opaco porque el metal no es translúcido, y además deja que los
+ * ejes baricéntricos se dibujen por encima sin competir con el contorno.
+ */
+const RELLENO = "var(--mat-acero)";
+const OPACIDAD = 1;
+const BORDE = "var(--mat-acero-borde)";
 
 /** Perfil I: dos alas y un alma, centrado en el origen. */
 function caminoPerfilI(h: number, b: number, tw: number, tf: number) {
@@ -65,8 +72,8 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
         <>
           <circle cx={0} cy={0} r={r} fill={RELLENO} fillOpacity={OPACIDAD} stroke="none" />
           <circle cx={0} cy={0} r={ri} fill="var(--card, #fff)" stroke="none" />
-          <circle cx={0} cy={0} r={r} fill="none" stroke="currentColor" strokeWidth={Math.max(h / 140, 0.6)} />
-          <circle cx={0} cy={0} r={ri} fill="none" stroke="currentColor" strokeWidth={Math.max(h / 140, 0.6)} />
+          <circle cx={0} cy={0} r={r} fill="none" stroke={BORDE} strokeWidth={Math.max(h / 140, 0.6)} />
+          <circle cx={0} cy={0} r={ri} fill="none" stroke={BORDE} strokeWidth={Math.max(h / 140, 0.6)} />
         </>
       );
       cotas = `Ø ${fmtMm(h)} · e ${fmtMm(tw)}`;
@@ -87,14 +94,14 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
             fill="var(--card, #fff)"
             stroke="none"
           />
-          <rect x={-x} y={-y} width={b} height={h} fill="none" stroke="currentColor" strokeWidth={Math.max(h / 140, 0.6)} />
+          <rect x={-x} y={-y} width={b} height={h} fill="none" stroke={BORDE} strokeWidth={Math.max(h / 140, 0.6)} />
           <rect
             x={-x + tw}
             y={-y + tw}
             width={b - 2 * tw}
             height={h - 2 * tw}
             fill="none"
-            stroke="currentColor"
+            stroke={BORDE}
             strokeWidth={Math.max(h / 140, 0.6)}
           />
         </>
@@ -109,7 +116,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
           d={caminoCanal(h, b, tw, tf, -b / 2)}
           fill={RELLENO}
           fillOpacity={OPACIDAD}
-          stroke="currentColor"
+          stroke={BORDE}
           strokeWidth={Math.max(h / 140, 0.6)}
           strokeLinejoin="round"
         />
@@ -129,7 +136,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
             d={caminoCanal(h, bs, tw, tf, sep / 2)}
             fill={RELLENO}
             fillOpacity={OPACIDAD}
-            stroke="currentColor"
+            stroke={BORDE}
             strokeWidth={Math.max(h / 140, 0.6)}
             strokeLinejoin="round"
           />
@@ -138,7 +145,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
               d={caminoCanal(h, bs, tw, tf, sep / 2)}
               fill={RELLENO}
               fillOpacity={OPACIDAD}
-              stroke="currentColor"
+              stroke={BORDE}
               strokeWidth={Math.max(h / 140, 0.6)}
               strokeLinejoin="round"
             />
@@ -159,7 +166,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
             d={canal}
             fill={RELLENO}
             fillOpacity={OPACIDAD}
-            stroke="currentColor"
+            stroke={BORDE}
             strokeWidth={Math.max(h / 140, 0.6)}
             strokeLinejoin="round"
           />
@@ -168,14 +175,14 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
               d={canal}
               fill={RELLENO}
               fillOpacity={OPACIDAD}
-              stroke="currentColor"
+              stroke={BORDE}
               strokeWidth={Math.max(h / 140, 0.6)}
               strokeLinejoin="round"
             />
           </g>
           {/* Cordones de soldadura donde se encuentran las puntas de las alas. */}
-          <circle cx={0} cy={-h / 2 + tf / 2} r={Math.max(tf / 2, 1)} fill="currentColor" opacity={0.8} />
-          <circle cx={0} cy={h / 2 - tf / 2} r={Math.max(tf / 2, 1)} fill="currentColor" opacity={0.8} />
+          <circle cx={0} cy={-h / 2 + tf / 2} r={Math.max(tf / 2, 1)} fill={BORDE} opacity={0.9} />
+          <circle cx={0} cy={h / 2 - tf / 2} r={Math.max(tf / 2, 1)} fill={BORDE} opacity={0.9} />
         </>
       );
       cotas = `h ${fmtMm(h)} · cajón ${fmtMm(b)} de ancho`;
@@ -188,7 +195,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
           d={caminoPerfilI(h, b, tw, tf)}
           fill={RELLENO}
           fillOpacity={OPACIDAD}
-          stroke="currentColor"
+          stroke={BORDE}
           strokeWidth={Math.max(h / 140, 0.6)}
           strokeLinejoin="round"
         />
@@ -209,11 +216,27 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
         aria-label={`Sección ${cotas}`}
       >
         {/* Ejes baricéntricos: x el fuerte, y el débil. */}
-        <g stroke="currentColor" strokeWidth={trazoEje} strokeDasharray={`${h / 30} ${h / 45}`} opacity={0.45}>
+        <g
+          stroke="var(--mat-cota)"
+          strokeWidth={trazoEje}
+          strokeDasharray={`${h / 30} ${h / 45}`}
+          opacity={0.8}
+        >
           <line x1={-ancho / 2 + 2} y1={0} x2={ancho / 2 - 2} y2={0} />
           <line x1={0} y1={-alto / 2 + 2} x2={0} y2={alto / 2 - 2} />
         </g>
         {figura}
+        {/*
+          Los ejes van rotulados porque el croquis decía dónde estaban pero no
+          cuál era cuál, y confundir el fuerte con el débil es el error que más
+          caro sale en flexión.
+        */}
+        <g fill="var(--mat-cota)" fontSize={Math.max(h / 13, 7)} className="font-mono">
+          <text x={ancho / 2 - 2} y={-h / 26} textAnchor="end">x</text>
+          <text x={h / 26} y={-alto / 2 + Math.max(h / 11, 8)}>y</text>
+        </g>
+        {/* Baricentro: el punto respecto del que se miden Ix e Iy. */}
+        <circle cx={0} cy={0} r={Math.max(h / 70, 1.1)} fill="var(--mat-cota)" />
       </svg>
       <figcaption className="font-mono text-[12.5px] text-muted-foreground tabular-nums">
         {cotas}

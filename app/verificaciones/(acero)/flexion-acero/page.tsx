@@ -11,6 +11,7 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaFlexion } from "@/components/verificaciones/acero/CurvaFlexion";
+import { DiagramaPandeoLateral } from "@/components/verificaciones/acero/DiagramaPandeoLateral";
 import { OMEGA_B } from "@/lib/calc/acero/flexion";
 import {
   calcularFlexionSegunSeccion,
@@ -228,6 +229,21 @@ export default function FlexionAceroPage() {
                   */}
                   {resultado.articulo !== "F8" && (
                     <>
+                      {/*
+                        El dibujo del fenómeno va antes de la curva: primero qué
+                        pasa, después cuánto cuesta. Sólo en F2, que es donde el
+                        pandeo lateral-torsional existe.
+                      */}
+                      {resultado.articulo === "F2" && (
+                        <DiagramaPandeoLateral
+                          lbM={aNumero(lb)}
+                          lpM={resultado.lpM}
+                          lrM={resultado.lrM}
+                          zona={resultado.zona}
+                          familia={seccion.familia}
+                          params={seccion.params}
+                        />
+                      )}
                       <CurvaFlexion
                         familia={seccion.familia}
                         params={seccion.params}

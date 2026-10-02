@@ -4,8 +4,11 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
@@ -22,6 +25,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexion-acero")!;
+
+const ETAPAS = [
+  { id: "seccion", titulo: "Sección" },
+  { id: "arriostramiento", titulo: "Arriostramiento" },
+  { id: "solicitacion", titulo: "Solicitación" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 /** Filas del panel "Ver cálculo", propias de cada artículo. */
 function filasDe(r: ResultadoFlexionCualquiera) {
@@ -110,10 +121,15 @@ export default function FlexionAceroPage() {
     resultado?.articulo === "F2" && (!resultado.compacta.ala || !resultado.compacta.alma);
   const advertencia = resultado && "advertencia" in resultado ? resultado.advertencia : undefined;
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, Lb, Cb, el material y el momento con valores positivos." });
+  if (noCompacta) avisos.push({ tipo: "error", texto: "La sección no es compacta con este Fy: F2 no la cubre. Correspondería F3 (ala no compacta) o F5 (alma esbelta), no implementados." });
+  if (advertencia) avisos.push({ tipo: "aviso", texto: advertencia });
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Vigas · Estructuras metálicas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -123,114 +139,101 @@ export default function FlexionAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          El artículo lo elige la forma de la sección, y siempre por el método ASD (Ωb = 1,67):
-          <strong> F2</strong> en perfiles I y canales, donde manda el menor entre plastificación y
-          pandeo lateral-torsional; <strong>F7</strong> en tubos rectangulares y cajones, con los
-          cuatro estados límite; <strong>F8</strong> en tubos redondos, donde no hay pandeo
-          lateral y decide la esbeltez de la pared.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
+        <Etapa id="seccion" numero={1} titulo="Sección y material" descripcion="El perfil y el acero. La forma de la sección elige el artículo.">
           <SelectorSeccionAcero
             familia={seccion.familia}
             paramsTexto={seccion.paramsTexto}
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
-          />
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Arriostramiento y material</h3>
-            </div>
+          >
             <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="lb" etiqueta="Lb sin arriostrar" sufijo="m" valor={lb} onChange={setLb} />
-              <CampoNumerico id="cb" etiqueta="Cb" valor={cb} onChange={setCb} />
               <CampoNumerico id="fyFlexion" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eFlexion" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
             </div>
-          </div>
+          </SelectorSeccionAcero>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Solicitación</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="mRequerido"
-                etiqueta="Momento requerido"
-                sufijo="kN·m"
-                valor={mRequerido}
-                onChange={setMRequerido}
-              />
-            </div>
+        <Etapa id="arriostramiento" numero={2} titulo="Arriostramiento" descripcion="Longitud sin arriostrar del ala comprimida y forma del diagrama de momentos.">
+          <div className="grid max-w-xl grid-cols-2 gap-4">
+            <CampoNumerico id="lb" etiqueta="Lb sin arriostrar" sufijo="m" valor={lb} onChange={setLb} />
+            <CampoNumerico id="cb" etiqueta="Cb" valor={cb} onChange={setCb} />
           </div>
-        </div>
+        </Etapa>
 
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
+        <Etapa id="solicitacion" numero={3} titulo="Solicitación" descripcion="Momento requerido de la combinación ASD.">
+          <div className="grid max-w-xl grid-cols-2 gap-4">
+            <CampoNumerico id="mRequerido" etiqueta="Momento requerido" sufijo="kN·m" valor={mRequerido} onChange={setMRequerido} />
+          </div>
+        </Etapa>
+
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Sección", valor: resultado ? resultado.designacion : "—" },
+              { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
+              { etiqueta: "Lb · Cb", valor: `${lb} m · ${cb}` },
+              { etiqueta: "M requerido", valor: `${mRequerido} kN·m` },
+              ...(resultado ? [{ etiqueta: "Artículo", valor: resultado.articulo, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              `AISC 360, capítulo F, por ASD (Ωb = ${OMEGA_B}).`,
+              "F2 en perfiles I y canales: manda el menor entre plastificación y pandeo lateral-torsional. Sólo cubre secciones compactas.",
+              "F7 en tubos rectangulares y cajones, con los cuatro estados límite.",
+              "F8 en tubos redondos: no hay pandeo lateral y decide la esbeltez de la pared.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Completá la sección, Lb, Cb, el material y el momento con valores positivos.
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Resultado</h3>
-                </div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Mp", valor: `${fmt(resultado.mpKNm, 1)} kN·m` },
+                  { etiqueta: "Mn", valor: `${fmt(resultado.mnKNm, 1)} kN·m`, nota: `art. ${resultado.articulo}` },
+                  { etiqueta: "Mn/Ωb", valor: `${fmt(resultado.admisibleKNm, 1)} kN·m` },
+                  resultado.articulo === "F8"
+                    ? { etiqueta: "Pared", valor: resultado.clase, nota: `D/t = ${fmt(resultado.relacionDt, 1)}` }
+                    : { etiqueta: "Lb", valor: `${fmt(aNumero(lb), 2)} m`, nota: `Lp ${fmt(resultado.lpM, 2)} · Lr ${fmt(resultado.lrM, 2)} m` },
+                ]}
+              />
+
+              <Subgrupo
+                titulo="Resistencia a flexión"
+                detalle={
+                  resultado.articulo === "F2"
+                    ? `${resultado.designacion} · zona: ${resultado.zona}`
+                    : resultado.articulo === "F7"
+                      ? `${resultado.designacion} · gobierna ${resultado.gobierna}`
+                      : `${resultado.designacion} · pared ${resultado.clase}`
+                }
+              >
                 <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta={`${resultado.designacion} — momento admisible (art. ${resultado.articulo})`}
+                    etiqueta={`Momento admisible (art. ${resultado.articulo})`}
                     verifica={resultado.verifica === true}
+                    estado={noCompacta ? "no-evaluado" : undefined}
+                    detalle={noCompacta ? "Sección no compacta: F2 no aplica (F3/F5 sin implementar)." : undefined}
                     comparacion={{
                       real: { etiqueta: "M requerido", valor: aNumero(mRequerido) },
                       limite: { etiqueta: "admisible", valor: resultado.admisibleKNm },
                       unidad: "kN·m", exige: "≤", decimales: 1,
                     }}
                   />
-                  <div className="rounded-md border p-3 text-sm">
-                    {resultado.articulo === "F2" && (
-                      <>
-                        <p className="font-medium">Zona: {resultado.zona}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Lp = {fmt(resultado.lpM, 2)} m · Lb = {fmt(aNumero(lb), 2)} m · Lr ={" "}
-                          {fmt(resultado.lrM, 2)} m
-                        </p>
-                      </>
-                    )}
-                    {resultado.articulo === "F7" && (
-                      <>
-                        <p className="font-medium">Gobierna: {resultado.gobierna}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Lp = {fmt(resultado.lpM, 2)} m · Lb = {fmt(aNumero(lb), 2)} m · Lr ={" "}
-                          {fmt(resultado.lrM, 2)} m
-                        </p>
-                      </>
-                    )}
-                    {resultado.articulo === "F8" && (
-                      <>
-                        <p className="font-medium">Pared {resultado.clase}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          D/t = {fmt(resultado.relacionDt, 1)} · compacta hasta{" "}
-                          {fmt(resultado.limiteCompacta, 1)} · no compacta hasta{" "}
-                          {fmt(resultado.limiteNoCompacta, 1)}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  {advertencia && <p className="text-xs text-destructive">{advertencia}</p>}
                   {/*
                     F8 no depende de Lb —el tubo redondo no pandea lateralmente—, así
                     que la curva no tendría nada que mostrar y se omite.
@@ -271,27 +274,12 @@ export default function FlexionAceroPage() {
                       </p>
                     </>
                   )}
-                  {noCompacta && (
-                    <p className="text-xs text-destructive">
-                      La sección no es compacta con este Fy: el artículo F2 no la cubre y el
-                      resultado no es válido. Correspondería F3 (ala no compacta) o F5 (alma
-                      esbelta), todavía no implementados.
-                    </p>
-                  )}
+                  <PanelFormulas titulo="Ver desarrollo de la flexión" filas={filasDe(resultado)} />
                 </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Detalle</h3>
-                </div>
-                <div>
-                  <PanelFormulas titulo="Ver cálculo" filas={filasDe(resultado)} />
-                </div>
-              </div>
-            </>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

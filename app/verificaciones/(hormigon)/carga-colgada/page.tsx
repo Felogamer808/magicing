@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -47,7 +48,8 @@ export default function CargaColgadaPage() {
   }, [reaccion, fyk, diametroEstribo, numeroRamas, h, a]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Vigas</p>
@@ -58,11 +60,15 @@ export default function CargaColgadaPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Carga y materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Carga y materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="col-span-full">
                 <CroquisCargaColgada />
               </div>
@@ -92,21 +98,23 @@ export default function CargaColgadaPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores numéricos positivos para ver los resultados.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Estribos de cuelgue</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3"><h3 className="text-sm font-medium">Estribos de cuelgue</h3></div>
+              <div className="space-y-4">
                 <ResultadoCheck
                   etiqueta="Canto suficiente para que se formen las bielas"
                   verifica={resultado.r.verificaCanto}
@@ -145,11 +153,12 @@ export default function CargaColgadaPage() {
                     },
                   ]}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

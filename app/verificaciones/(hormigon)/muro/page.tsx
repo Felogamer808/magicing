@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
@@ -149,7 +150,8 @@ export default function MuroPage() {
       phiBasica, phiV, sepV, phiH, sepH]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Muros</p>
@@ -160,20 +162,24 @@ export default function MuroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Muro portante: un elemento vertical que baja carga y que, por esbelto, puede pandear.
           No es el muro de contención. El Código Estructural le da artículo propio de armado
           —Anejo 19, art. 9.6— con cuantías y separaciones que no salen ni de las reglas de
           pilares ni de las de losas. Todo por metro de muro.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales y geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales y geometría</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="espesor" etiqueta="Espesor h" sufijo="m" valor={espesor} onChange={setEspesor} />
@@ -204,12 +210,12 @@ export default function MuroPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Esfuerzos</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Esfuerzos</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="nEd" etiqueta="NEd" sufijo="kN/m" valor={nEd} onChange={setNEd} />
               <CampoNumerico
                 id="relacionMqp"
@@ -220,14 +226,14 @@ export default function MuroPage() {
               />
               <CampoNumerico id="m01" etiqueta="M01" sufijo="kN·m/m" valor={m01} onChange={setM01} />
               <CampoNumerico id="m02" etiqueta="M02 (el mayor)" sufijo="kN·m/m" valor={m02} onChange={setM02} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Fluencia — art. 3.1.4 y Apéndice B</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Fluencia — art. 3.1.4 y Apéndice B</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="hr"
                 etiqueta="Humedad relativa"
@@ -268,12 +274,12 @@ export default function MuroPage() {
                   {fmt(fluencia.betaFcm, 3)} · β(t0) {fmt(fluencia.betaT0, 3)}
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Armadura</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armadura</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoDiametro id="phiV" etiqueta="Ø vertical" valor={phiV} onChange={setPhiV} />
               <CampoNumerico id="sepV" etiqueta="Sep. vertical" sufijo="mm" valor={sepV} onChange={setSepV} />
               <CampoDiametro id="phiH" etiqueta="Ø horizontal" valor={phiH} onChange={setPhiH} />
@@ -282,23 +288,25 @@ export default function MuroPage() {
                 Repartida en las dos caras, como pide el art. 9.6.3(1). Las áreas de abajo son la
                 suma de ambas.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá materiales, geometría, esfuerzos y armadura con valores válidos. El
                 recubrimiento tiene que dejar canto de los dos lados y |M01| no puede superar a |M02|.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resumen</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resumen</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Es un muro (L ≥ 4·h, art. 9.6.1)"
                     verifica={resultado.r.clasificacion.esMuro}
@@ -376,12 +384,12 @@ export default function MuroPage() {
                       cuantías de arriba no corresponden y hay que verificarlo como pilar.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Esbeltez y segundo orden</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Esbeltez y segundo orden</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={resultado.r.esbeltez.ignoraSegundoOrden
                       ? "λ ≤ λlim: el segundo orden se ignora"
@@ -433,12 +441,12 @@ export default function MuroPage() {
                       { etiqueta: "MEd = M0Ed + M2  (5.31)", valor: `${fmt(resultado.r.momentos.mEdKNm, 2)} kN·m/m` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Diagrama de interacción</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Diagrama de interacción</h3></div>
+                <div>
                   <DiagramaInteraccionMuro
                     diagrama={resultado.r.resistencia.diagrama}
                     nEdKN={resultado.n.nEd}
@@ -446,12 +454,13 @@ export default function MuroPage() {
                     mRdKNm={resultado.r.resistencia.mRdKNm}
                     verifica={resultado.r.resistencia.verifica}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

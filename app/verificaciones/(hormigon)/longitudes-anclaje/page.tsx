@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -71,7 +72,8 @@ export default function LongitudesAnclajePage() {
   }, [fck, fyk, diametro, situacion, forma, esfuerzo, recubrimiento, solape, porcentajeSolapado]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Hormigón armado</p>
@@ -82,19 +84,23 @@ export default function LongitudesAnclajePage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Barra y situación</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Barra y situación</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="col-span-full">
                 <CroquisRecubrimientoAnclaje />
               </div>
@@ -148,12 +154,12 @@ export default function LongitudesAnclajePage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solape</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Solape</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoSeleccion
                 id="solape"
                 etiqueta="¿Es un solape?"
@@ -170,23 +176,25 @@ export default function LongitudesAnclajePage() {
                   onChange={setPorcentajeSolapado}
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores numéricos positivos (el % solapado no puede superar
                 100) para ver los resultados.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Longitud de anclaje</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Longitud de anclaje</h3></div>
+                <div className="space-y-3">
                   <DiagramaAnclaje
                     diametroMm={resultado.v.diametro}
                     forma={forma}
@@ -227,13 +235,13 @@ export default function LongitudesAnclajePage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.solapeR && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Longitud de solape</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Longitud de solape</h3></div>
+                  <div className="space-y-3">
                     <DiagramaSolape diametroMm={resultado.v.diametro} l0Mm={resultado.solapeR.l0Mm} />
                     <div className="rounded-md border p-3 text-sm">
                       <p className="font-medium">
@@ -262,24 +270,25 @@ export default function LongitudesAnclajePage() {
                       Separación libre máxima entre barras solapadas: 4Ø (art. 8.7.2(3)); si no se
                       cumple, hay que sumarle esa distancia a l0.
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              <Card className="border-primary/30">
-                <CardContent className="py-4 text-sm text-muted-foreground">
+              <div className="border-t border-border/60 pt-5">
+                <div className="py-4 text-sm text-muted-foreground">
                   σsd se toma en fluencia plena (σsd = fyd): la barra ancla la fuerza que
                   desarrollaría al 100% de su capacidad. Es la hipótesis más conservadora — si As
                   real supera bastante a As necesaria, el anclaje real puede ser más corto. Los
                   coeficientes α3 (confinamiento por armadura transversal) y α5 (presión
                   transversal) se toman en 1,0, sin descontar ningún efecto favorable que esta
                   página no puede verificar.
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

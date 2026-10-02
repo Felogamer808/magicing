@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -493,7 +494,8 @@ export default function MuroContencionPage() {
       phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Contención</p>
@@ -504,10 +506,13 @@ export default function MuroContencionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
       {resultado && (
-        <Card className="drafting-marks">
-          <CardHeader><CardTitle className="text-base">Sección</CardTitle></CardHeader>
-          <CardContent className="flex justify-center py-2">
+        <div className="border-t border-border/60 pt-5">
+          <div className="mb-3"><h3 className="text-sm font-medium">Sección</h3></div>
+          <div className="flex justify-center py-2">
             <DiagramaMuro
               anchoZapataM={resultado.n.anchoZap}
               cantoZapataM={resultado.n.cantoZap}
@@ -517,15 +522,16 @@ export default function MuroContencionPage() {
               alturaSueloPasivoM={resultado.n.hPas}
               punteraM={resultado.n.puntera}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Suelo</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Suelo</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <CroquisSueloMuro />
               </div>
@@ -628,12 +634,12 @@ export default function MuroContencionPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <CroquisGeometriaMuro />
               </div>
@@ -668,12 +674,12 @@ export default function MuroContencionPage() {
                   }}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Terreno y sobrecarga</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Terreno y sobrecarga</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
               <CampoNumerico id="sobrecargaG" etiqueta="Carga permanente" sufijo="kN/m²" valor={sobrecargaG} onChange={setSobrecargaG} />
@@ -699,23 +705,25 @@ export default function MuroContencionPage() {
                 </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores válidos (el espesor del muro debe ser menor que el ancho de zapata).
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Empujes sobre el muro</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Empujes sobre el muro</h3></div>
+                <div className="space-y-2">
                   <DiagramaEmpujesMuro
                     alturaTotalM={resultado.r.empujes.alturaTotalM}
                     alturaSueloActivoM={aNumero(hAct)}
@@ -740,17 +748,17 @@ export default function MuroContencionPage() {
                     cantoZapataM={aNumero(cantoZap)}
                     punteraM={aNumero(puntera)}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/*
                 La estabilidad va antes que el armado: primero se define la
                 geometría —si el muro vuelca o desliza, el armado no importa— y
                 recién con la sección resuelta tiene sentido mirar las barras.
               */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Caso 1 — solo zapata</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Vuelco"
                     verifica={resultado.r.vuelco.verifica}
@@ -828,14 +836,14 @@ export default function MuroContencionPage() {
                       Método: Jiménez Montoya, 15ª ed., §25.2.6, pág. 404.
                     </p>
                   </PanelAyuda>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Momentos para armar</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Momentos para armar</h3>
+                </div>
+                <div className="space-y-3">
                   <PanelFormulas titulo="Ver cálculo" filas={desarrolloMomentos(resultado.n, resultado.r)} />
                   {resultado.r.momentos.punteraM === 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -850,13 +858,13 @@ export default function MuroContencionPage() {
                     El talón se resuelve del lado seguro: se cuentan las cargas que bajan y se
                     desprecia la reacción del terreno, que iría a favor.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {armado && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Armado</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Armado</h3></div>
+                  <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                       <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                       <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
@@ -917,8 +925,8 @@ export default function MuroContencionPage() {
                       bruta). No sustituye a la armadura mínima de muros del art. 9.6 —vertical y
                       horizontal repartida en las dos caras—, que es una comprobación aparte.
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/*
@@ -1009,6 +1017,7 @@ export default function MuroContencionPage() {
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

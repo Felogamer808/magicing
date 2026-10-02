@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
@@ -216,7 +217,8 @@ export default function LosaSteelDeckPage() {
       gPp, gAdd, q, gammaG, gammaQ, anclajePresente, espesorChapaMm, diametroPerno, numeroPernos, sepPernos]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Hormigón armado · Losas</p>
@@ -227,8 +229,11 @@ export default function LosaSteelDeckPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="space-y-2 py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="space-y-2 py-4 text-sm text-muted-foreground">
           <p>
             Losa mixta con chapa colaborante ARMCO Deckpanel y armadura adicional por nervio. En frío, la
             chapa y las barras se tratan como un único acero traccionado que equilibra el bloque de
@@ -240,18 +245,19 @@ export default function LosaSteelDeckPage() {
             EN 1994-1-1 §9.7.3, que es estrictamente sobre la chapa: las barras no entran en esa fórmula,
             salvo en el chequeo complementario que reparte la demanda según su tracción disponible.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <TituloSeccion>Geometría — perfil y armadura</TituloSeccion>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Fabricante: ARMCO Deckpanel</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Fabricante: ARMCO Deckpanel</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisNervioSteelDeck />
               </div>
@@ -343,12 +349,12 @@ export default function LosaSteelDeckPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Barra adicional por nervio</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Barra adicional por nervio</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoDiametro id="phiBarra" etiqueta="Ø" valor={phiBarra} onChange={setPhiBarra} />
               <CampoNumerico
                 id="numeroBarrasPorNervio"
@@ -373,26 +379,26 @@ export default function LosaSteelDeckPage() {
                 Esta barra y su fyk alimentan tanto la flexión como el rasante: es la misma barra en
                 las dos comprobaciones.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <TituloSeccion>Flexión y fuego</TituloSeccion>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Hormigón y solicitación</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Hormigón y solicitación</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fck" etiqueta="fck hormigón" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="mEd" etiqueta="MEd" sufijo="kN·m/m" valor={mEd} onChange={setMEd} />
               <p className="col-span-full text-xs text-muted-foreground">
                 fck sólo interviene acá: el método m-k del rasante no depende de la resistencia del
                 hormigón.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Situación de incendio</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Situación de incendio</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoSeleccion
                 id="resistenciaFuego" etiqueta="Resistencia al fuego"
                 valor={resistenciaFuego} opciones={RESISTENCIAS_FUEGO}
@@ -418,14 +424,14 @@ export default function LosaSteelDeckPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <TituloSeccion>Rasante</TituloSeccion>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Luz y ancho tributario</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Luz y ancho tributario</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="luz" etiqueta="Luz L" sufijo="m" valor={luz} onChange={setLuz} />
               <CampoNumerico id="anchoTrib" etiqueta="Ancho tributario b" sufijo="m" valor={anchoTrib} onChange={setAnchoTrib} />
               <p className="col-span-full text-xs text-muted-foreground">
@@ -433,12 +439,12 @@ export default function LosaSteelDeckPage() {
                 el cortante total. El cortante de cálculo sale de una carga uniforme sobre tramo
                 simplemente apoyado: VEd = wEd·L·b/2.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Coeficientes m-k</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Coeficientes m-k</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <CampoNumerico id="m" etiqueta="m" sufijo="N/mm²" valor={m} onChange={setM} />
               <CampoNumerico id="k" etiqueta="k" sufijo="N/mm²" valor={k} onChange={setK} />
               <CampoNumerico id="gammaVs" etiqueta="γVS" valor={gammaVs} onChange={setGammaVs} />
@@ -454,12 +460,12 @@ export default function LosaSteelDeckPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Acciones ELU</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Acciones ELU</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="gPp" etiqueta="Gk,pp" sufijo="kN/m²" valor={gPp} onChange={setGPp} />
               <CampoNumerico id="gAdd" etiqueta="Gk,add" sufijo="kN/m²" valor={gAdd} onChange={setGAdd} />
               <CampoNumerico id="q" etiqueta="Qk" sufijo="kN/m²" valor={q} onChange={setQ} />
@@ -488,12 +494,12 @@ export default function LosaSteelDeckPage() {
                   <p className="text-[11px]">kN/m², con hc = h − hp medido sobre la cresta del nervio.</p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Anclaje de extremo con pernos (opcional)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Anclaje de extremo con pernos (opcional)</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoSeleccion id="anclajePresente" etiqueta="¿Tiene pernos de anclaje?" valor={anclajePresente} opciones={SI_NO} onChange={(v) => setAnclajePresente(v as (typeof SI_NO)[number])} />
               {anclajePresente === "Sí" && (
                 <>
@@ -516,14 +522,14 @@ export default function LosaSteelDeckPage() {
                 conector, para losas ancladas en su extremo. Es un chequeo adicional, no sustituye
                 al m-k.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
           <TituloSeccion>Geometría</TituloSeccion>
-          <Card>
-            <CardContent className="space-y-2 py-4 text-sm text-muted-foreground">
+          <div className="border-t border-border/60 pt-5">
+            <div className="space-y-2 py-4 text-sm text-muted-foreground">
               <p>
                 No hay un resultado propio de esta sección: hp, fyp, Ap y dp de acá abajo son los que
                 entran en los cálculos de Flexión y de Rasante, a la derecha.
@@ -534,22 +540,24 @@ export default function LosaSteelDeckPage() {
                 <dt className="text-muted-foreground">Ap / dp</dt>
                 <dd className="text-right text-foreground">{fmt(ap, 0)} mm²/m / {fmt(dp * 1000, 1)} mm</dd>
               </dl>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <TituloSeccion>Flexión y fuego</TituloSeccion>
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultadoFlexion ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la geometría, fck y MEd con valores válidos (hp, dp y el recubrimiento tienen
                 que ser menores que h).
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Flexión en frío</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Flexión en frío</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Momento resistente"
                     verifica={resultadoFlexion.r.frio.verificaFlexion}
@@ -583,12 +591,12 @@ export default function LosaSteelDeckPage() {
                       { etiqueta: "Mpl,Rd = Np·z", valor: `${fmt(resultadoFlexion.r.frio.mPlRdKNm)} kN·m/m` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Situación de incendio</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Situación de incendio</h3></div>
+                <div className="space-y-3">
                   {
                     <>
                       {resultadoFlexion.r.fuego.concedidaPorEc4 ? (
@@ -703,23 +711,23 @@ export default function LosaSteelDeckPage() {
                       )}
                     </>
                   }
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
 
           <TituloSeccion>Rasante</TituloSeccion>
           {!resultadoRasante ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la geometría, la luz, los coeficientes m-k y las acciones con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Acciones</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Acciones</h3></div>
+                <div className="space-y-2">
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -728,12 +736,12 @@ export default function LosaSteelDeckPage() {
                       { etiqueta: "VEd por ancho", valor: `${fmt(resultadoRasante.r.acciones.vEdPorAnchoKNporM)} kN/m` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Método m-k</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Método m-k</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="m-k estricto (EN 1994-1-1 §9.7.3)"
                     verifica={resultadoRasante.r.rasante.verificaEstricta}
@@ -769,13 +777,13 @@ export default function LosaSteelDeckPage() {
                       { etiqueta: "VEd,chapa / Vl,Rd", valor: fmt(resultadoRasante.r.rasante.utilizacionChapaExclusiva, 3) },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultadoRasante.r.anclajeExtremo && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Anclaje de extremo (§9.7.4)</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Anclaje de extremo (§9.7.4)</h3></div>
+                  <div className="space-y-2">
                     <p className="font-mono text-sm">
                       Ppb,Rd = {fmt(resultadoRasante.r.anclajeExtremo.ppbRdKNporM)} kN/m
                     </p>
@@ -793,13 +801,14 @@ export default function LosaSteelDeckPage() {
                         { etiqueta: "Ppb,Rd", valor: `${fmt(resultadoRasante.r.anclajeExtremo.ppbRdKNporM)} kN/m` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

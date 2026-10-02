@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -94,7 +95,8 @@ export default function Page() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Hormigón armado · Ménsulas</p>
@@ -109,16 +111,20 @@ export default function Page() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+      <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           La ménsula corta es una región D: la carga entra concentrada a pocos centímetros de la
           cara del pilar y no hay longitud para que las deformaciones se linealicen, así que no
           vale Bernoulli y las fórmulas de flexión y cortante quedan fuera de su campo de
           aplicación. Se resuelve con un modelo de bielas y tirantes, y el tirante se calcula por
           los dos métodos que la norma y la Instrucción española dan por separado, que no
           coinciden: se arma por el más desfavorable.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/*
         Datos a la izquierda y dibujos a la derecha, igual que en las
@@ -127,11 +133,11 @@ export default function Page() {
       */}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Geometría</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="ac"
                 etiqueta="a꜀ — eje de carga a cara del pilar"
@@ -188,14 +194,14 @@ export default function Page() {
                 valor={bp}
                 onChange={setBp}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Cargas de cálculo</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Cargas de cálculo</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="fEd"
                 etiqueta="F_Ed — vertical"
@@ -222,14 +228,14 @@ export default function Page() {
                   onChange={setModoH}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Materiales y armaduras</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Materiales y armaduras</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="fck"
                 etiqueta="f_ck"
@@ -276,18 +282,20 @@ export default function Page() {
                 γ꜀ = 1,50 y γ_s = 1,15 (art. 2.4.2.4, tabla A19.2.1), situación persistente o
                 transitoria. En ménsulas cortas f_yd se topa además en 400 MPa.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {resultado ? (
             <>
-              <Card className="drafting-marks">
-                <CardHeader>
-                  <CardTitle className="text-base">Modelo de bielas y tirantes</CardTitle>
-                </CardHeader>
-                <CardContent className="py-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Modelo de bielas y tirantes</h3>
+                </div>
+                <div className="py-2">
                   <DiagramaMensulaModelo
                     acM={resultado.geometria.acM}
                     hcM={resultado.geometria.hcM}
@@ -310,14 +318,14 @@ export default function Page() {
                     esMensulaCorta={resultado.r.modelo.esMensulaCorta}
                     tanEnRango={resultado.r.modelo.tanEnRango}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card className="drafting-marks">
-                <CardHeader>
-                  <CardTitle className="text-base">Armado — alzado</CardTitle>
-                </CardHeader>
-                <CardContent className="py-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Armado — alzado</h3>
+                </div>
+                <div className="py-2">
                   <DiagramaMensulaArmado
                     hcM={resultado.geometria.hcM}
                     h1M={resultado.geometria.h1M}
@@ -338,14 +346,14 @@ export default function Page() {
                     lbdPilarMm={resultado.r.anclaje.lbdPilarMm}
                     pataPilarMm={resultado.r.anclaje.pataPilarMm}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card className="drafting-marks">
-                <CardHeader>
-                  <CardTitle className="text-base">Armado — planta</CardTitle>
-                </CardHeader>
-                <CardContent className="py-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Armado — planta</h3>
+                </div>
+                <div className="py-2">
                   <DiagramaMensulaPlanta
                     hcolM={resultado.geometria.hcolM}
                     vueloTotalM={resultado.r.despiece.vueloTotalM}
@@ -365,15 +373,15 @@ export default function Page() {
                     superponen y parecen una sola línea. Sólo se dibuja la familia horizontal —los
                     verticales están en el plano del alzado y en el despiece.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           ) : (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la geometría y las cargas para ver el modelo.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -381,6 +389,7 @@ export default function Page() {
       {resultado && (
         <Resultados r={resultado.r} phiP={Number(phiP)} phiE={Number(phiE)} />
       )}
+      </ProveedorComprobaciones>
     </main>
   );
 }

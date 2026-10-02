@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -231,7 +232,8 @@ export default function DeformacionesPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Estado límite de servicio</p>
@@ -242,33 +244,37 @@ export default function DeformacionesPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           El articulado da dos caminos y acá están los dos. La <strong>relación luz/canto</strong>{" "}
           (art. 7.4.2) no calcula ninguna flecha: si se cumple, se puede omitir el cálculo. La{" "}
           <strong>flecha calculada</strong> (art. 7.4.3) da los milímetros, interpolando entre
           sección sin fisurar y fisurada con ζ, con la fluencia metida en el módulo efectivo y la
           curvatura de retracción sumada aparte. El momento que entra es el de la combinación
           cuasipermanente, no el de cálculo.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <TituloSeccion>Datos comunes</TituloSeccion>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sección y luz</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sección y luz</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="d" etiqueta="d (canto útil)" sufijo="m" valor={d} onChange={setD} />
@@ -286,12 +292,12 @@ export default function DeformacionesPage() {
                 valor={luz}
                 onChange={setLuz}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Armadura de tracción</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armadura de tracción</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoDiametro id="phiAs" etiqueta="Ø" valor={phiAs} onChange={setPhiAs} />
               <CampoNumerico
                 id="numeroAs"
@@ -342,12 +348,12 @@ export default function DeformacionesPage() {
               <p className="col-span-full text-xs text-muted-foreground">
                 As dispuesta {fmt(asProvCm2)} cm²
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Armadura de compresión y demanda</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armadura de compresión y demanda</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoDiametro
                 id="phiAsComp"
                 etiqueta="Ø compresión"
@@ -388,14 +394,14 @@ export default function DeformacionesPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <TituloSeccion>Relación luz/canto — art. 7.4.2</TituloSeccion>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Esquema y correcciones</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Esquema y correcciones</h3></div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <CampoSeleccion
                   id="sistema"
@@ -433,14 +439,14 @@ export default function DeformacionesPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <TituloSeccion>Flecha calculada — art. 7.4.3</TituloSeccion>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Carga, tiempo y esquema</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Carga, tiempo y esquema</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="mqp"
                 etiqueta="M cuasipermanente"
@@ -482,16 +488,16 @@ export default function DeformacionesPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">
                 Fluencia y retracción — art. 3.1.4 y Apéndice B
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="hr"
                 etiqueta="Humedad relativa"
@@ -580,25 +586,27 @@ export default function DeformacionesPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, la armadura y el momento cuasipermanente con valores válidos.
                 El canto útil tiene que ser menor que el canto total.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
               <TituloSeccion>Relación luz/canto</TituloSeccion>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Art. 7.4.2</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Art. 7.4.2</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Relación luz/canto"
                     verifica={resultado.luzCanto.verifica}
@@ -649,14 +657,14 @@ export default function DeformacionesPage() {
                       contrastar con la flecha calculada de acá abajo.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               <TituloSeccion>Flecha calculada</TituloSeccion>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Art. 7.4.3</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Art. 7.4.3</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Flecha total — apariencia (art. 7.4.1(4))"
                     verifica={resultado.flecha.verificaApariencia}
@@ -698,12 +706,12 @@ export default function DeformacionesPage() {
                     producida. Es la hipótesis habitual y del lado de la seguridad: si los tabiques
                     se levantan más tarde, la parte que los afecta es menor.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Estados de la sección</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Estados de la sección</h3></div>
+                <div className="space-y-3">
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">
                       {resultado.flecha.fisura ? "Sección fisurada" : "Sección sin fisurar"} · ζ ={" "}
@@ -764,12 +772,13 @@ export default function DeformacionesPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

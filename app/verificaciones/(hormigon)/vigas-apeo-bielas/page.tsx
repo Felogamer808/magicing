@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
@@ -163,7 +164,8 @@ export default function VigaApeoBielasPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Vigas</p>
@@ -174,11 +176,15 @@ export default function VigaApeoBielasPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
       {resultado && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="drafting-marks">
-            <CardHeader><CardTitle className="text-base">Geometría y modelo</CardTitle></CardHeader>
-            <CardContent className="py-2">
+        <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría y modelo</h3></div>
+            <div className="py-2">
               <DiagramaVigaApeoModelo
                 luzM={resultado.n.luz}
                 hM={resultado.n.h}
@@ -200,12 +206,12 @@ export default function VigaApeoBielasPage() {
                 reaccionDerKN={resultado.r.modelo.reaccionDerKN}
                 traccionTiranteKN={resultado.r.modelo.traccionTiranteKN}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="drafting-marks">
-            <CardHeader><CardTitle className="text-base">Armado propuesto</CardTitle></CardHeader>
-            <CardContent className="py-2">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armado propuesto</h3></div>
+            <div className="py-2">
               <DiagramaVigaApeoArmado
                 luzM={resultado.n.luz}
                 hM={resultado.n.h}
@@ -240,25 +246,25 @@ export default function VigaApeoBielasPage() {
                     : null
                 }
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="luz" etiqueta="Luz entre ejes" sufijo="m" valor={luz} onChange={setLuz} />
               <CampoNumerico id="h" etiqueta="Canto h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="b" etiqueta="Ancho b" sufijo="m" valor={b} onChange={setB} />
@@ -268,12 +274,12 @@ export default function VigaApeoBielasPage() {
               <CampoNumerico id="anchoApoyoDer" etiqueta="Ancho apoyo der." sufijo="m" valor={anchoApoyoDer} onChange={setAnchoApoyoDer} />
               <CampoNumerico id="voladizoIzq" etiqueta="Voladizo izq." sufijo="m" valor={voladizoIzq} onChange={setVoladizoIzq} />
               <CampoNumerico id="voladizoDer" etiqueta="Voladizo der." sufijo="m" valor={voladizoDer} onChange={setVoladizoDer} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Cargas</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Cargas</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="nd" etiqueta="Nd del pilar apeado" sufijo="kN" valor={nd} onChange={setNd} />
               <CampoNumerico id="qd" etiqueta="qd repartida" sufijo="kN/m" valor={qd} onChange={setQd} />
               <div className="col-span-full">
@@ -285,12 +291,12 @@ export default function VigaApeoBielasPage() {
                   onChange={setTransmision}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Tirante inferior</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Tirante inferior</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="nTirante" etiqueta="Nº barras" valor={nTirante} onChange={setNTirante} />
               <CampoDiametro id="phiTirante" etiqueta="Ø" valor={phiTirante} onChange={setPhiTirante} />
               <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
@@ -311,45 +317,47 @@ export default function VigaApeoBielasPage() {
                 apoya sobre la primera dejando la separación libre mínima del art. 8.2(2), así
                 que sube el baricentro y baja el canto útil: es el precio de meter más acero.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Malla de piel (por cara)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Malla de piel (por cara)</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoDiametro id="phiMallaH" etiqueta="Ø horizontal" valor={phiMallaH} onChange={setPhiMallaH} />
               <CampoNumerico id="sepMallaH" etiqueta="Separación horiz." sufijo="m" valor={sepMallaH} onChange={setSepMallaH} />
               <CampoDiametro id="phiMallaV" etiqueta="Ø vertical" valor={phiMallaV} onChange={setPhiMallaV} />
               <CampoNumerico id="sepMallaV" etiqueta="Separación vert." sufijo="m" valor={sepMallaV} onChange={setSepMallaV} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {tipo !== "directa" && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Estribos de cuelgue</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3"><h3 className="text-sm font-medium">Estribos de cuelgue</h3></div>
+              <div className="grid grid-cols-2 gap-4">
                 <CampoDiametro id="phiCuelgue" etiqueta="Ø" valor={phiCuelgue} onChange={setPhiCuelgue} />
                 <CampoNumerico id="sepCuelgue" etiqueta="Separación" sufijo="m" valor={sepCuelgue} onChange={setSepCuelgue} />
                 <CampoNumerico id="ramasCuelgue" etiqueta="Ramas" valor={ramasCuelgue} onChange={setRamasCuelgue} />
                 <CampoNumerico id="cantoColgado" etiqueta="Canto del elemento colgado" sufijo="m" valor={cantoColgado} onChange={setCantoColgado} />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores válidos. El pilar apeado tiene que caer dentro de la
                 luz y el tirante llevar al menos 2 barras.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">¿Corresponde bielas y tirantes?</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">¿Corresponde bielas y tirantes?</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="La pieza es región D"
                     verifica={resultado.r.region.esRegionD}
@@ -381,12 +389,12 @@ export default function VigaApeoBielasPage() {
                     región D, la verificación que corresponde es{" "}
                     <span className="font-medium">Vigas de apeo</span> (flexión y cortante), no ésta.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Tirante</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Tirante</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Cabe la cabeza comprimida"
                     verifica={resultado.r.modelo.verificaCabezaComprimida}
@@ -464,12 +472,12 @@ export default function VigaApeoBielasPage() {
                     El tirante va corrido de apoyo a apoyo, sin escalonar: en una región D no hay
                     ley de momentos de la que colgar los cortes.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Anclaje del tirante</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Anclaje del tirante</h3></div>
+                <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
                     Es la verificación que más apeos manda a rehacer. El tirante entra al nudo
                     con toda su tracción y tiene que descargarla contra el hormigón del apoyo en
@@ -605,12 +613,12 @@ export default function VigaApeoBielasPage() {
                           : "No entra ni recto ni con horquilla: hay que ir a dispositivos de anclaje o placas soldadas (art. 9.7(3)), o agrandar el apoyo o el voladizo."}
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Bielas y nudos</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Bielas y nudos</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Biela izquierda"
                     verifica={resultado.r.bielas.bielaIzq.verifica}
@@ -693,12 +701,12 @@ export default function VigaApeoBielasPage() {
                     θ debería quedar entre 30° y 60°: fuera de ese rango el modelo se aleja
                     demasiado del campo elástico y las fisuras en servicio se abren.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Tracción transversal y malla de piel</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Tracción transversal y malla de piel</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Malla vertical para la tracción transversal"
                     verifica={resultado.r.traccionTransversal.verificaAs}
@@ -753,13 +761,13 @@ export default function VigaApeoBielasPage() {
                     figura A19.6.25 antes de usarlo en proyecto: acá se adopta mín(h; L/2), que es
                     una decisión de criterio y no un valor que la norma fije.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.r.cuelgue && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Armadura de cuelgue</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Armadura de cuelgue</h3></div>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Estribos de cuelgue suficientes"
                       verifica={resultado.r.cuelgue.verificaAs}
@@ -794,8 +802,8 @@ export default function VigaApeoBielasPage() {
                       a propósito, por seguridad. Los estribos tienen que envolver por debajo la
                       armadura del tirante, no apoyarse encima.
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               <p className="text-xs text-muted-foreground">
@@ -817,6 +825,7 @@ export default function VigaApeoBielasPage() {
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

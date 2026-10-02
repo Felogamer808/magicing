@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
@@ -135,7 +136,8 @@ export default function PunzonamientoPage() {
   const hayBorde = posicion !== "interior";
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Losas</p>
@@ -146,11 +148,15 @@ export default function PunzonamientoPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Posición del pilar</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Posición del pilar</h3></div>
+            <div className="space-y-4">
               <CroquisPosicionPilar posicion={posicion} />
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-full">
@@ -209,12 +215,12 @@ export default function PunzonamientoPage() {
                   del perímetro —la página lo avisa cuando pasa.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Losa y materiales</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Losa y materiales</h3></div>
+            <div className="space-y-4">
               <CroquisSeccionPunzonamiento />
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="espesor" etiqueta="Espesor h" sufijo="m" valor={espesor} onChange={setEspesor} />
@@ -230,12 +236,12 @@ export default function PunzonamientoPage() {
                   negativos: la capa de adentro pierde un diámetro entero.
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Armadura de negativos sobre el pilar</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armadura de negativos sobre el pilar</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoDiametro id="phiNegY" etiqueta="Ø dirección y" valor={phiNegY} onChange={setPhiNegY} />
                 <CampoNumerico id="sNegY" etiqueta="s dirección y" sufijo="m" valor={sNegY} onChange={setSNegY} />
@@ -255,12 +261,12 @@ export default function PunzonamientoPage() {
                   deja de servir del todo.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Esfuerzo</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Esfuerzo</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="vEd" etiqueta="VEd" sufijo="kN" valor={vEd} onChange={setVEd} />
                 <CampoSeleccion
@@ -294,12 +300,12 @@ export default function PunzonamientoPage() {
                   que más pesa de toda la comprobación: multiplica directo la tensión.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Armadura de punzonamiento</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Armadura de punzonamiento</h3></div>
+            <div className="space-y-4">
               <CroquisArmaduraPunzonamiento />
               <div className="grid grid-cols-2 gap-4">
                 <CampoDiametro id="phiCerco" etiqueta="Ø rama" valor={phiCerco} onChange={setPhiCerco} />
@@ -313,30 +319,32 @@ export default function PunzonamientoPage() {
                 Sólo se usa si el perímetro crítico no verifica solo. Se suponen cercos verticales
                 (α = 90°).
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores numéricos válidos para ver los resultados.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card className="drafting-marks">
-                <CardHeader><CardTitle className="text-base">Planta — perímetros de control</CardTitle></CardHeader>
-                <CardContent className="py-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Planta — perímetros de control</h3></div>
+                <div className="py-2">
                   <PlantaPunzonamiento
                     planta={resultado.r.planta}
                     dM={resultado.r.dM}
                     u1M={resultado.r.critico.u1M}
                     verificaCritico={resultado.r.critico.verifica}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.r.perimetroCierraComoInterior && (
                 <p className="rounded-md border p-3 text-xs text-muted-foreground">
@@ -347,9 +355,9 @@ export default function PunzonamientoPage() {
                 </p>
               )}
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">1 · Cara del pilar — biela comprimida</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">1 · Cara del pilar — biela comprimida</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Tensión en el perímetro del pilar"
                     verifica={resultado.r.caraPilar.verifica}
@@ -404,12 +412,12 @@ export default function PunzonamientoPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">2 · Perímetro crítico a 2d</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">2 · Perímetro crítico a 2d</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Losa sin armadura de punzonamiento"
                     verifica={resultado.r.critico.verifica}
@@ -480,13 +488,13 @@ export default function PunzonamientoPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.r.armadura && resultado.r.detallado && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">3 · Armadura de punzonamiento</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">3 · Armadura de punzonamiento</h3></div>
+                  <div className="space-y-3">
                     {resultado.r.armadura.fueraDeAlcance ? (
                       <p className="rounded-md border border-destructive/40 bg-destructive/[0.06] p-3 text-xs text-destructive">
                         vEd = {fmt(resultado.r.critico.vEdMPa, 3)} MPa supera el techo{" "}
@@ -617,8 +625,8 @@ export default function PunzonamientoPage() {
                         },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               <PanelAyuda titulo="Por qué esto no da igual que la planilla PUNZONADO.xlsx">
@@ -652,6 +660,7 @@ export default function PunzonamientoPage() {
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

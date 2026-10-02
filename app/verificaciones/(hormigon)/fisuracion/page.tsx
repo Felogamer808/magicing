@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -110,7 +111,8 @@ export default function FisuracionPage() {
   }, [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, hayFamilia2]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Estado límite de servicio</p>
@@ -121,50 +123,54 @@ export default function FisuracionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           El momento a introducir es el de la combinación cuasipermanente, no el de cálculo:
           la fisuración se verifica en servicio. k2 vale 0,5 para carga mantenida o repetida
           y 1,0 para carga instantánea.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
               <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
               <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Parámetros de fisuración</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Parámetros de fisuración</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
               <CampoNumerico id="k2" etiqueta="k2 (0,5 flexión · 1,0 tracción)" valor={k2} onChange={setK2} />
               <CampoNumerico id="wAdm" etiqueta="w admisible" sufijo="mm" valor={wAdm} onChange={setWAdm} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sección y solicitación</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sección y solicitación</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisSeccionFisuracion />
               </div>
               <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
               <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
               <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Familia 1</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3"><h3 className="text-sm font-medium">Familia 1</h3></div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-full">
                   <CroquisFamiliaFisuracion numero={1} />
                 </div>
@@ -178,13 +184,13 @@ export default function FisuracionPage() {
                 <div className="col-span-full">
                   <SeparacionEquivalente anchoTxt={b} numeroTxt={numero1} diametroTxt={phi1} />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {hayFamilia2 ? (
-              <Card>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="text-base">Familia 2</CardTitle>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Familia 2</h3>
                   <Button
                     type="button"
                     variant="ghost"
@@ -194,8 +200,8 @@ export default function FisuracionPage() {
                   >
                     <X className="h-4 w-4" />
                   </Button>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-full">
                     <CroquisFamiliaFisuracion numero={2} />
                   </div>
@@ -209,11 +215,11 @@ export default function FisuracionPage() {
                   <div className="col-span-full">
                     <SeparacionEquivalente anchoTxt={b} numeroTxt={numero2} diametroTxt={phi2} />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
-              <Card className="border-dashed">
-                <CardContent className="flex h-full flex-col items-start justify-center gap-2 py-6">
+              <div className="border-t border-border/60 pt-5">
+                <div className="flex h-full flex-col items-start justify-center gap-2 py-6">
                   <p className="text-sm text-muted-foreground">
                     Una segunda familia de otro diámetro, si la sección la tiene.
                   </p>
@@ -232,24 +238,26 @@ export default function FisuracionPage() {
                   >
                     <Plus className="h-4 w-4" /> Agregar segunda familia
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores válidos. La familia 1 y el momento cuasipermanente son obligatorios.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Abertura de fisura</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Abertura de fisura</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Abertura característica admisible"
                     verifica={resultado.r.verifica}
@@ -302,12 +310,12 @@ export default function FisuracionPage() {
                       { etiqueta: "Separación máxima de fisuras s r,max", valor: `${fmt(resultado.r.srMaxMm, 1)} mm` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Tensiones en la armadura</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Tensiones en la armadura</h3></div>
+                <div className="space-y-3">
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-mono text-xs text-muted-foreground">
                       σs = {fmt(resultado.r.sigmaSMPa, 1)} MPa · αe = Es/Ecm = {fmt(resultado.r.alphaE, 2)}
@@ -333,12 +341,13 @@ export default function FisuracionPage() {
                       más deformación de la que el articulado permite descontar.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

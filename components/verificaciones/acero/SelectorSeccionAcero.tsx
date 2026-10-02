@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ReactNode } from "react";
+import { DatosConDibujo } from "@/components/verificaciones/comun/HojaTecnica";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { CroquisSeccionAcero } from "@/components/verificaciones/acero/CroquisSeccionAcero";
@@ -19,6 +20,8 @@ interface Props {
   params: ParametrosPerfil;
   onFamiliaChange: (familia: Familia) => void;
   onParamChange: (clave: ClaveParametro, valor: string) => void;
+  /** Campos que van debajo de los de la sección, del mismo lado del croquis. */
+  children?: ReactNode;
 }
 
 const etiquetas = familias.map((f) => nombreFamilia[f]);
@@ -37,17 +40,15 @@ export function SelectorSeccionAcero({
   params,
   onFamiliaChange,
   onParamChange,
+  children,
 }: Props) {
   const parametros = parametrosDe(familia);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Sección</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <CroquisSeccionAcero familia={familia} params={params} />
-
+    <DatosConDibujo
+      dibujo={<CroquisSeccionAcero familia={familia} params={params} />}
+      datos={
+        <>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-full">
             <CampoSeleccion
@@ -84,7 +85,9 @@ export function SelectorSeccionAcero({
             )
           )}
         </div>
-      </CardContent>
-    </Card>
+        {children}
+        </>
+      }
+    />
   );
 }

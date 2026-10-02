@@ -4,8 +4,11 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -20,6 +23,13 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "corte-acero")!;
+
+const ETAPAS = [
+  { id: "seccion", titulo: "Sección" },
+  { id: "solicitacion", titulo: "Solicitación" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 function filasDe(r: ResultadoCorteCualquiera) {
   if (r.articulo === "G5") {
@@ -95,10 +105,13 @@ export default function CorteAceroPage() {
     }
   }, [seccion.familia, seccion.params, seccion.completos, conRigidizadores, aRigidizadores, lv, fy, e, vRequerido]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, el material y el corte con valores positivos." });
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Vigas · Estructuras metálicas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -108,36 +121,20 @@ export default function CorteAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          <strong>G2</strong> en perfiles I y canales, sin acción de campo tensional;{" "}
-          <strong>G4</strong> en tubos rectangulares y cajones, donde resisten las dos caras;{" "}
-          <strong>G5</strong> en tubos redondos, que trabajan con media sección y necesitan la
-          distancia del corte máximo al nulo. Ojo con el coeficiente de seguridad: solo las almas
-          robustas de perfiles I laminados (h/tw ≤ 2,24·√(E/Fy)) van con Ωv = 1,50 por el art.
-          G1(a). Los canales y los tubos usan siempre 1,67.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
+        <Etapa id="seccion" numero={1} titulo="Sección y material" descripcion="El perfil, el acero y lo que define cómo trabaja el alma.">
           <SelectorSeccionAcero
             familia={seccion.familia}
             paramsTexto={seccion.paramsTexto}
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
-          />
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Alma y material</h3>
-            </div>
+          >
             <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="fyCorte" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
+              <CampoNumerico id="eCorte" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
               {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5 y G5 no los usa. */}
               {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && (
                 <>
@@ -149,65 +146,75 @@ export default function CorteAceroPage() {
                     onChange={setConRigidizadores}
                   />
                   {conRigidizadores === "Sí" && (
-                    <CampoNumerico
-                      id="aRigidizadores"
-                      etiqueta="Separación a"
-                      sufijo="m"
-                      valor={aRigidizadores}
-                      onChange={setARigidizadores}
-                    />
+                    <CampoNumerico id="aRigidizadores" etiqueta="Separación a" sufijo="m" valor={aRigidizadores} onChange={setARigidizadores} />
                   )}
                 </>
               )}
               {/* Lv es dato del diagrama de corte, no de la sección: solo lo pide G5. */}
               {seccion.familia === "tubo-redondo" && (
-                <CampoNumerico
-                  id="lv"
-                  etiqueta="Lv (corte máximo a corte nulo)"
-                  sufijo="m"
-                  valor={lv}
-                  onChange={setLv}
-                />
+                <CampoNumerico id="lv" etiqueta="Lv (corte máximo a corte nulo)" sufijo="m" valor={lv} onChange={setLv} />
               )}
-              <CampoNumerico id="fyCorte" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
-              <CampoNumerico id="eCorte" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
             </div>
-          </div>
+          </SelectorSeccionAcero>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Solicitación</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="vRequerido"
-                etiqueta="Corte requerido"
-                sufijo="kN"
-                valor={vRequerido}
-                onChange={setVRequerido}
-              />
-            </div>
+        <Etapa id="solicitacion" numero={2} titulo="Solicitación" descripcion="Corte requerido de la combinación ASD.">
+          <div className="grid max-w-xl grid-cols-2 gap-4">
+            <CampoNumerico id="vRequerido" etiqueta="Corte requerido" sufijo="kN" valor={vRequerido} onChange={setVRequerido} />
           </div>
-        </div>
+        </Etapa>
 
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
+        <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Sección", valor: resultado ? resultado.designacion : "—" },
+              { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
+              ...(seccion.familia === "tubo-redondo"
+                ? [{ etiqueta: "Lv", valor: `${lv} m` }]
+                : seccion.familia !== "tubo-rectangular"
+                  ? [{ etiqueta: "Rigidizadores", valor: conRigidizadores === "Sí" ? `a = ${aRigidizadores} m` : "sin rigidizadores" }]
+                  : []),
+              { etiqueta: "V requerido", valor: `${vRequerido} kN` },
+              ...(resultado ? [{ etiqueta: "Artículo", valor: resultado.articulo, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "AISC 360, capítulo G, por resistencias admisibles: Vn/Ωv.",
+              "G2 en perfiles I y canales, sin acción de campo tensional.",
+              "G4 en tubos rectangulares y cajones: resisten las dos caras, con kv = 5.",
+              "G5 en tubos redondos: trabaja media sección y entra la distancia Lv del corte máximo al nulo.",
+              "Ωv = 1,50 sólo en almas robustas de perfiles I laminados (h/tw ≤ 2,24·√(E/Fy), art. G1(a)); canales y tubos van siempre con 1,67.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={4} titulo="Resultados">
           {!resultado ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Completá la sección, el material y el corte con valores positivos.
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Resultado</h3>
-                </div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Vn", valor: `${fmt(resultado.vnKN, 1)} kN`, nota: `art. ${resultado.articulo}` },
+                  { etiqueta: "Vn/Ωv", valor: `${fmt(resultado.admisibleKN, 1)} kN` },
+                  { etiqueta: "Ωv", valor: fmt(resultado.omegaV, 2) },
+                  resultado.articulo === "G5"
+                    ? { etiqueta: "D/t", valor: fmt(resultado.relacionDt, 1) }
+                    : { etiqueta: resultado.articulo === "G4" ? "h/t" : "h/tw", valor: fmt(resultado.esbeltezAlma, 1) },
+                ]}
+              />
+
+              <Subgrupo titulo="Resistencia a corte" detalle={`${resultado.designacion} · art. ${resultado.articulo}`}>
                 <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta={`${resultado.designacion} — corte admisible (art. ${resultado.articulo})`}
+                    etiqueta={`Corte admisible (art. ${resultado.articulo})`}
                     verifica={resultado.verifica === true}
                     comparacion={{
                       real: { etiqueta: "V requerido", valor: aNumero(vRequerido) },
@@ -215,53 +222,20 @@ export default function CorteAceroPage() {
                       unidad: "kN", exige: "≤", decimales: 1,
                     }}
                   />
-                  <div className="rounded-md border p-3 text-sm">
-                    {resultado.articulo === "G2" && (
-                      <>
-                        <p className="font-medium">
-                          {resultado.almaRobusta
-                            ? "Alma robusta: entra por la excepción del art. G2.1(a)"
-                            : "Fuera de la excepción del art. G2.1(a)"}
-                        </p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Ωv = {fmt(resultado.omegaV, 2)} · h/tw = {fmt(resultado.esbeltezAlma, 1)} ·
-                          Cv1 = {fmt(resultado.cv1, 3)}
-                        </p>
-                      </>
-                    )}
-                    {resultado.articulo === "G4" && (
-                      <>
-                        <p className="font-medium">Dos almas resisten el corte</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Ωv = {fmt(resultado.omegaV, 2)} · h/t = {fmt(resultado.esbeltezAlma, 1)} ·
-                          Cv2 = {fmt(resultado.cv2, 3)}
-                        </p>
-                      </>
-                    )}
-                    {resultado.articulo === "G5" && (
-                      <>
-                        <p className="font-medium">Gobierna por {resultado.gobierna}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          Ωv = {fmt(resultado.omegaV, 2)} · D/t = {fmt(resultado.relacionDt, 1)} ·
-                          Fcr = {fmt(resultado.fcrPa / 1e6, 1)} MPa
-                        </p>
-                      </>
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {resultado.articulo === "G2" &&
+                      (resultado.almaRobusta
+                        ? "Alma robusta: entra por la excepción del art. G2.1(a)."
+                        : "Fuera de la excepción del art. G2.1(a).")}
+                    {resultado.articulo === "G4" && "Dos almas resisten el corte."}
+                    {resultado.articulo === "G5" && `Gobierna por ${resultado.gobierna}.`}
+                  </p>
+                  <PanelFormulas titulo="Ver desarrollo del corte" filas={filasDe(resultado)} />
                 </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Detalle</h3>
-                </div>
-                <div>
-                  <PanelFormulas titulo="Ver cálculo" filas={filasDe(resultado)} />
-                </div>
-              </div>
-            </>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

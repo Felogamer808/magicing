@@ -14,30 +14,55 @@ const ESTRIBO_PLANILLA_MM = 6;
 const materiales = derivarMateriales({ fck: 30, fyk: 500 });
 const geometria = { b: 0.2, h: 0.7, recubrimiento: 0.035, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
 
+/*
+ * Anejo 19, art. 6.3.2, a mano. b = 0,20, h = 0,70, fck = 30, Td = 30 kN·m:
+ *   A/u = 0,14/1,8 = 0,077778 m (sin distancia al eje no hay mínimo)
+ *   Ak = (0,2 − 0,077778)·(0,7 − 0,077778) = 0,076049 m², uk = 1,488889 m
+ *   ν = 0,6·(1 − 30/250) = 0,528                                   (6.6)
+ *   TRd,max = 2·0,528·20 000·0,076049·0,077778·0,5 = 62,4619 kN·m  (6.30)
+ *   fctd = 0,7·0,3·30^(2/3)/1,5 = 1,35169 MPa                      (3.16)
+ *   TRd,c = 2·0,076049·0,077778·1351,69 = 15,9903 kN·m
+ *   At = 30/(2·0,076049·400 000)·10⁴ = 4,93101 cm²/m
+ *   ΣAsl = 30·1,488889/(2·0,076049·434 783)·10⁴ = 6,75438 cm²      (6.28)
+ * La planilla (EHE-08) daba Tu1 = 42,59 con 0,36·fcd y ΣAsl = 7,34 con 400 MPa.
+ */
 describe("torsión: sección hueca equivalente", () => {
   const r = calcularTorsion(materiales, geometria, { td: 30 });
 
-  it("reproduce la geometría equivalente (t, ue, Ae)", () => {
+  it("geometría equivalente (tef, uk, Ak)", () => {
     expect(r.tM).toBeCloseTo(0.0777777777777778, 9);
     expect(r.ueM).toBeCloseTo(1.48888888888889, 9);
     expect(r.aeM2).toBeCloseTo(0.0760493827160494, 9);
   });
 
-  it("reproduce la resistencia de las bielas comprimidas", () => {
-    expect(r.f1cdMPa).toBeCloseTo(12, 9);
-    expect(r.tu1KNm).toBeCloseTo(42.5876543209877, 6);
+  it("bielas con TRd,max de la (6.30)", () => {
+    expect(r.nu).toBeCloseTo(0.528, 12);
+    expect(r.tRdMaxKNm).toBeCloseTo(62.461893, 5);
     expect(r.verificaBielas).toBe(true);
   });
 
-  it("reproduce la armadura de torsión transversal y longitudinal", () => {
+  it("armaduras: transversal con fywd, longitudinal con fyd (6.28)", () => {
     expect(r.atCm2PorM).toBeCloseTo(4.93100649350649, 6);
-    expect(r.alCm2).toBeCloseTo(7.34172077922078, 6);
-    expect(r.alPorCaraCm2).toBeCloseTo(1.83543019480519, 6);
+    expect(r.alCm2).toBeCloseTo(6.754383, 5);
+    expect(r.alPorCaraCm2).toBeCloseTo(6.754383 / 4, 5);
   });
 
-  it("no verifica las bielas si el torsor supera Tu1", () => {
-    const sobrecargada = calcularTorsion(materiales, geometria, { td: 50 });
+  it("torsor de fisuración con τt = fctd", () => {
+    expect(r.fctdMPa).toBeCloseTo(1.351685, 5);
+    expect(r.tRdCKNm).toBeCloseTo(15.990305, 5);
+  });
+
+  it("no verifica las bielas si el torsor supera TRd,max", () => {
+    const sobrecargada = calcularTorsion(materiales, geometria, { td: 70 });
     expect(sobrecargada.verificaBielas).toBe(false);
+  });
+
+  it("el espesor no baja de 2 veces la distancia del borde al eje de la barra", () => {
+    // c = 0,035 + 0,006 + 0,0125 = 0,0535 → 2c = 0,107 > A/u = 0,0778
+    const conMinimo = calcularTorsion(materiales, geometria, { td: 30, distanciaEjeArmaduraM: 0.0535 });
+    expect(conMinimo.tMinimoM).toBeCloseTo(0.107, 12);
+    expect(conMinimo.tM).toBeCloseTo(0.107, 12);
+    expect(conMinimo.aeM2).toBeCloseTo(0.093 * 0.593, 12);
   });
 });
 
@@ -59,15 +84,18 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(r.flexionPositiva.mu).toBeCloseTo(0.130992691325592, 9);
     expect(r.flexionPositiva.omega).toBeCloseTo(0.140922228579498, 9);
     expect(r.flexionPositiva.asCalculadoCm2).toBeCloseTo(8.38177231145141, 6);
-    // As,nec = As por momento + Al/4 = 8.38177 + 1.83543
-    expect(r.flexionPositiva.asNecCm2).toBeCloseTo(10.2172025062566, 6);
+    // Con tef = 0,107 (mínimo 2c): Ak = 0,055149, uk = 1,372 y
+    // ΣAsl = 30·1,372/(2·0,055149·434 783)·10⁴ = 8,58293 cm², Al/4 = 2,14573.
+    // As,nec = As por momento + Al/4 = 8,38177 + 2,14573
+    expect(r.torsion.alPorCaraCm2).toBeCloseTo(2.145732, 5);
+    expect(r.flexionPositiva.asNecCm2).toBeCloseTo(8.38177231145141 + 2.145732, 5);
     expect(r.flexionPositiva.asRealCm2).toBeCloseTo(9.81747704246811, 6);
     expect(r.flexionPositiva.verificaAs).toBe(false);
   });
 
   it("suma Al/4 al As necesario de la armadura negativa", () => {
     expect(r.flexionNegativa.asCalculadoCm2).toBeCloseTo(9.04871799043734, 6);
-    expect(r.flexionNegativa.asNecCm2).toBeCloseTo(10.8841481852425, 6);
+    expect(r.flexionNegativa.asNecCm2).toBeCloseTo(9.04871799043734 + 2.145732, 5);
     expect(r.flexionNegativa.verificaAs).toBe(false);
   });
 
@@ -83,30 +111,55 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(r.cortante.vEdEstribos).toBeCloseTo(336.553281240849, 6);
     expect(r.cortante.a90NecCm2PorM).toBeCloseTo(14.4604829956539, 6);
     expect(r.cortante.a90MinCm2PorM).toBeCloseTo(1.93097876921126, 6);
-    // A90 = max(nec, min) + At = 14.46048 + 4.93101
-    expect(r.cortante.a90Cm2PorM).toBeCloseTo(19.3914894891604, 6);
+    // At = 30/(2·0,055149·400 000)·10⁴ = 6,79976 cm²/m
+    // A90 = max(nec, min) + At = 14,46048 + 6,79976
+    expect(r.torsion.atCm2PorM).toBeCloseTo(6.799761, 5);
+    expect(r.cortante.a90Cm2PorM).toBeCloseTo(14.4604829956539 + 6.799761, 5);
   });
 
-  it("reproduce el estribado adoptado (6 ramas φ8 cada 15 cm)", () => {
+  it("estribado adoptado (6 ramas φ8 cada 14 cm)", () => {
     expect(r.cortante.aEstriboCm2).toBeCloseTo(3.0159289474462, 6);
-    expect(r.cortante.separacionNecM).toBeCloseTo(0.155528483210744, 6);
+    // s = 3,01593/21,26024 = 0,14186 m, redondeada al centímetro: 0,14
+    expect(r.cortante.separacionNecM).toBeCloseTo(3.0159289474462 / (14.4604829956539 + 6.799761), 5);
     expect(r.cortante.separacionMaxM).toBeCloseTo(0.3879, 6);
-    expect(r.cortante.separacionAdoptadaM).toBeCloseTo(0.15, 9);
-    expect(r.cortante.areaRealCm2PorM).toBeCloseTo(20.1061929829747, 6);
+    expect(r.cortante.separacionAdoptadaM).toBeCloseTo(0.14, 9);
+    expect(r.cortante.areaRealCm2PorM).toBeCloseTo(3.0159289474462 / 0.14, 6);
   });
 
   // Este mismo caso es la mejor ilustración de por qué hacía falta la
   // comprobación: cada esfuerzo verifica cómodo por separado —Td = 30 contra
-  // Tu1 = 42,6, y Vd = 405 contra VRd,max = 698,2— pero los dos comprimen las
-  // mismas bielas y la suma de aprovechamientos da 1,28. Antes de existir esta
-  // comprobación la viga daba por buena.
+  // TRd,max = 62,3, y Vd = 405 contra VRd,max = 698,2— pero los dos comprimen
+  // las mismas bielas y la suma pasa de 1. Con 2Ø25 y estribo de 6 mm,
+  // c = 0,0535 y tef = 2c = 0,107 m: Ak = 0,093·0,593 = 0,055149 m² y
+  // TRd,max = 2·0,528·20 000·0,055149·0,107·0,5 = 62,3140 kN·m.
   it("detecta lo que las dos comprobaciones sueltas dejaban pasar", () => {
     expect(r.torsion.verificaBielas).toBe(true);
     expect(r.cortante.verificaVRdMax).toBe(true);
 
-    expect(r.interaccionBielas).toBeCloseTo(30 / r.torsion.tu1KNm + 405 / r.cortante.vRdMax, 12);
-    expect(r.interaccionBielas).toBeCloseTo(1.28448, 4);
+    expect(r.torsion.tM).toBeCloseTo(0.107, 12);
+    expect(r.torsion.tRdMaxKNm).toBeCloseTo(62.313958, 5);
+    expect(r.interaccionBielas).toBeCloseTo(30 / 62.313958 + 405 / r.cortante.vRdMax, 6);
+    expect(r.interaccionBielas).toBeGreaterThan(1);
     expect(r.verificaInteraccionBielas).toBe(false);
+  });
+
+  it("con esos esfuerzos hace falta armadura de torsión (6.31)", () => {
+    expect(r.interaccionFisuracion).toBeGreaterThan(1);
+    expect(r.soloArmaduraMinima).toBe(false);
+  });
+
+  it("con esfuerzos chicos alcanza la armadura mínima (6.31)", () => {
+    const chica = calcularVigaConTorsion(materiales, geometria, {
+      torsion: { td: 2 },
+      momentoPositivo: 50,
+      momentoNegativo: 50,
+      armaduraPositiva: { numero: 2, diametroMm: 25 },
+      armaduraNegativa: { numero: 2, diametroMm: 25 },
+      cortante: { vd: 20, diametroEstriboMm: 8, numeroRamas: 2 },
+    });
+    // 2/15,95 + 20/VRd,c: los dos términos chicos, la suma bajo 1.
+    expect(chica.interaccionFisuracion).toBeLessThan(1);
+    expect(chica.soloArmaduraMinima).toBe(true);
   });
 
   it("con esfuerzos moderados la interacción se cumple", () => {

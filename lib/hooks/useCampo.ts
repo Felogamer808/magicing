@@ -43,9 +43,38 @@ function suscribir(alCambiar: () => void) {
   };
 }
 
+/**
+ * Campos que cada ruta tiene montados, con su valor por defecto.
+ *
+ * Hace falta porque localStorage sólo guarda lo que alguien efectivamente
+ * escribió: si se abre una verificación, se cambia un único dato y se guarda
+ * el cálculo en un proyecto, lo escrito es ese único dato y todo el resto —que
+ * está en pantalla con su valor por defecto— no existiría en el guardado. Al
+ * reabrirlo tomaría los valores por defecto de ese momento, que pueden no ser
+ * los mismos, y la memoria de cálculo saldría sin la mitad de los datos.
+ *
+ * Se registra en memoria y no en localStorage a propósito: escribir ahí los
+ * valores por defecto rompería el "sólo si nunca se escribió" del que depende
+ * guardarCamposDeRuta para blanquear los campos que un vínculo no puede llenar.
+ *
+ * Sólo conoce los campos montados. Uno que vive detrás de un desplegable
+ * cerrado no está declarado hasta que se abre; si tenía valor guardado, igual
+ * entra por el otro camino.
+ */
+const declarados = new Map<string, Map<string, string>>();
+
+function declarar(ruta: string, nombre: string, inicial: string) {
+  let deLaRuta = declarados.get(ruta);
+  if (!deLaRuta) {
+    deLaRuta = new Map();
+    declarados.set(ruta, deLaRuta);
+  }
+  deLaRuta.set(nombre, inicial);
+}
 function useCampoBase(nombre: string, inicial: string): [string, (valor: string) => void] {
   const ruta = usePathname();
   const clave = claveDe(ruta, nombre);
+  declarar(ruta, nombre, inicial);
 
   const valor = useSyncExternalStore(
     suscribir,
@@ -113,6 +142,34 @@ export function guardarCamposDeRuta(
     // el destino se abre con sus valores por defecto.
   }
   window.dispatchEvent(new Event(EVENTO_CAMBIO));
+}
+
+/**
+ * Lee todos los campos guardados de una ruta: el inverso de
+ * `guardarCamposDeRuta`. Es lo que permite tomar una verificación tal como
+ * quedó en pantalla y guardarla dentro de un elemento de un proyecto.
+ *
+ * Devuelve sólo lo que efectivamente se escribió. Un campo que nunca se tocó
+ * no aparece, y al reabrir el cálculo toma su valor por defecto, que es
+ * justamente el que tenía.
+ */
+export function leerCamposDeRuta(ruta: string): Record<string, string> {
+  const campos: Record<string, string> = {};
+  // Primero los valores por defecto de todo lo que la página tiene montado, y
+  // encima lo que se haya escrito.
+  for (const [nombre, inicial] of declarados.get(ruta) ?? []) campos[nombre] = inicial;
+  try {
+    const prefijo = `${PREFIJO}:${ruta}:`;
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k?.startsWith(prefijo)) continue;
+      const valor = window.localStorage.getItem(k);
+      if (valor !== null) campos[k.slice(prefijo.length)] = valor;
+    }
+  } catch {
+    // Sin almacenamiento no hay nada que guardar; devuelve vacío.
+  }
+  return campos;
 }
 
 /** Borra los valores guardados de una ruta y devuelve los campos a su valor por defecto. */

@@ -38,3 +38,31 @@ describe("momento mínimo de apoyo (β1)", () => {
     }
   });
 });
+
+/*
+ * Cada momento con su canto útil. Con BASE (h = 0,60, r = 0,04, estribo Ø8):
+ *   inferior 4Ø20: centroide a 0,040 + 0,008 + 0,010 = 0,058 → d⁺ = 0,542 m
+ *   superior 2Ø16: centroide a 0,040 + 0,008 + 0,008 = 0,056 → d⁻ = 0,544 m
+ */
+describe("canto útil de cada cara", () => {
+  const r = resolverVigaFlexionCortante({ ...BASE, momentoNeg: "60" })!;
+
+  it("d⁺ hasta la armadura inferior, d⁻ hasta la superior", () => {
+    expect(r.d).toBeCloseTo(0.542, 9);
+    expect(r.dNegativo).toBeCloseTo(0.544, 9);
+  });
+
+  it("el momento negativo se calcula con d⁻", () => {
+    expect(r.flexionPositiva.d).toBeCloseTo(0.542, 9);
+    expect(r.flexionNegativa.d).toBeCloseTo(0.544, 9);
+    // μ⁻ = 60 / (0,3 · 0,544² · 20 · 1000)
+    expect(r.flexionNegativa.mu).toBeCloseTo(60 / (0.3 * 0.544 ** 2 * 20000), 9);
+  });
+});
+
+describe("el cortante va con d⁻", () => {
+  it("k = 1 + √(200/d) con d⁻ = 544 mm, coherente con ρl de la armadura superior", () => {
+    const r = resolverVigaFlexionCortante(BASE)!;
+    expect(r.cortante.k).toBeCloseTo(1 + Math.sqrt(200 / 544), 9);
+  });
+});

@@ -18,6 +18,8 @@ interface SeccionVigaDiagramaProps {
   hM: number;
   recubrimientoM: number;
   dM: number;
+  /** Canto útil hasta la armadura superior. Si viene, se acota a la derecha junto a d⁺. */
+  dNegativoM?: number;
   armaduraPositiva: ArmaduraDiagrama;
   armaduraNegativa: ArmaduraDiagrama;
   diametroEstriboMm: number;
@@ -76,6 +78,7 @@ export function SeccionVigaDiagrama({
   hM,
   recubrimientoM,
   dM,
+  dNegativoM,
   armaduraPositiva,
   armaduraNegativa,
   diametroEstriboMm,
@@ -118,6 +121,7 @@ export function SeccionVigaDiagrama({
   const filasNeg = ubicarFilas(armaduraNegativa.capas, coverY0, 1);
 
   const yCentroidePos = filasPos[0]?.y ?? coverY1;
+  const yCentroideNeg = filasNeg[0]?.y ?? coverY0;
 
   const cota = (e: ElementoSeccionViga) =>
     resaltar === e
@@ -220,8 +224,24 @@ export function SeccionVigaDiagrama({
           <path d={`M${x1} ${yCentroidePos} L${x1 + 12} ${yCentroidePos}`} />
         </g>
         <text x={x1 + 14} y={(y0 + yCentroidePos) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
-          d
+          {dNegativoM !== undefined ? "d⁺" : "d"}
         </text>
+
+        {/* cota d⁻: de la fibra inferior al centroide de la armadura superior */}
+        {dNegativoM !== undefined && (
+          <g>
+            <g stroke="currentColor" strokeWidth="0.75" opacity="0.6" strokeDasharray="2 2">
+              <path d={`M${x1 + 26} ${y1} L${x1 + 26} ${yCentroideNeg}`} />
+            </g>
+            <g stroke="currentColor" strokeWidth="0.75" opacity="0.6">
+              <path d={`M${x1} ${y1} L${x1 + 30} ${y1}`} />
+              <path d={`M${x1} ${yCentroideNeg} L${x1 + 30} ${yCentroideNeg}`} />
+            </g>
+            <text x={x1 + 32} y={(y1 + yCentroideNeg) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
+              d⁻
+            </text>
+          </g>
+        )}
 
         {/* armadura negativa (superior), una fila por capa */}
         {filasNeg.map((fila, i) =>

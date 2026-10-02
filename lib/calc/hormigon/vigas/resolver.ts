@@ -66,7 +66,10 @@ export interface ResueltoVigaFlexionCortante {
   materiales: MaterialesDerivados;
   gruposPositiva: ArmaduraElegida[];
   gruposNegativa: ArmaduraElegida[];
+  /** Canto útil hasta la armadura inferior: momento positivo (m). */
   d: number;
+  /** Canto útil hasta la armadura superior: momento negativo y cortante (m). */
+  dNegativo: number;
   flexionPositiva: ResultadoFlexion;
   flexionNegativa: ResultadoFlexion;
   cortante: ResultadoCortante;
@@ -130,7 +133,13 @@ export function resolverVigaFlexionCortante(
   const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
   const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
   const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
+  // Cada momento con su canto útil: d⁺ hasta la armadura inferior para el
+  // positivo, d⁻ hasta la superior para el negativo. La planilla usaba d⁺ para
+  // los dos. El cortante va con d⁻ porque su ρl ya sale de la armadura
+  // superior: se verifica la sección de apoyo, y d y ρl tienen que referirse
+  // a la misma armadura de tracción (Anejo 19, art. 6.2.2 (1)).
   const d = calcularCantoUtil(geometria, gruposPositiva);
+  const dNegativo = calcularCantoUtil(geometria, gruposNegativa);
 
   const flexionPositiva = calcularFlexion(materiales, geometria, d, {
     momento: v.momentoPos,
@@ -145,18 +154,18 @@ export function resolverVigaFlexionCortante(
   const gobiernaMinimoApoyo = monolitica && minimoApoyo > v.momentoNeg;
   const momentoNegativoCalculo = gobiernaMinimoApoyo ? minimoApoyo : v.momentoNeg;
 
-  const flexionNegativa = calcularFlexion(materiales, geometria, d, {
+  const flexionNegativa = calcularFlexion(materiales, geometria, dNegativo, {
     momento: momentoNegativoCalculo,
     armaduraReal: gruposNegativa,
   });
-  const cortante = calcularCortante(materiales, geometria, d, flexionNegativa.asRealCm2, {
+  const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     vd: v.vd,
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
   });
 
   return {
-    v, materiales, gruposPositiva, gruposNegativa, d, flexionPositiva, flexionNegativa, cortante,
+    v, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
     momentoNegativoCalculo, gobiernaMinimoApoyo,
   };
 }

@@ -97,10 +97,10 @@ function Esquema({
           <g key={`mt${i}`}>
             <path
               d={`M${x0},${yViga - 8} L${x0},${y0} L${x1},${y0} L${x1},${yViga - 8} Z`}
-              className="fill-sky-500/20 stroke-sky-600"
+              className="fill-brillante/20 stroke-brillante"
               strokeWidth={0.8}
             />
-            <text x={(x0 + x1) / 2} y={y0 - 3} textAnchor="middle" className="fill-sky-700 text-[8px]">
+            <text x={(x0 + x1) / 2} y={y0 - 3} textAnchor="middle" className="fill-brillante text-[8px]">
               mt = {num(c.torsorPorMetroKNmM, 2)} kN·m/m
             </text>
           </g>

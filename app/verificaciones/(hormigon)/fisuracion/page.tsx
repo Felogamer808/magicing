@@ -253,7 +253,11 @@ export default function FisuracionPage() {
                   <ResultadoCheck
                     etiqueta="Abertura característica admisible"
                     verifica={resultado.r.verifica}
-                    detalle={`wk ${fmt(resultado.r.wkMm, 3)} mm / w adm ${fmt(resultado.n.wAdm, 2)} mm`}
+                    comparacion={{
+                      real: { etiqueta: "wk", valor: resultado.r.wkMm },
+                      limite: { etiqueta: "w adm", valor: resultado.n.wAdm },
+                      unidad: "mm", exige: "≤", decimales: 3,
+                    }}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">wk = s r,max · (εsm − εcm)</p>

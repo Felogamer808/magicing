@@ -26,7 +26,7 @@ import { registroVerificaciones } from "@/lib/verificaciones/registry";
  */
 
 const CLASE_POR_NIVEL = {
-  auditada: "border-emerald-600/40",
+  auditada: "border-exito/40",
   probada: "border-border",
   preliminar: "border-destructive/40",
 } as const;

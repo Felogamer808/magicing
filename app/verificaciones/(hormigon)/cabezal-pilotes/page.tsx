@@ -194,12 +194,21 @@ export default function CabezalPilotesPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.r.principal.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.principal.asRealCm2)} cm² / As nec ${fmt(resultado.r.principal.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.principal.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.principal.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Las barras entran en el ancho del cabezal"
                     verifica={resultado.r.principal.verificaBNec}
-                    detalle={`b nec ${fmt(resultado.r.principal.bNecM, 3)} m / lado y ${fmt(resultado.n.ladoY, 2)} m · separación ${fmt(resultado.r.principal.separacionMm, 0)} mm`}
+                    comparacion={{
+                      real: { etiqueta: "b nec", valor: resultado.r.principal.bNecM },
+                      limite: { etiqueta: "lado y", valor: resultado.n.ladoY },
+                      unidad: "m", exige: "≤", decimales: 3,
+                    }}
+                    detalle={`separación ${fmt(resultado.r.principal.separacionMm, 0)} mm`}
                   />
                   <DiagramaBielasTirante
                     separacionPilotesM={resultado.r.principal.separacionPilotesM}
@@ -239,12 +248,20 @@ export default function CabezalPilotesPage() {
                   <ResultadoCheck
                     etiqueta="Compresión en la biela"
                     verifica={resultado.r.bielas.verificaBiela}
-                    detalle={`σ ${fmt(resultado.r.bielas.sigmaBielaMPa)} MPa / máx 0,6·ν'·fcd = ${fmt(resultado.r.bielas.sigmaBielaMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.sigmaBielaMPa },
+                      limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.sigmaBielaMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Compresión en el nudo sobre el pilote"
                     verifica={resultado.r.bielas.verificaNudo}
-                    detalle={`σ ${fmt(resultado.r.bielas.sigmaNudoMPa)} MPa / máx 0,85·ν'·fcd = ${fmt(resultado.r.bielas.sigmaNudoMaxMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.sigmaNudoMPa },
+                      limite: { etiqueta: "0,85·ν′·fcd", valor: resultado.r.bielas.sigmaNudoMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -269,17 +286,31 @@ export default function CabezalPilotesPage() {
                   <ResultadoCheck
                     etiqueta="Armadura secundaria (10% de la principal)"
                     verifica={resultado.r.secundaria.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.secundaria.asRealCm2)} cm² / As nec ${fmt(resultado.r.secundaria.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.secundaria.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.secundaria.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Estribos verticales"
                     verifica={resultado.r.estribosVerticales.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.estribosVerticales.asRealCm2)} cm² / As nec ${fmt(resultado.r.estribosVerticales.asNecCm2)} cm² · cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.estribosVerticales.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.estribosVerticales.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
+                    detalle={`cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm`}
                   />
                   <ResultadoCheck
                     etiqueta="Estribos horizontales"
                     verifica={resultado.r.estribosHorizontales.verificaAs}
-                    detalle={`As real ${fmt(resultado.r.estribosHorizontales.asRealCm2)} cm² / As nec ${fmt(resultado.r.estribosHorizontales.asNecCm2)} cm² · cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.r.estribosHorizontales.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.r.estribosHorizontales.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
+                    detalle={`cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm`}
                   />
                 </CardContent>
               </Card>

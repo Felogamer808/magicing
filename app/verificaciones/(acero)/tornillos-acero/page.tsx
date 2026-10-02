@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
@@ -10,6 +10,9 @@ import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { DiagramaGrupoBulones } from "@/components/verificaciones/acero/DiagramaGrupoBulones";
 import {
   OMEGA_J,
   bulonMasExigido,
@@ -63,6 +66,7 @@ function grillaBulones(filas: number, columnas: number, sxM: number, syM: number
 
 export default function TornillosAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
+  const [bulonElegido, setBulonElegido] = useState(0);
 
   const [filas, setFilas] = useCampo("filas", "2");
   const [columnas, setColumnas] = useCampo("columnas", "2");
@@ -462,10 +466,11 @@ export default function TornillosAceroPage() {
                   <ResultadoCheck
                     etiqueta={`Bulón más exigido — gobierna ${resultado.bulon.modoDeFalla}`}
                     verifica={resultado.critico.vKN <= resultado.bulon.admisibleKN}
-                    detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.bulon.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                      (resultado.critico.vKN / resultado.bulon.admisibleKN) * 100,
-                      1
-                    )} %`}
+                    comparacion={{
+                      real: { etiqueta: "V", valor: resultado.critico.vKN },
+                      limite: { etiqueta: "admisible", valor: resultado.bulon.admisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <p className="font-mono text-xs text-muted-foreground">
                     {resultado.n.filas * resultado.n.columnas} bulones · Vx = {fmt(resultado.critico.vxKN, 2)} kN ·
@@ -476,7 +481,73 @@ export default function TornillosAceroPage() {
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Reparto elástico</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/*
+                    El índice elegido puede quedar fuera de rango al achicar el
+                    grupo, así que se acota en vez de guardarse validado: el
+                    grupo cambia con cada tecla y el estado no tiene por qué
+                    seguirle el paso.
+                  */}
+                  {(() => {
+                    const i = Math.min(bulonElegido, resultado.fuerzas.length - 1);
+                    const f = resultado.fuerzas[i];
+                    const iCritico = resultado.fuerzas.indexOf(resultado.critico);
+                    return (
+                      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                        <div className="min-w-0 space-y-3">
+                          <DiagramaGrupoBulones
+                            fuerzas={resultado.fuerzas}
+                            lcM={resultado.n.lc1 / 1000}
+                            diametroMm={resultado.n.d}
+                            indiceCritico={iCritico}
+                            seleccionado={i}
+                            onSeleccionar={setBulonElegido}
+                          />
+                          <BarraDemandaCapacidad
+                            demanda={f.vKN}
+                            capacidad={resultado.bulon.admisibleKN}
+                            unidad="kN"
+                            etiquetaDemanda={`V del bulón ${i + 1}`}
+                            etiquetaCapacidad="admisible"
+                          />
+                          {/*
+                            Sin esta aclaración, elegir un bulón descargado
+                            muestra una barra cómoda al lado de una unión que no
+                            verifica, y la barra se lee como el estado de la
+                            unión y no como el de ese bulón.
+                          */}
+                          {i !== iCritico && (
+                            <p className="text-xs text-muted-foreground">
+                              Es el margen de <strong className="text-foreground">este</strong>{" "}
+                              bulón, no el de la unión: la unión la decide el bulón{" "}
+                              {iCritico + 1}, con {fmt(resultado.critico.vKN, 2)} kN.
+                            </p>
+                          )}
+                        </div>
+                        <PanelMetricas
+                          metricas={[
+                            {
+                              etiqueta: `Bulón ${i + 1}`,
+                              valor: `${fmt(f.vKN, 2)} kN`,
+                              nota: i === iCritico ? "es el que gobierna" : "elegido en el dibujo",
+                              destacada: i === iCritico,
+                            },
+                            { etiqueta: "Vx", valor: `${fmt(f.vxKN, 2)} kN` },
+                            { etiqueta: "Vy", valor: `${fmt(f.vyKN, 2)} kN` },
+                            {
+                              etiqueta: "Modo de falla",
+                              valor: resultado.bulon.modoDeFalla === "chapa" ? "Chapa" : "Vástago",
+                              nota:
+                                resultado.bulon.modoDeFalla === "chapa"
+                                  ? "aplastamiento o arrancamiento"
+                                  : "corte del vástago",
+                            },
+                          ]}
+                        />
+                      </div>
+                    );
+                  })()}
+
                   <PanelFormulas
                     titulo="Ver fuerza en cada bulón"
                     filas={resultado.fuerzas.map((f, i) => ({
@@ -512,10 +583,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Tracción con corte simultáneo"
                       verifica={resultado.traccionReqKN <= resultado.traccion.admisibleKN}
-                      detalle={`${fmt(resultado.traccionReqKN, 2)} kN / ${fmt(resultado.traccion.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.traccionReqKN / resultado.traccion.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "T", valor: resultado.traccionReqKN },
+                        limite: { etiqueta: "admisible", valor: resultado.traccion.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"
@@ -537,10 +609,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Deslizamiento (slip-critical)"
                       verifica={resultado.critico.vKN <= resultado.deslizamiento.admisibleKN}
-                      detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.deslizamiento.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.critico.vKN / resultado.deslizamiento.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "V", valor: resultado.critico.vKN },
+                        limite: { etiqueta: "admisible", valor: resultado.deslizamiento.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"
@@ -560,10 +633,11 @@ export default function TornillosAceroPage() {
                     <ResultadoCheck
                       etiqueta="Bloque de corte — art. J4.3"
                       verifica={resultado.critico.vKN <= resultado.bloque.admisibleKN}
-                      detalle={`${fmt(resultado.critico.vKN, 2)} kN / ${fmt(resultado.bloque.admisibleKN, 2)} kN · aprovechamiento ${fmt(
-                        (resultado.critico.vKN / resultado.bloque.admisibleKN) * 100,
-                        1
-                      )} %`}
+                      comparacion={{
+                        real: { etiqueta: "V", valor: resultado.critico.vKN },
+                        limite: { etiqueta: "admisible", valor: resultado.bloque.admisibleKN },
+                        unidad: "kN", exige: "≤",
+                      }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"

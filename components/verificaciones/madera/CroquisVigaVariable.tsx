@@ -70,7 +70,7 @@ export function CroquisVigaVariable({
         {/* Silueta de la viga. */}
         <path
           d={`M ${IZQ} ${BASE} L ${DER} ${BASE} L ${DER} ${yApoyo} L ${centro} ${yVertice} L ${IZQ} ${yApoyo} Z`}
-          className="fill-amber-600/20 stroke-amber-800" strokeWidth={1.6}
+          className="fill-mat-madera/20 stroke-mat-madera-borde" strokeWidth={1.6}
         />
 
         {/* Apoyos. */}

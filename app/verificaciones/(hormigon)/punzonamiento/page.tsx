@@ -531,35 +531,60 @@ export default function PunzonamientoPage() {
                     <ResultadoCheck
                       etiqueta="La armadura llega hasta uout"
                       verifica={resultado.r.armadura.alcanzaUOut}
-                      detalle={`último perímetro a ${fmt(resultado.r.armadura.distUltimoPerimetroRealM * 100, 0)} cm de la cara · exigido ${fmt(resultado.r.armadura.distUltimoPerimetroExigidaM * 100, 0)} cm (uout a ${fmt(resultado.r.armadura.distUOutM * 100, 0)} cm, menos 1,5d)`}
+                      comparacion={{
+                      real: { etiqueta: "último perímetro", valor: resultado.r.armadura.distUltimoPerimetroRealM * 100 },
+                      limite: { etiqueta: "exigido", valor: resultado.r.armadura.distUltimoPerimetroExigidaM * 100 },
+                      unidad: "cm", exige: "≥", decimales: 0,
+                    }}
+                      detalle={`uout a ${fmt(resultado.r.armadura.distUOutM * 100, 0)} cm, menos 1,5d`}
                     />
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <ResultadoCheck
                         etiqueta="Al menos 2 perímetros"
                         verifica={resultado.r.detallado.verificaNumeroPerimetros}
-                        detalle={`${fmt(resultado.n.nPerimetros, 0)} dispuestos`}
+                        comparacion={{
+                            real: { etiqueta: "dispuestos", valor: resultado.n.nPerimetros },
+                            limite: { etiqueta: "mínimo", valor: 2 },
+                            unidad: "perímetros", exige: "≥", decimales: 0,
+                          }}
                       />
                       <ResultadoCheck
                         etiqueta="sr ≤ 0,75d"
                         verifica={resultado.r.detallado.verificaSr}
-                        detalle={`${fmt(resultado.n.sr * 100, 1)} ≤ ${fmt(resultado.r.detallado.srMaxM * 100, 1)} cm`}
+                        comparacion={{
+                      real: { etiqueta: "sr", valor: resultado.n.sr * 100 },
+                      limite: { etiqueta: "0,75d", valor: resultado.r.detallado.srMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
                       />
                       <ResultadoCheck
                         etiqueta="st ≤ 1,5d"
                         verifica={resultado.r.detallado.verificaSt}
-                        detalle={`${fmt(resultado.n.st * 100, 1)} ≤ ${fmt(resultado.r.detallado.stMaxM * 100, 1)} cm`}
+                        comparacion={{
+                      real: { etiqueta: "st", valor: resultado.n.st * 100 },
+                      limite: { etiqueta: "1,5d", valor: resultado.r.detallado.stMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
                       />
                       <ResultadoCheck
                         etiqueta="1.er perímetro ≤ d/2"
                         verifica={resultado.r.detallado.verificaPrimerPerimetro}
-                        detalle={`${fmt(resultado.n.distPrimer * 100, 1)} ≤ ${fmt(resultado.r.detallado.distPrimerPerimetroMaxM * 100, 1)} cm`}
+                        comparacion={{
+                      real: { etiqueta: "al 1.er perímetro", valor: resultado.n.distPrimer * 100 },
+                      limite: { etiqueta: "d/2", valor: resultado.r.detallado.distPrimerPerimetroMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
                       />
                       <div className="sm:col-span-2">
                         <ResultadoCheck
                           etiqueta="Asw,min por rama, ec. (9.11)"
                           verifica={resultado.r.detallado.verificaAswMin}
-                          detalle={`${fmt(resultado.r.detallado.aswRamaMm2, 0)} ≥ ${fmt(resultado.r.detallado.aswMinRamaMm2, 0)} mm²`}
+                          comparacion={{
+                      real: { etiqueta: "Asw rama", valor: resultado.r.detallado.aswRamaMm2 },
+                      limite: { etiqueta: "Asw,min", valor: resultado.r.detallado.aswMinRamaMm2 },
+                      unidad: "mm²", exige: "≥", decimales: 0,
+                    }}
                         />
                       </div>
                     </div>

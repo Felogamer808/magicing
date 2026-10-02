@@ -278,7 +278,11 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Tensión admisible del suelo"
                     verifica={resultado.zapata.geotecnico.verificaTension}
-                    detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.zapata.geotecnico.sigmaKPa },
+                      limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
+                      unidad: "kN/m²", exige: "≤",
+                    }}
                   />
                   <DiagramaPresionSuelo
                     distribucion={resultado.zapata.geotecnico.distribucionA}
@@ -323,12 +327,20 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.direccionA.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.direccionA.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.direccionA.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.direccionA.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.direccionA.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cortante (EC2 6.2.2)"
                     verifica={resultado.zapata.direccionA.verificaCorte}
-                    detalle={`Vd ${fmt(resultado.zapata.direccionA.vEdKN)} kN / VRd,c ${fmt(resultado.zapata.direccionA.vRdCKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: resultado.zapata.direccionA.vEdKN },
+                      limite: { etiqueta: "VRd,c", valor: resultado.zapata.direccionA.vRdCKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -354,12 +366,20 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.direccionB.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.direccionB.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.direccionB.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.direccionB.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.direccionB.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cortante (EC2 6.2.2)"
                     verifica={resultado.zapata.direccionB.verificaCorte}
-                    detalle={`Vd ${fmt(resultado.zapata.direccionB.vEdKN)} kN / VRd,c ${fmt(resultado.zapata.direccionB.vRdCKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: resultado.zapata.direccionB.vEdKN },
+                      limite: { etiqueta: "VRd,c", valor: resultado.zapata.direccionB.vRdCKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -385,7 +405,11 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Punzonamiento (EC2 6.4)"
                     verifica={resultado.zapata.punzonamiento.verificaPunzonamiento}
-                    detalle={`Vd ${fmt(resultado.zapata.punzonamiento.vEdKN)} kN / VRd,c ${fmt(resultado.zapata.punzonamiento.vRdCKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: resultado.zapata.punzonamiento.vEdKN },
+                      limite: { etiqueta: "VRd,c", valor: resultado.zapata.punzonamiento.vRdCKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     No viene de tu planilla — se calculó con el método general de EC2. Revisar antes de usar en obra.

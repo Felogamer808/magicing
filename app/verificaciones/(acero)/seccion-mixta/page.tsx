@@ -152,12 +152,20 @@ export default function SeccionMixtaPage() {
                   <ResultadoCheck
                     etiqueta="Carga axial admisible"
                     verifica={resultado.r.compresion.verificaCompresion}
-                    detalle={`P ${fmt(resultado.n.p)} kN / Pn/Ωc ${fmt(resultado.r.compresion.pAdmKN)} kN`}
+                    comparacion={{
+                  real: { etiqueta: "P", valor: resultado.n.p },
+                  limite: { etiqueta: "Pn/Ωc", valor: resultado.r.compresion.pAdmKN },
+                  unidad: "kN", exige: "≤",
+                }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura mínima (0,4% de Ag)"
                     verifica={resultado.r.propiedades.verificaArmaduraMinima}
-                    detalle={`As,r ${fmt(resultado.r.propiedades.asrM2 * 10000, 2)} cm² / mín ${fmt(resultado.r.propiedades.asrMinM2 * 10000, 2)} cm²`}
+                    comparacion={{
+                  real: { etiqueta: "As,r", valor: resultado.r.propiedades.asrM2 * 10000 },
+                  limite: { etiqueta: "mínima", valor: resultado.r.propiedades.asrMinM2 * 10000 },
+                  unidad: "cm²", exige: "≥", decimales: 2,
+                }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -180,12 +188,20 @@ export default function SeccionMixtaPage() {
                   <ResultadoCheck
                     etiqueta="Momento admisible"
                     verifica={resultado.r.flexion.verificaFlexion}
-                    detalle={`M ${fmt(resultado.n.m)} kN·m / Mn/Ωb ${fmt(resultado.r.flexion.mAdmKNm)} kN·m`}
+                    comparacion={{
+                  real: { etiqueta: "M", valor: resultado.n.m },
+                  limite: { etiqueta: "Mn/Ωb", valor: resultado.r.flexion.mAdmKNm },
+                  unidad: "kN·m", exige: "≤",
+                }}
                   />
                   <ResultadoCheck
                     etiqueta="Cortante admisible"
                     verifica={resultado.r.corte.verificaCorte}
-                    detalle={`V ${fmt(resultado.n.v)} kN / Vn/Ωv ${fmt(resultado.r.corte.vAdmKN)} kN`}
+                    comparacion={{
+                  real: { etiqueta: "V", valor: resultado.n.v },
+                  limite: { etiqueta: "Vn/Ωv", valor: resultado.r.corte.vAdmKN },
+                  unidad: "kN", exige: "≤",
+                }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"

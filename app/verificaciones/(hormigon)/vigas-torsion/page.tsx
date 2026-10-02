@@ -273,12 +273,20 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="Bielas comprimidas"
                     verifica={resultado.torsion.verificaBielas}
-                    detalle={`Td ${fmt(aNumero(td))} kN·m / Tu1 ${fmt(resultado.torsion.tu1KNm)} kN·m`}
+                    comparacion={{
+                      real: { etiqueta: "Td", valor: aNumero(td) },
+                      limite: { etiqueta: "Tu1", valor: resultado.torsion.tu1KNm },
+                      unidad: "kN·m", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Interacción torsión + cortante"
                     verifica={resultado.verificaInteraccionBielas}
-                    detalle={`Td/Tu1 + Vd/VRd,max = ${fmt(resultado.interaccionBielas, 3)} ≤ 1`}
+                    comparacion={{
+                      real: { etiqueta: "Td/Tu1 + Vd/VRd,max", valor: resultado.interaccionBielas },
+                      limite: { etiqueta: "límite", valor: 1 },
+                      unidad: "", exige: "≤", decimales: 3,
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     Las bielas son las mismas para los dos esfuerzos, así que no alcanza con que cada
@@ -313,7 +321,11 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.flexionPositiva.verificaAs}
-                    detalle={`As real ${fmt(resultado.flexionPositiva.asRealCm2)} cm² / As nec ${fmt(resultado.flexionPositiva.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.flexionPositiva.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.flexionPositiva.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura entra en el ancho disponible"
@@ -343,7 +355,11 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.flexionNegativa.verificaAs}
-                    detalle={`As real ${fmt(resultado.flexionNegativa.asRealCm2)} cm² / As nec ${fmt(resultado.flexionNegativa.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.flexionNegativa.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.flexionNegativa.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura entra en el ancho disponible"
@@ -369,7 +385,11 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="No se supera la compresión oblicua del alma"
                     verifica={resultado.cortante.verificaVRdMax}
-                    detalle={`Vd ${fmt(aNumero(vd))} kN / VRd,max ${fmt(resultado.cortante.vRdMax)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: aNumero(vd) },
+                      limite: { etiqueta: "VRd,max", valor: resultado.cortante.vRdMax },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <Separator />
                   <div className="rounded-md border p-3 text-sm">

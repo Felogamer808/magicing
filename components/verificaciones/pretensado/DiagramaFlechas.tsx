@@ -71,9 +71,9 @@ export function DiagramaFlechas({
 
               {/* Carril hasta el límite. */}
               <rect x={X_CERO} y={y} width={f.limiteMm * escala} height={16}
-                    className="fill-emerald-600/10" />
+                    className="fill-exito/10" />
               <line x1={xLimite} y1={y - 3} x2={xLimite} y2={y + 19}
-                    className="stroke-emerald-700/60" strokeWidth={1} strokeDasharray="3 2" />
+                    className="stroke-exito/60" strokeWidth={1} strokeDasharray="3 2" />
               <text x={xLimite + 4} y={y + 11} className="fill-muted-foreground text-[10.5px]">
                 {fmt(f.limiteMm)} · {f.referencia}
               </text>

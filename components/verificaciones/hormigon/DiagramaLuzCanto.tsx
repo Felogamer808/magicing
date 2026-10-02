@@ -65,7 +65,7 @@ export function DiagramaLuzCanto({ resultado }: Props) {
           y={yBarra}
           width={Math.max(xAdm - xIzq, 0)}
           height={altoBarra}
-          className="fill-emerald-600/12"
+          className="fill-exito/12"
         />
 
         {/* l/d real. */}
@@ -88,7 +88,7 @@ export function DiagramaLuzCanto({ resultado }: Props) {
           y1={yBarra - 8}
           x2={xAdm}
           y2={yBarra + altoBarra + 8}
-          className="stroke-emerald-700"
+          className="stroke-exito"
           strokeWidth={1.4}
           strokeDasharray="4 3"
         />
@@ -98,7 +98,7 @@ export function DiagramaLuzCanto({ resultado }: Props) {
           x={etiquetaAdmDerecha ? xAdm + 5 : xAdm - 5}
           y={yBarra - 10}
           textAnchor={etiquetaAdmDerecha ? "start" : "end"}
-          className="fill-emerald-700 text-[10.5px]"
+          className="fill-exito text-[10.5px]"
         >
           admisible {fmt(ldAdm)}
         </text>
@@ -116,7 +116,7 @@ export function DiagramaLuzCanto({ resultado }: Props) {
         <text
           x={xIzq}
           y={yBarra + altoBarra + 24}
-          className={`text-[11px] ${verifica ? "fill-emerald-700" : "fill-destructive"}`}
+          className={`text-[11px] ${verifica ? "fill-exito" : "fill-destructive"}`}
         >
           {verifica
             ? "Cumple: se puede omitir el cálculo de la flecha."
@@ -182,7 +182,7 @@ export function DiagramaLuzCanto({ resultado }: Props) {
         <text
           x={xIzq + factores.length * 100 - 12}
           y={yCadena + 20}
-          className="fill-emerald-700 text-[12px] font-medium tabular-nums"
+          className="fill-exito text-[12px] font-medium tabular-nums"
         >
           {fmt(ldAdm)}
         </text>

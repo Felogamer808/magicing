@@ -63,7 +63,7 @@ export function DiagramaInteraccionMuro({ diagrama, nEdKN, mEdKNm, mRdKNm, verif
     <figure className="space-y-1">
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Interacción: NEd ${fmt(nEdKN)} kN, MEd ${fmt(mEdKNm, 1)} kN·m contra MRd ${fmt(mRdKNm, 1)}`}>
-        <polygon points={relleno} className="fill-emerald-600/10" />
+        <polygon points={relleno} className="fill-exito/10" />
         <polyline points={curva} fill="none" className="stroke-primary" strokeWidth={1.8} />
 
         {/* Ejes. */}
@@ -86,9 +86,9 @@ export function DiagramaInteraccionMuro({ diagrama, nEdKN, mEdKNm, mRdKNm, verif
         </text>
 
         <circle cx={x(mEdKNm)} cy={y(nEdKN)} r={5}
-                className={verifica ? "fill-emerald-600" : "fill-destructive"} />
+                className={verifica ? "fill-exito" : "fill-destructive"} />
         <text {...rotulo(x(mEdKNm), 8)} y={y(nEdKN) + 14}
-              className={`text-[10.5px] ${verifica ? "fill-emerald-700" : "fill-destructive font-medium"}`}>
+              className={`text-[10.5px] ${verifica ? "fill-exito" : "fill-destructive font-medium"}`}>
           ({fmt(mEdKNm, 1)} · {fmt(nEdKN)})
         </text>
       </svg>

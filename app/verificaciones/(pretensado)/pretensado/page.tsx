@@ -250,27 +250,47 @@ export default function PretensadoPage() {
                   <ResultadoCheck
                     etiqueta="Flexión última (art. 20.3)"
                     verifica={resultado.flexion.verifica}
-                    detalle={`${fmt(resultado.cargas.momentoUltimoKNm, 1)} kN·m / ${fmt(resultado.flexion.momentoAdmisibleKNm, 1)} kN·m · aprovechamiento ${fmt(resultado.flexion.aprovechamiento * 100, 1)} %`}
+                    comparacion={{
+                      real: { etiqueta: "Mu", valor: resultado.cargas.momentoUltimoKNm },
+                      limite: { etiqueta: "φMn", valor: resultado.flexion.momentoAdmisibleKNm },
+                      unidad: "kN·m", exige: "≤", decimales: 1,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Área de pretensado (tabla 20.3.2.5.1)"
                     verifica={resultado.armaduraActiva.verifica}
-                    detalle={`${fmt(resultado.armaduraActiva.apRealMm2, 0)} mm² colocados / ${fmt(resultado.armaduraActiva.apMinimoMm2, 0)} mm² necesarios`}
+                    comparacion={{
+                      real: { etiqueta: "Ap colocada", valor: resultado.armaduraActiva.apRealMm2 },
+                      limite: { etiqueta: "Ap mínima", valor: resultado.armaduraActiva.apMinimoMm2 },
+                      unidad: "mm²", exige: "≥", decimales: 0,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía mínima (1,2·Mcr ≤ φMn)"
                     verifica={resultado.cuantiaMinima.verifica}
-                    detalle={`1,2·Mcr = ${fmt(1.2 * resultado.cuantiaMinima.mcrKNm, 1)} kN·m / φMn = ${fmt(resultado.flexion.momentoAdmisibleKNm, 1)} kN·m`}
+                    comparacion={{
+                      real: { etiqueta: "1,2·Mcr", valor: 1.2 * resultado.cuantiaMinima.mcrKNm },
+                      limite: { etiqueta: "φMn", valor: resultado.flexion.momentoAdmisibleKNm },
+                      unidad: "kN·m", exige: "≤", decimales: 1,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Tensión en el cordón tras el tesado"
                     verifica={resultado.perdidas.verifica}
-                    detalle={`${fmt(resultado.perdidas.tensionTrasTesadoMPa, 0)} MPa / ${fmt(resultado.perdidas.tensionAdmisibleMPa, 0)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "σ tras tesado", valor: resultado.perdidas.tensionTrasTesadoMPa },
+                      limite: { etiqueta: "σ adm", valor: resultado.perdidas.tensionAdmisibleMPa },
+                      unidad: "MPa", exige: "≤", decimales: 0,
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Flechas (tabla 24.2.2)"
                     verifica={resultado.deformaciones.verifica}
-                    detalle={`total ${fmt(resultado.deformaciones.totalMm, 1)} mm / ${fmt(resultado.deformaciones.limiteTotalMm, 1)} mm`}
+                    comparacion={{
+                      real: { etiqueta: "flecha total", valor: resultado.deformaciones.totalMm },
+                      limite: { etiqueta: "límite", valor: resultado.deformaciones.limiteTotalMm },
+                      unidad: "mm", exige: "≤", decimales: 1,
+                    }}
                   />
                 </CardContent>
               </Card>

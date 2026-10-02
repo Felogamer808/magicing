@@ -251,7 +251,11 @@ export default function LosaFundacionPage() {
                   <ResultadoCheck
                     etiqueta="Tensión admisible del suelo"
                     verifica={resultado.franja.geotecnico.verificaTension}
-                    detalle={`σ ${fmt(resultado.franja.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.franja.geotecnico.sigmaKPa },
+                      limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
+                      unidad: "kN/m²", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -272,7 +276,11 @@ export default function LosaFundacionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.franja.inferior.verificaAs}
-                    detalle={`As real ${fmt(resultado.franja.inferior.asRealCm2PorM)} cm²/m / As nec ${fmt(resultado.franja.inferior.asNecCm2PorM)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.franja.inferior.asRealCm2PorM },
+                      limite: { etiqueta: "As nec", valor: resultado.franja.inferior.asNecCm2PorM },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     M = {fmt(resultado.franja.inferior.mKNm)} kN·m, en x = {fmt(resultado.franja.inferior.posicionM, 2)} m
@@ -288,7 +296,11 @@ export default function LosaFundacionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.franja.superior.verificaAs}
-                    detalle={`As real ${fmt(resultado.franja.superior.asRealCm2PorM)} cm²/m / As nec ${fmt(resultado.franja.superior.asNecCm2PorM)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.franja.superior.asRealCm2PorM },
+                      limite: { etiqueta: "As nec", valor: resultado.franja.superior.asNecCm2PorM },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">
                     M = {fmt(resultado.franja.superior.mKNm)} kN·m, en x = {fmt(resultado.franja.superior.posicionM, 2)} m
@@ -304,12 +316,20 @@ export default function LosaFundacionPage() {
                   <ResultadoCheck
                     etiqueta="Cortante (EC2 6.2.2)"
                     verifica={resultado.franja.cortante.verificaCorte}
-                    detalle={`Vd ${fmt(resultado.franja.cortante.vEdKN)} kN / VRd,c ${fmt(resultado.franja.cortante.vRdCKN)} kN`}
+                    comparacion={{
+                      real: { etiqueta: "Vd", valor: resultado.franja.cortante.vEdKN },
+                      limite: { etiqueta: "VRd,c", valor: resultado.franja.cortante.vRdCKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura de reparto"
                     verifica={resultado.franja.secundario.verificaAs}
-                    detalle={`As real ${fmt(resultado.franja.secundario.asRealCm2)} cm² / As nec ${fmt(resultado.franja.secundario.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.franja.secundario.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.franja.secundario.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                 </CardContent>
               </Card>

@@ -62,7 +62,7 @@ export function CroquisApoyoMadera({
            aria-label={`Área eficaz de apoyo: contacto ${fmt(l, 3)} m, eficaz ${fmt(l + dExt + dInt, 3)} m`}>
         {/* Pieza de madera. */}
         <rect x={izq} y={arriba} width={der - izq} height={hPx}
-              className="fill-amber-600/15 stroke-amber-800" strokeWidth={1.4} />
+              className="fill-mat-madera/15 stroke-mat-madera-borde" strokeWidth={1.4} />
 
         {/* Longitud eficaz, sombreada bajo la pieza. */}
         <rect x={xEfIni} y={abajo} width={xEfFin - xEfIni} height={13}

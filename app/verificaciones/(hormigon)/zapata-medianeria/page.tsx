@@ -280,7 +280,11 @@ export default function ZapataMedianeriaPage() {
                   <ResultadoCheck
                     etiqueta="Tensión admisible del suelo"
                     verifica={resultado.zapata.geotecnico.verificaTension}
-                    detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.zapata.geotecnico.sigmaKPa },
+                      limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
+                      unidad: "kN/m²", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -305,7 +309,11 @@ export default function ZapataMedianeriaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.direccionB.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.direccionB.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.direccionB.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.direccionB.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.direccionB.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                 </CardContent>
               </Card>

@@ -110,7 +110,11 @@ export default function CargaColgadaPage() {
                 <ResultadoCheck
                   etiqueta="Canto suficiente para que se formen las bielas"
                   verifica={resultado.r.verificaCanto}
-                  detalle={`h ${fmt(resultado.v.h, 2)} m ≥ 1,2·a = ${fmt(resultado.r.cantoMinimoM, 2)} m`}
+                  comparacion={{
+                      real: { etiqueta: "h", valor: resultado.v.h },
+                      limite: { etiqueta: "1,2·a", valor: resultado.r.cantoMinimoM },
+                      unidad: "m", exige: "≥", decimales: 2,
+                    }}
                 />
 
                 <div className="rounded-md border p-3 text-sm">

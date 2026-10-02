@@ -236,7 +236,11 @@ export default function ZapataCorridaPage() {
                   <ResultadoCheck
                     etiqueta="Tensión admisible del suelo"
                     verifica={resultado.zapata.geotecnico.verificaTension}
-                    detalle={`σ ${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m² / σ adm ${fmt(aNumero(sigmaAdmisible))} kN/m²`}
+                    comparacion={{
+                      real: { etiqueta: "σ", valor: resultado.zapata.geotecnico.sigmaKPa },
+                      limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
+                      unidad: "kN/m²", exige: "≤",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -257,7 +261,11 @@ export default function ZapataCorridaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.principal.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.principal.asRealCm2PorM)} cm²/m / As nec ${fmt(resultado.zapata.principal.asNecCm2PorM)} cm²/m`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.principal.asRealCm2PorM },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.principal.asNecCm2PorM },
+                      unidad: "cm²/m", exige: "≥",
+                    }}
                   />
                   <PanelFormulas
                     titulo="Ver cálculo"
@@ -283,7 +291,11 @@ export default function ZapataCorridaPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.zapata.secundario.verificaAs}
-                    detalle={`As real ${fmt(resultado.zapata.secundario.asRealCm2)} cm² / As nec ${fmt(resultado.zapata.secundario.asNecCm2)} cm²`}
+                    comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.zapata.secundario.asRealCm2 },
+                      limite: { etiqueta: "As nec", valor: resultado.zapata.secundario.asNecCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                   />
                 </CardContent>
               </Card>

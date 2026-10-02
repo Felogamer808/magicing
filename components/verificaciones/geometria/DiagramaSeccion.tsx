@@ -148,8 +148,8 @@ function Lienzo({
 
         {mostrarEjes && girado && (
           <>
-            <line {...eje1} className="stroke-emerald-600" strokeWidth={1.4} />
-            <line {...eje2} className="stroke-emerald-600/60" strokeWidth={1.1} strokeDasharray="6 3" />
+            <line {...eje1} className="stroke-exito" strokeWidth={1.4} />
+            <line {...eje2} className="stroke-exito/60" strokeWidth={1.1} strokeDasharray="6 3" />
           </>
         )}
       </g>
@@ -166,7 +166,7 @@ function Lienzo({
       </text>
 
       {mostrarEjes && girado && (
-        <text x={ANCHO - 6} y={14} textAnchor="end" className="fill-emerald-700 text-[10px]">
+        <text x={ANCHO - 6} y={14} textAnchor="end" className="fill-exito text-[10px]">
           ejes principales · θ ={" "}
           {props.anguloPrincipalGrados.toLocaleString("es-AR", { maximumFractionDigits: 1 })}°
         </text>

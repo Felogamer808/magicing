@@ -127,12 +127,12 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         {/* Abertura de fisura contra su límite. */}
         <text x={xBarra} y={TOP + 2} className="fill-muted-foreground text-[10.5px]">abertura wk</text>
         <rect x={xBarra} y={TOP + 8} width={wAdmMm * escalaW} height={13}
-              className="fill-emerald-600/15" />
+              className="fill-exito/15" />
         <rect x={xBarra} y={TOP + 8} width={Math.max(wkMm * escalaW, 1)} height={13}
               className={verifica ? "fill-primary/50 stroke-primary" : "fill-destructive/40 stroke-destructive"}
               strokeWidth={1} />
         <line x1={xBarra + wAdmMm * escalaW} y1={TOP + 4} x2={xBarra + wAdmMm * escalaW} y2={TOP + 25}
-              className="stroke-emerald-700" strokeWidth={1} strokeDasharray="3 2" />
+              className="stroke-exito" strokeWidth={1} strokeDasharray="3 2" />
         <text x={xBarra} y={TOP + 36}
               className={`text-[11.5px] tabular-nums ${verifica ? "fill-foreground" : "fill-destructive font-medium"}`}>
           {fmt(wkMm, 3)} mm

@@ -195,7 +195,12 @@ export default function FlexoCompresionPage() {
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — interacción ${resultado.ecuacion}`}
                     verifica={resultado.verifica}
-                    detalle={`${fmt(resultado.interaccion, 3)} ≤ 1,000 · Pr/Pc = ${fmt(resultado.relacionAxial, 3)}`}
+                    comparacion={{
+                      real: { etiqueta: "interacción", valor: resultado.interaccion },
+                      limite: { etiqueta: "límite", valor: 1 },
+                      unidad: "", exige: "≤", decimales: 3,
+                    }}
+                    detalle={`Pr/Pc = ${fmt(resultado.relacionAxial, 3)}`}
                   />
                   <div className="rounded-md border p-3 text-sm">
                     <p className="font-medium">Aporte de cada término</p>

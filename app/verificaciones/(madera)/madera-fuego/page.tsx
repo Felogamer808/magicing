@@ -10,7 +10,14 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
-import { CroquisSeccionCarbonizada } from "@/components/verificaciones/madera/CroquisSeccionCarbonizada";
+import { LeyendaTecnica } from "@/components/verificaciones/comun/LeyendaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import {
+  CroquisSeccionCarbonizada,
+  type CarasDibujo,
+  type NombreCara,
+} from "@/components/verificaciones/madera/CroquisSeccionCarbonizada";
+import { SelectorVista } from "@/components/verificaciones/comun/SelectorVista";
 import {
   NOMBRE_MADERA,
   GAMMA_M,
@@ -18,9 +25,7 @@ import {
   type TipoMadera,
 } from "@/lib/calc/madera/materiales";
 import {
-  CUATRO_CARAS,
   NOMBRE_ESPECIE_FUEGO,
-  TRES_CARAS,
   betaN,
   relacionIncendioFrio,
   resistenciaEnIncendioMPa,
@@ -44,24 +49,68 @@ const especieDesde = (e: string): EspecieFuego =>
   ((Object.entries(NOMBRE_ESPECIE_FUEGO) as [EspecieFuego, string][]).find(([, n]) => n === e)?.[0] ??
     "conifera");
 
-const EXPOSICIONES = [
-  "Tres caras (viga con losa encima)",
-  "Cuatro caras (pilar exento)",
-  "Dos caras opuestas (vigueta entre forjados)",
-] as const;
+/**
+ * Atajos para los tres montajes de siempre. Siguen estando porque son el 95 %
+ * de los casos y elegirlos de una es más rápido que marcar cara por cara, pero
+ * ya no son las únicas combinaciones posibles: debajo se puede marcar
+ * cualquiera sobre el dibujo.
+ */
+const MONTAJES: { nombre: string; caras: CarasDibujo }[] = [
+  {
+    nombre: "Tres caras · viga con losa encima",
+    caras: { izquierda: true, derecha: true, superior: false, inferior: true },
+  },
+  {
+    nombre: "Cuatro caras · pilar exento",
+    caras: { izquierda: true, derecha: true, superior: true, inferior: true },
+  },
+  {
+    nombre: "Dos opuestas · vigueta entre forjados",
+    caras: { izquierda: true, derecha: true, superior: false, inferior: false },
+  },
+];
 
-function carasDesde(e: string): CarasExpuestas {
-  if (e === EXPOSICIONES[1]) return CUATRO_CARAS;
-  if (e === EXPOSICIONES[2]) return { enAnchura: 2, enCanto: 0 };
-  return TRES_CARAS;
+/**
+ * El motor sólo necesita cuántas caras arden, no cuáles: con la sección
+ * reducida, quemar arriba o abajo da el mismo canto eficaz. El dibujo sí
+ * necesita cuáles, así que la pantalla guarda las cuatro y acá se cuentan.
+ */
+function contarCaras(c: CarasDibujo): CarasExpuestas {
+  const enAnchura = (Number(c.izquierda) + Number(c.derecha)) as 0 | 1 | 2;
+  const enCanto = (Number(c.superior) + Number(c.inferior)) as 0 | 1 | 2;
+  return { enAnchura, enCanto };
 }
+
+function describirCaras(c: CarasDibujo): string {
+  const n = Object.values(c).filter(Boolean).length;
+  const atajo = MONTAJES.find(
+    (m) =>
+      m.caras.izquierda === c.izquierda &&
+      m.caras.derecha === c.derecha &&
+      m.caras.superior === c.superior &&
+      m.caras.inferior === c.inferior
+  );
+  if (atajo) return atajo.nombre;
+  if (n === 0) return "Ninguna cara expuesta";
+  return `${n} cara${n === 1 ? "" : "s"} · combinación propia`;
+}
+
+/** Tiempos de resistencia que se piden en obra. */
+const TIEMPOS = [0, 15, 30, 60, 90] as const;
 
 export default function MaderaFuegoPage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
 
   const [tipo, setTipo] = useCampo("tipo", "Laminada encolada (MLE)");
   const [especie, setEspecie] = useCampo("especie", NOMBRE_ESPECIE_FUEGO.conifera);
-  const [exposicion, setExposicion] = useCampo("exposicion", EXPOSICIONES[0]);
+  // Una cara por campo: así se guarda cualquier combinación y no sólo los tres
+  // montajes de siempre.
+  const [caraIzq, setCaraIzq] = useCampo("caraIzq", "si");
+  const [caraDer, setCaraDer] = useCampo("caraDer", "si");
+  const [caraSup, setCaraSup] = useCampo("caraSup", "no");
+  const [caraInf, setCaraInf] = useCampo("caraInf", "si");
+  /** Qué se dibuja en el panel de la sección. */
+  const [vista, setVista] = useCampo<"actual" | "superpuesta" | "lado">("vistaFuego", "actual");
   const [tiempo, setTiempo] = useCampo("tiempo", "30");
 
   const [ancho, setAncho] = useCampo("ancho", "0.14");
@@ -74,6 +123,26 @@ export default function MaderaFuegoPage() {
   const [momento, setMomento] = useCampo("momento", "11.68");
   const [axil, setAxil] = useCampo("axil", "0");
   const [lkz, setLkz] = useCampo("lkz", "2.05");
+
+  const carasDibujo: CarasDibujo = useMemo(
+    () => ({
+      izquierda: caraIzq === "si",
+      derecha: caraDer === "si",
+      superior: caraSup === "si",
+      inferior: caraInf === "si",
+    }),
+    [caraIzq, caraDer, caraSup, caraInf]
+  );
+
+  const ponerCaras = (c: CarasDibujo) => {
+    setCaraIzq(c.izquierda ? "si" : "no");
+    setCaraDer(c.derecha ? "si" : "no");
+    setCaraSup(c.superior ? "si" : "no");
+    setCaraInf(c.inferior ? "si" : "no");
+  };
+
+  const alternarCara = (cara: NombreCara) =>
+    ponerCaras({ ...carasDibujo, [cara]: !carasDibujo[cara] });
 
   const r = useMemo(() => {
     const b = aNumero(ancho);
@@ -91,10 +160,11 @@ export default function MaderaFuegoPage() {
 
     const tipoM = tipoDesde(tipo);
     const esp = especieDesde(especie);
-    const caras = carasDesde(exposicion);
+    const caras = contarCaras(carasDibujo);
     const velocidad = betaN(tipoM, esp);
 
     const reducida = seccionReducida(b, h, t, velocidad, caras);
+    const reducidaFria = seccionReducida(b, h, 0, velocidad, caras);
 
     // Resistencias del art. 4.2.2(5): kmod,fi = 1 y γM,fi = 1, con kfi.
     const fmdFi = resistenciaEnIncendioMPa(fmkV, tipoM);
@@ -102,10 +172,14 @@ export default function MaderaFuegoPage() {
     const e005Fi = resistenciaEnIncendioMPa(e, tipoM);
 
     if (reducida.agotada) {
-      return { b, h, tipoM, caras, velocidad, reducida, fmdFi, fc0dFi, agotada: true as const };
+      return {
+        b, h, tipoM, caras, velocidad, reducida, reducidaFria,
+        fmdFi, fc0dFi, agotada: true as const,
+      };
     }
 
     const props = propiedades({ anchoM: reducida.anchoEficazM, cantoM: reducida.cantoEficazM });
+    const propsFrias = propiedades({ anchoM: b, cantoM: h });
 
     const sigmaM = tensionFlexionMPa(m, props.wyM3);
     const sigmaC = tensionAxilMPa(n, props.areaM2);
@@ -115,13 +189,13 @@ export default function MaderaFuegoPage() {
     const relacion = relacionIncendioFrio(tipoM, kmod(tipoM, 1, "media"), GAMMA_M[tipoM]);
 
     return {
-      b, h, tipoM, caras, velocidad, reducida, props,
+      b, h, tipoM, caras, velocidad, reducida, reducidaFria, props, propsFrias,
       fmdFi, fc0dFi, e005Fi, sigmaM, sigmaC, ejeZ, relacion,
       aprovechaFlexion: fmdFi > 0 ? sigmaM / fmdFi : Infinity,
       aprovechaCompresion: ejeZ.kc * fc0dFi > 0 ? sigmaC / (ejeZ.kc * fc0dFi) : Infinity,
       agotada: false as const,
     };
-  }, [ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, exposicion]);
+  }, [ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, carasDibujo]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -154,11 +228,59 @@ export default function MaderaFuegoPage() {
               <CampoSeleccion id="tipo" etiqueta="Material" valor={tipo} opciones={TIPOS} onChange={setTipo} />
               <CampoSeleccion id="especie" etiqueta="Especie (tabla 3.1)" valor={especie}
                               opciones={ESPECIES} onChange={setEspecie} />
-              <CampoSeleccion id="exposicion" etiqueta="Caras expuestas" valor={exposicion}
-                              opciones={EXPOSICIONES} onChange={setExposicion} />
-              <CampoNumerico id="tiempo" etiqueta="Tiempo requerido t" sufijo="min"
-                             valor={tiempo} onChange={setTiempo}
-                             sugerencias={[15, 30, 45, 60, 90, 120]} />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Caras expuestas</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {MONTAJES.map((m) => {
+                    const activo = describirCaras(carasDibujo) === m.nombre;
+                    return (
+                      <button
+                        key={m.nombre}
+                        type="button"
+                        onClick={() => ponerCaras(m.caras)}
+                        aria-pressed={activo}
+                        className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+                          activo
+                            ? "border-primary bg-accent text-accent-foreground"
+                            : "border-input text-muted-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {m.nombre}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {describirCaras(carasDibujo)}. También se puede marcar cada cara haciendo clic
+                  sobre el dibujo.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <CampoNumerico id="tiempo" etiqueta="Tiempo requerido t" sufijo="min"
+                               valor={tiempo} onChange={setTiempo}
+                               sugerencias={[15, 30, 45, 60, 90, 120]} />
+                <div className="flex flex-wrap gap-1.5">
+                  {TIEMPOS.map((t) => {
+                    const activo = aNumero(tiempo) === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTiempo(String(t))}
+                        aria-pressed={activo}
+                        className={`rounded-lg border px-2.5 py-1 font-mono text-xs transition-colors ${
+                          activo
+                            ? "border-primary bg-accent text-accent-foreground"
+                            : "border-input text-muted-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {t === 0 ? "0 · en frío" : `R${t}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <PanelAyuda titulo="De dónde sale βn y por qué el material importa">
                 <p>
                   βn es la velocidad de carbonización ficticia de la tabla 3.1, e incluye el efecto
@@ -259,11 +381,158 @@ export default function MaderaFuegoPage() {
               </Card>
 
               <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Qué cambia respecto del cálculo en frío</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <dl className="divide-y divide-border/60 text-sm">
+                    {[
+                      {
+                        magnitud: "Área de la sección",
+                        frio: "100 %",
+                        fuego: `${fmt(r.reducida.fraccionAreaRestante * 100, 0)} %`,
+                        nota: "se pierde el perímetro quemado más la capa caliente",
+                      },
+                      {
+                        magnitud: "Módulo resistente Wy",
+                        frio: "100 %",
+                        fuego: `${fmt((r.props.wyM3 / r.propsFrias.wyM3) * 100, 0)} %`,
+                        nota: "cae más que el área: Wy va con el canto al cuadrado",
+                      },
+                      {
+                        magnitud: "Resistencia del material",
+                        frio: "100 %",
+                        fuego: `${fmt(r.relacion * 100, 0)} %`,
+                        nota: "sube, porque en accidental kmod,fi y γM,fi valen 1 y además entra kfi",
+                      },
+                    ].map((f) => (
+                      <div key={f.magnitud} className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-2">
+                        <dt>
+                          {f.magnitud}
+                          <span className="block text-xs text-muted-foreground">{f.nota}</span>
+                        </dt>
+                        <dd className="text-right font-mono tabular-nums text-muted-foreground">
+                          {f.frio}
+                        </dd>
+                        <dd className="w-16 text-right font-mono font-medium tabular-nums">
+                          {f.fuego}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="rounded-md border p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">No son dos verificaciones comparables
+                    número contra número.</strong>{" "}
+                    En incendio la solicitación sale de la combinación accidental, que es bastante
+                    menor que la de cálculo, y esta pantalla no resuelve el caso en frío: para eso
+                    está flexión y vuelco lateral. Lo que se compara acá es la sección y el
+                    material, que sí son la misma pieza mirada en dos momentos.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
                 <CardHeader><CardTitle className="text-base">Sección carbonizada</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <CroquisSeccionCarbonizada
-                    anchoM={r.b} cantoM={r.h} reducida={r.reducida} caras={r.caras}
-                  />
+                  {/*
+                    La sección deja de ser un dibujito dentro de una tarjeta
+                    vacía: ocupa el ancho, lleva su leyenda debajo y las
+                    métricas al costado, donde no compiten con las cotas.
+                  */}
+                  <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                    <div className="min-w-0 space-y-3">
+                      <SelectorVista
+                        etiqueta="Cómo mirar la sección"
+                        valor={vista}
+                        onChange={setVista}
+                        opciones={[
+                          { valor: "actual", etiqueta: `A los ${fmt(aNumero(tiempo), 0)} min`, descripcion: "Sólo lo que queda" },
+                          { valor: "superpuesta", etiqueta: "Superpuesta", descripcion: "Con el contorno de la sección en frío encima" },
+                          { valor: "lado", etiqueta: "Lado a lado", descripcion: "La sección en frío y la de ahora, a la misma escala" },
+                        ]}
+                      />
+
+                      {vista === "lado" ? (
+                        <div className="space-y-2">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="spec-label mb-1">En frío · t = 0</p>
+                              <CroquisSeccionCarbonizada
+                                anchoM={r.b} cantoM={r.h} reducida={r.reducidaFria}
+                                caras={carasDibujo} ocultarNota
+                              />
+                            </div>
+                            <div>
+                              <p className="spec-label mb-1">A los {fmt(aNumero(tiempo), 0)} min</p>
+                              <CroquisSeccionCarbonizada
+                                anchoM={r.b} cantoM={r.h} reducida={r.reducida}
+                                caras={carasDibujo} onToggleCara={alternarCara} ocultarNota
+                              />
+                            </div>
+                          </div>
+                          {/* La nota va una sola vez: es la misma para los dos. */}
+                          <p className="text-xs text-muted-foreground">
+                            Las dos están a la misma escala, así que lo que se achica es lo que se
+                            perdió. Hacé clic en una cara de la derecha para marcarla como expuesta.
+                          </p>
+                        </div>
+                      ) : (
+                        <CroquisSeccionCarbonizada
+                          anchoM={r.b} cantoM={r.h} reducida={r.reducida} caras={carasDibujo}
+                          onToggleCara={alternarCara}
+                          mostrarOriginal={vista === "superpuesta"}
+                        />
+                      )}
+                      <div className="mt-3">
+                        <LeyendaTecnica
+                          entradas={[
+                            {
+                              color: "var(--mat-carbon)",
+                              etiqueta: "Capa carbonizada",
+                              nota: `dchar,n = ${fmt(r.reducida.profundidadCarbonizadaM * 1000, 1)} mm`,
+                            },
+                            {
+                              color: "var(--mat-calentada)",
+                              etiqueta: "Capa caliente",
+                              nota: "no está quemada; la norma le supone resistencia nula",
+                              rayado: true,
+                            },
+                            {
+                              color: "var(--mat-eficaz)",
+                              etiqueta: "Sección eficaz",
+                              nota: "la que se verifica",
+                            },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <PanelMetricas
+                      metricas={[
+                        {
+                          etiqueta: "Área remanente",
+                          valor: `${fmt(r.reducida.fraccionAreaRestante * 100, 0)} %`,
+                          nota: "de la sección en frío",
+                          destacada: true,
+                        },
+                        {
+                          etiqueta: "Canto eficaz",
+                          valor: `${fmt(r.reducida.cantoEficazM * 1000, 0)} mm`,
+                          nota: `de ${fmt(r.h * 1000, 0)} mm`,
+                        },
+                        {
+                          etiqueta: "Ancho eficaz",
+                          valor: `${fmt(r.reducida.anchoEficazM * 1000, 0)} mm`,
+                          nota: `de ${fmt(r.b * 1000, 0)} mm`,
+                        },
+                        {
+                          etiqueta: "Descuento por cara",
+                          valor: `${fmt(r.reducida.profundidadEficazM * 1000, 1)} mm`,
+                          nota: "carbonizada más capa caliente",
+                        },
+                      ]}
+                    />
+                  </div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[

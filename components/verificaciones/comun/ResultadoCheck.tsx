@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
 import { cn } from "@/lib/utils";
 import { fmt } from "@/lib/verificaciones/formato";
 
@@ -49,6 +50,21 @@ function signoReal(real: number, limite: number): string {
   return "=";
 }
 
+/**
+ * La barra sólo se dibuja si los dos números que se muestran explican por sí
+ * solos el veredicto.
+ *
+ * Hay comprobaciones cuyo "verifica" sale de más de una condición y cuya
+ * comparación visible es apenas una de ellas: ahí la barra diría que cumple
+ * con margen al lado de una insignia que dice que no cumple. Entre mostrar una
+ * barra que contradice al veredicto y no mostrarla, no mostrarla.
+ */
+function laBarraExplicaElVeredicto(verifica: boolean, c: ComparacionCheck): boolean {
+  const cumpleSegunNumeros =
+    c.exige === "≤" ? c.real.valor <= c.limite.valor : c.real.valor >= c.limite.valor;
+  return cumpleSegunNumeros === verifica;
+}
+
 export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: ResultadoCheckProps) {
   const insignia = (
     <Badge
@@ -57,7 +73,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
       className={cn(
         "shrink-0 rounded-sm border font-mono text-[12.5px] uppercase tracking-[0.08em] transition-colors duration-300",
         verifica
-          ? "-rotate-2 border-emerald-700 bg-emerald-600 text-white [a]:hover:bg-emerald-600"
+          ? "-rotate-2 border-exito bg-exito text-white [a]:hover:bg-exito"
           : "border-destructive/40"
       )}
     >
@@ -74,8 +90,8 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
        */
       className={cn(
         "rounded-md border p-3 transition-colors duration-300",
-        verifica ? "border-emerald-600/40" : "border-destructive/40",
-        comparacion && (verifica ? "bg-emerald-600/[0.06]" : "bg-destructive/[0.06]")
+        verifica ? "border-exito/40" : "border-destructive/40",
+        comparacion && (verifica ? "bg-exito/[0.06]" : "bg-destructive/[0.06]")
       )}
     >
       {comparacion ? (
@@ -92,7 +108,7 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
           <p
             className={cn(
               "mt-2 flex flex-wrap items-baseline gap-x-2 font-mono text-lg font-semibold tabular-nums transition-colors duration-300",
-              verifica ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+              verifica ? "text-exito" : "text-destructive"
             )}
           >
             <span className="text-[11px] font-normal tracking-[0.08em] opacity-70">
@@ -114,6 +130,26 @@ export function ResultadoCheck({ etiqueta, verifica, detalle, comparacion }: Res
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">
             se exige {comparacion.real.etiqueta} {comparacion.exige} {comparacion.limite.etiqueta}
           </p>
+
+          {/*
+            La desigualdad dice si pasa; la barra dice por cuánto. El margen es
+            lo que decide si la pieza se puede afinar o está al límite, y era
+            justamente lo que había que leer entre líneas.
+
+            Con "≥" la razón se da vuelta: lo exigido es el límite y lo que
+            sobra es lo real, así que la utilización es límite/real. En los dos
+            sentidos, por debajo de 1 significa que cumple.
+          */}
+          {laBarraExplicaElVeredicto(verifica, comparacion) && (
+          <div className="mt-3">
+            <BarraDemandaCapacidad
+              demanda={comparacion.exige === "≤" ? comparacion.real.valor : comparacion.limite.valor}
+              capacidad={comparacion.exige === "≤" ? comparacion.limite.valor : comparacion.real.valor}
+              decimales={comparacion.decimales}
+              mostrarValores={false}
+            />
+          </div>
+          )}
 
           {detalle && (
             <p className="mt-2 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>

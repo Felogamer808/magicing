@@ -17,15 +17,15 @@ export function BarraMovil() {
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-sidebar-border bg-sidebar/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-sidebar/80 md:hidden">
+    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-sidebar-border bg-sidebar px-4 py-3 text-sidebar-foreground md:hidden">
       <Sheet open={abierto} onOpenChange={setAbierto}>
         <SheetTrigger
           aria-label="Abrir el índice de verificaciones"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-sidebar-border text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50 focus-visible:outline-none"
         >
           <Menu className="h-4 w-4" />
         </SheetTrigger>
-        <SheetContent side="left" className="w-[85vw] max-w-xs overflow-y-auto p-4">
+        <SheetContent side="left" className="w-[85vw] max-w-xs overflow-y-auto border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
           <SheetTitle className="sr-only">Índice de verificaciones</SheetTitle>
           <Link
             href="/"
@@ -33,14 +33,14 @@ export function BarraMovil() {
             className="mb-6 block px-2"
             aria-label="MagicIng — inicio"
           >
-            <Logo className="h-7 w-auto" titulo="" />
+            <Logo className="h-7 w-auto text-white" titulo="" />
           </Link>
           <NavVerificaciones onNavegar={() => setAbierto(false)} />
         </SheetContent>
       </Sheet>
 
       <Link href="/" aria-label="MagicIng — inicio">
-        <Logo className="h-7 w-auto" titulo="" />
+        <Logo className="h-7 w-auto text-white" titulo="" />
       </Link>
 
       <div className="ml-auto">

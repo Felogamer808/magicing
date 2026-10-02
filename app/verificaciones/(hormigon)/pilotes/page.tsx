@@ -176,7 +176,11 @@ export default function PilotesPage() {
                     <ResultadoCheck
                       etiqueta="Carga admisible"
                       verifica={resultado.pilote.geotecnico.verificaCapacidad}
-                      detalle={`Nk ${fmt(aNumero(Nk))} kN / Q adm ${fmt(resultado.pilote.geotecnico.qAdmisibleKN)} kN`}
+                      comparacion={{
+                      real: { etiqueta: "Nk", valor: aNumero(Nk) },
+                      limite: { etiqueta: "Q adm", valor: resultado.pilote.geotecnico.qAdmisibleKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                     />
                     <PanelFormulas
                       titulo="Ver cálculo"
@@ -199,12 +203,20 @@ export default function PilotesPage() {
                     <ResultadoCheck
                       etiqueta="Compresión simple"
                       verifica={resultado.pilote.estructural.verificaEstructural}
-                      detalle={`Nd ${fmt(resultado.pilote.estructural.ndKN)} kN / Nrd ${fmt(resultado.pilote.estructural.nRdKN)} kN`}
+                      comparacion={{
+                      real: { etiqueta: "Nd", valor: resultado.pilote.estructural.ndKN },
+                      limite: { etiqueta: "NRd", valor: resultado.pilote.estructural.nRdKN },
+                      unidad: "kN", exige: "≤",
+                    }}
                     />
                     <ResultadoCheck
                       etiqueta="Armadura mínima (EC2 9.5.2)"
                       verifica={resultado.pilote.estructural.verificaAsMin}
-                      detalle={`As real ${fmt(resultado.pilote.estructural.areaAceroCm2)} cm² / As mín ${fmt(resultado.pilote.estructural.asMinCm2)} cm²`}
+                      comparacion={{
+                      real: { etiqueta: "As real", valor: resultado.pilote.estructural.areaAceroCm2 },
+                      limite: { etiqueta: "As mín", valor: resultado.pilote.estructural.asMinCm2 },
+                      unidad: "cm²", exige: "≥",
+                    }}
                     />
                   </CardContent>
                 </Card>

@@ -2,8 +2,12 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -38,6 +42,15 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "muros-contencion")!;
+
+const ETAPAS = [
+  { id: "suelo", titulo: "Suelo" },
+  { id: "geometria", titulo: "Geometría" },
+  { id: "terreno", titulo: "Terreno" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 /** Los datos del formulario ya convertidos a número. */
 interface NumerosMuro {
@@ -492,11 +505,22 @@ export default function MuroContencionPage() {
   }, [resultado, fck, fyk, recArm, espMuro, cantoZap,
       phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: el espesor del muro y la puntera tienen que dejar talón dentro de la zapata." });
+  } else {
+    if (!resultado.r.tensionSueloCaso1.resultanteEnNucleo)
+      avisos.push({ tipo: "aviso", texto: "La resultante sale del núcleo central (e > A/6): la base se despega y la ley de presiones pasa a triangular." });
+    if (resultado.r.empujes.mandaPisoKa)
+      avisos.push({ tipo: "aviso", texto: `ka por Rankine da ${fmt(resultado.r.empujes.kaTeorico, 3)}; manda el piso de ${fmt(KA_MINIMO, 2)}.` });
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Contención</p>
+          <p className="spec-label">Contención · verificación por metro</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
@@ -504,160 +528,67 @@ export default function MuroContencionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      {resultado && (
-        <Card className="drafting-marks">
-          <CardHeader><CardTitle className="text-base">Sección</CardTitle></CardHeader>
-          <CardContent className="flex justify-center py-2">
-            <DiagramaMuro
-              anchoZapataM={resultado.n.anchoZap}
-              cantoZapataM={resultado.n.cantoZap}
-              alturaMuroM={resultado.n.altMuro}
-              espesorMuroM={resultado.n.espMuro}
-              alturaSueloActivoM={resultado.n.hAct}
-              alturaSueloPasivoM={resultado.n.hPas}
-              punteraM={resultado.n.puntera}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Suelo</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <CroquisSueloMuro />
-              </div>
-              <CampoNumerico id="gamma" etiqueta="γ" sufijo="kN/m³" valor={gamma} onChange={setGamma} />
-              <CampoNumerico id="phi" etiqueta="φ" sufijo="°" valor={phi} onChange={setPhi} />
-              <CampoNumerico id="c" etiqueta="Cohesión c" sufijo="kPa" valor={c} onChange={setC} />
-              <CampoNumerico id="sigmaAdm" etiqueta="σ adm." sufijo="kN/m²" valor={sigmaAdm} onChange={setSigmaAdm} />
-              <div className="col-span-2">
+      <div className="flex flex-col gap-12">
+        <Etapa id="suelo" numero={1} titulo="Suelo" descripcion="Parámetros del relleno y del terreno de apoyo.">
+          <DatosConDibujo
+            datos={
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoNumerico id="gamma" etiqueta="γ" sufijo="kN/m³" valor={gamma} onChange={setGamma} />
+                  <CampoNumerico id="phi" etiqueta="φ" sufijo="°" valor={phi} onChange={setPhi} />
+                  <CampoNumerico id="c" etiqueta="Cohesión c" sufijo="kPa" valor={c} onChange={setC} />
+                  <CampoNumerico id="sigmaAdm" etiqueta="σ adm." sufijo="kN/m²" valor={sigmaAdm} onChange={setSigmaAdm} />
+                </div>
                 <PanelAyuda titulo="Qué es cada parámetro del suelo">
-                <p>
-                  <strong className="text-foreground">γ — peso específico.</strong> Cuánto pesa un
-                  metro cúbico de relleno. Multiplica todo el empuje: el doble de γ es el doble de
-                  empuje. Suelos corrientes van entre 17 y 21 kN/m³.
-                </p>
-                <p>
-                  <strong className="text-foreground">φ — ángulo de rozamiento interno.</strong> Qué
-                  tan bien se traba el suelo consigo mismo. Es el que más manda: entra en el
-                  coeficiente activo ka = tg²(45 − φ/2), así que subirlo baja el empuje rápido.
-                  Arenas 30–36°, gravas 35–40°, limos y arcillas menos.
-                </p>
-                <p>
-                  <strong className="text-foreground">c — cohesión.</strong> Lo que el suelo aguanta
-                  sin confinar, por atracción entre partículas. Acá solo interviene en el
-                  deslizamiento, sumando adherencia bajo la zapata. En arenas limpias vale cero, y
-                  conviene no confiar en ella si el terreno puede saturarse.
-                </p>
-                <p>
-                  <strong className="text-foreground">σ adm. — tensión admisible.</strong> Cuánta
-                  presión tolera el terreno de apoyo sin asentar de más. No sale de los otros tres:
-                  es un dato del estudio de suelos. Es la que limita el ancho de zapata.
-                </p>
+                  <p>
+                    <strong className="text-foreground">γ</strong> multiplica todo el empuje (17–21 kN/m³
+                    en suelos corrientes). <strong className="text-foreground">φ</strong> es el que más
+                    manda: entra en ka. <strong className="text-foreground">c</strong> sólo suma
+                    adherencia al deslizamiento, y no conviene confiar en ella si el terreno se satura.
+                    <strong className="text-foreground"> σ adm.</strong> sale del estudio de suelos y
+                    limita el ancho de zapata.
+                  </p>
                 </PanelAyuda>
-
                 <PanelAyuda titulo="De dónde salen ka y kp, y en qué caso valen">
                   <p>
-                    Los dos coeficientes se calculan solos a partir de φ, con las expresiones de
-                    Rankine:
-                  </p>
-                  <p className="py-1 text-center font-mono text-[13px] text-foreground">
-                    k<sub>a</sub> = (1 − sen φ) / (1 + sen φ)
-                    <span className="px-3 text-muted-foreground">·</span>
-                    k<sub>p</sub> = (1 + sen φ) / (1 − sen φ)
+                    Rankine: ka = (1 − sen φ)/(1 + sen φ) y kp = 1/ka, válidos con el terreno
+                    horizontal (i = 0), trasdós vertical (β = 90°) y sin rozamiento tierra-muro (δ = 0).
+                    Fuera de ese caso hay que ir a Coulomb.
                   </p>
                   <p>
-                    Son recíprocos: k<sub>a</sub>·k<sub>p</sub> = 1. Con φ = 34°, k<sub>a</sub> ≈
-                    0,283 y k<sub>p</sub> ≈ 3,54: el terreno empuja con menos de un tercio de lo que
-                    pesa y resiste con más del triple.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Esas fórmulas valen en un caso concreto</strong>,
-                    el más habitual, definido por tres condiciones:
-                  </p>
-                  <p>
-                    <strong className="text-foreground">i = 0</strong> — el terreno de arriba está
-                    horizontal, sin talud. Si el relleno sube en pendiente, el empuje es mayor y hay
-                    que corregir.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">β = 90°</strong> — el trasdós del muro, la
-                    cara contra la que apoya la tierra, es vertical. Un muro inclinado recibe además
-                    el peso del suelo que le queda encima.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">δ = 0</strong> — no se cuenta el rozamiento
-                    entre la tierra y el muro. Existe y ayuda, pero despreciarlo deja del lado
-                    seguro y evita depender de cómo quede la cara del hormigón.
-                  </p>
-                  <p>
-                    Con las tres, el empuje sale horizontal y depende sólo de φ, que es lo que hace
-                    la expresión tan corta. Fuera de este caso hay que ir a la formulación general
-                    de Coulomb, que sí toma i, β y δ.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">A k<sub>a</sub> se le pone un piso de
-                    0,5.</strong> Con φ = 34° la fórmula da 0,283 y manda el piso: se adopta casi el
-                    doble de empuje. La razón es que φ es el dato menos confiable de todos —sale de
-                    un ensayo, de una tabla o de la experiencia— y subestimarlo va directo contra la
-                    seguridad.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Y por eso el rozamiento de la base va con φ
-                    pleno.</strong> Es una decisión que conviene tener presente. Jiménez Montoya
-                    (§25.11.2 b), pág. 433) propone tomar μ = tg(⅔·φ), porque el contacto
-                    hormigón-terreno no moviliza el ángulo que el suelo tiene consigo mismo. El
-                    criterio es razonable, pero está pensado para usarse con el k<sub>a</sub> real,
-                    no con uno ya inflado.
-                  </p>
-                  <p>
-                    Aplicar las dos cosas a la vez sería castigar φ dos veces por la misma
-                    incertidumbre: el piso de k<sub>a</sub> sube el empuje un 77 % y el ⅔ baja la
-                    resistencia un 38 %, y multiplicadas dejan sin verificar muros que con
-                    cualquiera de las dos precauciones sola pasan holgados. Se eligió quedarse con
-                    el piso de k<sub>a</sub>, que actúa sobre la acción.
-                  </p>
-                  <p>
-                    Si algún día se saca ese piso, corresponde volver a poner el ⅔ en el rozamiento:
-                    las dos decisiones son una sola. Lo que sí se mantiene reducida es la cohesión,
-                    c* = mín(0,5·c ; 50 kPa), porque ésa es otra incertidumbre —desaparece si el
-                    terreno se satura— y no depende de φ.
+                    A ka se le pone un piso de {fmt(KA_MINIMO, 2)} porque φ es el dato menos confiable.
+                    Por eso el rozamiento de la base va con φ pleno y no con tg(⅔·φ) (Jiménez Montoya,
+                    §25.11.2 b): aplicar las dos precauciones castigaría φ dos veces. La cohesión sí se
+                    reduce: c* = mín(0,5·c ; 50 kPa).
                   </p>
                 </PanelAyuda>
-              </div>
-            </CardContent>
-          </Card>
+              </>
+            }
+            dibujo={<CroquisSueloMuro />}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <CroquisGeometriaMuro />
-              </div>
-              <CampoNumerico id="anchoZap" etiqueta="A zapata" sufijo="m" valor={anchoZap} onChange={setAnchoZap} />
-              <CampoNumerico id="cantoZap" etiqueta="H zapata" sufijo="m" valor={cantoZap} onChange={setCantoZap} />
-              <CampoNumerico id="altMuro" etiqueta="H muro" sufijo="m" valor={altMuro} onChange={setAltMuro} />
-              <CampoNumerico id="espMuro" etiqueta="Espesor muro" sufijo="m" valor={espMuro} onChange={setEspMuro} />
-              <CampoNumerico id="puntera" etiqueta="Puntera" sufijo="m" valor={puntera} onChange={setPuntera} />
-              <div className="col-span-2">
+        <Etapa id="geometria" numero={2} titulo="Geometría" descripcion="Zapata, alzado y puntera.">
+          <DatosConDibujo
+            datos={
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoNumerico id="anchoZap" etiqueta="A zapata" sufijo="m" valor={anchoZap} onChange={setAnchoZap} />
+                  <CampoNumerico id="cantoZap" etiqueta="H zapata" sufijo="m" valor={cantoZap} onChange={setCantoZap} />
+                  <CampoNumerico id="altMuro" etiqueta="H muro" sufijo="m" valor={altMuro} onChange={setAltMuro} />
+                  <CampoNumerico id="espMuro" etiqueta="Espesor muro" sufijo="m" valor={espMuro} onChange={setEspMuro} />
+                  <CampoNumerico id="puntera" etiqueta="Puntera" sufijo="m" valor={puntera} onChange={setPuntera} />
+                </div>
                 <PanelAyuda titulo="Qué es la puntera y cuándo va en cero">
                   <p>
-                    Es el vuelo de la zapata por delante del hastial, del lado que no retiene
-                    tierra. Cargarla en <strong className="text-foreground">cero</strong> es un caso
-                    real y frecuente: un muro contra un límite de propiedad o una medianera no puede
-                    volar hacia ese lado, y entonces toda la zapata es talón.
-                  </p>
-                  <p>
-                    Sin puntera no hay nada que dimensionar de ese lado, así que esa parte del
-                    armado desaparece. A cambio, el muro pierde brazo estabilizador y el vuelco se
-                    vuelve más exigente.
+                    Es el vuelo de la zapata por delante del hastial. En cero es un caso real: un muro
+                    contra un límite de propiedad no puede volar hacia ese lado, y toda la zapata es
+                    talón. Sin puntera el muro pierde brazo estabilizador y el vuelco se vuelve más
+                    exigente.
                   </p>
                 </PanelAyuda>
-              </div>
-              <div className="col-span-2">
                 <PredimensionadoMuro
                   alturaTotalM={aNumero(altMuro) + aNumero(cantoZap) || 3.5}
                   onAplicar={(d) => {
@@ -667,55 +598,156 @@ export default function MuroContencionPage() {
                     setEspMuro(String(d.espesorMuroM));
                   }}
                 />
-              </div>
-            </CardContent>
-          </Card>
+              </>
+            }
+            dibujo={
+              resultado ? (
+                <DiagramaMuro
+                  anchoZapataM={resultado.n.anchoZap}
+                  cantoZapataM={resultado.n.cantoZap}
+                  alturaMuroM={resultado.n.altMuro}
+                  espesorMuroM={resultado.n.espMuro}
+                  alturaSueloActivoM={resultado.n.hAct}
+                  alturaSueloPasivoM={resultado.n.hPas}
+                  punteraM={resultado.n.puntera}
+                />
+              ) : (
+                <CroquisGeometriaMuro />
+              )
+            }
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Terreno y sobrecarga</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Etapa id="terreno" numero={3} titulo="Terreno y sobrecarga" descripcion="Tierra retenida, tierra delante y cargas sobre el relleno.">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <CampoNumerico id="hAct" etiqueta="h activo" sufijo="m" valor={hAct} onChange={setHAct} />
               <CampoNumerico id="hPas" etiqueta="h pasivo" sufijo="m" valor={hPas} onChange={setHPas} />
               <CampoNumerico id="sobrecargaG" etiqueta="Carga permanente" sufijo="kN/m²" valor={sobrecargaG} onChange={setSobrecargaG} />
               <CampoNumerico id="sobrecargaQ" etiqueta="Sobrecarga de uso" sufijo="kN/m²" valor={sobrecargaQ} onChange={setSobrecargaQ} />
-              <div className="col-span-2 sm:col-span-3">
-                <PanelAyuda titulo="Qué es cada dato del terreno y la sobrecarga">
-                <p>
-                  <strong className="text-foreground">h activo.</strong> Altura de tierra retenida
-                  por detrás, medida desde la base de la zapata. Es la que genera el empuje que
-                  vuelca, y crece al cuadrado: pasar de 3 a 4 m casi duplica el empuje.
-                </p>
-                <p>
-                  <strong className="text-foreground">h pasivo.</strong> Altura de tierra que queda
-                  por delante, del lado de la puntera, y que resiste. Suele dejarse en cero: es
-                  terreno que puede excavarse después y confiar en él es optimista.
-                </p>
-                <p>
-                  <strong className="text-foreground">Sobrecarga.</strong> Sí, es la{" "}
-                  <strong className="text-foreground">q</strong> del diagrama de empujes: una carga
-                  repartida sobre la superficie del terreno retenido —tránsito, acopio, una losa de
-                  acceso—. Se traduce en un empuje horizontal ka·q constante en toda la altura, por
-                  eso su diagrama es el rectángulo ámbar y no un triángulo.
-                </p>
-                </PanelAyuda>
+            </div>
+            <PanelAyuda titulo="Qué es cada dato del terreno y la sobrecarga">
+              <p>
+                <strong className="text-foreground">h activo</strong>: tierra retenida desde la base de
+                la zapata; el empuje crece al cuadrado. <strong className="text-foreground">h pasivo</strong>:
+                tierra delante, que resiste; suele dejarse en cero porque puede excavarse.
+                <strong className="text-foreground"> Sobrecarga</strong>: la q del diagrama, un empuje
+                ka·q constante en toda la altura.
+              </p>
+            </PanelAyuda>
+            <SeccionPlegable
+              titulo="Apoyos para los casos apuntalados (opcional)"
+              resumen="Sólo si el muro se apoya en el contrapiso, o en el contrapiso y una losa superior."
+            >
+              <div className="space-y-3">
+                <CroquisApoyosMuro />
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <CampoNumerico id="l1Caso2" etiqueta="Caso 2 · L1 altura del contrapiso" sufijo="m" valor={l1Caso2} onChange={setL1Caso2} />
+                  <CampoNumerico id="l1Caso3" etiqueta="Caso 3 · L1 altura del contrapiso" sufijo="m" valor={l1Caso3} onChange={setL1Caso3} />
+                  <CampoNumerico id="l2Caso3" etiqueta="Caso 3 · L2 contrapiso a losa" sufijo="m" valor={l2Caso3} onChange={setL2Caso3} />
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </SeccionPlegable>
+          </div>
+        </Etapa>
 
-        </div>
+        <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Materiales y barras de cada pieza: hastial, talón y puntera.">
+          <DatosConDibujo
+            datos={
+              <>
+                <div className="grid grid-cols-3 gap-4">
+                  <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                  <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                  <CampoNumerico id="recArm" etiqueta="Recubrimiento mec." sufijo="m" valor={recArm} onChange={setRecArm} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoDiametro id="phiHastial" etiqueta="Hastial · Ø" valor={phiHastial} onChange={setPhiHastial} />
+                  <CampoNumerico id="sepHastial" etiqueta="Hastial · separación" sufijo="mm" valor={sepHastial} onChange={setSepHastial} />
+                  <CampoDiametro id="phiTalon" etiqueta="Talón · Ø" valor={phiTalon} onChange={setPhiTalon} />
+                  <CampoNumerico id="sepTalon" etiqueta="Talón · separación" sufijo="mm" valor={sepTalon} onChange={setSepTalon} />
+                  {aNumero(puntera) > 0 && (
+                    <>
+                      <CampoDiametro id="phiPuntera" etiqueta="Puntera · Ø" valor={phiPuntera} onChange={setPhiPuntera} />
+                      <CampoNumerico id="sepPuntera" etiqueta="Puntera · separación" sufijo="mm" valor={sepPuntera} onChange={setSepPuntera} />
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Hastial en la cara interior, talón en la superior y puntera en la inferior: cada
+                  pieza es un voladizo con la tracción de su lado.
+                </p>
+              </>
+            }
+            dibujo={
+              resultado && armado ? (
+                <ArmadoMuroDiagrama
+                  alturaMuroM={resultado.n.altMuro}
+                  espesorMuroM={resultado.n.espMuro}
+                  anchoZapataM={resultado.n.anchoZap}
+                  cantoZapataM={resultado.n.cantoZap}
+                  punteraM={resultado.n.puntera}
+                  recubrimientoM={aNumero(recArm)}
+                  hastial={{ nombre: "Hastial", cara: "interior", diametroMm: armado.hastial.diametroMm, separacionMm: armado.hastial.separacionMm, verifica: armado.hastial.verifica }}
+                  talon={{ nombre: "Talón", cara: "superior", diametroMm: armado.talon.diametroMm, separacionMm: armado.talon.separacionMm, verifica: armado.talon.verifica }}
+                  puntera={armado.puntera ? { nombre: "Puntera", cara: "inferior", diametroMm: armado.puntera.diametroMm, separacionMm: armado.puntera.separacionMm, verifica: armado.puntera.verifica } : null}
+                />
+              ) : (
+                <CroquisGeometriaMuro />
+              )
+            }
+          />
+        </Etapa>
 
-        <div className="space-y-6">
+        <Etapa id="revision" numero={5} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "γ / φ / c", valor: `${gamma} kN/m³ / ${phi}° / ${c} kPa` },
+              { etiqueta: "σ adm.", valor: `${sigmaAdm} kN/m²` },
+              { etiqueta: "A × H zapata", valor: `${anchoZap} × ${cantoZap} m` },
+              { etiqueta: "H × e muro", valor: `${altMuro} × ${espMuro} m` },
+              ...(resultado
+                ? [
+                    { etiqueta: "ka adoptado", valor: fmt(resultado.r.empujes.ka, 3), derivado: true },
+                    { etiqueta: "Excentricidad", valor: `${fmt(resultado.r.tensionSueloCaso1.excentricidadM, 3)} m`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              `Empujes de Rankine con terreno horizontal, trasdós vertical y δ = 0; ka con piso de ${fmt(KA_MINIMO, 2)}.`,
+              "Rozamiento de la base con φ pleno y cohesión reducida c* = mín(0,5·c ; 50 kPa); el pasivo no se cuenta en el deslizamiento.",
+              `Factores de seguridad mínimos: vuelco ${fmt(FS_VUELCO_MINIMO, 1)}, deslizamiento ${fmt(FS_DESLIZAMIENTO_MINIMO, 1)}. La sobrecarga de uso es favorable en el vuelco y desfavorable en la tensión.`,
+              "Tensión del suelo con ley trapecial si e ≤ A/6 y triangular si se despega (Jiménez Montoya, §25.2.6).",
+              "Momentos de armado mayorados con γG = 1,35 y γQ = 1,50; el talón desprecia la reacción del terreno (del lado seguro).",
+              "Cuantías mínimas de armado heredadas de la planilla: mecánica 0,045 y geométrica 1,8 ‰ (EHE‑08). No sustituyen la armadura mínima de muros del art. 9.6.",
+              "Peso del alzado con brazo esp/2 (la planilla usaba A/2): más conservador.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={6} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores válidos (el espesor del muro debe ser menor que el ancho de zapata).
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Empujes sobre el muro</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "FS vuelco", valor: fmt(resultado.r.vuelco.factorSeguridad), nota: `mínimo ${fmt(FS_VUELCO_MINIMO, 1)}` },
+                  { etiqueta: "FS deslizamiento", valor: fmt(resultado.r.deslizamientoSoloZapata.factorSeguridad), nota: `mínimo ${fmt(FS_DESLIZAMIENTO_MINIMO, 1)}` },
+                  { etiqueta: "σ terreno", valor: `${fmt(resultado.r.tensionSueloCaso1.sigmaKPa)} kN/m²`, nota: `admisible ${fmt(resultado.n.sigmaAdm)}` },
+                  { etiqueta: "M hastial", valor: `${fmt(resultado.r.momentos.hastialKNm)} kN·m/m`, nota: "mayorado" },
+                ]}
+              />
+
+              <Subgrupo titulo="Empujes">
+                <div className="space-y-2">
                   <DiagramaEmpujesMuro
                     alturaTotalM={resultado.r.empujes.alturaTotalM}
                     alturaSueloActivoM={aNumero(hAct)}
@@ -740,36 +772,30 @@ export default function MuroContencionPage() {
                     cantoZapataM={aNumero(cantoZap)}
                     punteraM={aNumero(puntera)}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
-              {/*
-                La estabilidad va antes que el armado: primero se define la
-                geometría —si el muro vuelca o desliza, el armado no importa— y
-                recién con la sección resuelta tiene sentido mirar las barras.
-              */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Caso 1 — solo zapata</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <Subgrupo titulo="Estabilidad · caso 1, sólo zapata">
+                <div>
                   <ResultadoCheck
                     etiqueta="Vuelco"
                     verifica={resultado.r.vuelco.verifica}
+                    detalle={`M estab ${fmt(resultado.r.empujes.momentoEstabilizadorKNm)} / M volc ${fmt(resultado.r.empujes.momentoVolcadorKNm)} kN·m/m`}
                     comparacion={{
                       real: { etiqueta: "FS", valor: resultado.r.vuelco.factorSeguridad },
                       limite: { etiqueta: "FS mín", valor: FS_VUELCO_MINIMO },
                       exige: "≥",
                     }}
-                    detalle={`M estab ${fmt(resultado.r.empujes.momentoEstabilizadorKNm)} / M volc ${fmt(resultado.r.empujes.momentoVolcadorKNm)} kN·m/m`}
                   />
                   <ResultadoCheck
                     etiqueta="Deslizamiento"
                     verifica={resultado.r.deslizamientoSoloZapata.verifica}
+                    detalle={`Fh adm ${fmt(resultado.r.deslizamientoSoloZapata.fhAdmKN)} / Fh máx ${fmt(resultado.r.deslizamientoSoloZapata.fhMaxKN)} kN/m`}
                     comparacion={{
                       real: { etiqueta: "FS", valor: resultado.r.deslizamientoSoloZapata.factorSeguridad },
                       limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
                       exige: "≥",
                     }}
-                    detalle={`Fh adm ${fmt(resultado.r.deslizamientoSoloZapata.fhAdmKN)} / Fh máx ${fmt(resultado.r.deslizamientoSoloZapata.fhMaxKN)} kN/m`}
                   />
                   <ResultadoCheck
                     etiqueta="Tensión del suelo"
@@ -777,238 +803,96 @@ export default function MuroContencionPage() {
                     comparacion={{
                       real: { etiqueta: "σ", valor: resultado.r.tensionSueloCaso1.sigmaKPa },
                       limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
-                      unidad: "kN/m²",
-                      exige: "≤",
+                      unidad: "kN/m²", exige: "≤",
                     }}
                   />
-                  <PanelFormulas titulo="Ver cálculo" filas={desarrolloCaso1(resultado.n, resultado.r)} />
+                  <PanelFormulas titulo="Ver desarrollo de la estabilidad" filas={desarrolloCaso1(resultado.n, resultado.r)} />
+                </div>
+              </Subgrupo>
 
-                  <PanelAyuda titulo="De dónde sale la tensión sobre el terreno">
-                    <p>
-                      No es <span className="font-mono">N/A</span>. Eso valdría si la carga
-                      estuviera centrada, y en un muro nunca lo está: el empuje la corre hacia la
-                      puntera. Hay que ubicar primero por dónde pasa la resultante.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Dónde cae la resultante.</strong> Se toman
-                      momentos respecto de la puntera. Lo que baja estabiliza y lo que empuja vuelca,
-                      así que la resultante pasa a una distancia{" "}
-                      <span className="font-mono">d = (M estab − M volc) / N</span> del borde
-                      delantero. Su separación del centro de la zapata es{" "}
-                      <span className="font-mono">e = A/2 − d</span>.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">El momento no es el mismo que el del
-                      vuelco.</strong> Ahí la sobrecarga de uso es favorable y va con cero; acá pesa,
-                      porque para el terreno bajar es desfavorable. Por eso figuran dos momentos
-                      estabilizadores distintos en el desarrollo del cálculo.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Si e ≤ A/6</strong> —la resultante cae
-                      dentro del núcleo central— toda la base comprime y la ley es trapecial:{" "}
-                      <span className="font-mono">σ = N/A · (1 + 6e/A)</span>. El término{" "}
-                      <span className="font-mono">6e/A</span> es cuánto desnivela la excentricidad
-                      una presión que si no sería uniforme.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Si e &gt; A/6</strong>, esa fórmula daría
-                      tracción en el borde de atrás, y el terreno no tracciona: la zapata se despega.
-                      El contacto se reduce a <span className="font-mono">3d</span> y la ley pasa a
-                      ser triangular, con{" "}
-                      <span className="font-mono">σ = 2N / (3d)</span>. El pico sube bastante, así
-                      que usar la fórmula lineal en este caso queda del lado inseguro.
-                    </p>
-                    <p>
-                      Conviene que la resultante entre en el núcleo. Si se sale mucho —pasado{" "}
-                      <span className="font-mono">A/3</span>— la presión se dispara con cambios
-                      chicos de la excentricidad, y lo que corresponde es ensanchar la zapata o
-                      darle puntera, no seguir afinando.
-                    </p>
-                    <p className="text-[11px] opacity-70">
-                      Método: Jiménez Montoya, 15ª ed., §25.2.6, pág. 404.
-                    </p>
-                  </PanelAyuda>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Momentos para armar</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <PanelFormulas titulo="Ver cálculo" filas={desarrolloMomentos(resultado.n, resultado.r)} />
-                  {resultado.r.momentos.punteraM === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Sin puntera no hay nada que armar de ese lado: toda la zapata trabaja como
-                      talón. Si el muro no está contra un límite de propiedad, darle puntera suele
-                      ser la forma más barata de resolver un vuelco justo.
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Momentos ya mayorados, cada acción con su coeficiente: γG = 1,35 sobre el peso
-                    propio, la tierra y la carga permanente, y γQ = 1,50 sobre la sobrecarga de uso.
-                    El talón se resuelve del lado seguro: se cuentan las cargas que bajan y se
-                    desprecia la reacción del terreno, que iría a favor.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {armado && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Armado</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                      <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-                      <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-                      <CampoNumerico id="recArm" etiqueta="Recubrimiento mec." sufijo="m" valor={recArm} onChange={setRecArm} />
-                      <CampoDiametro id="phiHastial" etiqueta="Ø hastial" valor={phiHastial} onChange={setPhiHastial} />
-                      <CampoNumerico id="sepHastial" etiqueta="Sep. hastial" sufijo="mm" valor={sepHastial} onChange={setSepHastial} />
-                      <div />
-                      <CampoDiametro id="phiTalon" etiqueta="Ø talón" valor={phiTalon} onChange={setPhiTalon} />
-                      <CampoNumerico id="sepTalon" etiqueta="Sep. talón" sufijo="mm" valor={sepTalon} onChange={setSepTalon} />
-                      <div />
-                      {armado.puntera && (
-                        <>
-                          <CampoDiametro id="phiPuntera" etiqueta="Ø puntera" valor={phiPuntera} onChange={setPhiPuntera} />
-                          <CampoNumerico id="sepPuntera" etiqueta="Sep. puntera" sufijo="mm" valor={sepPuntera} onChange={setSepPuntera} />
-                        </>
-                      )}
-                    </div>
-
-                    {[armado.hastial, armado.talon, armado.puntera]
-                      .filter((p): p is NonNullable<typeof p> => p !== null)
-                      .map((p) => (
-                        <ResultadoCheck
-                          key={p.calculo.nombre}
-                          etiqueta={`${p.calculo.nombre} — cara ${p.calculo.cara}`}
-                          verifica={p.verifica}
-                          comparacion={{
-                            real: { etiqueta: "As real", valor: p.asRealCm2 },
-                            limite: { etiqueta: "As nec", valor: p.calculo.asNecesarioCm2 },
-                            unidad: "cm²/m",
-                            exige: "≥",
-                          }}
-                          detalle={`⌀${p.diametroMm} hasta c/${fmt(p.separacionMaxMm, 0)} mm${p.calculo.mandaMinimo ? " · manda el mínimo" : ""}`}
-                        />
-                      ))}
-
-                    <ArmadoMuroDiagrama
-                      alturaMuroM={resultado.n.altMuro}
-                      espesorMuroM={resultado.n.espMuro}
-                      anchoZapataM={resultado.n.anchoZap}
-                      cantoZapataM={resultado.n.cantoZap}
-                      punteraM={resultado.n.puntera}
-                      recubrimientoM={aNumero(recArm)}
-                      hastial={{ nombre: "Hastial", cara: "interior", diametroMm: armado.hastial.diametroMm, separacionMm: armado.hastial.separacionMm, verifica: armado.hastial.verifica }}
-                      talon={{ nombre: "Talón", cara: "superior", diametroMm: armado.talon.diametroMm, separacionMm: armado.talon.separacionMm, verifica: armado.talon.verifica }}
-                      puntera={armado.puntera ? { nombre: "Puntera", cara: "inferior", diametroMm: armado.puntera.diametroMm, separacionMm: armado.puntera.separacionMm, verifica: armado.puntera.verifica } : null}
-                    />
-
-                    <PanelFormulas
-                      titulo="Ver cálculo"
-                      filas={[armado.hastial, armado.talon, armado.puntera]
+              <Subgrupo titulo="Armado de las piezas">
+                <div>
+                  {armado ? (
+                    <>
+                      {[armado.hastial, armado.talon, armado.puntera]
                         .filter((p): p is NonNullable<typeof p> => p !== null)
-                        .flatMap((p) =>
-                          desarrolloArmado(p, armado.fcd, armado.fyd, armado.recubrimientoM)
-                        )}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      El mínimo geométrico es el de elementos superficiales (1,8 ‰ de la sección
-                      bruta). No sustituye a la armadura mínima de muros del art. 9.6 —vertical y
-                      horizontal repartida en las dos caras—, que es una comprobación aparte.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+                        .map((p) => (
+                          <ResultadoCheck
+                            key={p.calculo.nombre}
+                            etiqueta={`${p.calculo.nombre} · armadura de la cara ${p.calculo.cara}`}
+                            verifica={p.verifica}
+                            detalle={`Ø${p.diametroMm} sirve hasta c/${fmt(p.separacionMaxMm, 0)} mm${p.calculo.mandaMinimo ? " · manda el mínimo" : ""}`}
+                            comparacion={{
+                              real: { etiqueta: "As real", valor: p.asRealCm2 },
+                              limite: { etiqueta: "As nec", valor: p.calculo.asNecesarioCm2 },
+                              unidad: "cm²/m", exige: "≥",
+                            }}
+                          />
+                        ))}
+                      <PanelFormulas titulo="Ver desarrollo de los momentos de armado" filas={desarrolloMomentos(resultado.n, resultado.r)} />
+                      <PanelFormulas
+                        titulo="Ver desarrollo del armado"
+                        filas={[armado.hastial, armado.talon, armado.puntera]
+                          .filter((p): p is NonNullable<typeof p> => p !== null)
+                          .flatMap((p) => desarrolloArmado(p, armado.fcd, armado.fyd, armado.recubrimientoM))}
+                      />
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Falta un recubrimiento válido para armar las piezas.</p>
+                  )}
+                </div>
+              </Subgrupo>
 
-              {/*
-                Los casos apuntalados van al final y plegados: son hipótesis
-                particulares —el muro necesita que el contrapiso o la losa lo
-                sujeten— y abiertos competían en peso con la comprobación
-                principal aunque casi siempre no correspondan.
-              */}
               <SeccionPlegable
-                titulo="Otros casos — muro apuntalado"
-                resumen="Si el muro solo no verifica, se lo puede apoyar en el contrapiso, o en el contrapiso y una losa superior. Cambian las reacciones y la tensión del suelo."
+                titulo="Otros casos · muro apuntalado"
+                resumen="Si el muro solo no verifica, se lo puede apoyar en el contrapiso, o en el contrapiso y una losa superior. No entran en la conclusión de arriba."
               >
-                {/*
-                  Los apoyos se cargan acá adentro y no arriba con el resto de
-                  los datos: sólo intervienen en estos dos casos, y en la columna
-                  de datos pedían medidas de un contrapiso y una losa que la
-                  mayoría de las veces no existen.
-                */}
-                <div className="space-y-3">
-                  <p className="spec-label">Posición de los apoyos</p>
-                  <CroquisApoyosMuro />
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    <CampoNumerico id="l1Caso2" etiqueta="L1 · altura del contrapiso" sufijo="m" valor={l1Caso2} onChange={setL1Caso2} />
-                    <CampoNumerico id="l1Caso3" etiqueta="L1 · altura del contrapiso" sufijo="m" valor={l1Caso3} onChange={setL1Caso3} />
-                    <CampoNumerico id="l2Caso3" etiqueta="L2 · contrapiso a losa" sufijo="m" valor={l2Caso3} onChange={setL2Caso3} />
+                {/* Registro propio: son alternativas, no comprobaciones del caso principal. */}
+                <ProveedorComprobaciones>
+                  <div className="space-y-6">
+                    <div>
+                      <p className="spec-label pb-2">Caso 2 · apoyo en contrapiso</p>
+                      <ResultadoCheck
+                        etiqueta="Deslizamiento con el contrapiso apuntalando"
+                        verifica={resultado.r.deslizamientoApoyoContrapiso.verifica}
+                        detalle={`Sólo pasa R1 = ${fmt(Math.abs(resultado.r.apoyoContrapiso.r1KN))} kN/m por rozamiento. Reacciones: R1 = ${fmt(resultado.r.apoyoContrapiso.r1KN)}, R2 = ${fmt(resultado.r.apoyoContrapiso.r2KN)} kN/m`}
+                        comparacion={{
+                          real: { etiqueta: "FS", valor: resultado.r.deslizamientoApoyoContrapiso.factorSeguridad },
+                          limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
+                          exige: "≥",
+                        }}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Tensión del suelo"
+                        verifica={resultado.r.tensionSueloCasos23.verifica}
+                        comparacion={{
+                          real: { etiqueta: "σ", valor: resultado.r.tensionSueloCasos23.sigmaKPa },
+                          limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
+                          unidad: "kN/m²", exige: "≤",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <p className="spec-label pb-2">Caso 3 · contrapiso y losa superior</p>
+                      <ResultadoCheck
+                        etiqueta="Tensión del suelo"
+                        verifica={resultado.r.tensionSueloCasos23.verifica}
+                        detalle={`Reacciones a llevar por las losas: R1 (inferior) = ${fmt(resultado.r.apoyoContrapisoYLosa.r1KN)}, R2 (superior) = ${fmt(resultado.r.apoyoContrapisoYLosa.r2KN)} kN/m`}
+                        comparacion={{
+                          real: { etiqueta: "σ", valor: resultado.r.tensionSueloCasos23.sigmaKPa },
+                          limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
+                          unidad: "kN/m²", exige: "≤",
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-3 border-t pt-6">
-                  <p className="spec-label">Caso 2 — apoyo en contrapiso</p>
-                  <ResultadoCheck
-                    etiqueta="Deslizamiento con el contrapiso apuntalando"
-                    verifica={resultado.r.deslizamientoApoyoContrapiso.verifica}
-                    comparacion={{
-                      real: { etiqueta: "FS", valor: resultado.r.deslizamientoApoyoContrapiso.factorSeguridad },
-                      limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
-                      exige: "≥",
-                    }}
-                    detalle={`Sólo pasa R1 = ${fmt(Math.abs(resultado.r.apoyoContrapiso.r1KN))} kN/m por rozamiento`}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Tensión del suelo"
-                    verifica={resultado.r.tensionSueloCasos23.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.tensionSueloCasos23.sigmaKPa },
-                      limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
-                      unidad: "kN/m²",
-                      exige: "≤",
-                    }}
-                  />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">Reacciones a llevar por el contrapiso</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      R1 = {fmt(resultado.r.apoyoContrapiso.r1KN)} kN/m · R2 = {fmt(resultado.r.apoyoContrapiso.r2KN)} kN/m
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 border-t pt-6">
-                  <p className="spec-label">Caso 3 — contrapiso y losa superior</p>
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">Reacciones a llevar por las losas</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      R1 (inferior) = {fmt(resultado.r.apoyoContrapisoYLosa.r1KN)} kN/m · R2 (superior) ={" "}
-                      {fmt(resultado.r.apoyoContrapisoYLosa.r2KN)} kN/m
-                    </p>
-                  </div>
-                  <ResultadoCheck
-                    etiqueta="Tensión del suelo"
-                    verifica={resultado.r.tensionSueloCasos23.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.tensionSueloCasos23.sigmaKPa },
-                      limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
-                      unidad: "kN/m²",
-                      exige: "≤",
-                    }}
-                  />
-                </div>
+                </ProveedorComprobaciones>
               </SeccionPlegable>
-
-              <p className="text-xs text-muted-foreground">
-                Al calcular el momento estabilizador, la planilla tomaba el peso del alzado con brazo A/2 en
-                lugar del centro de gravedad del propio alzado; acá se usa esp/2, coherente con el brazo del
-                suelo sobre la zapata y con la otra hoja de muros. Eso reduce el momento estabilizador, así
-                que el resultado es más conservador que el de la planilla.
-              </p>
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

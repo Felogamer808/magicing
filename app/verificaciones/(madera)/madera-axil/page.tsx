@@ -2,8 +2,12 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -11,6 +15,7 @@ import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { CroquisApoyoMadera } from "@/components/verificaciones/madera/CroquisApoyoMadera";
+import { CroquisSeccionMadera } from "@/components/verificaciones/madera/CroquisSeccionMadera";
 import { CurvaPandeoMadera } from "@/components/verificaciones/madera/CurvaPandeoMadera";
 import {
   SelectorMadera,
@@ -31,6 +36,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-axil")!;
+
+const ETAPAS = [
+  { id: "material", titulo: "Material" },
+  { id: "axil", titulo: "Axil" },
+  { id: "apoyo-perpendicular", titulo: "Apoyo" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const APOYOS = ["Apoyo continuo", "Apoyos aislados"] as const;
 const apoyoDesde = (e: string): TipoApoyo => (e === APOYOS[0] ? "continuo" : "aislado");
@@ -157,9 +170,18 @@ export default function MaderaAxilPage() {
       tipo, servicio, duracion, especie, reparto,
       cargaApoyo, anchoApoyo, largoApoyo, vuelo, vecina, apoyo]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!r) {
+    avisos.push({ tipo: "error", texto: "Cargá sección, resistencias y longitudes de pandeo con valores válidos." });
+  } else {
+    if (!r.rTraccion && !r.rCompresion) avisos.push({ tipo: "aviso", texto: "Nt,d y Nc,d son cero: no hay axil paralelo que verificar." });
+    if (!r.apoyoValido) avisos.push({ tipo: "aviso", texto: "El apoyo no tiene datos completos (carga y dimensiones positivas): no se verifica la compresión perpendicular." });
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -169,146 +191,209 @@ export default function MaderaAxilPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          La madera es el material donde más se separan las dos compresiones: fc,90,k anda por 2,5
-          MPa contra 21 de fc,0,k, un factor diez. Por eso el apoyo de una viga —que trabaja
-          perpendicular a la fibra— decide el canto tan a menudo como la flexión, y por eso el art.
-          6.1.5 se toma el trabajo de definir un área eficaz mayor que la de contacto.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material y sección</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <SelectorMadera
-                tipo={tipo} onTipo={setTipo}
-                servicio={servicio} onServicio={setServicio}
-                duracion={duracion} onDuracion={setDuracion}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <CampoSeleccion id="especie" etiqueta="Especie" valor={especie}
-                                opciones={ESPECIES} onChange={setEspecie} />
-                <CampoSeleccion id="reparto" etiqueta="Reparto de carga" valor={reparto}
-                                opciones={REPARTO} onChange={setReparto} />
-                <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
-                <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="ft0k" etiqueta="ft,0,k" sufijo="MPa" valor={ft0k} onChange={setFt0k} />
-                <CampoNumerico id="fc0k" etiqueta="fc,0,k" sufijo="MPa" valor={fc0k} onChange={setFc0k} />
-                <CampoNumerico id="fc90k" etiqueta="fc,90,k" sufijo="MPa" valor={fc90k} onChange={setFc90k} />
-                <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-12">
+        <Etapa id="material" numero={1} titulo="Material" descripcion="Tipo de madera, condiciones de servicio y valores característicos.">
+          <div className="max-w-2xl space-y-4">
+            <SelectorMadera
+              tipo={tipo} onTipo={setTipo}
+              servicio={servicio} onServicio={setServicio}
+              duracion={duracion} onDuracion={setDuracion}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <CampoSeleccion id="especie" etiqueta="Especie" valor={especie} opciones={ESPECIES} onChange={setEspecie} />
+              <CampoSeleccion id="reparto" etiqueta="Reparto de carga" valor={reparto} opciones={REPARTO} onChange={setReparto} />
+              <CampoNumerico id="ft0k" etiqueta="ft,0,k" sufijo="MPa" valor={ft0k} onChange={setFt0k} />
+              <CampoNumerico id="fc0k" etiqueta="fc,0,k" sufijo="MPa" valor={fc0k} onChange={setFc0k} />
+              <CampoNumerico id="fc90k" etiqueta="fc,90,k" sufijo="MPa" valor={fc90k} onChange={setFc90k} />
+              <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
+            </div>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Axil paralelo a la fibra</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="traccion" etiqueta="Nt,d (tracción)" sufijo="kN"
-                               valor={traccion} onChange={setTraccion} />
-                <CampoNumerico id="compresion" etiqueta="Nc,d (compresión)" sufijo="kN"
-                               valor={compresion} onChange={setCompresion} />
-                <CampoNumerico id="lky" etiqueta="Long. pandeo eje y" sufijo="m" valor={lky} onChange={setLky} />
-                <CampoNumerico id="lkz" etiqueta="Long. pandeo eje z" sufijo="m" valor={lkz} onChange={setLkz} />
-              </div>
-              <PanelAyuda titulo="Qué decide el pandeo y por qué kh no entra en compresión">
-                <p>
-                  Manda el eje de <strong className="text-foreground">menor kc</strong>, que no es
-                  necesariamente el de mayor longitud de pandeo: λ = lk/i y el radio de giro del
-                  eje débil es mucho menor. Con longitudes de pandeo iguales, el débil gobierna
-                  siempre.
-                </p>
-                <p>
-                  Por debajo de λrel = 0,3 la norma no reduce nada, art. 6.3.2(2), y manda
-                  verificar por el 6.2.4. El umbral aparece marcado en la curva.
-                </p>
-                <p>
-                  <strong className="text-foreground">kh no se aplica a compresión.</strong> Los
-                  arts. 3.2(3) y 3.3(3) sólo autorizan a subir fm,k y ft,0,k por efecto de tamaño.
-                  Extenderlo a fc,0,k sería inventar resistencia.
-                </p>
-              </PanelAyuda>
-            </CardContent>
-          </Card>
+        <Etapa id="axil" numero={2} titulo="Sección y axil paralelo" descripcion="Tracción o compresión según la fibra, con las longitudes de pandeo de cada eje.">
+          <DatosConDibujo
+            datos={
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
+                  <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
+                  <CampoNumerico id="traccion" etiqueta="Nt,d (tracción)" sufijo="kN" valor={traccion} onChange={setTraccion} />
+                  <CampoNumerico id="compresion" etiqueta="Nc,d (compresión)" sufijo="kN" valor={compresion} onChange={setCompresion} />
+                  <CampoNumerico id="lky" etiqueta="Long. pandeo eje y" sufijo="m" valor={lky} onChange={setLky} />
+                  <CampoNumerico id="lkz" etiqueta="Long. pandeo eje z" sufijo="m" valor={lkz} onChange={setLkz} />
+                </div>
+                <PanelAyuda titulo="Qué decide el pandeo y por qué kh no entra en compresión">
+                  <p>
+                    Manda el eje de <strong className="text-foreground">menor kc</strong>, que no es
+                    necesariamente el de mayor longitud de pandeo: λ = lk/i y el radio de giro del
+                    eje débil es mucho menor. Con longitudes de pandeo iguales, el débil gobierna
+                    siempre.
+                  </p>
+                  <p>
+                    Por debajo de λrel = 0,3 la norma no reduce nada, art. 6.3.2(2), y manda
+                    verificar por el 6.2.4. El umbral aparece marcado en la curva.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">kh no se aplica a compresión.</strong> Los
+                    arts. 3.2(3) y 3.3(3) sólo autorizan a subir fm,k y ft,0,k por efecto de tamaño.
+                    Extenderlo a fc,0,k sería inventar resistencia.
+                  </p>
+                </PanelAyuda>
+              </>
+            }
+            dibujo={<CroquisSeccionMadera anchoM={aNumero(ancho)} cantoM={aNumero(canto)} />}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Apoyo: compresión perpendicular</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="cargaApoyo" etiqueta="Fc,90,d" sufijo="kN"
-                               valor={cargaApoyo} onChange={setCargaApoyo} />
-                <CampoSeleccion id="apoyo" etiqueta="Tipo de apoyo" valor={apoyo}
-                                opciones={APOYOS} onChange={setApoyo} />
-                <CampoNumerico id="anchoApoyo" etiqueta="Anchura del apoyo" sufijo="m"
-                               valor={anchoApoyo} onChange={setAnchoApoyo} />
-                <CampoNumerico id="largoApoyo" etiqueta="Longitud de contacto ℓ" sufijo="m"
-                               valor={largoApoyo} onChange={setLargoApoyo} />
-                <CampoNumerico id="vuelo" etiqueta="Vuelo a" sufijo="m" valor={vuelo} onChange={setVuelo} />
-                <CampoNumerico id="vecina" etiqueta="Distancia ℓ1" sufijo="m" valor={vecina} onChange={setVecina} />
-              </div>
-              <PanelAyuda titulo="Qué son a y ℓ1, y de dónde sale kc,90">
-                <p>
-                  <strong className="text-foreground">a</strong> es el vuelo: del extremo de la
-                  pieza al arranque del apoyo. Acota cuánto puede ensanchar el área eficaz por ese
-                  lado, porque más allá del extremo no hay madera que difunda la carga.
-                </p>
-                <p>
-                  <strong className="text-foreground">ℓ1</strong> es la distancia al apoyo o a la
-                  carga vecina. Hace dos cosas: acota el ensanchamiento interior en ℓ1/2, y
-                  condiciona kc,90, que sólo pasa de 1 si ℓ1 ≥ 2h.
-                </p>
-                <p>
-                  <strong className="text-foreground">kc,90</strong> no es un dato: sale del
-                  articulado según apoyo, material y especie, y sólo está tabulado para coníferas.
-                  Va de 1,0 a 1,75 y acá se calcula, diciendo el motivo del valor que salió.
-                </p>
-              </PanelAyuda>
-            </CardContent>
-          </Card>
-        </div>
+        <Etapa id="apoyo-perpendicular" numero={3} titulo="Apoyo" descripcion="Compresión perpendicular a la fibra, art. 6.1.5.">
+          <div className="max-w-2xl space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="cargaApoyo" etiqueta="Fc,90,d" sufijo="kN" valor={cargaApoyo} onChange={setCargaApoyo} />
+              <CampoSeleccion id="apoyo" etiqueta="Tipo de apoyo" valor={apoyo} opciones={APOYOS} onChange={setApoyo} />
+              <CampoNumerico id="anchoApoyo" etiqueta="Anchura del apoyo" sufijo="m" valor={anchoApoyo} onChange={setAnchoApoyo} />
+              <CampoNumerico id="largoApoyo" etiqueta="Longitud de contacto ℓ" sufijo="m" valor={largoApoyo} onChange={setLargoApoyo} />
+              <CampoNumerico id="vuelo" etiqueta="Vuelo a" sufijo="m" valor={vuelo} onChange={setVuelo} />
+              <CampoNumerico id="vecina" etiqueta="Distancia ℓ1" sufijo="m" valor={vecina} onChange={setVecina} />
+            </div>
+            <PanelAyuda titulo="Qué son a y ℓ1, y de dónde sale kc,90">
+              <p>
+                <strong className="text-foreground">a</strong> es el vuelo: del extremo de la
+                pieza al arranque del apoyo. Acota cuánto puede ensanchar el área eficaz por ese
+                lado, porque más allá del extremo no hay madera que difunda la carga.
+              </p>
+              <p>
+                <strong className="text-foreground">ℓ1</strong> es la distancia al apoyo o a la
+                carga vecina. Hace dos cosas: acota el ensanchamiento interior en ℓ1/2, y
+                condiciona kc,90, que sólo pasa de 1 si ℓ1 ≥ 2h.
+              </p>
+              <p>
+                <strong className="text-foreground">kc,90</strong> no es un dato: sale del
+                articulado según apoyo, material y especie, y sólo está tabulado para coníferas.
+                Va de 1,0 a 1,75 y acá se calcula, diciendo el motivo del valor que salió.
+              </p>
+            </PanelAyuda>
+          </div>
+        </Etapa>
 
-        <div className="space-y-6">
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Madera", valor: `${tipo} · ${especie} · ${servicio}` },
+              { etiqueta: "Duración de la carga", valor: duracion },
+              { etiqueta: "ft,0,k · fc,0,k · fc,90,k", valor: `${ft0k} · ${fc0k} · ${fc90k} MPa` },
+              { etiqueta: "E0,05", valor: `${e005} GPa` },
+              { etiqueta: "Sección b × h", valor: `${ancho} × ${canto} m` },
+              { etiqueta: "Nt,d · Nc,d", valor: `${traccion} · ${compresion} kN` },
+              { etiqueta: "lk,y · lk,z", valor: `${lky} · ${lkz} m` },
+              { etiqueta: "Apoyo", valor: `${cargaApoyo} kN, ${apoyo.toLowerCase()}, ℓ = ${largoApoyo} m` },
+              ...(r ? [{ etiqueta: "kmod · γM", valor: `${fmt(r.km, 2)} · ${fmt(r.gammaM, 2)}`, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "EC5, arts. 6.1.2 (tracción), 6.1.4 y 6.3.2 (compresión con pandeo) y 6.1.5 (compresión perpendicular).",
+              "kh sólo en tracción, con la dimensión mayor de la sección; la compresión no lleva kh (arts. 3.2(3) y 3.3(3)).",
+              "Con λrel ≤ 0,3 no hay reducción por pandeo (art. 6.3.2(2)).",
+              "Área eficaz de apoyo ensanchada según el art. 6.1.5, acotada por el vuelo a y por ℓ1/2; kc,90 calculado, no cargado.",
+              "Valores característicos cargados a mano.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Cargá sección, resistencias y longitudes de pandeo con valores válidos.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {r.rTraccion && (
-                    <ResultadoCheck
-                      etiqueta="Tracción paralela, ec. (6.1)"
-                      verifica={r.rTraccion.verifica}
-                      comparacion={{
-                        real: { etiqueta: "σt,0,d", valor: r.rTraccion.sigmaT0dMPa },
-                        limite: { etiqueta: "ft,0,d", valor: r.rTraccion.ft0dMPa },
-                        unidad: "MPa", exige: "≤", decimales: 3,
-                      }}
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "ft,0,d", valor: `${fmt(r.ft0d.valor, 2)} MPa` },
+                  { etiqueta: "fc,0,d", valor: `${fmt(r.fc0d.valor, 2)} MPa` },
+                  { etiqueta: "kc", valor: r.rCompresion ? fmt(r.rCompresion.kc, 3) : "—", nota: r.rCompresion ? (r.rCompresion.sinInestabilidad ? "pieza corta" : "con pandeo") : "sin compresión" },
+                  { etiqueta: "kc,90", valor: r.factorKc90 ? fmt(r.factorKc90.kc90, 2) : "—" },
+                ]}
+              />
+
+              {(r.rTraccion || r.rCompresion) && (
+                <Subgrupo titulo="Axil paralelo a la fibra">
+                  <div className="space-y-3">
+                    {r.rTraccion && (
+                      <ResultadoCheck
+                        etiqueta="Tracción paralela, ec. (6.1)"
+                        verifica={r.rTraccion.verifica}
+                        comparacion={{
+                          real: { etiqueta: "σt,0,d", valor: r.rTraccion.sigmaT0dMPa },
+                          limite: { etiqueta: "ft,0,d", valor: r.rTraccion.ft0dMPa },
+                          unidad: "MPa", exige: "≤", decimales: 3,
+                        }}
+                      />
+                    )}
+                    {r.rCompresion && (
+                      <>
+                        <ResultadoCheck
+                          etiqueta={r.rCompresion.sinInestabilidad
+                            ? "Compresión paralela, ec. (6.2) · pieza corta"
+                            : "Compresión con pandeo, art. 6.3.2"}
+                          verifica={r.rCompresion.verifica}
+                          comparacion={{
+                            real: { etiqueta: "σc,0,d", valor: r.rCompresion.sigmaC0dMPa },
+                            limite: { etiqueta: "kc·fc,0,d", valor: r.rCompresion.resistenciaReducidaMPa },
+                            unidad: "MPa", exige: "≤", decimales: 3,
+                          }}
+                        />
+                        <CurvaPandeoMadera
+                          tipo={r.t}
+                          fc0kMPa={r.fc0kV}
+                          e005GPa={r.e}
+                          lambdaRelY={r.rCompresion.ejeY.lambdaRel}
+                          lambdaRelZ={r.rCompresion.ejeZ.lambdaRel}
+                          kcY={r.rCompresion.ejeY.kc}
+                          kcZ={r.rCompresion.ejeZ.kc}
+                        />
+                        <PanelFormulas
+                          titulo="Ver desarrollo del pandeo"
+                          filas={[
+                            { etiqueta: "iy = √(Iy/A)", valor: `${fmt(r.props.radioGiroYM, 4)} m` },
+                            { etiqueta: "iz = √(Iz/A)", valor: `${fmt(r.props.radioGiroZM, 4)} m` },
+                            { etiqueta: "λy", valor: fmt(r.rCompresion.ejeY.lambda, 2) },
+                            { etiqueta: "λz", valor: fmt(r.rCompresion.ejeZ.lambda, 2) },
+                            { etiqueta: "λrel,y  (6.21)", valor: fmt(r.rCompresion.ejeY.lambdaRel, 3) },
+                            { etiqueta: "λrel,z  (6.22)", valor: fmt(r.rCompresion.ejeZ.lambdaRel, 3) },
+                            { etiqueta: "kc,y  (6.25)", valor: fmt(r.rCompresion.ejeY.kc, 3) },
+                            { etiqueta: "kc,z  (6.26)", valor: fmt(r.rCompresion.ejeZ.kc, 3) },
+                            { etiqueta: "kc adoptado (el menor)", valor: fmt(r.rCompresion.kc, 3) },
+                          ]}
+                        />
+                      </>
+                    )}
+                    <PanelFormulas
+                      titulo="Ver desarrollo de las resistencias de cálculo"
+                      filas={[
+                        { etiqueta: "kmod (tabla 3.1)", valor: fmt(r.km, 2) },
+                        { etiqueta: "γM (tabla 2.3)", valor: fmt(r.gammaM, 2) },
+                        { etiqueta: "kh de tracción (dimensión mayor)", valor: fmt(r.khT, 3) },
+                        { etiqueta: "ksys", valor: fmt(r.ksys, 2) },
+                        { etiqueta: "A", valor: `${fmt(r.props.areaM2 * 1e4, 0)} cm²` },
+                        { etiqueta: "ft,0,d", valor: `${fmt(r.ft0d.valor, 3)} MPa` },
+                        { etiqueta: "fc,0,d", valor: `${fmt(r.fc0d.valor, 3)} MPa` },
+                        { etiqueta: "fc,90,d", valor: `${fmt(r.fc90d.valor, 3)} MPa` },
+                      ]}
                     />
-                  )}
-                  {r.rCompresion && (
-                    <ResultadoCheck
-                      etiqueta={r.rCompresion.sinInestabilidad
-                        ? "Compresión paralela, ec. (6.2) · pieza corta"
-                        : "Compresión con pandeo, art. 6.3.2"}
-                      verifica={r.rCompresion.verifica}
-                      comparacion={{
-                        real: { etiqueta: "σc,0,d", valor: r.rCompresion.sigmaC0dMPa },
-                        limite: { etiqueta: "kc·fc,0,d", valor: r.rCompresion.resistenciaReducidaMPa },
-                        unidad: "MPa", exige: "≤", decimales: 3,
-                      }}
-                    />
-                  )}
-                  {r.rPerpendicular && (
+                  </div>
+                </Subgrupo>
+              )}
+
+              {r.rPerpendicular && (
+                <Subgrupo titulo="Compresión perpendicular en el apoyo" detalle={r.factorKc90 ? `kc,90 = ${fmt(r.factorKc90.kc90, 2)}` : undefined}>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Compresión perpendicular, ec. (6.3)"
                       verifica={r.rPerpendicular.verifica}
@@ -318,50 +403,9 @@ export default function MaderaAxilPage() {
                         unidad: "MPa", exige: "≤", decimales: 3,
                       }}
                     />
-                  )}
-                  {r.factorKc90 && (
-                    <p className="text-xs text-muted-foreground">
-                      kc,90 = {fmt(r.factorKc90.kc90, 2)}. {r.factorKc90.motivo}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {r.rCompresion && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Pandeo</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <CurvaPandeoMadera
-                      tipo={r.t}
-                      fc0kMPa={r.fc0kV}
-                      e005GPa={r.e}
-                      lambdaRelY={r.rCompresion.ejeY.lambdaRel}
-                      lambdaRelZ={r.rCompresion.ejeZ.lambdaRel}
-                      kcY={r.rCompresion.ejeY.kc}
-                      kcZ={r.rCompresion.ejeZ.kc}
-                    />
-                    <PanelFormulas
-                      titulo="Ver cálculo del pandeo"
-                      filas={[
-                        { etiqueta: "iy = √(Iy/A)", valor: `${fmt(r.props.radioGiroYM, 4)} m` },
-                        { etiqueta: "iz = √(Iz/A)", valor: `${fmt(r.props.radioGiroZM, 4)} m` },
-                        { etiqueta: "λy", valor: fmt(r.rCompresion.ejeY.lambda, 2) },
-                        { etiqueta: "λz", valor: fmt(r.rCompresion.ejeZ.lambda, 2) },
-                        { etiqueta: "λrel,y  (6.21)", valor: fmt(r.rCompresion.ejeY.lambdaRel, 3) },
-                        { etiqueta: "λrel,z  (6.22)", valor: fmt(r.rCompresion.ejeZ.lambdaRel, 3) },
-                        { etiqueta: "kc,y  (6.25)", valor: fmt(r.rCompresion.ejeY.kc, 3) },
-                        { etiqueta: "kc,z  (6.26)", valor: fmt(r.rCompresion.ejeZ.kc, 3) },
-                        { etiqueta: "kc adoptado (el menor)", valor: fmt(r.rCompresion.kc, 3) },
-                      ]}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              {r.rPerpendicular && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Área eficaz de apoyo</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
+                    {r.factorKc90 && (
+                      <p className="text-xs text-muted-foreground">{r.factorKc90.motivo}</p>
+                    )}
                     <CroquisApoyoMadera
                       longitudContactoM={r.la}
                       incrementoExtremoM={r.rPerpendicular.incrementoExtremoM}
@@ -370,7 +414,7 @@ export default function MaderaAxilPage() {
                       cantoM={r.h}
                     />
                     <PanelFormulas
-                      titulo="Ver cálculo del apoyo"
+                      titulo="Ver desarrollo del apoyo"
                       filas={[
                         { etiqueta: "Ensanche del extremo", valor: `${fmt(r.rPerpendicular.incrementoExtremoM * 1000, 0)} mm` },
                         { etiqueta: "Ensanche interior", valor: `${fmt(r.rPerpendicular.incrementoInteriorM * 1000, 0)} mm` },
@@ -380,32 +424,14 @@ export default function MaderaAxilPage() {
                         { etiqueta: "kc,90·fc,90,d", valor: `${fmt(r.rPerpendicular.resistenciaReducidaMPa, 3)} MPa` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </Subgrupo>
               )}
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resistencias de cálculo</CardTitle></CardHeader>
-                <CardContent>
-                  <PanelFormulas
-                    titulo="Ver desarrollo"
-                    filas={[
-                      { etiqueta: "kmod (tabla 3.1)", valor: fmt(r.km, 2) },
-                      { etiqueta: "γM (tabla 2.3)", valor: fmt(r.gammaM, 2) },
-                      { etiqueta: "kh de tracción (dimensión mayor)", valor: fmt(r.khT, 3) },
-                      { etiqueta: "ksys", valor: fmt(r.ksys, 2) },
-                      { etiqueta: "A", valor: `${fmt(r.props.areaM2 * 1e4, 0)} cm²` },
-                      { etiqueta: "ft,0,d", valor: `${fmt(r.ft0d.valor, 3)} MPa` },
-                      { etiqueta: "fc,0,d", valor: `${fmt(r.fc0d.valor, 3)} MPa` },
-                      { etiqueta: "fc,90,d", valor: `${fmt(r.fc90d.valor, 3)} MPa` },
-                    ]}
-                  />
-                </CardContent>
-              </Card>
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

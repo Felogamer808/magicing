@@ -2,12 +2,17 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EditorCapas } from "@/components/verificaciones/comun/EditorCapas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
+import { ConclusionResultados } from "@/components/verificaciones/comun/ConclusionResultados";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCombinadaDiagrama } from "@/components/verificaciones/hormigon/ZapataCombinadaDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -19,6 +24,14 @@ import {
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-combinada")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Geometría y suelo" },
+  { id: "cargas", titulo: "Pilares" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 export default function ZapataCombinadaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -105,11 +118,27 @@ export default function ZapataCombinadaPage() {
     return { AM: v.A, HM: v.H, posicionCol1M: v.pos1, posicionCol2M: v.pos2 };
   }, [A, H, pos1, pos2]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({
+      tipo: "error",
+      texto: "Hay datos vacíos o no válidos: no se puede calcular. La posición del pilar 2 debe ser mayor que la del pilar 1 y no superar A.",
+    });
+  } else if (!resultado.zapata.dentroDelNucleo) {
+    avisos.push({ tipo: "aviso", texto: "La resultante de los dos pilares sale del núcleo central (±A/6)." });
+  }
+
+  const elevacion = diagrama ? (
+    <ZapataCombinadaDiagrama {...diagrama} />
+  ) : (
+    <CroquisPosicionPilares cantidad={2} />
+  );
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Cimentaciones</p>
+          <p className="spec-label">Cimentaciones · verificación</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
@@ -117,114 +146,149 @@ export default function ZapataCombinadaPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      {diagrama && (
-        <Card className="drafting-marks">
-          <CardHeader>
-            <CardTitle className="text-base">Elevación</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center py-2">
-            <ZapataCombinadaDiagrama {...diagrama} />
-          </CardContent>
-        </Card>
-      )}
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Materiales y suelo</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="sigmaAdmisible" etiqueta="σ suelo adm." sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-12">
+        <Etapa id="geometria" numero={1} titulo="Geometría, materiales y suelo" descripcion="Zapata que recibe dos pilares, tratada como viga sobre el terreno.">
+          <DatosConDibujo
+            datos={
+              <>
+                <Subgrupo titulo="Materiales y suelo">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                    <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                    <CampoNumerico id="sigmaAdmisible" etiqueta="σ adm. suelo" sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Zapata">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <CampoNumerico id="A" etiqueta="A (largo)" sufijo="m" valor={A} onChange={setA} />
+                    <CampoNumerico id="B" etiqueta="B (ancho)" sufijo="m" valor={B} onChange={setB} />
+                    <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                  </div>
+                </Subgrupo>
+              </>
+            }
+            dibujo={elevacion}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="A" etiqueta="A (largo)" sufijo="m" valor={A} onChange={setA} />
-              <CampoNumerico id="B" etiqueta="B (ancho)" sufijo="m" valor={B} onChange={setB} />
-              <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-              <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
-            </CardContent>
-          </Card>
+        <Etapa id="cargas" numero={2} titulo="Pilares y cargas" descripcion="Posición medida desde el extremo izquierdo y carga característica de cada pilar.">
+          <DatosConDibujo
+            datos={
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="pos1" etiqueta="Pilar 1 · posición" sufijo="m" valor={pos1} onChange={setPos1} />
+                <CampoNumerico id="Nk1" etiqueta="Pilar 1 · Nk" sufijo="kN" valor={Nk1} onChange={setNk1} />
+                <CampoNumerico id="pos2" etiqueta="Pilar 2 · posición" sufijo="m" valor={pos2} onChange={setPos2} />
+                <CampoNumerico id="Nk2" etiqueta="Pilar 2 · Nk" sufijo="kN" valor={Nk2} onChange={setNk2} />
+              </div>
+            }
+            dibujo={elevacion}
+          />
+        </Etapa>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Pilar 1</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <div className="col-span-full">
-                  <CroquisPosicionPilares cantidad={2} />
-                </div>
-                <CampoNumerico id="pos1" etiqueta="Posición" sufijo="m" valor={pos1} onChange={setPos1} />
-                <CampoNumerico id="Nk1" etiqueta="Nk" sufijo="kN" valor={Nk1} onChange={setNk1} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Pilar 2</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="pos2" etiqueta="Posición" sufijo="m" valor={pos2} onChange={setPos2} />
-                <CampoNumerico id="Nk2" etiqueta="Nk" sufijo="kN" valor={Nk2} onChange={setNk2} />
-              </CardContent>
-            </Card>
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Inferior para el momento positivo, superior para el negativo y reparto transversal.">
+          <div className="space-y-5">
+            <Subgrupo titulo="Longitudinal">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <CampoDiametro id="diametroInferior" etiqueta="Inferior · Ø" valor={diametroInferior} onChange={setDiametroInferior} />
+                <CampoNumerico id="separacionInferior" etiqueta="Inferior · separación" sufijo="m" valor={separacionInferior} onChange={setSeparacionInferior} />
+                <CampoDiametro id="diametroSuperior" etiqueta="Superior · Ø" valor={diametroSuperior} onChange={setDiametroSuperior} />
+                <CampoNumerico id="separacionSuperior" etiqueta="Superior · separación" sufijo="m" valor={separacionSuperior} onChange={setSeparacionSuperior} />
+              </div>
+            </Subgrupo>
+            <Subgrupo titulo="Reparto">
+              <div className="max-w-xl">
+                <EditorCapas
+                  filas={[
+                    {
+                      posicion: "Reparto, por metro",
+                      numero: { id: "numeroSecundario", valor: numeroSecundario, onChange: setNumeroSecundario },
+                      diametro: { id: "diametroSecundario", valor: diametroSecundario, onChange: setDiametroSecundario },
+                    },
+                  ]}
+                />
+              </div>
+            </Subgrupo>
           </div>
+        </Etapa>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armado inferior</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoDiametro id="diametroInferior" etiqueta="Ø" valor={diametroInferior} onChange={setDiametroInferior} />
-                <CampoNumerico id="separacionInferior" etiqueta="Separación" sufijo="m" valor={separacionInferior} onChange={setSeparacionInferior} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armado superior</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoDiametro id="diametroSuperior" etiqueta="Ø" valor={diametroSuperior} onChange={setDiametroSuperior} />
-                <CampoNumerico id="separacionSuperior" etiqueta="Separación" sufijo="m" valor={separacionSuperior} onChange={setSeparacionSuperior} />
-              </CardContent>
-            </Card>
-          </div>
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
+              { etiqueta: "A × B × H", valor: `${A} × ${B} × ${H} m` },
+              { etiqueta: "σ adm. suelo", valor: `${sigmaAdmisible} kN/m²` },
+              ...(resultado
+                ? [
+                    { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN`, derivado: true },
+                    { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.excentricidadM, 3)} m`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              "No viene de la planilla: la zapata se trata como una viga sobre el terreno, con la reacción del suelo como carga y los pilares como apoyos.",
+              "No incluye punzonamiento en cada pilar. Revisar antes de usar en obra.",
+              "Cuantías mínimas heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Armadura de reparto</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="numeroSecundario" etiqueta="Nº barras/m" valor={numeroSecundario} onChange={setNumeroSecundario} />
-              <CampoDiametro id="diametroSecundario" etiqueta="Ø" valor={diametroSecundario} onChange={setDiametroSecundario} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores numéricos válidos para ver los resultados. La posición del pilar 2 debe ser mayor que la del pilar 1 y no superar A.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Verificación geotécnica</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionResultados
+                comprobaciones={[
+                  {
+                    etiqueta: "tensión del terreno",
+                    estado: resultado.zapata.geotecnico.verificaTension ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
+                  },
+                  {
+                    etiqueta: "armadura inferior",
+                    estado: resultado.zapata.inferior.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.inferior.asNecCm2PorM / resultado.zapata.inferior.asRealCm2PorM,
+                  },
+                  {
+                    etiqueta: "armadura superior",
+                    estado: resultado.zapata.superior.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.superior.asNecCm2PorM / resultado.zapata.superior.asRealCm2PorM,
+                  },
+                  {
+                    etiqueta: "cortante",
+                    estado: resultado.zapata.cortante.verificaCorte ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.cortante.vEdKN / resultado.zapata.cortante.vRdCKN,
+                  },
+                  {
+                    etiqueta: "armadura de reparto",
+                    estado: resultado.zapata.secundario.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.secundario.asNecCm2 / resultado.zapata.secundario.asRealCm2,
+                  },
+                ]}
+              />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "σ terreno", valor: `${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m²`, nota: `admisible ${fmt(aNumero(sigmaAdmisible))}` },
+                  { etiqueta: "M+ máximo", valor: `${fmt(resultado.zapata.inferior.mKNm)} kN·m`, nota: `en x = ${fmt(resultado.zapata.inferior.posicionM, 2)} m` },
+                  { etiqueta: "M− máximo", valor: `${fmt(resultado.zapata.superior.mKNm)} kN·m`, nota: `en x = ${fmt(resultado.zapata.superior.posicionM, 2)} m` },
+                  { etiqueta: "Vd", valor: `${fmt(resultado.zapata.cortante.vEdKN)} kN`, nota: `VRd,c ${fmt(resultado.zapata.cortante.vRdCKN)} kN` },
+                ]}
+              />
+
+              <Subgrupo titulo="Geotecnia">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Tensión admisible del suelo"
+                    etiqueta="Tensión admisible del terreno"
                     verifica={resultado.zapata.geotecnico.verificaTension}
                     comparacion={{
                       real: { etiqueta: "σ", valor: resultado.zapata.geotecnico.sigmaKPa },
@@ -233,63 +297,40 @@ export default function ZapataCombinadaPage() {
                     }}
                   />
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo geotécnico"
                     filas={[
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN` },
                       { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.excentricidadM, 3)} m` },
                       { etiqueta: "Núcleo central (±A/6)", valor: resultado.zapata.dentroDelNucleo ? "Dentro" : "Fuera" },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Armado inferior (momento positivo)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <Subgrupo titulo="Comprobaciones estructurales">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Momento positivo · armadura inferior suficiente"
                     verifica={resultado.zapata.inferior.verificaAs}
+                    detalle={`M = ${fmt(resultado.zapata.inferior.mKNm)} kN·m en x = ${fmt(resultado.zapata.inferior.posicionM, 2)} m`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.zapata.inferior.asRealCm2PorM },
                       limite: { etiqueta: "As nec", valor: resultado.zapata.inferior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    M = {fmt(resultado.zapata.inferior.mKNm)} kN·m, en x = {fmt(resultado.zapata.inferior.posicionM, 2)} m
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Armado superior (momento negativo)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Momento negativo · armadura superior suficiente"
                     verifica={resultado.zapata.superior.verificaAs}
+                    detalle={`M = ${fmt(resultado.zapata.superior.mKNm)} kN·m en x = ${fmt(resultado.zapata.superior.posicionM, 2)} m`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.zapata.superior.asRealCm2PorM },
                       limite: { etiqueta: "As nec", valor: resultado.zapata.superior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    M = {fmt(resultado.zapata.superior.mKNm)} kN·m, en x = {fmt(resultado.zapata.superior.posicionM, 2)} m
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Cortante y armadura de reparto</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Cortante (EC2 6.2.2)"
+                    etiqueta="Cortante sin armadura transversal"
                     verifica={resultado.zapata.cortante.verificaCorte}
                     comparacion={{
                       real: { etiqueta: "Vd", valor: resultado.zapata.cortante.vEdKN },
@@ -298,7 +339,7 @@ export default function ZapataCombinadaPage() {
                     }}
                   />
                   <ResultadoCheck
-                    etiqueta="Armadura de reparto"
+                    etiqueta="Armadura de reparto suficiente"
                     verifica={resultado.zapata.secundario.verificaAs}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.zapata.secundario.asRealCm2 },
@@ -306,17 +347,11 @@ export default function ZapataCombinadaPage() {
                       unidad: "cm²", exige: "≥",
                     }}
                   />
-                </CardContent>
-              </Card>
-
-              <p className="text-xs text-muted-foreground">
-                Este tipo no viene de tu planilla — se calculó tratando la zapata como una viga sobre el
-                terreno (carga distribuida = reacción del suelo, apoyos = cargas de los pilares). No incluye
-                punzonamiento en cada pilar. Revisar antes de usar en obra.
-              </p>
-            </>
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
     </main>
   );

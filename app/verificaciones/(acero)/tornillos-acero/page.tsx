@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -30,6 +33,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "tornillos-acero")!;
+
+const ETAPAS = [
+  { id: "grupo", titulo: "Grupo" },
+  { id: "bulon", titulo: "Bulón y chapas" },
+  { id: "adicionales", titulo: "Adicionales" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const GRADOS: readonly GradoBulon[] = ["A325", "A307"];
 const DEFORMACION = ["Controlada (agujeros estándar)", "No controlada"] as const;
@@ -218,9 +229,14 @@ export default function TornillosAceroPage() {
     traccionAgujeros, diametroAgujeroBloque, ubs,
   ]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) avisos.push({ tipo: "error", texto: "Completá el grupo de bulones, el bulón, las chapas y la solicitación con valores válidos." });
+  if (hayBloque === HAY_BLOQUE[1]) avisos.push({ tipo: "aviso", texto: "El bloque de corte toma Fy = 248 MPa (A36), fijo en esta página." });
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Uniones · Estructuras metálicas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -230,89 +246,74 @@ export default function TornillosAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          Artículo J3, por el método ASD. Un bulón puede fallar de tres maneras distintas y
-          cualquiera puede gobernar: corte del vástago —depende sólo del bulón— (Ω ={" "}
-          {fmt(OMEGA_J, 2)}), o aplastamiento y arrancamiento de la chapa —dependen de la chapa y no
-          del bulón—. Si además hay tracción simultánea, la ec. (J3-3b) reduce la capacidad a
-          tracción según cuánto corte haya. Si la conexión es <em>slip-critical</em>, se agrega la
-          verificación de deslizamiento del art. J3.8 —que no reemplaza a las de contacto: si la
-          unión llega a deslizar, termina apoyando en aplastamiento igual—.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Grupo de bulones</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="filas" etiqueta="Filas" valor={filas} onChange={setFilas} />
-                <CampoNumerico id="columnas" etiqueta="Columnas" valor={columnas} onChange={setColumnas} />
-                <CampoNumerico id="sx" etiqueta="Separación horizontal" sufijo="m" valor={sx} onChange={setSx} />
-                <CampoNumerico id="sy" etiqueta="Separación vertical" sufijo="m" valor={sy} onChange={setSy} />
-              </div>
-              <PanelAyuda titulo="Por qué el grupo se arma como grilla centrada">
-                <p>
-                  El método elástico del art. 8.2.1 asume una chapa rígida que gira sobre el{" "}
-                  <strong className="text-foreground">centroide del grupo</strong>, no sobre ningún
-                  otro punto. La grilla se genera ya centrada para cumplir esa hipótesis: no hace
-                  falta calcular el centroide a mano.
-                </p>
-                <p>
-                  Una fila de bulones —1 columna, N filas— cubre la conexión simple más habitual, una
-                  chapa de corte entre viga y columna. Una grilla de varias filas y columnas cubre las
-                  conexiones a momento.
-                </p>
-              </PanelAyuda>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solicitación en el centroide del grupo</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <CampoNumerico id="fx" etiqueta="Fx" sufijo="kN" valor={fx} onChange={setFx} />
-              <CampoNumerico id="fy" etiqueta="Fy" sufijo="kN" valor={fy} onChange={setFy} />
-              <CampoNumerico id="momento" etiqueta="M" sufijo="kN·m" valor={momento} onChange={setMomento} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bulón</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <CampoNumerico id="diametro" etiqueta="Diámetro" sufijo="mm" valor={diametro} onChange={setDiametro}
-                             sugerencias={[12, 16, 20, 22, 24, 27, 30]} />
-              <CampoSeleccion id="grado" etiqueta="Grado" valor={grado} opciones={GRADOS} onChange={setGrado} />
-              <CampoNumerico id="planosDeCorte" etiqueta="Planos de corte" valor={planosDeCorte} onChange={setPlanosDeCorte} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Chapas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm font-medium">Chapa 1</p>
+      <div className="flex flex-col gap-12">
+        <Etapa id="grupo" numero={1} titulo="Grupo y solicitación" descripcion="La grilla de bulones y las fuerzas aplicadas en su centroide.">
+          <div className="max-w-2xl space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="filas" etiqueta="Filas" valor={filas} onChange={setFilas} />
+              <CampoNumerico id="columnas" etiqueta="Columnas" valor={columnas} onChange={setColumnas} />
+              <CampoNumerico id="sx" etiqueta="Separación horizontal" sufijo="m" valor={sx} onChange={setSx} />
+              <CampoNumerico id="sy" etiqueta="Separación vertical" sufijo="m" valor={sy} onChange={setSy} />
+            </div>
+            <Subgrupo titulo="Solicitación en el centroide del grupo">
               <div className="grid grid-cols-3 gap-4">
-                <CampoNumerico id="espesor1" etiqueta="Espesor" sufijo="mm" valor={espesor1} onChange={setEspesor1} />
-                <CampoNumerico id="fu1" etiqueta="Fu" sufijo="MPa" valor={fu1} onChange={setFu1} />
-                <CampoNumerico id="lc1" etiqueta="Distancia libre al borde" sufijo="mm" valor={lc1} onChange={setLc1} />
+                <CampoNumerico id="fx" etiqueta="Fx" sufijo="kN" valor={fx} onChange={setFx} />
+                <CampoNumerico id="fy" etiqueta="Fy" sufijo="kN" valor={fy} onChange={setFy} />
+                <CampoNumerico id="momento" etiqueta="M" sufijo="kN·m" valor={momento} onChange={setMomento} />
               </div>
-              <CampoSeleccion id="deformacion1" etiqueta="Control de deformaciones" valor={deformacion1}
-                              opciones={DEFORMACION} onChange={setDeformacion1} />
+            </Subgrupo>
+            <PanelAyuda titulo="Por qué el grupo se arma como grilla centrada">
+              <p>
+                El método elástico del art. 8.2.1 asume una chapa rígida que gira sobre el{" "}
+                <strong className="text-foreground">centroide del grupo</strong>, no sobre ningún
+                otro punto. La grilla se genera ya centrada para cumplir esa hipótesis: no hace
+                falta calcular el centroide a mano.
+              </p>
+              <p>
+                Una fila de bulones —1 columna, N filas— cubre la conexión simple más habitual, una
+                chapa de corte entre viga y columna. Una grilla de varias filas y columnas cubre las
+                conexiones a momento.
+              </p>
+            </PanelAyuda>
+          </div>
+        </Etapa>
 
-              <CampoSeleccion id="dosChapas" etiqueta="¿Hay una segunda chapa?" valor={dosChapas}
-                              opciones={DOS_CHAPAS} onChange={setDosChapas} />
+        <Etapa id="bulon" numero={2} titulo="Bulón y chapas" descripcion="El vástago y cada chapa que atraviesa: cualquiera de los dos puede gobernar.">
+          <div className="max-w-2xl space-y-8">
+            <Subgrupo titulo="Bulón">
+              <div className="grid grid-cols-3 gap-4">
+                <CampoNumerico id="diametro" etiqueta="Diámetro" sufijo="mm" valor={diametro} onChange={setDiametro} sugerencias={[12, 16, 20, 22, 24, 27, 30]} />
+                <CampoSeleccion id="grado" etiqueta="Grado" valor={grado} opciones={GRADOS} onChange={setGrado} />
+                <CampoNumerico id="planosDeCorte" etiqueta="Planos de corte" valor={planosDeCorte} onChange={setPlanosDeCorte} />
+              </div>
+            </Subgrupo>
+
+            <Subgrupo titulo="Chapa 1">
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <CampoNumerico id="espesor1" etiqueta="Espesor" sufijo="mm" valor={espesor1} onChange={setEspesor1} />
+                  <CampoNumerico id="fu1" etiqueta="Fu" sufijo="MPa" valor={fu1} onChange={setFu1} />
+                  <CampoNumerico id="lc1" etiqueta="Distancia libre al borde" sufijo="mm" valor={lc1} onChange={setLc1} />
+                </div>
+                <CampoSeleccion id="deformacion1" etiqueta="Control de deformaciones" valor={deformacion1} opciones={DEFORMACION} onChange={setDeformacion1} />
+              </div>
+            </Subgrupo>
+
+            <div className="space-y-4">
+              <CampoSeleccion id="dosChapas" etiqueta="¿Hay una segunda chapa?" valor={dosChapas} opciones={DOS_CHAPAS} onChange={setDosChapas} />
               {dosChapas === DOS_CHAPAS[1] && (
-                <>
-                  <p className="text-sm font-medium">Chapa 2</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="espesor2" etiqueta="Espesor" sufijo="mm" valor={espesor2} onChange={setEspesor2} />
-                    <CampoNumerico id="fu2" etiqueta="Fu" sufijo="MPa" valor={fu2} onChange={setFu2} />
-                    <CampoNumerico id="lc2" etiqueta="Distancia libre al borde" sufijo="mm" valor={lc2} onChange={setLc2} />
+                <Subgrupo titulo="Chapa 2">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <CampoNumerico id="espesor2" etiqueta="Espesor" sufijo="mm" valor={espesor2} onChange={setEspesor2} />
+                      <CampoNumerico id="fu2" etiqueta="Fu" sufijo="MPa" valor={fu2} onChange={setFu2} />
+                      <CampoNumerico id="lc2" etiqueta="Distancia libre al borde" sufijo="mm" valor={lc2} onChange={setLc2} />
+                    </div>
+                    <CampoSeleccion id="deformacion2" etiqueta="Control de deformaciones" valor={deformacion2} opciones={DEFORMACION} onChange={setDeformacion2} />
                   </div>
-                  <CampoSeleccion id="deformacion2" etiqueta="Control de deformaciones" valor={deformacion2}
-                                  opciones={DEFORMACION} onChange={setDeformacion2} />
-                </>
+                </Subgrupo>
               )}
               <PanelAyuda titulo="Por qué puede haber más de una chapa crítica">
                 <p>
@@ -328,143 +329,161 @@ export default function TornillosAceroPage() {
                   fuerza —no la distancia entre centros—.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Tracción simultánea — art. J3.7</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <CampoSeleccion id="hayTraccion" etiqueta="¿El bulón más exigido también tracciona?" valor={hayTraccion}
-                              opciones={HAY_TRACCION} onChange={setHayTraccion} />
-              {hayTraccion === HAY_TRACCION[1] && (
-                <>
-                  <CampoNumerico id="traccionReq" etiqueta="Tracción requerida en el bulón" sufijo="kN"
-                                 valor={traccionReq} onChange={setTraccionReq} />
-                  <PanelAyuda titulo="De dónde sale el corte que entra en la interacción">
-                    <p>
-                      El corte requerido es el del bulón más exigido del grupo —el mismo V que ya
-                      calcula el reparto elástico de arriba—, no un dato aparte. La tracción sí es un
-                      dato nuevo: sale de la parte de la conexión que no modela el reparto elástico
-                      en el plano —por ejemplo, el brazo de palanca de una ménsula que tracciona los
-                      bulones de la fila superior—.
-                    </p>
-                    <p>
-                      No se resuelve acá el apalancamiento (<em>prying action</em>) de piezas tipo
-                      T ni el reparto de la tracción entre bulones de una conexión a momento: el
-                      apunte remite esos casos a un procedimiento aparte (Steel Construction Manual,
-                      sección 9). Este cálculo asume que la tracción por bulón ya está determinada.
-                    </p>
-                  </PanelAyuda>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        <Etapa id="adicionales" numero={3} titulo="Comprobaciones adicionales" descripcion="Se activan sólo si la unión las necesita.">
+          <div className="max-w-2xl space-y-8">
+            <Subgrupo titulo="Tracción simultánea" detalle="art. J3.7">
+              <div className="space-y-4">
+                <CampoSeleccion id="hayTraccion" etiqueta="¿El bulón más exigido también tracciona?" valor={hayTraccion} opciones={HAY_TRACCION} onChange={setHayTraccion} />
+                {hayTraccion === HAY_TRACCION[1] && (
+                  <>
+                    <CampoNumerico id="traccionReq" etiqueta="Tracción requerida en el bulón" sufijo="kN" valor={traccionReq} onChange={setTraccionReq} />
+                    <PanelAyuda titulo="De dónde sale el corte que entra en la interacción">
+                      <p>
+                        El corte requerido es el del bulón más exigido del grupo —el mismo V que ya
+                        calcula el reparto elástico—, no un dato aparte. La tracción sí es un
+                        dato nuevo: sale de la parte de la conexión que no modela el reparto elástico
+                        en el plano —por ejemplo, el brazo de palanca de una ménsula que tracciona los
+                        bulones de la fila superior—.
+                      </p>
+                      <p>
+                        No se resuelve acá el apalancamiento (<em>prying action</em>) de piezas tipo
+                        T ni el reparto de la tracción entre bulones de una conexión a momento: el
+                        apunte remite esos casos a un procedimiento aparte (Steel Construction Manual,
+                        sección 9). Este cálculo asume que la tracción por bulón ya está determinada.
+                      </p>
+                    </PanelAyuda>
+                  </>
+                )}
+              </div>
+            </Subgrupo>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8 (slip-critical)</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <CampoSeleccion id="hayDeslizamiento" etiqueta="¿Es una conexión slip-critical?" valor={hayDeslizamiento}
-                              opciones={HAY_DESLIZAMIENTO} onChange={setHayDeslizamiento} />
-              {hayDeslizamiento === HAY_DESLIZAMIENTO[1] && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <CampoSeleccion id="clase" etiqueta="Clase de superficie" valor={clase} opciones={CLASES} onChange={setClase} />
-                    <CampoSeleccion id="tipoAgujeroDesl" etiqueta="Tipo de agujero" valor={tipoAgujeroDesl}
-                                    opciones={TIPOS_AGUJERO} onChange={setTipoAgujeroDesl} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <CampoNumerico id="tb" etiqueta="Tb — pretensión mínima especificada" sufijo="kN"
-                                   valor={tb} onChange={setTb} />
-                    <CampoNumerico id="chapasDeRelleno" etiqueta="Chapas de relleno (fillers)" valor={chapasDeRelleno}
-                                   onChange={setChapasDeRelleno} />
-                  </div>
-                  <PanelAyuda titulo="De dónde sale Tb y qué NO resuelve esta verificación">
-                    <p>
-                      <strong className="text-foreground">Tb</strong> es la pretensión mínima
-                      especificada del bulón, de la Tabla J3.1 de la norma —depende del diámetro y
-                      el grado—. No se calcula acá: cargala de la tabla para tu bulón.
-                    </p>
-                    <p>
-                      Los planos de fricción son los mismos planos de corte que ya se cargaron en la
-                      tarjeta «Bulón» de arriba: físicamente son las mismas interfaces entre chapas.
-                    </p>
-                    <p>
-                      Esta verificación de deslizamiento se <strong className="text-foreground">
-                      suma</strong> a las de contacto —corte del vástago, aplastamiento,
-                      arrancamiento—, no las reemplaza: la norma pide comprobar las dos, porque si la
-                      unión llega a deslizar hasta el fondo del agujero, termina apoyando en
-                      aplastamiento igual que una conexión de contacto común.
-                    </p>
-                  </PanelAyuda>
-                </>
-              )}
-            </CardContent>
-          </Card>
+            <Subgrupo titulo="Deslizamiento (slip-critical)" detalle="art. J3.8">
+              <div className="space-y-4">
+                <CampoSeleccion id="hayDeslizamiento" etiqueta="¿Es una conexión slip-critical?" valor={hayDeslizamiento} opciones={HAY_DESLIZAMIENTO} onChange={setHayDeslizamiento} />
+                {hayDeslizamiento === HAY_DESLIZAMIENTO[1] && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <CampoSeleccion id="clase" etiqueta="Clase de superficie" valor={clase} opciones={CLASES} onChange={setClase} />
+                      <CampoSeleccion id="tipoAgujeroDesl" etiqueta="Tipo de agujero" valor={tipoAgujeroDesl} opciones={TIPOS_AGUJERO} onChange={setTipoAgujeroDesl} />
+                      <CampoNumerico id="tb" etiqueta="Tb — pretensión mínima especificada" sufijo="kN" valor={tb} onChange={setTb} />
+                      <CampoNumerico id="chapasDeRelleno" etiqueta="Chapas de relleno (fillers)" valor={chapasDeRelleno} onChange={setChapasDeRelleno} />
+                    </div>
+                    <PanelAyuda titulo="De dónde sale Tb y qué NO resuelve esta verificación">
+                      <p>
+                        <strong className="text-foreground">Tb</strong> es la pretensión mínima
+                        especificada del bulón, de la Tabla J3.1 de la norma —depende del diámetro y
+                        el grado—. No se calcula acá: cargala de la tabla para tu bulón.
+                      </p>
+                      <p>
+                        Los planos de fricción son los mismos planos de corte que ya se cargaron en el
+                        bulón: físicamente son las mismas interfaces entre chapas.
+                      </p>
+                      <p>
+                        Esta verificación de deslizamiento se <strong className="text-foreground">
+                        suma</strong> a las de contacto —corte del vástago, aplastamiento,
+                        arrancamiento—, no las reemplaza: la norma pide comprobar las dos, porque si la
+                        unión llega a deslizar hasta el fondo del agujero, termina apoyando en
+                        aplastamiento igual que una conexión de contacto común.
+                      </p>
+                    </PanelAyuda>
+                  </>
+                )}
+              </div>
+            </Subgrupo>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bloque de corte — art. J4.3</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <CampoSeleccion id="hayBloque" etiqueta="¿Corresponde verificar?" valor={hayBloque}
-                              opciones={HAY_BLOQUE} onChange={setHayBloque} />
-              {hayBloque === HAY_BLOQUE[1] && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <CampoNumerico id="diametroAgujeroBloque" etiqueta="Diámetro nominal del agujero" sufijo="mm"
-                                   valor={diametroAgujeroBloque} onChange={setDiametroAgujeroBloque} />
-                    <CampoSeleccion id="ubs" etiqueta="Distribución de tracción" valor={ubs} opciones={UBS} onChange={setUbs} />
-                  </div>
-                  <p className="text-sm font-medium">Plano de corte</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="corteLargo" etiqueta="Largo" sufijo="mm" valor={corteLargo} onChange={setCorteLargo} />
-                    <CampoNumerico id="corteEspesor" etiqueta="Espesor" sufijo="mm" valor={corteEspesor} onChange={setCorteEspesor} />
-                    <CampoNumerico id="corteAgujeros" etiqueta="Agujeros" valor={corteAgujeros} onChange={setCorteAgujeros} />
-                  </div>
-                  <p className="text-sm font-medium">Plano de tracción</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="traccionAncho" etiqueta="Ancho" sufijo="mm" valor={traccionAncho} onChange={setTraccionAncho} />
-                    <CampoNumerico id="traccionEspesor" etiqueta="Espesor" sufijo="mm" valor={traccionEspesor} onChange={setTraccionEspesor} />
-                    <CampoNumerico id="traccionAgujeros" etiqueta="Agujeros" valor={traccionAgujeros} onChange={setTraccionAgujeros} />
-                  </div>
-                  <PanelAyuda titulo="Qué es el bloque de corte y cuándo revisarlo">
-                    <p>
-                      Es una falla local en el extremo de la pieza conectada: se arranca un bloque de
-                      material combinando rotura por corte en un plano —paralelo a la fuerza— con
-                      rotura por tracción en el plano perpendicular. Aparece en extremos de vigas
-                      recortadas, ángulos conectados por una sola ala, y en general cualquier conexión
-                      cerca del borde de la pieza.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Ubs</strong> vale 1,0 cuando la tracción es
-                      uniforme en el plano que rompe —una fila de bulones repartida pareja— y 0,5
-                      cuando no lo es, como un ángulo conectado por un ala, donde la tracción se
-                      concentra hacia el borde.
-                    </p>
-                    <p>
-                      Fy se toma en A36 (248 MPa) para este cálculo. Si el material es otro, avisá para
-                      exponerlo como dato.
-                    </p>
-                  </PanelAyuda>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            <Subgrupo titulo="Bloque de corte" detalle="art. J4.3">
+              <div className="space-y-4">
+                <CampoSeleccion id="hayBloque" etiqueta="¿Corresponde verificar?" valor={hayBloque} opciones={HAY_BLOQUE} onChange={setHayBloque} />
+                {hayBloque === HAY_BLOQUE[1] && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <CampoNumerico id="diametroAgujeroBloque" etiqueta="Diámetro nominal del agujero" sufijo="mm" valor={diametroAgujeroBloque} onChange={setDiametroAgujeroBloque} />
+                      <CampoSeleccion id="ubs" etiqueta="Distribución de tracción" valor={ubs} opciones={UBS} onChange={setUbs} />
+                    </div>
+                    <p className="text-sm font-medium">Plano de corte</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <CampoNumerico id="corteLargo" etiqueta="Largo" sufijo="mm" valor={corteLargo} onChange={setCorteLargo} />
+                      <CampoNumerico id="corteEspesor" etiqueta="Espesor" sufijo="mm" valor={corteEspesor} onChange={setCorteEspesor} />
+                      <CampoNumerico id="corteAgujeros" etiqueta="Agujeros" valor={corteAgujeros} onChange={setCorteAgujeros} />
+                    </div>
+                    <p className="text-sm font-medium">Plano de tracción</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <CampoNumerico id="traccionAncho" etiqueta="Ancho" sufijo="mm" valor={traccionAncho} onChange={setTraccionAncho} />
+                      <CampoNumerico id="traccionEspesor" etiqueta="Espesor" sufijo="mm" valor={traccionEspesor} onChange={setTraccionEspesor} />
+                      <CampoNumerico id="traccionAgujeros" etiqueta="Agujeros" valor={traccionAgujeros} onChange={setTraccionAgujeros} />
+                    </div>
+                    <PanelAyuda titulo="Qué es el bloque de corte y cuándo revisarlo">
+                      <p>
+                        Es una falla local en el extremo de la pieza conectada: se arranca un bloque de
+                        material combinando rotura por corte en un plano —paralelo a la fuerza— con
+                        rotura por tracción en el plano perpendicular. Aparece en extremos de vigas
+                        recortadas, ángulos conectados por una sola ala, y en general cualquier conexión
+                        cerca del borde de la pieza.
+                      </p>
+                      <p>
+                        <strong className="text-foreground">Ubs</strong> vale 1,0 cuando la tracción es
+                        uniforme en el plano que rompe —una fila de bulones repartida pareja— y 0,5
+                        cuando no lo es, como un ángulo conectado por un ala, donde la tracción se
+                        concentra hacia el borde.
+                      </p>
+                    </PanelAyuda>
+                  </>
+                )}
+              </div>
+            </Subgrupo>
+          </div>
+        </Etapa>
 
-        <div className="space-y-6">
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Grupo", valor: `${filas} × ${columnas}, s = ${sx} / ${sy} m` },
+              { etiqueta: "Fx · Fy · M", valor: `${fx} · ${fy} kN · ${momento} kN·m` },
+              { etiqueta: "Bulón", valor: `Ø${diametro} ${grado}, ${planosDeCorte} plano(s) de corte` },
+              { etiqueta: "Chapa 1", valor: `t ${espesor1} mm, Fu ${fu1} MPa, lc ${lc1} mm` },
+              ...(dosChapas === DOS_CHAPAS[1] ? [{ etiqueta: "Chapa 2", valor: `t ${espesor2} mm, Fu ${fu2} MPa, lc ${lc2} mm` }] : []),
+              ...(resultado ? [{ etiqueta: "V bulón más exigido", valor: `${fmt(resultado.critico.vKN, 2)} kN`, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              `AISC 360, art. J3, por ASD (Ω = ${fmt(OMEGA_J, 2)}): corte del vástago, aplastamiento y arrancamiento de cada chapa; gobierna el menor.`,
+              "Reparto elástico: chapa rígida que gira sobre el centroide del grupo.",
+              "Tracción simultánea por la ec. (J3-3b), con la tracción por bulón como dato: no resuelve apalancamiento.",
+              "El deslizamiento (J3.8) se suma a las comprobaciones de contacto, no las reemplaza.",
+              "Bloque de corte (J4.3) con Fy = 248 MPa (A36).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá el grupo de bulones, el bulón, las chapas y la solicitación con valores
-                válidos.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "V bulón crítico", valor: `${fmt(resultado.critico.vKN, 2)} kN`, nota: `de ${resultado.n.filas * resultado.n.columnas} bulones` },
+                  { etiqueta: "Rn/Ω", valor: `${fmt(resultado.bulon.admisibleKN, 2)} kN` },
+                  { etiqueta: "Modo de falla", valor: resultado.bulon.modoDeFalla === "chapa" ? "Chapa" : "Vástago", nota: resultado.bulon.modoDeFalla === "chapa" ? "aplastamiento o arrancamiento" : "corte del vástago" },
+                  { etiqueta: "Vx · Vy", valor: `${fmt(resultado.critico.vxKN, 1)} · ${fmt(resultado.critico.vyKN, 1)} kN` },
+                ]}
+              />
+
+              <Subgrupo titulo="Resistencia del bulón" detalle={`gobierna ${resultado.bulon.modoDeFalla}`}>
+                <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta={`Bulón más exigido — gobierna ${resultado.bulon.modoDeFalla}`}
+                    etiqueta="Bulón más exigido"
                     verifica={resultado.critico.vKN <= resultado.bulon.admisibleKN}
                     comparacion={{
                       real: { etiqueta: "V", valor: resultado.critico.vKN },
@@ -472,16 +491,23 @@ export default function TornillosAceroPage() {
                       unidad: "kN", exige: "≤",
                     }}
                   />
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {resultado.n.filas * resultado.n.columnas} bulones · Vx = {fmt(resultado.critico.vxKN, 2)} kN ·
-                    Vy = {fmt(resultado.critico.vyKN, 2)} kN
-                  </p>
-                </CardContent>
-              </Card>
+                  <PanelFormulas
+                    titulo="Ver desarrollo de la resistencia del bulón"
+                    filas={[
+                      { etiqueta: "Rn corte del vástago  (J3-1)", valor: `${fmt(resultado.bulon.resistenciaCorteKN, 2)} kN` },
+                      ...resultado.bulon.resistenciaChapas.flatMap((r, i) => [
+                        { etiqueta: `Chapa ${i + 1} · aplastamiento  (J3-6a/b)`, valor: `${fmt(r.aplastamientoKN, 2)} kN` },
+                        { etiqueta: `Chapa ${i + 1} · arrancamiento  (J3-6c/d)`, valor: `${fmt(r.arrancamientoKN, 2)} kN` },
+                      ]),
+                      { etiqueta: "Rn adoptado", valor: `${fmt(resultado.bulon.nominalKN, 2)} kN` },
+                      { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.bulon.admisibleKN, 2)} kN` },
+                    ]}
+                  />
+                </div>
+              </Subgrupo>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Reparto elástico</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <Subgrupo titulo="Reparto elástico">
+                <div className="space-y-4">
                   {/*
                     El índice elegido puede quedar fuera de rango al achicar el
                     grupo, así que se acota en vez de guardarse validado: el
@@ -534,14 +560,6 @@ export default function TornillosAceroPage() {
                             },
                             { etiqueta: "Vx", valor: `${fmt(f.vxKN, 2)} kN` },
                             { etiqueta: "Vy", valor: `${fmt(f.vyKN, 2)} kN` },
-                            {
-                              etiqueta: "Modo de falla",
-                              valor: resultado.bulon.modoDeFalla === "chapa" ? "Chapa" : "Vástago",
-                              nota:
-                                resultado.bulon.modoDeFalla === "chapa"
-                                  ? "aplastamiento o arrancamiento"
-                                  : "corte del vástago",
-                            },
                           ]}
                         />
                       </div>
@@ -555,31 +573,12 @@ export default function TornillosAceroPage() {
                       valor: `${fmt(f.vKN, 2)} kN`,
                     }))}
                   />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resistencia del bulón</CardTitle></CardHeader>
-                <CardContent>
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "Rn corte del vástago  (J3-1)", valor: `${fmt(resultado.bulon.resistenciaCorteKN, 2)} kN` },
-                      ...resultado.bulon.resistenciaChapas.flatMap((r, i) => [
-                        { etiqueta: `Chapa ${i + 1} · aplastamiento  (J3-6a/b)`, valor: `${fmt(r.aplastamientoKN, 2)} kN` },
-                        { etiqueta: `Chapa ${i + 1} · arrancamiento  (J3-6c/d)`, valor: `${fmt(r.arrancamientoKN, 2)} kN` },
-                      ]),
-                      { etiqueta: "Rn adoptado", valor: `${fmt(resultado.bulon.nominalKN, 2)} kN` },
-                      { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.bulon.admisibleKN, 2)} kN` },
-                    ]}
-                  />
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
               {resultado.traccion && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Interacción tracción-corte — art. J3.7</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <Subgrupo titulo="Interacción tracción-corte" detalle="art. J3.7">
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Tracción con corte simultáneo"
                       verifica={resultado.traccionReqKN <= resultado.traccion.admisibleKN}
@@ -590,7 +589,7 @@ export default function TornillosAceroPage() {
                       }}
                     />
                     <PanelFormulas
-                      titulo="Ver cálculo"
+                      titulo="Ver desarrollo de la interacción"
                       filas={[
                         { etiqueta: "fv requerida en el vástago", valor: `${fmt(resultado.traccion.fvReqPa / 1e6, 1)} MPa` },
                         { etiqueta: "F'nt reducida  (J3-3b)", valor: `${fmt(resultado.traccion.fntReducidaPa / 1e6, 1)} MPa` },
@@ -598,14 +597,13 @@ export default function TornillosAceroPage() {
                         { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.traccion.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </Subgrupo>
               )}
 
               {resultado.deslizamiento && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <Subgrupo titulo="Deslizamiento" detalle="art. J3.8">
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Deslizamiento (slip-critical)"
                       verifica={resultado.critico.vKN <= resultado.deslizamiento.admisibleKN}
@@ -616,22 +614,21 @@ export default function TornillosAceroPage() {
                       }}
                     />
                     <PanelFormulas
-                      titulo="Ver cálculo"
+                      titulo="Ver desarrollo del deslizamiento"
                       filas={[
                         { etiqueta: "Rn = μ·Du·hf·Tb·ns  (J3-4)", valor: `${fmt(resultado.deslizamiento.nominalKN, 2)} kN` },
                         { etiqueta: `Rn/Ω con Ω = 1,5/φ = ${fmt(resultado.deslizamiento.omega, 2)}`, valor: `${fmt(resultado.deslizamiento.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </Subgrupo>
               )}
 
               {resultado.bloque && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Bloque de corte</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <Subgrupo titulo="Bloque de corte" detalle="art. J4.3">
+                  <div className="space-y-3">
                     <ResultadoCheck
-                      etiqueta="Bloque de corte — art. J4.3"
+                      etiqueta="Bloque de corte"
                       verifica={resultado.critico.vKN <= resultado.bloque.admisibleKN}
                       comparacion={{
                         real: { etiqueta: "V", valor: resultado.critico.vKN },
@@ -640,7 +637,7 @@ export default function TornillosAceroPage() {
                       }}
                     />
                     <PanelFormulas
-                      titulo="Ver cálculo"
+                      titulo="Ver desarrollo del bloque de corte"
                       filas={[
                         { etiqueta: "Rn rotura corte + tracción  (J4-5, 1er término)", valor: `${fmt(resultado.bloque.rnRoturaKN, 2)} kN` },
                         { etiqueta: "Rn fluencia corte + rotura tracción  (J4-5, tope)", valor: `${fmt(resultado.bloque.rnFluenciaKN, 2)} kN` },
@@ -648,13 +645,14 @@ export default function TornillosAceroPage() {
                         { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.bloque.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </Subgrupo>
               )}
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

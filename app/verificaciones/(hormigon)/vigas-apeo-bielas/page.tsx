@@ -2,12 +2,18 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
+import { EditorCapas } from "@/components/verificaciones/comun/EditorCapas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaVigaApeoModelo } from "@/components/verificaciones/hormigon/DiagramaVigaApeoModelo";
@@ -22,6 +28,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-apeo-bielas")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Geometría" },
+  { id: "cargas", titulo: "Cargas" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const TRANSMISIONES = [
   "Directa (carga sobre la cara superior)",
@@ -162,11 +176,48 @@ export default function VigaApeoBielasPage() {
     ramasCuelgue, cantoColgado,
   ]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: el pilar apeado tiene que caer dentro de la luz, el tirante llevar al menos 2 barras y el canto útil quedar positivo." });
+  } else {
+    if (!resultado.r.region.esRegionD)
+      avisos.push({ tipo: "aviso", texto: "La pieza no es región D por ninguno de los dos criterios: corresponde verificarla a flexión y cortante (Vigas de apeo), no con bielas y tirantes." });
+    if (resultado.r.anclaje.formaRecomendada === "dispositivo mecánico")
+      avisos.push({ tipo: "aviso", texto: "El tirante no se ancla ni recto ni con horquilla: hacen falta dispositivos de anclaje o placas soldadas (art. 9.7(3)), o agrandar el apoyo o el voladizo." });
+  }
+
+  const modelo = resultado ? (
+    <DiagramaVigaApeoModelo
+      luzM={resultado.n.luz}
+      hM={resultado.n.h}
+      dM={resultado.r.modelo.dM}
+      zM={resultado.r.modelo.zAdoptadoM}
+      posicionCargaM={resultado.n.posCarga}
+      anchoPilarApeadoM={resultado.n.anchoPilar}
+      anchoApoyoIzqM={resultado.n.anchoApoyoIzq}
+      anchoApoyoDerM={resultado.n.anchoApoyoDer}
+      aIzqM={resultado.r.modelo.aIzqM}
+      aDerM={resultado.r.modelo.aDerM}
+      aIzqSobreD={resultado.r.region.aIzqSobreD}
+      aDerSobreD={resultado.r.region.aDerSobreD}
+      esRegionD={resultado.r.region.esRegionD}
+      anguloIzqGrados={resultado.r.modelo.anguloBielaIzqGrados}
+      anguloDerGrados={resultado.r.modelo.anguloBielaDerGrados}
+      ndPilarKN={resultado.n.nd}
+      reaccionIzqKN={resultado.r.modelo.reaccionIzqKN}
+      reaccionDerKN={resultado.r.modelo.reaccionDerKN}
+      traccionTiranteKN={resultado.r.modelo.traccionTiranteKN}
+    />
+  ) : (
+    <p className="py-10 text-center text-sm text-muted-foreground">El modelo se dibuja con datos válidos.</p>
+  );
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Vigas</p>
+          <p className="spec-label">Vigas · regiones D</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
@@ -174,257 +225,309 @@ export default function VigaApeoBielasPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      {resultado && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="drafting-marks">
-            <CardHeader><CardTitle className="text-base">Geometría y modelo</CardTitle></CardHeader>
-            <CardContent className="py-2">
-              <DiagramaVigaApeoModelo
-                luzM={resultado.n.luz}
-                hM={resultado.n.h}
-                dM={resultado.r.modelo.dM}
-                zM={resultado.r.modelo.zAdoptadoM}
-                posicionCargaM={resultado.n.posCarga}
-                anchoPilarApeadoM={resultado.n.anchoPilar}
-                anchoApoyoIzqM={resultado.n.anchoApoyoIzq}
-                anchoApoyoDerM={resultado.n.anchoApoyoDer}
-                aIzqM={resultado.r.modelo.aIzqM}
-                aDerM={resultado.r.modelo.aDerM}
-                aIzqSobreD={resultado.r.region.aIzqSobreD}
-                aDerSobreD={resultado.r.region.aDerSobreD}
-                esRegionD={resultado.r.region.esRegionD}
-                anguloIzqGrados={resultado.r.modelo.anguloBielaIzqGrados}
-                anguloDerGrados={resultado.r.modelo.anguloBielaDerGrados}
-                ndPilarKN={resultado.n.nd}
-                reaccionIzqKN={resultado.r.modelo.reaccionIzqKN}
-                reaccionDerKN={resultado.r.modelo.reaccionDerKN}
-                traccionTiranteKN={resultado.r.modelo.traccionTiranteKN}
-              />
-            </CardContent>
-          </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-          <Card className="drafting-marks">
-            <CardHeader><CardTitle className="text-base">Armado propuesto</CardTitle></CardHeader>
-            <CardContent className="py-2">
-              <DiagramaVigaApeoArmado
-                luzM={resultado.n.luz}
-                hM={resultado.n.h}
-                posicionCargaM={resultado.n.posCarga}
-                anchoPilarApeadoM={resultado.n.anchoPilar}
-                anchoApoyoIzqM={resultado.n.anchoApoyoIzq}
-                anchoApoyoDerM={resultado.n.anchoApoyoDer}
-                voladizoIzqM={resultado.n.voladizoIzq}
-                voladizoDerM={resultado.n.voladizoDer}
-                recubrimientoM={resultado.n.rg}
-                numeroTirante={resultado.n.nTirante}
-                diametroTiranteMm={resultado.n.phiTirante}
-                segundaCapaTirante={
-                  resultado.n.nTirante2 > 0
-                    ? { numero: resultado.n.nTirante2, diametroMm: resultado.n.phiTirante2 }
-                    : null
-                }
-                alturaRepartoTiranteM={resultado.r.tirante.alturaRepartoM}
-                requiereHorquillas={resultado.r.anclaje.requiereAnclajeMecanico}
-                mallaHorizontalSeparacionM={resultado.n.sepMallaH}
-                mallaHorizontalDiametroMm={resultado.n.phiMallaH}
-                mallaVerticalSeparacionM={resultado.n.sepMallaV}
-                mallaVerticalDiametroMm={resultado.n.phiMallaV}
-                cuelgue={
-                  resultado.r.cuelgue
-                    ? {
-                        diametroMm: resultado.n.phiCuelgue,
-                        separacionM: resultado.n.sepCuelgue,
-                        numeroRamas: resultado.n.ramasCuelgue,
-                        anchoZonaM: resultado.r.cuelgue.anchoZonaM,
-                      }
-                    : null
-                }
-              />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <div className="flex flex-col gap-12">
+        <Etapa id="geometria" numero={1} titulo="Geometría y materiales" descripcion="La viga, los apoyos y el pilar que apea.">
+          <DatosConDibujo
+            datos={
+              <>
+                <Subgrupo titulo="Materiales">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                    <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                    <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Viga y apoyos">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    <CampoNumerico id="luz" etiqueta="Luz entre ejes" sufijo="m" valor={luz} onChange={setLuz} />
+                    <CampoNumerico id="h" etiqueta="Canto h" sufijo="m" valor={h} onChange={setH} />
+                    <CampoNumerico id="b" etiqueta="Ancho b" sufijo="m" valor={b} onChange={setB} />
+                    <CampoNumerico id="anchoApoyoIzq" etiqueta="Ancho apoyo izq." sufijo="m" valor={anchoApoyoIzq} onChange={setAnchoApoyoIzq} />
+                    <CampoNumerico id="anchoApoyoDer" etiqueta="Ancho apoyo der." sufijo="m" valor={anchoApoyoDer} onChange={setAnchoApoyoDer} />
+                    <div />
+                    <CampoNumerico id="voladizoIzq" etiqueta="Voladizo izq." sufijo="m" valor={voladizoIzq} onChange={setVoladizoIzq} />
+                    <CampoNumerico id="voladizoDer" etiqueta="Voladizo der." sufijo="m" valor={voladizoDer} onChange={setVoladizoDer} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Pilar apeado">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="posCarga" etiqueta="Distancia desde el apoyo izq." sufijo="m" valor={posCarga} onChange={setPosCarga} />
+                    <CampoNumerico id="anchoPilar" etiqueta="Ancho del pilar" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                  </div>
+                </Subgrupo>
+              </>
+            }
+            dibujo={modelo}
+          />
+        </Etapa>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
-            </CardContent>
-          </Card>
+        <Etapa id="cargas" numero={2} titulo="Cargas" descripcion="Ya mayoradas.">
+          <div className="grid max-w-2xl grid-cols-2 gap-4">
+            <CampoNumerico id="nd" etiqueta="Nd del pilar apeado" sufijo="kN" valor={nd} onChange={setNd} />
+            <CampoNumerico id="qd" etiqueta="qd repartida" sufijo="kN/m" valor={qd} onChange={setQd} />
+            <div className="col-span-2">
+              <CampoSeleccion id="transmision" etiqueta="Cómo llega la carga a la viga" valor={transmision} opciones={TRANSMISIONES} onChange={setTransmision} />
+            </div>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="luz" etiqueta="Luz entre ejes" sufijo="m" valor={luz} onChange={setLuz} />
-              <CampoNumerico id="h" etiqueta="Canto h" sufijo="m" valor={h} onChange={setH} />
-              <CampoNumerico id="b" etiqueta="Ancho b" sufijo="m" valor={b} onChange={setB} />
-              <CampoNumerico id="posCarga" etiqueta="Pilar apeado desde el apoyo izq." sufijo="m" valor={posCarga} onChange={setPosCarga} />
-              <CampoNumerico id="anchoPilar" etiqueta="Ancho pilar apeado" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
-              <CampoNumerico id="anchoApoyoIzq" etiqueta="Ancho apoyo izq." sufijo="m" valor={anchoApoyoIzq} onChange={setAnchoApoyoIzq} />
-              <CampoNumerico id="anchoApoyoDer" etiqueta="Ancho apoyo der." sufijo="m" valor={anchoApoyoDer} onChange={setAnchoApoyoDer} />
-              <CampoNumerico id="voladizoIzq" etiqueta="Voladizo izq." sufijo="m" valor={voladizoIzq} onChange={setVoladizoIzq} />
-              <CampoNumerico id="voladizoDer" etiqueta="Voladizo der." sufijo="m" valor={voladizoDer} onChange={setVoladizoDer} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Cargas</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="nd" etiqueta="Nd del pilar apeado" sufijo="kN" valor={nd} onChange={setNd} />
-              <CampoNumerico id="qd" etiqueta="qd repartida" sufijo="kN/m" valor={qd} onChange={setQd} />
-              <div className="col-span-full">
-                <CampoSeleccion
-                  id="transmision"
-                  etiqueta="Cómo llega la carga a la viga"
-                  valor={transmision}
-                  opciones={TRANSMISIONES}
-                  onChange={setTransmision}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Tirante inferior</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="nTirante" etiqueta="Nº barras" valor={nTirante} onChange={setNTirante} />
-              <CampoDiametro id="phiTirante" etiqueta="Ø" valor={phiTirante} onChange={setPhiTirante} />
-              <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
-              <CampoNumerico id="nTirante2" etiqueta="Nº barras 2ª capa" valor={nTirante2} onChange={setNTirante2} />
-              <CampoDiametro id="phiTirante2" etiqueta="Ø 2ª capa" valor={phiTirante2} onChange={setPhiTirante2} />
-              <CampoNumerico id="dg" etiqueta="Árido máx. dg" sufijo="m" valor={dg} onChange={setDg} />
-              <div className="col-span-2 sm:col-span-3">
-                <CampoSeleccion
-                  id="adherencia"
-                  etiqueta="Condición de adherencia"
-                  opciones={[...ADHERENCIAS]}
-                  valor={adherencia}
-                  onChange={setAdherencia}
-                />
-              </div>
-              <p className="col-span-2 font-mono text-xs text-muted-foreground sm:col-span-3">
-                Con 0 barras en la 2ª capa el tirante va en una sola fila. La segunda capa se
-                apoya sobre la primera dejando la separación libre mínima del art. 8.2(2), así
-                que sube el baricentro y baja el canto útil: es el precio de meter más acero.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Malla de piel (por cara)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoDiametro id="phiMallaH" etiqueta="Ø horizontal" valor={phiMallaH} onChange={setPhiMallaH} />
-              <CampoNumerico id="sepMallaH" etiqueta="Separación horiz." sufijo="m" valor={sepMallaH} onChange={setSepMallaH} />
-              <CampoDiametro id="phiMallaV" etiqueta="Ø vertical" valor={phiMallaV} onChange={setPhiMallaV} />
-              <CampoNumerico id="sepMallaV" etiqueta="Separación vert." sufijo="m" valor={sepMallaV} onChange={setSepMallaV} />
-            </CardContent>
-          </Card>
-
-          {tipo !== "directa" && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Estribos de cuelgue</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoDiametro id="phiCuelgue" etiqueta="Ø" valor={phiCuelgue} onChange={setPhiCuelgue} />
-                <CampoNumerico id="sepCuelgue" etiqueta="Separación" sufijo="m" valor={sepCuelgue} onChange={setSepCuelgue} />
-                <CampoNumerico id="ramasCuelgue" etiqueta="Ramas" valor={ramasCuelgue} onChange={setRamasCuelgue} />
-                <CampoNumerico id="cantoColgado" etiqueta="Canto del elemento colgado" sufijo="m" valor={cantoColgado} onChange={setCantoColgado} />
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores válidos. El pilar apeado tiene que caer dentro de la
-                luz y el tirante llevar al menos 2 barras.
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">¿Corresponde bielas y tirantes?</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <ResultadoCheck
-                    etiqueta="La pieza es región D"
-                    verifica={resultado.r.region.esRegionD}
-                    detalle={`L/h = ${fmt(resultado.r.region.relacionLuzCanto)} · a/d mínimo = ${fmt(Math.min(resultado.r.region.aIzqSobreD, resultado.r.region.aDerSobreD))}`}
-                  />
-                  <PanelFormulas
-                    titulo="Los dos criterios, por separado"
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Tirante inferior, malla de piel y, si la carga entra colgada, estribos de cuelgue.">
+          <DatosConDibujo
+            datos={
+              <>
+                <Subgrupo titulo="Tirante inferior">
+                  <EditorCapas
                     filas={[
-                      {
-                        etiqueta: "Anejo 19 art. 5.3.1(3): viga de gran canto si L ≤ 3·h",
-                        valor: resultado.r.region.esGranCantoAnejo19 ? "Sí, viga de gran canto" : "No, es viga",
-                      },
-                      {
-                        etiqueta: "Montoya §24.7.1: viga pared si L/h < 2",
-                        valor: resultado.r.region.esGranCantoMontoya ? "Sí, viga pared" : "No",
-                      },
+                      { posicion: "Capa 1", numero: { id: "nTirante", valor: nTirante, onChange: setNTirante }, diametro: { id: "phiTirante", valor: phiTirante, onChange: setPhiTirante } },
+                      ...(aNumero(nTirante2) > 0
+                        ? [{ posicion: "Capa 2", numero: { id: "nTirante2", valor: nTirante2, onChange: setNTirante2 }, diametro: { id: "phiTirante2", valor: phiTirante2, onChange: setPhiTirante2 }, onQuitar: () => setNTirante2("0") }]
+                        : []),
+                    ]}
+                    onAgregar={aNumero(nTirante2) > 0 ? undefined : () => setNTirante2("2")}
+                    textoAgregar="2ª capa"
+                  />
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
+                    <CampoNumerico id="dg" etiqueta="Árido máx. dg" sufijo="m" valor={dg} onChange={setDg} />
+                    <CampoSeleccion id="adherencia" etiqueta="Adherencia" opciones={[...ADHERENCIAS]} valor={adherencia} onChange={setAdherencia} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    La 2ª capa se apoya sobre la primera dejando la separación libre del art. 8.2(2):
+                    sube el baricentro y baja el canto útil.
+                  </p>
+                </Subgrupo>
+                <Subgrupo titulo="Malla de piel, por cara">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoDiametro id="phiMallaH" etiqueta="Ø horizontal" valor={phiMallaH} onChange={setPhiMallaH} />
+                    <CampoNumerico id="sepMallaH" etiqueta="Separación horiz." sufijo="m" valor={sepMallaH} onChange={setSepMallaH} />
+                    <CampoDiametro id="phiMallaV" etiqueta="Ø vertical" valor={phiMallaV} onChange={setPhiMallaV} />
+                    <CampoNumerico id="sepMallaV" etiqueta="Separación vert." sufijo="m" valor={sepMallaV} onChange={setSepMallaV} />
+                  </div>
+                </Subgrupo>
+                {tipo !== "directa" && (
+                  <Subgrupo titulo="Estribos de cuelgue">
+                    <div className="grid grid-cols-2 gap-4">
+                      <CampoDiametro id="phiCuelgue" etiqueta="Ø" valor={phiCuelgue} onChange={setPhiCuelgue} />
+                      <CampoNumerico id="sepCuelgue" etiqueta="Separación" sufijo="m" valor={sepCuelgue} onChange={setSepCuelgue} />
+                      <CampoNumerico id="ramasCuelgue" etiqueta="Ramas" valor={ramasCuelgue} onChange={setRamasCuelgue} />
+                      <CampoNumerico id="cantoColgado" etiqueta="Canto del elemento colgado" sufijo="m" valor={cantoColgado} onChange={setCantoColgado} />
+                    </div>
+                  </Subgrupo>
+                )}
+              </>
+            }
+            dibujo={
+              resultado ? (
+                <DiagramaVigaApeoArmado
+                  luzM={resultado.n.luz}
+                  hM={resultado.n.h}
+                  posicionCargaM={resultado.n.posCarga}
+                  anchoPilarApeadoM={resultado.n.anchoPilar}
+                  anchoApoyoIzqM={resultado.n.anchoApoyoIzq}
+                  anchoApoyoDerM={resultado.n.anchoApoyoDer}
+                  voladizoIzqM={resultado.n.voladizoIzq}
+                  voladizoDerM={resultado.n.voladizoDer}
+                  recubrimientoM={resultado.n.rg}
+                  numeroTirante={resultado.n.nTirante}
+                  diametroTiranteMm={resultado.n.phiTirante}
+                  segundaCapaTirante={resultado.n.nTirante2 > 0 ? { numero: resultado.n.nTirante2, diametroMm: resultado.n.phiTirante2 } : null}
+                  alturaRepartoTiranteM={resultado.r.tirante.alturaRepartoM}
+                  requiereHorquillas={resultado.r.anclaje.requiereAnclajeMecanico}
+                  mallaHorizontalSeparacionM={resultado.n.sepMallaH}
+                  mallaHorizontalDiametroMm={resultado.n.phiMallaH}
+                  mallaVerticalSeparacionM={resultado.n.sepMallaV}
+                  mallaVerticalDiametroMm={resultado.n.phiMallaV}
+                  cuelgue={resultado.r.cuelgue ? { diametroMm: resultado.n.phiCuelgue, separacionM: resultado.n.sepCuelgue, numeroRamas: resultado.n.ramasCuelgue, anchoZonaM: resultado.r.cuelgue.anchoZonaM } : null}
+                />
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">El armado se dibuja con datos válidos.</p>
+              )
+            }
+          />
+        </Etapa>
+
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Luz × h × b", valor: `${luz} × ${h} × ${b} m` },
+              { etiqueta: "Nd / qd", valor: `${nd} kN / ${qd} kN/m` },
+              { etiqueta: "Transmisión", valor: transmision.split(" (")[0] },
+              ...(resultado
+                ? [
+                    { etiqueta: "L/h", valor: fmt(resultado.r.region.relacionLuzCanto), derivado: true },
+                    { etiqueta: "d / z", valor: `${fmt(resultado.r.modelo.dM, 3)} / ${fmt(resultado.r.modelo.zAdoptadoM, 3)} m`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              "ELU con solicitaciones mayoradas, γc = 1,5 y γs = 1,15; hormigón sin tracción y acero birrectilíneo sin endurecimiento. El modelo es del lado seguro sólo si la armadura va donde el modelo pone el tirante y se ancla de verdad.",
+              "Región D por dos criterios que se muestran separados: viga de gran canto si L ≤ 3h (Anejo 19, art. 5.3.1(3)) y carga a menos de 2d del apoyo (Montoya §24.9.3).",
+              "z adoptado: el menor entre el tope del nudo superior (ec. 6.60) y 0,6·L (Montoya §24.7.3.a). Tirante corrido de apoyo a apoyo, sin escalonar.",
+              "Si clasifica como viga pared se topa fyd en 400 MPa (Montoya §24.7.3.c).",
+              "Nudos de apoyo con los dos topes, 0,85·ν′·fcd (Anejo 19) y 0,7·fcd (Montoya): se cruzan en fck ≈ 44 MPa y se exige el peor.",
+              "Anclaje con α3 = α4 = α5 = 1,00, desde la cara del apoyo (Anejo 19, art. 6.5.4(7)) y desde el eje (Montoya §24.7.3.e); manda el peor. La geometría de la horquilla es una lectura de la fig. 24.25b de Montoya: VERIFICAR antes de acotar un plano.",
+              "Ancho de reparto de la tracción transversal mín(h; L/2): criterio, no valor de norma. VERIFICAR contra la fig. A19.6.25.",
+              "Carga colgada: 100 % suspendida; apoyo indirecto: 45 % directa y 65 % colgada (Montoya §24.9.1).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
+          {!resultado ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Tracción del tirante", valor: `${fmt(resultado.r.modelo.traccionTiranteKN, 0)} kN` },
+                  { etiqueta: "As nec. tirante", valor: `${fmt(resultado.r.tirante.asNecCm2)} cm²`, nota: `colocada ${fmt(resultado.r.tirante.asRealCm2)} cm²` },
+                  { etiqueta: "θ izq. / der.", valor: `${fmt(resultado.r.modelo.anguloBielaIzqGrados, 0)}° / ${fmt(resultado.r.modelo.anguloBielaDerGrados, 0)}°`, nota: "conviene entre 30° y 60°" },
+                  { etiqueta: "Anclaje", valor: resultado.r.anclaje.formaRecomendada === "recta" ? "recto" : resultado.r.anclaje.formaRecomendada === "horquilla" ? "con horquilla" : "dispositivo mecánico" },
+                ]}
+              />
+
+              <Subgrupo titulo="¿Corresponde bielas y tirantes?">
+                <div className="space-y-2">
+                  <p className="text-sm">
+                    <span className="font-medium">{resultado.r.region.esRegionD ? "Sí, la pieza es región D." : "No: no es región D por ninguno de los dos criterios."}</span>
+                    <span className="text-muted-foreground">
+                      {" "}L/h = {fmt(resultado.r.region.relacionLuzCanto)} · a/d mínimo ={" "}
+                      {fmt(Math.min(resultado.r.region.aIzqSobreD, resultado.r.region.aDerSobreD))}.
+                    </span>
+                  </p>
+                  <PanelFormulas
+                    titulo="Ver los dos criterios de región D"
+                    filas={[
+                      { etiqueta: "Anejo 19 art. 5.3.1(3): viga de gran canto si L ≤ 3·h", valor: resultado.r.region.esGranCantoAnejo19 ? "Sí, viga de gran canto" : "No, es viga" },
+                      { etiqueta: "Montoya §24.7.1: viga pared si L/h < 2", valor: resultado.r.region.esGranCantoMontoya ? "Sí, viga pared" : "No" },
                       { etiqueta: "Luz de cálculo de Montoya, mín(ejes; 1,15·luz libre)", valor: `${fmt(resultado.r.region.luzMontoyaM)} m` },
-                      {
-                        etiqueta: "Montoya §24.9.3: carga a menos de 2·d del apoyo",
-                        valor: resultado.r.region.cargaProximaAlApoyo ? "Sí, biela directa al apoyo" : "No",
-                      },
+                      { etiqueta: "Montoya §24.9.3: carga a menos de 2·d del apoyo", valor: resultado.r.region.cargaProximaAlApoyo ? "Sí, biela directa al apoyo" : "No" },
                     ]}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Los dos criterios no coinciden y se muestran separados a propósito. Aunque la
-                    viga no clasifique como viga de gran canto, si el pilar apeado cae a menos de
-                    2·d del apoyo la carga baja por una biela directa y las fórmulas de cortante
-                    del art. 6.2 quedan fuera de su campo de aplicación. Si ninguno de los dos da
-                    región D, la verificación que corresponde es{" "}
-                    <span className="font-medium">Vigas de apeo</span> (flexión y cortante), no ésta.
-                  </p>
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Tirante</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <Subgrupo titulo="Comprobaciones resistentes">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Cabe la cabeza comprimida"
-                    verifica={resultado.r.modelo.verificaCabezaComprimida}
-                    comparacion={{
-                      real: { etiqueta: "z", valor: resultado.r.modelo.zAdoptadoM },
-                      limite: { etiqueta: "d", valor: resultado.r.modelo.dM },
-                      unidad: "m", exige: "≤", decimales: 3,
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Armadura del tirante suficiente"
+                    etiqueta="Tirante · armadura suficiente"
                     verifica={resultado.r.tirante.verificaAs}
-                    comparacion={{
-                      real: { etiqueta: "As real", valor: resultado.r.tirante.asRealCm2 },
-                      limite: { etiqueta: "As nec", valor: resultado.r.tirante.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
-                    }}
+                    detalle={resultado.r.tirante.topeAplicado ? "Viga pared: se aplica el tope fyd ≯ 400 MPa de Montoya." : "No es viga pared: fyd pleno."}
+                    comparacion={{ real: { etiqueta: "As real", valor: resultado.r.tirante.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                  />
+                  <PanelFormulas
+                    titulo="Ver desarrollo del tirante"
+                    filas={[
+                      { etiqueta: "Reacción izquierda / derecha", valor: `${fmt(resultado.r.modelo.reaccionIzqKN, 0)} / ${fmt(resultado.r.modelo.reaccionDerKN, 0)} kN` },
+                      { etiqueta: "Momento bajo el pilar", valor: `${fmt(resultado.r.modelo.momentoKNm, 0)} kN·m` },
+                      { etiqueta: "z por tope del nudo superior (ec. 6.60)", valor: `${fmt(resultado.r.modelo.zNudoM, 3)} m` },
+                      { etiqueta: "z por Montoya §24.7.3.a (0,6·L)", valor: resultado.r.modelo.zMontoyaM === null ? "no aplica" : `${fmt(resultado.r.modelo.zMontoyaM, 3)} m` },
+                      { etiqueta: "z adoptado (el menor)", valor: `${fmt(resultado.r.modelo.zAdoptadoM, 3)} m` },
+                      { etiqueta: "Tracción del tirante T = R/tg θ", valor: `${fmt(resultado.r.modelo.traccionTiranteKN, 0)} kN` },
+                      { etiqueta: "As con fyd = fyk/γs", valor: `${fmt(resultado.r.tirante.asNecEc2Cm2)} cm²` },
+                      { etiqueta: "As con fyd ≯ 400 MPa (Montoya §24.7.3.c)", valor: `${fmt(resultado.r.tirante.asNecMontoyaCm2)} cm²` },
+                      { etiqueta: "Altura de reparto del tirante (0,12·L)", valor: `${fmt(resultado.r.tirante.alturaRepartoM)} m` },
+                      { etiqueta: "Separación libre mínima, art. 8.2(2)", valor: `${fmt(resultado.r.tirante.capas.separacionLibreMinimaMm, 0)} mm` },
+                      ...resultado.r.tirante.capas.capas.map((c, i) => ({
+                        etiqueta: `Capa ${i + 1} — ${c.numero}Ø${fmt(c.diametroMm, 0)} a ${fmt(c.brazoDesdeElBordeM, 4)} m del borde`,
+                        valor: `${fmt(c.areaCm2)} cm² · libre ${fmt(c.separacionLibreMm, 0)} mm`,
+                      })),
+                      { etiqueta: "Canto útil d = h − baricentro", valor: `${fmt(resultado.r.modelo.dM, 4)} m` },
+                    ]}
                   />
                   <ResultadoCheck
-                    etiqueta="Las barras entran en el ancho"
-                    verifica={resultado.r.tirante.verificaBNec}
+                    etiqueta="Biela izquierda"
+                    verifica={resultado.r.bielas.bielaIzq.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.bielaIzq.sigmaMPa }, limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.bielaIzq.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Biela derecha"
+                    verifica={resultado.r.bielas.bielaDer.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.bielaDer.sigmaMPa }, limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.bielaDer.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Nudo bajo el pilar apeado (CCC, k1 = 1,0)"
+                    verifica={resultado.r.bielas.nudoSuperior.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoSuperior.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoSuperior.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Nudo de apoyo izquierdo · Anejo 19 (CCT, k2 = 0,85)"
+                    verifica={resultado.r.bielas.nudoApoyoIzq.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Nudo de apoyo izquierdo · Montoya (0,7·fcd)"
+                    verifica={resultado.r.bielas.nudoApoyoIzqMontoya.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Nudo de apoyo derecho · el más desfavorable de los dos topes"
+                    verifica={resultado.r.bielas.nudoApoyoDer.verifica && resultado.r.bielas.nudoApoyoDerMontoya.verifica}
+                    detalle={`topes ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa)} (Anejo 19) y ${fmt(resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa)} (Montoya) MPa`}
                     comparacion={{
-                      real: { etiqueta: "b nec", valor: resultado.r.tirante.bNecM },
-                      limite: { etiqueta: "b", valor: resultado.n.b },
-                      unidad: "m", exige: "≤", decimales: 3,
+                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoDer.sigmaMPa },
+                      limite: { etiqueta: "σ máx", valor: Math.min(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa, resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa) },
+                      unidad: "MPa", exige: "≤",
                     }}
+                  />
+                  <PanelFormulas
+                    titulo="Ver desarrollo de bielas y nudos"
+                    filas={[
+                      { etiqueta: "ν′ = 1 − fck/250", valor: fmt(resultado.r.bielas.nuPrima, 3) },
+                      { etiqueta: "Inclinación θ izq. / der.", valor: `${fmt(resultado.r.modelo.anguloBielaIzqGrados, 1)}° / ${fmt(resultado.r.modelo.anguloBielaDerGrados, 1)}°` },
+                      { etiqueta: "Compresión en biela izq. / der.", valor: `${fmt(resultado.r.modelo.compresionBielaIzqKN, 0)} / ${fmt(resultado.r.modelo.compresionBielaDerKN, 0)} kN` },
+                      { etiqueta: "Ancho de biela en el nudo izq. / der.", valor: `${fmt(resultado.r.bielas.anchoBielaIzqM, 3)} / ${fmt(resultado.r.bielas.anchoBielaDerM, 3)} m` },
+                      { etiqueta: "Nudo de apoyo: criterio que gobierna", valor: resultado.r.bielas.gobiernaMontoyaEnNudos ? "Montoya, 0,7·fcd" : "Anejo 19, 0,85·ν′·fcd" },
+                    ]}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Malla vertical para la tracción transversal"
+                    verifica={resultado.r.traccionTransversal.verificaAs}
+                    detalle={`T = ${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN, discontinuidad ${resultado.r.traccionTransversal.discontinuidadParcial ? "parcial, ec. (6.58)" : "total, ec. (6.59)"}; a = ${fmt(resultado.r.traccionTransversal.aM)} m, b de reparto = ${fmt(resultado.r.traccionTransversal.bRepartoM)} m.`}
+                    comparacion={{ real: { etiqueta: "As real", valor: resultado.r.traccionTransversal.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.traccionTransversal.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                  />
+                  {resultado.r.cuelgue && (
+                    <>
+                      <ResultadoCheck
+                        etiqueta="Estribos de cuelgue suficientes"
+                        verifica={resultado.r.cuelgue.verificaAs}
+                        detalle={`Se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
+                        comparacion={{ real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                      />
+                    </>
+                  )}
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Condiciones constructivas" detalle="geometría del armado y anclajes">
+                <div>
+                  <ResultadoCheck
+                    etiqueta="Cabe la cabeza comprimida (z ≤ d)"
+                    verifica={resultado.r.modelo.verificaCabezaComprimida}
+                    comparacion={{ real: { etiqueta: "z", valor: resultado.r.modelo.zAdoptadoM }, limite: { etiqueta: "d", valor: resultado.r.modelo.dM }, unidad: "m", exige: "≤", decimales: 3 }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Las barras del tirante entran en el ancho"
+                    verifica={resultado.r.tirante.verificaBNec}
                     detalle={`separación libre ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
+                    comparacion={{ real: { etiqueta: "b nec", valor: resultado.r.tirante.bNecM }, limite: { etiqueta: "b", valor: resultado.n.b }, unidad: "m", exige: "≤", decimales: 3 }}
                   />
                   {resultado.r.tirante.capas.capas.length > 1 && (
                     <>
                       <ResultadoCheck
                         etiqueta="Las dos capas entran en la franja de reparto"
                         verifica={resultado.r.tirante.capas.verificaDentroDelReparto}
-                        comparacion={{
-                      real: { etiqueta: "ocupan", valor: resultado.r.tirante.capas.alturaOcupadaM },
-                      limite: { etiqueta: "0,12·L", valor: resultado.r.tirante.alturaRepartoM },
-                      unidad: "m", exige: "≤", decimales: 3,
-                    }}
+                        comparacion={{ real: { etiqueta: "ocupan", valor: resultado.r.tirante.capas.alturaOcupadaM }, limite: { etiqueta: "0,12·L", valor: resultado.r.tirante.alturaRepartoM }, unidad: "m", exige: "≤", decimales: 3 }}
                       />
                       <ResultadoCheck
                         etiqueta="Mismo número de barras por capa (pasa el vibrador)"
@@ -433,102 +536,43 @@ export default function VigaApeoBielasPage() {
                       />
                     </>
                   )}
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "Reacción izquierda / derecha", valor: `${fmt(resultado.r.modelo.reaccionIzqKN, 0)} / ${fmt(resultado.r.modelo.reaccionDerKN, 0)} kN` },
-                      { etiqueta: "Momento bajo el pilar", valor: `${fmt(resultado.r.modelo.momentoKNm, 0)} kN·m` },
-                      { etiqueta: "z por tope del nudo superior (ec. 6.60)", valor: `${fmt(resultado.r.modelo.zNudoM, 3)} m` },
-                      {
-                        etiqueta: "z por Montoya §24.7.3.a (0,6·L)",
-                        valor: resultado.r.modelo.zMontoyaM === null ? "no aplica" : `${fmt(resultado.r.modelo.zMontoyaM, 3)} m`,
-                      },
-                      { etiqueta: "z adoptado (el menor)", valor: `${fmt(resultado.r.modelo.zAdoptadoM, 3)} m` },
-                      { etiqueta: "Tracción del tirante T = R/tg θ", valor: `${fmt(resultado.r.modelo.traccionTiranteKN, 0)} kN` },
-                      { etiqueta: "As con fyd = fyk/γs", valor: `${fmt(resultado.r.tirante.asNecEc2Cm2)} cm²` },
-                      { etiqueta: `As con fyd ≯ 400 MPa (Montoya §24.7.3.c)`, valor: `${fmt(resultado.r.tirante.asNecMontoyaCm2)} cm²` },
-                      { etiqueta: "Altura de reparto del tirante (0,12·L)", valor: `${fmt(resultado.r.tirante.alturaRepartoM)} m` },
-                      { etiqueta: "Separación libre mínima, art. 8.2(2)", valor: `${fmt(resultado.r.tirante.capas.separacionLibreMinimaMm, 0)} mm` },
-                      ...resultado.r.tirante.capas.capas.map((c, i) => ({
-                        etiqueta: `Capa ${i + 1} — ${c.numero}Ø${fmt(c.diametroMm, 0)} a ${fmt(c.brazoDesdeElBordeM, 4)} m del borde`,
-                        valor: `${fmt(c.areaCm2)} cm² · libre ${fmt(c.separacionLibreMm, 0)} mm`,
-                      })),
-                      { etiqueta: "Baricentro de la armadura desde el borde", valor: `${fmt(resultado.r.tirante.capas.baricentroDesdeElBordeM, 4)} m` },
-                      { etiqueta: "Canto útil d = h − baricentro", valor: `${fmt(resultado.r.modelo.dM, 4)} m` },
-                    ]}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {resultado.r.tirante.topeAplicado
-                      ? "La pieza clasifica como viga pared, así que se aplica el tope de Montoya fyd ≯ 400 MPa: con B500S eso es un 9 % más de acero que con fyd = 435 MPa."
-                      : "No clasifica como viga pared, así que se arma con fyd pleno. La columna con el tope de 400 MPa queda igual a la vista para poder contrastar."}{" "}
-                    El tirante va corrido de apoyo a apoyo, sin escalonar: en una región D no hay
-                    ley de momentos de la que colgar los cortes.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Anclaje del tirante</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Es la verificación que más apeos manda a rehacer. El tirante entra al nudo
-                    con toda su tracción y tiene que descargarla contra el hormigón del apoyo en
-                    los pocos centímetros que hay hasta el borde de la viga. No es la longitud de
-                    una viga a flexión, donde el momento decrece y la barra se va descargando
-                    sola: acá llega al apoyo con T entera.
-                  </p>
-
                   <ResultadoCheck
-                    etiqueta="Anclaje recto, apoyo izquierdo"
+                    etiqueta="Anclaje recto · apoyo izquierdo"
                     verifica={resultado.r.anclaje.recto.verificaIzq && resultado.r.anclaje.recto.verificaIzqMontoya}
-                    comparacion={{
-                        real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm },
-                        limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleIzqM, resultado.r.anclaje.disponibleMontoyaIzqM) * 1000 },
-                        unidad: "mm", exige: "≤", decimales: 0,
-                      }}
-                      detalle={`${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
+                    detalle={`${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
+                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleIzqM, resultado.r.anclaje.disponibleMontoyaIzqM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
                   />
                   <ResultadoCheck
-                    etiqueta="Anclaje recto, apoyo derecho"
+                    etiqueta="Anclaje recto · apoyo derecho"
                     verifica={resultado.r.anclaje.recto.verificaDer && resultado.r.anclaje.recto.verificaDerMontoya}
-                    comparacion={{
-                        real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm },
-                        limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleDerM, resultado.r.anclaje.disponibleMontoyaDerM) * 1000 },
-                        unidad: "mm", exige: "≤", decimales: 0,
-                      }}
-                      detalle={`${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
+                    detalle={`${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
+                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleDerM, resultado.r.anclaje.disponibleMontoyaDerM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
                   />
-
                   {!resultado.r.anclaje.verificaRecto && (
                     <>
                       <ResultadoCheck
-                        etiqueta="Con horquilla, apoyo izquierdo"
+                        etiqueta="Anclaje con horquilla · apoyo izquierdo"
                         verifica={resultado.r.anclaje.horquilla.verificaIzq && resultado.r.anclaje.horquilla.verificaIzqMontoya}
                         detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm, 0)} mm`}
                       />
                       <ResultadoCheck
-                        etiqueta="Con horquilla, apoyo derecho"
+                        etiqueta="Anclaje con horquilla · apoyo derecho"
                         verifica={resultado.r.anclaje.horquilla.verificaDer && resultado.r.anclaje.horquilla.verificaDerMontoya}
                         detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleDerMm, 0)} mm`}
                       />
                       <ResultadoCheck
                         etiqueta="La horquilla cabe en el ancho de la viga"
                         verifica={resultado.r.anclaje.geometriaHorquilla.cabeEnElAncho}
-                        comparacion={{
-                      real: { etiqueta: "ocupa", valor: resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000 },
-                      limite: { etiqueta: "libre entre estribos", valor: resultado.r.anclaje.geometriaHorquilla.anchoLibreM * 1000 },
-                      unidad: "mm", exige: "≤", decimales: 0,
-                    }}
+                        comparacion={{ real: { etiqueta: "ocupa", valor: resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000 }, limite: { etiqueta: "libre entre estribos", valor: resultado.r.anclaje.geometriaHorquilla.anchoLibreM * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
                       />
                     </>
                   )}
-
                   <PanelFormulas
-                    titulo="Ver cálculo de la longitud de anclaje"
+                    titulo="Ver desarrollo de la longitud de anclaje"
                     filas={[
                       { etiqueta: "Tensión de la barra σsd = T/As,real", valor: `${fmt(resultado.r.anclaje.sigmaSdMPa, 1)} MPa` },
                       { etiqueta: "fctd = αct·0,7·fctm/γc (ec. 3.16)", valor: `${fmt(resultado.r.anclaje.fctdMPa, 3)} MPa` },
-                      { etiqueta: "η1 por condición de adherencia · η2 por diámetro", valor: `${fmt(resultado.r.anclaje.eta1, 2)} · ${fmt(resultado.r.anclaje.eta2, 2)}` },
+                      { etiqueta: "η1 · η2", valor: `${fmt(resultado.r.anclaje.eta1, 2)} · ${fmt(resultado.r.anclaje.eta2, 2)}` },
                       { etiqueta: "fbd = 2,25·η1·η2·fctd (ec. 8.2)", valor: `${fmt(resultado.r.anclaje.fbdMPa, 3)} MPa` },
                       { etiqueta: "lb,rqd = (Ø/4)·(σsd/fbd) (ec. 8.3)", valor: `${fmt(resultado.r.anclaje.lbRqdMm, 0)} mm` },
                       { etiqueta: "cd = mín(a/2; c1; c) (fig. A19.8.3)", valor: `${fmt(resultado.r.anclaje.cdMm, 1)} mm` },
@@ -538,21 +582,15 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "Horquilla: lbd", valor: `${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm` },
                     ]}
                   />
-
                   <PanelFormulas
-                    titulo="Ver cómo se calcula la horquilla"
+                    titulo="Ver desarrollo de la horquilla"
                     filas={[
                       { etiqueta: "Nº de horquillas (una cada dos barras)", valor: `${resultado.r.anclaje.geometriaHorquilla.numeroHorquillas}` },
                       { etiqueta: "Mandril mínimo de tabla A19.8.1 (4Ø si Ø≤16; 7Ø si no)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm, 0)} mm` },
                       { etiqueta: "Tracción de una barra Fbt = σsd·AØ", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.fbtKN, 0)} kN` },
                       { etiqueta: "ab = recubrimiento + Ø/2 (barra de esquina)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.abMm, 0)} mm` },
                       { etiqueta: "Mandril por rotura del hormigón, ec. (8.1)", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilPorHormigonMm, 0)} mm` },
-                      {
-                        etiqueta: "¿Exenta de comprobar el hormigón? (art. 8.3(3))",
-                        valor: resultado.r.anclaje.geometriaHorquilla.exentaDeComprobarMandril
-                          ? "sí, la rama de vuelta no pasa de 5Ø"
-                          : "no, hay que comprobarlo",
-                      },
+                      { etiqueta: "¿Exenta de comprobar el hormigón? (art. 8.3(3))", valor: resultado.r.anclaje.geometriaHorquilla.exentaDeComprobarMandril ? "sí, la rama de vuelta no pasa de 5Ø" : "no, hay que comprobarlo" },
                       { etiqueta: "Mandril adoptado Øm", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.mandrilAdoptadoMm, 0)} mm` },
                       { etiqueta: "Desarrollo del codo de 180°: π·(Øm+Ø)/2", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloCodoMm, 0)} mm` },
                       { etiqueta: "Rama de ida izq. / der.", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaIzqMm, 0)} / ${fmt(resultado.r.anclaje.geometriaHorquilla.ramaIdaDerMm, 0)} mm` },
@@ -561,262 +599,47 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "Ancho que ocupa el lazo en planta: Øm + 2Ø", valor: `${fmt(resultado.r.anclaje.geometriaHorquilla.anchoOcupadoEnPlantaM * 1000, 0)} mm` },
                     ]}
                   />
-
-                  <div className="space-y-2 text-xs text-muted-foreground">
+                  <PanelAyuda titulo="Por qué la horquilla sirve por geometría y no por coeficiente">
                     <p>
-                      <strong className="text-foreground">Cómo se calcula la horquilla.</strong>{" "}
-                      Primero sale lbd como en cualquier barra: la tensión real σsd = T/As,real
-                      dividida por la adherencia fbd da la longitud recta lb,rqd, y los α de la
-                      tabla A19.8.2 la corrigen. Ojo con un punto que engaña: doblar la barra
-                      sólo bonifica (α1 = 0,7) si cd &gt; 3Ø, o sea si el codo tiene hormigón
-                      alrededor. Con recubrimientos y separaciones normales cd es chico y la
-                      horquilla exige la misma lbd que la barra recta.
+                      Doblar la barra sólo bonifica (α1 = 0,7) si cd &gt; 3Ø; con recubrimientos normales
+                      la horquilla exige la misma lbd que la recta. Sirve porque, doblada en planta
+                      (Montoya fig. 24.25b), en el mismo hueco desarrolla 2·ida + el arco del codo,
+                      casi el triple, sin invadir la biela.
                     </p>
                     <p>
-                      Entonces la horquilla no sirve por coeficiente sino por{" "}
-                      <strong className="text-foreground">geometría</strong>: Montoya la dibuja
-                      doblada en planta (fig. 24.25b), la barra entra, gira 180° en el plano
-                      horizontal y vuelve paralela a sí misma. En el mismo hueco físico se
-                      desarrolla 2·(rama de ida) + el arco del codo, casi el triple que recto.
-                      Doblada así el codo tampoco invade la biela comprimida, que es lo que
-                      pasaría si el giro fuera vertical.
+                      El mandril es el mayor entre el de tabla y el de la ec. (8.1); el segundo sólo se
+                      comprueba si tras el codo quedan más de 5Ø (art. 8.3(3)).
                     </p>
-                    <p>
-                      El mandril Øm sale por el mayor de dos criterios: el de tabla —4Ø hasta Ø16
-                      y 7Ø por encima, para no fisurar la barra al doblarla— y el de la ec. (8.1),
-                      que evita que el hormigón de adentro del codo reviente por la presión de
-                      contacto. El segundo sólo hay que comprobarlo si tras el codo queda más de
-                      5Ø de barra (art. 8.3(3)); si la rama de vuelta es corta, la propia barra
-                      no llega a cargar el codo.
-                    </p>
-                    <p>
-                      Los dos criterios de arranque no coinciden y se comprueban por separado:
-                      el Anejo 19 art. 6.5.4(7) empieza a contar en la cara interior del apoyo y
-                      Montoya §24.7.3.e a partir del eje de apoyo, medio ancho de placa menos.
-                      Manda el peor. <strong className="text-foreground">VERIFICAR</strong>: la
-                      geometría de la horquilla (ramas, arco y ancho ocupado) es mi lectura de la
-                      fig. 24.25b, no una fórmula tabulada — contrastala antes de acotar un plano.
-                    </p>
-                    <p>
-                      {resultado.r.anclaje.formaRecomendada === "recta"
-                        ? "Entra el anclaje recto: las horquillas no son obligatorias."
-                        : resultado.r.anclaje.formaRecomendada === "horquilla"
-                          ? "Recto no entra pero la horquilla sí: hay que doblar el tirante en los dos extremos."
-                          : "No entra ni recto ni con horquilla: hay que ir a dispositivos de anclaje o placas soldadas (art. 9.7(3)), o agrandar el apoyo o el voladizo."}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Bielas y nudos</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <ResultadoCheck
-                    etiqueta="Biela izquierda"
-                    verifica={resultado.r.bielas.bielaIzq.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.bielaIzq.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.bielaIzq.sigmaMaxMPa },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Biela derecha"
-                    verifica={resultado.r.bielas.bielaDer.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.bielaDer.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.bielaDer.sigmaMaxMPa },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Nudo bajo el pilar apeado (CCC, k1 = 1,0)"
-                    verifica={resultado.r.bielas.nudoSuperior.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoSuperior.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoSuperior.sigmaMaxMPa },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Nudo apoyo izq. — Anejo 19 (CCT, k2 = 0,85)"
-                    verifica={resultado.r.bielas.nudoApoyoIzq.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Nudo apoyo izq. — Montoya (0,7·fcd)"
-                    verifica={resultado.r.bielas.nudoApoyoIzqMontoya.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Nudo apoyo der. — el más desfavorable de los dos"
-                    verifica={resultado.r.bielas.nudoApoyoDer.verifica && resultado.r.bielas.nudoApoyoDerMontoya.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoDer.sigmaMPa },
-                      limite: {
-                        etiqueta: "σ máx",
-                        valor: Math.min(
-                          resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa,
-                          resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa
-                        ),
-                      },
-                      unidad: "MPa", exige: "≤",
-                    }}
-                    detalle={`topes ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa)} (Anejo 19) y ${fmt(resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa)} (Montoya) MPa`}
-                  />
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "ν' = 1 − fck/250", valor: fmt(resultado.r.bielas.nuPrima, 3) },
-                      { etiqueta: "Inclinación θ izq. / der.", valor: `${fmt(resultado.r.modelo.anguloBielaIzqGrados, 1)}° / ${fmt(resultado.r.modelo.anguloBielaDerGrados, 1)}°` },
-                      { etiqueta: "Compresión en biela izq. / der.", valor: `${fmt(resultado.r.modelo.compresionBielaIzqKN, 0)} / ${fmt(resultado.r.modelo.compresionBielaDerKN, 0)} kN` },
-                      { etiqueta: "Ancho de biela en el nudo izq. / der.", valor: `${fmt(resultado.r.bielas.anchoBielaIzqM, 3)} / ${fmt(resultado.r.bielas.anchoBielaDerM, 3)} m` },
-                      { etiqueta: "Tope de biela 0,6·ν'·fcd (ec. 6.56)", valor: `${fmt(resultado.r.bielas.bielaIzq.sigmaMaxMPa)} MPa` },
-                      {
-                        etiqueta: "Nudo de apoyo: criterio que gobierna",
-                        valor: resultado.r.bielas.gobiernaMontoyaEnNudos ? "Montoya, 0,7·fcd" : "Anejo 19, 0,85·ν'·fcd",
-                      },
-                    ]}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Los dos topes del nudo de apoyo se cruzan en fck ≈ 44 MPa: por debajo manda el
-                    0,7·fcd de Montoya y por encima el 0,85·ν′·fcd del Anejo 19. Ninguno es siempre
-                    más estricto, así que se calculan los dos y hay que cumplir el peor.
-                    θ debería quedar entre 30° y 60°: fuera de ese rango el modelo se aleja
-                    demasiado del campo elástico y las fisuras en servicio se abren.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Tracción transversal y malla de piel</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <ResultadoCheck
-                    etiqueta="Malla vertical para la tracción transversal"
-                    verifica={resultado.r.traccionTransversal.verificaAs}
-                    comparacion={{
-                      real: { etiqueta: "As real", valor: resultado.r.traccionTransversal.asRealCm2 },
-                      limite: { etiqueta: "As nec", valor: resultado.r.traccionTransversal.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
-                    }}
-                    detalle={`T = ${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN`}
-                  />
+                  </PanelAyuda>
                   <ResultadoCheck
                     etiqueta="Malla horizontal ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaHorizontal}
-                    comparacion={{
-                      real: { etiqueta: "dispuesta", valor: resultado.r.malla.horizontalCm2PorM },
-                      limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM },
-                      unidad: "cm²/m por cara", exige: "≥",
-                    }}
+                    comparacion={{ real: { etiqueta: "dispuesta", valor: resultado.r.malla.horizontalCm2PorM }, limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM }, unidad: "cm²/m por cara", exige: "≥" }}
                   />
                   <ResultadoCheck
                     etiqueta="Malla vertical ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaVertical}
-                    comparacion={{
-                      real: { etiqueta: "dispuesta", valor: resultado.r.malla.verticalCm2PorM },
-                      limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM },
-                      unidad: "cm²/m por cara", exige: "≥",
-                    }}
+                    comparacion={{ real: { etiqueta: "dispuesta", valor: resultado.r.malla.verticalCm2PorM }, limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM }, unidad: "cm²/m por cara", exige: "≥" }}
                   />
                   <ResultadoCheck
-                    etiqueta="Separaciones ≤ mín(300 mm; 2·b), art. 9.7(2)"
+                    etiqueta="Separaciones de la malla ≤ mín(300 mm; 2·b), art. 9.7(2)"
                     verifica={resultado.r.malla.verificaSeparacionHorizontal && resultado.r.malla.verificaSeparacionVertical}
-                    comparacion={{
-                        real: { etiqueta: "máx dispuesta", valor: resultado.r.malla.separacionMaxM * 100 },
-                        limite: { etiqueta: "tope", valor: Math.min(30, resultado.n.b * 200) },
-                        unidad: "cm", exige: "≤", decimales: 0,
-                      }}
+                    comparacion={{ real: { etiqueta: "máx dispuesta", valor: resultado.r.malla.separacionMaxM * 100 }, limite: { etiqueta: "tope", valor: Math.min(30, resultado.n.b * 200) }, unidad: "cm", exige: "≤", decimales: 0 }}
                   />
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      {
-                        etiqueta: "Discontinuidad",
-                        valor: resultado.r.traccionTransversal.discontinuidadParcial ? "parcial, ec. (6.58)" : "total, ec. (6.59)",
-                      },
-                      { etiqueta: "Ancho cargado a (pilar)", valor: `${fmt(resultado.r.traccionTransversal.aM)} m` },
-                      { etiqueta: "Ancho de reparto b", valor: `${fmt(resultado.r.traccionTransversal.bRepartoM)} m` },
-                      { etiqueta: "Tracción transversal T", valor: `${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN` },
-                    ]}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium">VERIFICAR</span> el ancho de reparto b contra la
-                    figura A19.6.25 antes de usarlo en proyecto: acá se adopta mín(h; L/2), que es
-                    una decisión de criterio y no un valor que la norma fije.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {resultado.r.cuelgue && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Armadura de cuelgue</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                  {resultado.r.cuelgue && (
                     <ResultadoCheck
-                      etiqueta="Estribos de cuelgue suficientes"
-                      verifica={resultado.r.cuelgue.verificaAs}
-                      comparacion={{
-                      real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 },
-                      limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
-                    }}
-                    />
-                    <ResultadoCheck
-                      etiqueta="Canto suficiente para que se formen las bielas (h ≥ 1,2·a)"
+                      etiqueta="Canto suficiente para que se formen las bielas de cuelgue (h ≥ 1,2·a)"
                       verifica={resultado.r.cuelgue.verificaCantoMinimo}
-                      comparacion={{
-                      real: { etiqueta: "h", valor: resultado.n.h },
-                      limite: { etiqueta: "1,2·a", valor: resultado.r.cuelgue.cantoMinimoM },
-                      unidad: "m", exige: "≥",
-                    }}
+                      comparacion={{ real: { etiqueta: "h", valor: resultado.n.h }, limite: { etiqueta: "1,2·a", valor: resultado.r.cuelgue.cantoMinimoM }, unidad: "m", exige: "≥" }}
                     />
-                    <PanelFormulas
-                      titulo="Ver cálculo"
-                      filas={[
-                        { etiqueta: "Fracción de Nd que se cuelga", valor: `${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} %` },
-                        { etiqueta: "Carga colgada", valor: `${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN` },
-                        { etiqueta: "Zona de reparto a cada lado del pilar", valor: `${fmt(resultado.r.cuelgue.anchoZonaM)} m` },
-                        { etiqueta: "fyd de estribos", valor: `${fmt(resultado.materiales.fydEstribos, 0)} MPa` },
-                      ]}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Montoya §24.9.1: con carga colgada hay que suspender el 100 % de la carga con
-                      estribos bien anclados en la cabeza comprimida opuesta; con apoyo indirecto se
-                      considera el 45 % como directa y el 65 % como colgada, que suman más de 100 %
-                      a propósito, por seguridad. Los estribos tienen que envolver por debajo la
-                      armadura del tirante, no apoyarse encima.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                Todo el desarrollo es ELU con las solicitaciones ya mayoradas, γc = 1,5 y γs = 1,15,
-                hormigón sin resistencia a tracción y armadura con diagrama birrectilíneo sin
-                endurecimiento. El modelo de bielas y tirantes es una aplicación del teorema
-                estático: cualquier campo de esfuerzos en equilibrio y que no supere las
-                resistencias es del lado de la seguridad, pero sólo si la armadura se coloca
-                exactamente donde el modelo pone el tirante y se ancla de verdad.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                En el anclaje se toman α3 = α4 = α5 = 1,00: no se descuenta nada por confinamiento
-                de la armadura transversal, ni por barras transversales soldadas, ni por la presión
-                transversal del apoyo. Las tres son bonificaciones legítimas de la tabla A19.8.2,
-                pero exigen justificar armadura y presiones que esta pantalla no conoce, así que
-                quedan del lado seguro y a la vista.
-              </p>
-            </>
+                  )}
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

@@ -65,6 +65,23 @@ export function Etapa({ id, numero, titulo, descripcion, children }: EtapaProps)
 }
 
 /**
+ * Encabezado de etapa suelto: número, título y línea, con el id para el
+ * índice. Para páginas largas donde envolver cada bloque en una Etapa
+ * obligaría a reacomodar todo el JSX; el efecto visual es el mismo.
+ */
+export function EncabezadoEtapa({ id, numero, titulo, descripcion }: Omit<EtapaProps, "children">) {
+  return (
+    <header id={id} className="scroll-mt-28 flex items-baseline gap-3 border-t border-border/70 pt-6">
+      <span className="font-mono text-sm tabular-nums text-muted-foreground">{String(numero).padStart(2, "0")}</span>
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">{titulo}</h2>
+        {descripcion && <p className="text-sm text-muted-foreground">{descripcion}</p>}
+      </div>
+    </header>
+  );
+}
+
+/**
  * Datos a la izquierda, el dibujo que los explica a la derecha. En pantalla
  * chica el dibujo va debajo de los datos que explica, no en otra columna.
  */

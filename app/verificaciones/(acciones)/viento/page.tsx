@@ -3,11 +3,15 @@
 import { useMemo } from "react";
 import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -42,6 +46,14 @@ import { CroquisGeometriaViento, CroquisPlantaViento } from "@/components/verifi
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "viento")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Geometría" },
+  { id: "sitio", titulo: "Sitio" },
+  { id: "forma", titulo: "Factor de forma" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const NOMBRE_CARA: Record<string, string> = {
   barlovento: "Barlovento",
@@ -255,9 +267,17 @@ export default function VientoPage() {
     velocidad, topografia, terreno, metodoNombre, grupo, casoNombre,
   ]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!geometria) avisos.push({ tipo: "error", texto: "Completá cada nivel con altura de piso, a, b y repeticiones positivos." });
+  else if (!resultado) avisos.push({ tipo: "error", texto: "γ0 tiene que ser positivo en los dos lados." });
+  if (geometria && factorForma && factorForma.ladoA === null) avisos.push({ tipo: "aviso", texto: "λa ≥ 0,5: γ0,a no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
+  if (geometria && factorForma && factorForma.ladoB === null) avisos.push({ tipo: "aviso", texto: "λb ≥ 1: γ0,b no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
+  if (avisoCasoActual) avisos.push({ tipo: "aviso", texto: avisoCasoActual });
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Acciones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -267,93 +287,62 @@ export default function VientoPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          γ0 se calcula solo a partir de la envolvente en planta (el mayor a y el mayor b entre los
-          niveles cargados) y la altura total (fig. 8.2), para el caso habitual de construcciones
-          apoyadas en el suelo con λa&lt;0,5 o λb&lt;1. Fuera de ese rango (edificios altos en
-          relación a su planta) hay que leerlo del gráfico y cargarlo a mano. Kd (fig. 6.2) también
-          se calcula solo, con el área de influencia propia de cada nivel (ancho expuesto × altura
-          de influencia, no toda la fachada del lado); sólo entra en la resultante y en Pc por
-          nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo (Ce, fig. 8.6,
-          α=0°) también sale de γ solo. Cada lado (A y B) es una dirección de viento distinta, con
-          su propio γ, y por eso se cargan por separado.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría y niveles</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <CroquisGeometriaViento />
-              <CroquisPlantaViento />
-              <div className="space-y-3">
-                {niveles.map((nivel, i) => (
-                  <div key={i} className="flex items-end gap-2">
-                    <div className="grid flex-1 grid-cols-4 gap-3">
-                      <CampoNumerico
-                        id={`alturaPiso-${i}`}
-                        etiqueta={`Piso ${i + 1}, h`}
-                        sufijo="m"
-                        valor={nivel.alturaPiso}
-                        onChange={(v) => actualizarNivel(i, "alturaPiso", v)}
-                      />
-                      <CampoNumerico
-                        id={`a-${i}`}
-                        etiqueta="a"
-                        sufijo="m"
-                        valor={nivel.a}
-                        onChange={(v) => actualizarNivel(i, "a", v)}
-                      />
-                      <CampoNumerico
-                        id={`b-${i}`}
-                        etiqueta="b"
-                        sufijo="m"
-                        valor={nivel.b}
-                        onChange={(v) => actualizarNivel(i, "b", v)}
-                      />
-                      <CampoNumerico
-                        id={`repeticiones-${i}`}
-                        etiqueta="Se repite"
-                        valor={nivel.repeticiones}
-                        onChange={(v) => actualizarNivel(i, "repeticiones", v)}
-                        advertencia={
-                          Math.round(aNumero(nivel.repeticiones)) > 1
-                            ? `${Math.round(aNumero(nivel.repeticiones))} niveles, uno arriba del otro`
-                            : undefined
-                        }
-                      />
+      <div className="flex flex-col gap-12">
+        <Etapa id="geometria" numero={1} titulo="Geometría y niveles" descripcion="Cada fila es un piso con su planta; una fila puede repetirse para una planta tipo.">
+          <DatosConDibujo
+            datos={
+              <>
+                <div className="space-y-3">
+                  {niveles.map((nivel, i) => (
+                    <div key={i} className="flex items-end gap-2">
+                      <div className="grid flex-1 grid-cols-4 gap-3">
+                        <CampoNumerico id={`alturaPiso-${i}`} etiqueta={`h piso ${i + 1}`} sufijo="m" valor={nivel.alturaPiso} onChange={(v) => actualizarNivel(i, "alturaPiso", v)} />
+                        <CampoNumerico id={`a-${i}`} etiqueta="a" sufijo="m" valor={nivel.a} onChange={(v) => actualizarNivel(i, "a", v)} />
+                        <CampoNumerico id={`b-${i}`} etiqueta="b" sufijo="m" valor={nivel.b} onChange={(v) => actualizarNivel(i, "b", v)} />
+                        <CampoNumerico
+                          id={`repeticiones-${i}`}
+                          etiqueta="Se repite"
+                          valor={nivel.repeticiones}
+                          onChange={(v) => actualizarNivel(i, "repeticiones", v)}
+                          advertencia={
+                            Math.round(aNumero(nivel.repeticiones)) > 1
+                              ? `${Math.round(aNumero(nivel.repeticiones))} niveles, uno arriba del otro`
+                              : undefined
+                          }
+                        />
+                      </div>
+                      {niveles.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Quitar este nivel" onClick={() => quitarNivel(i)} className="mb-1.5">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                    {niveles.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Quitar este nivel"
-                        onClick={() => quitarNivel(i)}
-                        className="mb-1.5"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={agregarNivel}>
+                  <Plus className="h-4 w-4" /> Agregar nivel
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  {geometria
+                    ? `${geometria.numericos.length} niveles · coronación a ${fmt(geometria.alturaTotal)} m · envolvente ${fmt(geometria.aEnvolvente)}×${fmt(geometria.bEnvolvente)} m.`
+                    : "Completá cada nivel con altura de piso, a, b y repeticiones positivos."}
+                </p>
+              </>
+            }
+            dibujo={
+              <div className="space-y-4">
+                <CroquisGeometriaViento />
+                <CroquisPlantaViento />
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={agregarNivel}>
-                <Plus className="h-4 w-4" /> Agregar nivel
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                {geometria
-                  ? `${geometria.numericos.length} niveles · coronación a ${fmt(geometria.alturaTotal)} m · envolvente ${fmt(geometria.aEnvolvente)}×${fmt(geometria.bEnvolvente)} m.`
-                  : "Completá cada nivel con altura de piso, a, b y repeticiones positivos."}
-              </p>
-            </CardContent>
-          </Card>
+            }
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sitio y seguridad</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+        <Etapa id="sitio" numero={2} titulo="Sitio y seguridad" descripcion="Velocidad, entorno, método y permeabilidad del edificio.">
+          <div className="max-w-2xl space-y-6">
+            <div className="grid grid-cols-2 gap-4">
               <CampoSeleccion id="velocidad" etiqueta="Velocidad" valor={velocidad} opciones={["Costero", "Continental"]} onChange={(v) => setVelocidad(v as TipoVelocidad)} />
               <CampoSeleccion id="topografia" etiqueta="Topografía" valor={topografia} opciones={["Normal", "Expuesto", "Protegido"]} onChange={(v) => setTopografia(v as TipoTopografia)} />
               <CampoSeleccion id="terreno" etiqueta="Terreno" valor={terreno} opciones={["I", "II", "III", "IV"]} onChange={(v) => setTerreno(v as TipoTerreno)} />
@@ -365,9 +354,6 @@ export default function VientoPage() {
               <div className="col-span-2">
                 <CampoSeleccion id="caso" etiqueta="Estado de permeabilidad (Tabla 8.2)" valor={casoNombre} opciones={CASOS_APERTURA.map((c) => c.nombre)} onChange={setCasoNombre} />
               </div>
-              {avisoCasoActual && (
-                <p className="col-span-2 text-xs text-destructive">{avisoCasoActual}</p>
-              )}
               <div className="col-span-2">
                 <PanelAyuda titulo="Qué es cada dato">
                   <p>
@@ -392,7 +378,7 @@ export default function VientoPage() {
                   </p>
                   <p>
                     <strong className="text-foreground">Método de cálculo.</strong> Estados límite es
-                    el habitual: Kk sale del grupo elegido abajo (Tabla 6.3). Con tensiones admisibles
+                    el habitual: Kk sale del grupo elegido (Tabla 6.3). Con tensiones admisibles
                     la norma fija Kk=1 para cualquier grupo (7.3.1).
                   </p>
                   <p>
@@ -404,121 +390,120 @@ export default function VientoPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {coeficientesSitio && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Coeficientes del sitio</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <CampoValorCalculado
-                    id="vk"
-                    etiqueta="vk"
-                    valor={`${fmt(coeficientesSitio.vk, 1)} m/s`}
-                    nota="6.2.2.2, según velocidad"
-                  />
-                  <CampoValorCalculado
-                    id="kt"
-                    etiqueta="Kt"
-                    valor={fmt(coeficientesSitio.kt, 2)}
-                    nota="Tabla 6.1, según topografía"
-                  />
-                  <CampoValorCalculado
-                    id="kk"
-                    etiqueta="Kk"
-                    valor={fmt(coeficientesSitio.kk, 2)}
-                    nota={metodoNombre === "Tensiones admisibles" ? "7.3.1, tensiones admisibles" : "Tabla 6.3, según grupo"}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Kz por nivel</Label>
-                  <div className="divide-y divide-border/60 rounded-md border">
-                    {coeficientesSitio.kzPorNivel.map((n) => (
-                      <div key={n.nombre} className="flex items-center justify-between px-3 py-1.5 text-sm">
-                        <span className="text-muted-foreground">
-                          {n.nombre} · z={fmt(n.zM, 1)} m
-                        </span>
-                        <span className="font-mono tabular-nums">{fmt(n.kz, 3)}</span>
-                      </div>
-                    ))}
+            {coeficientesSitio && (
+              <Subgrupo titulo="Coeficientes del sitio" detalle="calculados">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoValorCalculado id="vk" etiqueta="vk" valor={`${fmt(coeficientesSitio.vk, 1)} m/s`} nota="6.2.2.2, según velocidad" />
+                    <CampoValorCalculado id="kt" etiqueta="Kt" valor={fmt(coeficientesSitio.kt, 2)} nota="Tabla 6.1, según topografía" />
+                    <CampoValorCalculado
+                      id="kk"
+                      etiqueta="Kk"
+                      valor={fmt(coeficientesSitio.kk, 2)}
+                      nota={metodoNombre === "Tensiones admisibles" ? "7.3.1, tensiones admisibles" : "Tabla 6.3, según grupo"}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground">6.2.5, según terreno {terreno} y la altura de cada nivel</p>
+                  <div className="space-y-1.5">
+                    <Label>Kz por nivel</Label>
+                    <div className="divide-y divide-border/60 rounded-md border">
+                      {coeficientesSitio.kzPorNivel.map((n) => (
+                        <div key={n.nombre} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                          <span className="text-muted-foreground">
+                            {n.nombre} · z={fmt(n.zM, 1)} m
+                          </span>
+                          <span className="font-mono tabular-nums">{fmt(n.kz, 3)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">6.2.5, según terreno {terreno} y la altura de cada nivel</p>
+                  </div>
                 </div>
-                <PanelFormulas
-                  titulo="Ver cálculo"
-                  filas={[
-                    { etiqueta: "vk según velocidad", valor: `${velocidad}: ${fmt(coeficientesSitio.vk, 1)} m/s` },
-                    { etiqueta: "Kt según topografía", valor: `${topografia}: ${fmt(coeficientesSitio.kt, 2)}` },
-                    {
-                      etiqueta: "Kk según método y grupo",
-                      valor:
-                        metodoNombre === "Tensiones admisibles"
-                          ? `Tensiones admisibles: Kk=1 (7.3.1)`
-                          : `Estados límite, grupo ${grupo}: Kk=${fmt(coeficientesSitio.kk, 2)} (Tabla 6.3)`,
-                    },
-                    ...(resultado ? [{ etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) }] : []),
-                  ]}
+              </Subgrupo>
+            )}
+          </div>
+        </Etapa>
+
+        <Etapa id="forma" numero={3} titulo="Factor de forma" descripcion="Cada lado es una dirección de viento distinta, con su propio γ0 y su Ce de caras laterales y techo.">
+          <div className="grid max-w-3xl gap-8 sm:grid-cols-2">
+            <Subgrupo titulo="Lado A (+X)">
+              <div className="grid grid-cols-2 gap-4">
+                <CampoGamma0
+                  id="gammaA"
+                  etiqueta="γ0,a"
+                  lambdaEtiqueta="λa"
+                  lambdaValor={geometria ? geometria.alturaTotal / geometria.aEnvolvente : NaN}
+                  umbral="0,5"
+                  gammaCalculado={factorForma?.ladoA ?? null}
+                  valorManual={gammaA}
+                  onChangeManual={setGammaA}
                 />
-              </CardContent>
-            </Card>
-          )}
+                <CampoValorCalculado id="ceLateralA" etiqueta="Ce lateral/techo" valor={fmt(ceLateralAEfectivo, 2)} nota="fig. 8.6, α=0°" />
+              </div>
+            </Subgrupo>
+            <Subgrupo titulo="Lado B (+Y)">
+              <div className="grid grid-cols-2 gap-4">
+                <CampoGamma0
+                  id="gammaB"
+                  etiqueta="γ0,b"
+                  lambdaEtiqueta="λb"
+                  lambdaValor={geometria ? geometria.alturaTotal / geometria.bEnvolvente : NaN}
+                  umbral="1"
+                  gammaCalculado={factorForma?.ladoB ?? null}
+                  valorManual={gammaB}
+                  onChangeManual={setGammaB}
+                />
+                <CampoValorCalculado id="ceLateralB" etiqueta="Ce lateral/techo" valor={fmt(ceLateralBEfectivo, 2)} nota="fig. 8.6, α=0°" />
+              </div>
+            </Subgrupo>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Lado A (+X) — γ0,a</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoGamma0
-                id="gammaA"
-                etiqueta="γ0,a"
-                lambdaEtiqueta="λa"
-                lambdaValor={geometria ? geometria.alturaTotal / geometria.aEnvolvente : NaN}
-                umbral="0,5"
-                gammaCalculado={factorForma?.ladoA ?? null}
-                valorManual={gammaA}
-                onChangeManual={setGammaA}
-              />
-              <CampoValorCalculado
-                id="ceLateralA"
-                etiqueta="Ce lateral/techo"
-                valor={fmt(ceLateralAEfectivo, 2)}
-                nota="fig. 8.6, α=0°"
-              />
-            </CardContent>
-          </Card>
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              {
+                etiqueta: "Edificio",
+                valor: geometria
+                  ? `${geometria.numericos.length} niveles, h = ${fmt(geometria.alturaTotal)} m, envolvente ${fmt(geometria.aEnvolvente)} × ${fmt(geometria.bEnvolvente)} m`
+                  : "—",
+              },
+              { etiqueta: "Velocidad · topografía · terreno", valor: `${velocidad} · ${topografia} · ${terreno}` },
+              { etiqueta: "Método · grupo", valor: `${metodoNombre} · ${grupo}` },
+              { etiqueta: "Permeabilidad", valor: casoNombre },
+              { etiqueta: "γ0,a · γ0,b", valor: `${fmt(gammaAEfectivo, 2)} · ${fmt(gammaBEfectivo, 2)}`, derivado: true },
+              ...(coeficientesSitio ? [{ etiqueta: "vk · Kt · Kk", valor: `${fmt(coeficientesSitio.vk, 1)} m/s · ${fmt(coeficientesSitio.kt, 2)} · ${fmt(coeficientesSitio.kk, 2)}`, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "γ0 por la fig. 8.2 con la envolvente en planta (el mayor a y el mayor b entre los niveles) y la altura total, para construcciones apoyadas en el suelo con λa < 0,5 o λb < 1; fuera de ese rango se carga a mano.",
+              "Kd (fig. 6.2) por nivel, con el área de influencia propia (ancho expuesto × altura de influencia); entra en la resultante y en Pc por nivel, no en pc (art. 6.2.6.2).",
+              "Ce de caras laterales y techo de la fig. 8.6 con α = 0°, a partir de γ.",
+              "Con tensiones admisibles Kk = 1 (7.3.1).",
+              "Coeficientes c = Ce − Ci (art. 8.4), tomando el candidato más desfavorable.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Lado B (+Y) — γ0,b</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoGamma0
-                id="gammaB"
-                etiqueta="γ0,b"
-                lambdaEtiqueta="λb"
-                lambdaValor={geometria ? geometria.alturaTotal / geometria.bEnvolvente : NaN}
-                umbral="1"
-                gammaCalculado={factorForma?.ladoB ?? null}
-                valorManual={gammaB}
-                onChangeManual={setGammaB}
-              />
-              <CampoValorCalculado
-                id="ceLateralB"
-                etiqueta="Ce lateral/techo"
-                valor={fmt(ceLateralBEfectivo, 2)}
-                nota="fig. 8.6, α=0°"
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los niveles (altura de piso, a y b positivos) y γ positivo en ambos lados
-                para ver los resultados.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
+            <div className="space-y-10">
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Altura total", valor: `${fmt(resultado.geometria.alturaTotal)} m`, nota: `${resultado.geometria.numericos.length} niveles` },
+                  { etiqueta: "C total lado A", valor: fmt(resultado.casoA.cTotalGobernante, 3) },
+                  { etiqueta: "C total lado B", valor: fmt(resultado.casoB.cTotalGobernante, 3) },
+                  { etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) },
+                ]}
+              />
               <BloqueLado
                 titulo="Lado A (+X)"
                 ladoR={resultado.r.ladoA}
@@ -535,10 +520,11 @@ export default function VientoPage() {
                 anchosExpuestosM={resultado.geometria.numericos.map((n) => n.bM)}
                 alturaTotalM={resultado.geometria.alturaTotal}
               />
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }
@@ -667,9 +653,8 @@ function BloqueLado({
   const ladoSlug = titulo.replace(/[^a-zA-Z0-9]/g, "");
 
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">{titulo}</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
+    <Subgrupo titulo={titulo}>
+      <div className="space-y-4">
         <div className="grid grid-cols-3 gap-4">
           {caso.caras.map((cara) => (
             <CampoValorCalculado
@@ -768,7 +753,7 @@ function BloqueLado({
         </div>
 
         <DiagramaCargaViento alturaTotalM={alturaTotalM} niveles={niveles} />
-      </CardContent>
-    </Card>
+      </div>
+    </Subgrupo>
   );
 }

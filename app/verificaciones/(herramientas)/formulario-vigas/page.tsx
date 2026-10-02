@@ -1,8 +1,12 @@
 "use client";
 
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -23,6 +27,13 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "formulario-vigas")!;
+
+const ETAPAS = [
+  { id: "caso-carga", titulo: "Caso y cargas" },
+  { id: "rigidez", titulo: "Rigidez" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 /**
  * El catálogo agrupado por familia, una sola vez y a nivel de módulo: filtrarlo
@@ -125,9 +136,12 @@ export default function FormularioVigasPage() {
 
   const estado = calcularEstado(caso, textos, eiKNm2);
 
+  const avisos: AvisoRevision[] = estado.ok ? [] : [{ tipo: "error", texto: estado.motivo }];
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Estática · Herramientas de análisis</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -137,160 +151,135 @@ export default function FormularioVigasPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          No hay una fórmula por caso: la viga se resuelve por rigidez directa, con la matriz y las
-          cargas de empotramiento integradas de las funciones de forma, así que no hay ninguna
-          expresión de tabla copiada a mano. Los elementos se cortan en cada apoyo, cada carga
-          puntual y cada extremo de trapecio, con lo cual la carga queda lineal dentro de cada uno y
-          la solución coincide con la exacta de Euler-Bernoulli, no la aproxima. El formulario
-          clásico está del otro lado: se usa como test, para contrastar los coeficientes.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      {/*
-        Los datos ocupan una columna angosta y el dibujo la ancha, al lado, para
-        poder cargar un parámetro y verlo en el esquema sin scrollear. Los
-        resultados pasan a la banda de abajo, a todo el ancho. Debajo de xl todo
-        se apila en una sola columna, en el orden en que se usa: datos, dibujo,
-        resultados.
-
-        El corte va en xl y no en lg porque a 1024 px las dos columnas dan 269 y
-        404: los campos quedan apretados y el dibujo sale más chico que apilado.
-      */}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Caso</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <CampoSeleccion
-                  id="familia"
-                  etiqueta="Familia"
-                  valor={FAMILIAS_CASO.find((f) => f.id === familia)!.nombre}
-                  opciones={FAMILIAS_CASO.map((f) => f.nombre)}
-                  onChange={(nombre) => {
-                    const f = FAMILIAS_CASO.find((x) => x.nombre === nombre);
-                    if (!f) return;
-                    setFamilia(f.id);
-                    const primero = CASOS_VIGA.find((c) => c.familia === f.id);
-                    if (primero) setId(primero.id);
-                  }}
-                />
-                <CampoSeleccion
-                  id="caso"
-                  etiqueta="Esquema"
-                  valor={caso.nombre}
-                  opciones={deLaFamilia.map((c) => c.nombre)}
-                  onChange={(nombre) => {
-                    const c = deLaFamilia.find((x) => x.nombre === nombre);
-                    if (c) setId(c.id);
-                  }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">{caso.descripcion}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría y cargas</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              {caso.parametros.map((p) => (
-                <CampoNumerico
-                  key={`${caso.id}-${p.clave}`}
-                  id={`param-${p.clave}`}
-                  etiqueta={p.etiqueta}
-                  sufijo={p.unidad ?? "m"}
-                  valor={textos[p.clave] ?? ""}
-                  onChange={(v) => cambiarParam(p.clave, v)}
-                  advertencia={p.ayuda}
-                />
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Rigidez</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+      <div className="flex flex-col gap-12">
+        <Etapa id="caso-carga" numero={1} titulo="Caso y cargas" descripcion={caso.descripcion}>
+          <div className="max-w-2xl space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CampoSeleccion
+                id="familia"
+                etiqueta="Familia"
+                valor={FAMILIAS_CASO.find((f) => f.id === familia)!.nombre}
+                opciones={FAMILIAS_CASO.map((f) => f.nombre)}
+                onChange={(nombre) => {
+                  const f = FAMILIAS_CASO.find((x) => x.nombre === nombre);
+                  if (!f) return;
+                  setFamilia(f.id);
+                  const primero = CASOS_VIGA.find((c) => c.familia === f.id);
+                  if (primero) setId(primero.id);
+                }}
+              />
+              <CampoSeleccion
+                id="caso"
+                etiqueta="Esquema"
+                valor={caso.nombre}
+                opciones={deLaFamilia.map((c) => c.nombre)}
+                onChange={(nombre) => {
+                  const c = deLaFamilia.find((x) => x.nombre === nombre);
+                  if (c) setId(c.id);
+                }}
+              />
+            </div>
+            <Subgrupo titulo="Geometría y cargas">
               <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico
-                  id="eGPa"
-                  etiqueta="Módulo E"
-                  sufijo="GPa"
-                  valor={eGPa}
-                  onChange={setEGPa}
-                />
-                <CampoNumerico
-                  id="iCm4"
-                  etiqueta="Inercia I"
-                  sufijo="cm⁴"
-                  valor={iCm4}
-                  onChange={setICm4}
-                />
+                {caso.parametros.map((p) => (
+                  <CampoNumerico
+                    key={`${caso.id}-${p.clave}`}
+                    id={`param-${p.clave}`}
+                    etiqueta={p.etiqueta}
+                    sufijo={p.unidad ?? "m"}
+                    valor={textos[p.clave] ?? ""}
+                    onChange={(v) => cambiarParam(p.clave, v)}
+                    advertencia={p.ayuda}
+                  />
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                EI = {Number.isFinite(eiKNm2) ? fmt(eiKNm2, 0) : "—"} kN·m². Mientras EI sea
-                constante en toda la viga no cambia ni las reacciones ni los diagramas de V y M —ni
-                siquiera en las hiperestáticas, donde se cancela al plantear la compatibilidad—:
-                sólo escala la flecha. La inercia se saca de{" "}
-                <a className="underline" href="/verificaciones/propiedades-geometricas">
-                  propiedades geométricas
-                </a>
-                .
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            </Subgrupo>
+          </div>
+        </Etapa>
 
-        {/*
-          El layout de verificaciones topa los esquemas en 20rem de alto para que
-          un dibujo vertical no quede al triple que los demás. Acá el dibujo tiene
-          columna propia, así que el tope es lo único que impide que crezca:
-          subirlo a 32rem lo deja gobernado por el ancho de la columna, no por el
-          alto. Debajo de xl vuelve a valer el tope general.
-        */}
-        <Card className="self-start xl:[&_svg]:max-h-[32rem]">
-          <CardHeader>
-            <CardTitle className="text-base">Diagramas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {estado.ok ? (
-              <>
-                <DiagramasViga
-                  largoM={estado.entrada.largoM}
-                  nodos={estado.entrada.nodos}
-                  cargas={estado.entrada.cargas}
-                  resultado={estado.resultado}
-                />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Cargas positivas hacia abajo. El flector se dibuja del lado traccionado, así que lo
-                  que queda para abajo es momento positivo y se arma en la cara inferior.
-                </p>
-              </>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        <Etapa id="rigidez" numero={2} titulo="Rigidez" descripcion="Sólo escala la flecha mientras EI sea constante en toda la viga.">
+          <div className="max-w-2xl space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="eGPa" etiqueta="Módulo E" sufijo="GPa" valor={eGPa} onChange={setEGPa} />
+              <CampoNumerico id="iCm4" etiqueta="Inercia I" sufijo="cm⁴" valor={iCm4} onChange={setICm4} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              EI = {Number.isFinite(eiKNm2) ? fmt(eiKNm2, 0) : "—"} kN·m². Mientras EI sea
+              constante en toda la viga no cambia ni las reacciones ni los diagramas de V y M —ni
+              siquiera en las hiperestáticas, donde se cancela al plantear la compatibilidad—:
+              sólo escala la flecha. La inercia se saca de{" "}
+              <a className="underline" href="/verificaciones/propiedades-geometricas">
+                propiedades geométricas
+              </a>
+              .
+            </p>
+          </div>
+        </Etapa>
 
-      <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {!estado.ok ? (
-          <Card className="md:col-span-2 xl:col-span-3">
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              {estado.motivo}
-            </CardContent>
-          </Card>
-        ) : (
-          <ResultadoVigaPanel caso={caso} estado={estado} />
-        )}
+        <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Familia", valor: FAMILIAS_CASO.find((f) => f.id === familia)!.nombre },
+              { etiqueta: "Esquema", valor: caso.nombre },
+              ...caso.parametros.map((p) => ({ etiqueta: p.etiqueta, valor: `${textos[p.clave] ?? ""} ${p.unidad ?? "m"}` })),
+              { etiqueta: "EI", valor: Number.isFinite(eiKNm2) ? `${fmt(eiKNm2, 0)} kN·m²` : "—", derivado: true },
+            ]}
+            hipotesis={[
+              "Rigidez directa con la matriz y las cargas de empotramiento integradas de las funciones de forma: no hay fórmulas de tabla copiadas a mano.",
+              "Elementos cortados en cada apoyo, carga puntual y extremo de trapecio: la solución coincide con la exacta de Euler-Bernoulli.",
+              "EI constante en toda la viga.",
+              "Cargas positivas hacia abajo; el flector se dibuja del lado traccionado.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={4} titulo="Resultados">
+          {!estado.ok ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">{estado.motivo}</span>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Momento máx. +", valor: `${fmt(sinCeroNegativo(estado.resultado.momentoMax.valor), 2)} kN·m`, nota: `x = ${fmt(estado.resultado.momentoMax.xM, 2)} m` },
+                  { etiqueta: "Momento máx. −", valor: `${fmt(sinCeroNegativo(estado.resultado.momentoMin.valor), 2)} kN·m`, nota: `x = ${fmt(estado.resultado.momentoMin.xM, 2)} m` },
+                  { etiqueta: "Cortante máx.", valor: `${fmt(sinCeroNegativo(estado.resultado.cortanteMax.valor), 2)} kN`, nota: `x = ${fmt(estado.resultado.cortanteMax.xM, 2)} m` },
+                  {
+                    etiqueta: "Flecha máx.",
+                    valor: `${fmt(sinCeroNegativo(estado.resultado.flechaMax.valor), 2)} mm`,
+                    nota: Number.isFinite(estado.resultado.relacionLSobreFlecha) ? `L / ${fmt(estado.resultado.relacionLSobreFlecha, 0)}` : "sin flecha",
+                  },
+                ]}
+              />
+              <Subgrupo titulo="Diagramas">
+                <div className="space-y-2">
+                  <DiagramasViga
+                    largoM={estado.entrada.largoM}
+                    nodos={estado.entrada.nodos}
+                    cargas={estado.entrada.cargas}
+                    resultado={estado.resultado}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cargas positivas hacia abajo. El flector se dibuja del lado traccionado, así que lo
+                    que queda para abajo es momento positivo y se arma en la cara inferior.
+                  </p>
+                </div>
+              </Subgrupo>
+              <div className="grid items-start gap-x-8 gap-y-10 md:grid-cols-2">
+                <ResultadoVigaPanel caso={caso} estado={estado} />
+              </div>
+            </div>
+          )}
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }
@@ -330,11 +319,8 @@ function ResultadoVigaPanel({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Reacciones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
+      <Subgrupo titulo="Reacciones">
+        <div className="space-y-3 pt-0">
           <div>
             {apoyos.map((x) => (
               <Dato
@@ -352,14 +338,11 @@ function ResultadoVigaPanel({
             Reacción vertical positiva hacia arriba; momento de empotramiento positivo antihorario.
             Cierre de equilibrio vertical: {fmt(Math.abs(r.desequilibrioKN), 6)} kN.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </Subgrupo>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Esfuerzos máximos</CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
+      <Subgrupo titulo="Esfuerzos máximos">
+        <div className="py-0">
           <Dato
             etiqueta={`Cortante máximo (x = ${fmt(r.cortanteMax.xM, 2)} m)`}
             valor={`${fmt(sinCeroNegativo(r.cortanteMax.valor), 2)} kN`}
@@ -372,14 +355,11 @@ function ResultadoVigaPanel({
             etiqueta={`Momento máximo negativo (x = ${fmt(r.momentoMin.xM, 2)} m)`}
             valor={`${fmt(sinCeroNegativo(r.momentoMin.valor), 2)} kN·m`}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </Subgrupo>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Flecha</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
+      <Subgrupo titulo="Flecha">
+        <div className="space-y-3 pt-0">
           <div>
             <Dato
               etiqueta={`Flecha máxima (x = ${fmt(r.flechaMax.xM, 2)} m)`}
@@ -399,8 +379,8 @@ function ResultadoVigaPanel({
             total y el módulo de la flecha, y se compara contra el límite del elemento —no lo
             impone esta pantalla, que es de estática y no conoce la norma que aplica.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </Subgrupo>
 
       {caso.normalizacion && <Coeficientes caso={caso} estado={estado} />}
     </>
@@ -434,11 +414,8 @@ function Coeficientes({
   const simboloV = n.patron === "uniforme" ? `${n.claveCarga}·${n.claveLuz}` : n.claveCarga;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Coeficientes de tabla</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-0">
+    <Subgrupo titulo="Coeficientes de tabla">
+      <div className="space-y-3 pt-0">
         <PanelFormulas
           titulo={`Referidos a ${simboloM} y ${simboloV}`}
           filas={[
@@ -457,7 +434,7 @@ function Coeficientes({
           Contrastar estos números contra el formulario impreso es la forma más rápida de detectar
           un dato mal cargado: el coeficiente no depende ni de la luz ni del valor de la carga.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </Subgrupo>
   );
 }

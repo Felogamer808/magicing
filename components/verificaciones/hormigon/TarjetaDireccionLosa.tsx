@@ -49,7 +49,26 @@ export function TarjetaDireccionLosa({
             { etiqueta: "As,min (Anejo 19, 9.3.1.1 → ec. 9.1)", valor: `${fmt(r.asMinCm2PorM)} cm²/m` },
             { etiqueta: "Separación necesaria", valor: `${fmt(r.separacionNecM * 100, 1)} cm` },
             { etiqueta: "Separación máxima", valor: `${fmt(r.separacionMaxM * 100, 0)} cm` },
-            { etiqueta: "Anclaje lb,neta", valor: `${fmt(r.lbNetaMm, 0)} mm` },
+            {
+              etiqueta: "Adherencia (fig. A19.8.2)",
+              valor: `${r.situacionAdherencia === "buena" ? "buena" : "mala"} · η1 = ${fmt(r.anclaje.eta1, 1)}`,
+            },
+            { etiqueta: "fbd = 2,25·η1·η2·fctd", valor: `${fmt(r.anclaje.fbdMPa, 2)} MPa` },
+            {
+              etiqueta: "σsd = fyd·As,nec/As,real",
+              valor: `${fmt(r.anclaje.sigmaSdMPa, 1)} MPa`,
+            },
+            {
+              etiqueta: "lb,rqd",
+              formula: "(Ø/4)·σsd/fbd",
+              valor: `${fmt(r.anclaje.lbRqdMm, 0)} mm`,
+            },
+            { etiqueta: "cd = mín(a/2, c)", valor: `${fmt(r.cdMm, 0)} mm` },
+            { etiqueta: "α1 · α2", valor: `${fmt(r.anclaje.alfa1, 2)} · ${fmt(r.anclaje.alfa2, 2)}` },
+            {
+              etiqueta: "lbd (Anejo 19, 8.4.4)",
+              valor: `${fmt(r.anclaje.lbdMm, 0)} mm (mín. ${fmt(r.anclaje.lbMinMm, 0)})`,
+            },
           ]}
         />
       </CardContent>

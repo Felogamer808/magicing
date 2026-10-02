@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { LosaDiagrama } from "@/components/verificaciones/hormigon/LosaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
@@ -30,6 +31,7 @@ export default function LosasPage() {
   const [e, setE] = useCampo("e", "0.15");
   const [rgPos, setRgPos] = useCampo("rgPos", "0.02");
   const [rgNeg, setRgNeg] = useCampo("rgNeg", "0.02");
+  const [formaAnclaje, setFormaAnclaje] = useCampo("formaAnclaje", "Recta");
 
   const [mxPos, setMxPos] = useCampo("mxPos", "50");
   const [myPos, setMyPos] = useCampo("myPos", "30");
@@ -69,6 +71,7 @@ export default function LosasPage() {
       armadoPositivoY: { diametroMm: v.phiPosY, separacionM: v.sPosY },
       armadoNegativoX: { diametroMm: v.phiNegX, separacionM: v.sNegX },
       armadoNegativoY: { diametroMm: v.phiNegY, separacionM: v.sNegY },
+      formaAnclaje: formaAnclaje === "Patilla o gancho" ? "gancho" : "recta",
     });
 
     const resistente = calcularMomentoResistenteLosa(materiales, v.e, v.rgPos, {
@@ -76,7 +79,7 @@ export default function LosasPage() {
     });
 
     return { losa, resistente, v };
-  }, [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY]);
+  }, [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje]);
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
@@ -130,6 +133,13 @@ export default function LosasPage() {
               <CampoNumerico id="e" etiqueta="Espesor e" sufijo="m" valor={e} onChange={setE} />
               <CampoNumerico id="rgPos" etiqueta="rg positivos" sufijo="m" valor={rgPos} onChange={setRgPos} />
               <CampoNumerico id="rgNeg" etiqueta="rg negativos" sufijo="m" valor={rgNeg} onChange={setRgNeg} />
+              <CampoSeleccion
+                id="formaAnclaje"
+                etiqueta="Anclaje de las barras"
+                valor={formaAnclaje}
+                opciones={["Recta", "Patilla o gancho"]}
+                onChange={setFormaAnclaje}
+              />
             </CardContent>
           </Card>
 

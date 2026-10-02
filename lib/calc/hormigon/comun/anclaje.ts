@@ -34,6 +34,11 @@ export interface DatosAnclaje {
   esfuerzo: TipoEsfuerzo;
   /** cd: mínimo entre a/2, c1 y c — fig. A19.8.3 (mm). */
   recubrimientoMm: number;
+  /**
+   * σsd: tensión de cálculo de la barra en la sección desde la que se mide el
+   * anclaje (art. 8.4.3 (2)). Sin ella se toma fyd, la barra en fluencia plena.
+   */
+  sigmaSdMPa?: number;
 }
 
 export interface ResultadoAnclaje {
@@ -70,7 +75,7 @@ export function calcularAnclaje(materiales: MaterialesAnclaje, datos: DatosAncla
   const eta2 = phi <= 32 ? 1.0 : (132 - phi) / 100;
   const fbdMPa = 2.25 * eta1 * eta2 * fctdMPa;
 
-  const sigmaSdMPa = fydMPa;
+  const sigmaSdMPa = datos.sigmaSdMPa ?? fydMPa;
   const lbRqdMm = (phi / 4) * (sigmaSdMPa / fbdMPa);
 
   /*

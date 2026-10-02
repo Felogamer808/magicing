@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
-import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SeccionPlegable } from "@/components/verificaciones/comun/SeccionPlegable";
@@ -24,6 +26,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "mensula-corta")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Geometría" },
+  { id: "cargas", titulo: "Cargas" },
+  { id: "armadura", titulo: "Armaduras" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const DIAMETROS_PRINCIPAL = [12, 16, 20, 25, 32] as const;
 const DIAMETROS_CERCO = [8, 10, 12, 16] as const;
@@ -94,301 +104,153 @@ export default function Page() {
     phiP, phiE, adherencia, soldada,
   ]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos, o el recubrimiento deja la pieza sin canto útil." });
+  } else {
+    if (!resultado.r.modelo.esMensulaCorta)
+      avisos.push({ tipo: "aviso", texto: "a꜀ supera el canto: no es una ménsula corta y el modelo de bielas y tirantes de esta página deja de aplicar." });
+    if (!resultado.r.modelo.tanEnRango)
+      avisos.push({ tipo: "aviso", texto: `tg θ = ${fmt(resultado.r.modelo.tanTheta)} queda fuera del rango 1,0–2,5 que pide el §J.3(1).` });
+    if (resultado.r.materiales.topeFydAplicado)
+      avisos.push({ tipo: "aviso", texto: `f_yd topado en 400 MPa: encarece la armadura un ${fmt(resultado.r.materiales.sobrecostoPorTope * 100, 1)} %.` });
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Hormigón armado · Ménsulas</p>
+          <p className="spec-label">Hormigón armado · Regiones D</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
-        <BarraAcciones
-          normas={meta.normasDisponibles}
-          norma={norma}
-          onNormaChange={setNorma}
-        />
+        <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-      <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
+      <IndiceEtapas etapas={ETAPAS} />
 
+      <p className="text-sm text-muted-foreground">
+        La ménsula corta es una región D: la carga entra concentrada a pocos centímetros de la cara
+        del pilar y no vale Bernoulli. Se resuelve con bielas y tirantes, y el tirante se calcula por
+        los dos métodos que dan la norma y la Instrucción española, que no coinciden: se arma por el
+        más desfavorable.
+      </p>
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          La ménsula corta es una región D: la carga entra concentrada a pocos centímetros de la
-          cara del pilar y no hay longitud para que las deformaciones se linealicen, así que no
-          vale Bernoulli y las fórmulas de flexión y cortante quedan fuera de su campo de
-          aplicación. Se resuelve con un modelo de bielas y tirantes, y el tirante se calcula por
-          los dos métodos que la norma y la Instrucción española dan por separado, que no
-          coinciden: se arma por el más desfavorable.
-        </div>
-      </div>
-
-      {/*
-        Datos a la izquierda y dibujos a la derecha, igual que en las
-        herramientas de análisis: se cambia una dimensión y el esquema responde
-        sin scrollear. Debajo de xl se apila en el orden en que se usa.
-      */}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Geometría</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="ac"
-                etiqueta="a꜀ — eje de carga a cara del pilar"
-                sufijo="m"
-                valor={ac}
-                onChange={setAc}
-              />
-              <CampoNumerico
-                id="hc"
-                etiqueta="h꜀ — canto en el arranque"
-                sufijo="m"
-                valor={hc}
-                onChange={setHc}
-              />
-              <CampoNumerico
-                id="h1"
-                etiqueta="h₁ — canto en el borde"
-                sufijo="m"
-                valor={h1}
-                onChange={setH1}
-              />
-              <CampoNumerico
-                id="b"
-                etiqueta="b — ancho de la ménsula"
-                sufijo="m"
-                valor={b}
-                onChange={setB}
-              />
-              <CampoNumerico
-                id="hcol"
-                etiqueta="Canto del pilar"
-                sufijo="m"
-                valor={hcol}
-                onChange={setHcol}
-              />
-              <CampoNumerico
-                id="rec"
-                etiqueta="Recubrimiento nominal"
-                sufijo="m"
-                valor={rec}
-                onChange={setRec}
-              />
-              <CampoNumerico
-                id="ap"
-                etiqueta="a_p — placa, según el vuelo"
-                sufijo="m"
-                valor={ap}
-                onChange={setAp}
-              />
-              <CampoNumerico
-                id="bp"
-                etiqueta="b_p — placa, según el ancho"
-                sufijo="m"
-                valor={bp}
-                onChange={setBp}
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Cargas de cálculo</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="fEd"
-                etiqueta="F_Ed — vertical"
-                sufijo="kN"
-                valor={fEd}
-                onChange={setFEd}
-              />
-              <CampoNumerico
-                id="hEd"
-                etiqueta="H_Ed — horizontal"
-                sufijo="kN"
-                valor={hAutomatico ? fmt(0.15 * aNumero(fEd), 1) : hEd}
-                onChange={setHEd}
-                advertencia={
-                  hAutomatico ? "Calculado como 0,15·F_Ed; pasá a manual para editarlo." : undefined
-                }
-              />
-              <div className="col-span-2">
-                <CampoSeleccion
-                  id="modoH"
-                  etiqueta="Acción horizontal"
-                  valor={modoH}
-                  opciones={["H = 0,15·F automático", "H manual"]}
-                  onChange={setModoH}
+      <div className="flex flex-col gap-12">
+        <Etapa id="geometria" numero={1} titulo="Geometría" descripcion="Ménsula, pilar y placa de apoyo de la carga.">
+          <DatosConDibujo
+            datos={
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="ac" etiqueta="a꜀ — eje de carga a cara del pilar" sufijo="m" valor={ac} onChange={setAc} />
+                <CampoNumerico id="hc" etiqueta="h꜀ — canto en el arranque" sufijo="m" valor={hc} onChange={setHc} />
+                <CampoNumerico id="h1" etiqueta="h₁ — canto en el borde" sufijo="m" valor={h1} onChange={setH1} />
+                <CampoNumerico id="b" etiqueta="b — ancho de la ménsula" sufijo="m" valor={b} onChange={setB} />
+                <CampoNumerico id="hcol" etiqueta="Canto del pilar" sufijo="m" valor={hcol} onChange={setHcol} />
+                <CampoNumerico id="rec" etiqueta="Recubrimiento nominal" sufijo="m" valor={rec} onChange={setRec} />
+                <CampoNumerico id="ap" etiqueta="a_p — placa, según el vuelo" sufijo="m" valor={ap} onChange={setAp} />
+                <CampoNumerico id="bp" etiqueta="b_p — placa, según el ancho" sufijo="m" valor={bp} onChange={setBp} />
+              </div>
+            }
+            dibujo={
+              resultado ? (
+                <DiagramaMensulaModelo
+                  acM={resultado.geometria.acM}
+                  hcM={resultado.geometria.hcM}
+                  h1M={resultado.geometria.h1M}
+                  hcolM={resultado.geometria.hcolM}
+                  apM={resultado.geometria.apM}
+                  vueloTotalM={resultado.r.despiece.vueloTotalM}
+                  zM={resultado.r.modelo.zM}
+                  yTiranteM={resultado.r.despiece.yTiranteM}
+                  thetaGrados={resultado.r.modelo.thetaGrados}
+                  d0M={resultado.r.hormigon.d0M}
+                  d0MinM={resultado.r.hormigon.d0MinM}
+                  fEdKN={resultado.fEdKN}
+                  hEdKN={resultado.hEdKN}
+                  traccionTiranteKN={Math.max(resultado.r.tirante.ftdAnejoKN, resultado.r.tirante.ftdInstruccionKN)}
+                  compresionBielaKN={resultado.r.hormigon.compresionBielaKN}
+                  esMensulaCorta={resultado.r.modelo.esMensulaCorta}
+                  tanEnRango={resultado.r.modelo.tanEnRango}
                 />
-              </div>
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">El modelo se dibuja con geometría y cargas válidas.</p>
+              )
+            }
+          />
+        </Etapa>
+
+        <Etapa id="cargas" numero={2} titulo="Cargas de cálculo" descripcion="Ya mayoradas.">
+          <div className="grid max-w-xl grid-cols-2 gap-4">
+            <CampoNumerico id="fEd" etiqueta="F_Ed — vertical" sufijo="kN" valor={fEd} onChange={setFEd} />
+            <CampoNumerico
+              id="hEd"
+              etiqueta="H_Ed — horizontal"
+              sufijo="kN"
+              valor={hAutomatico ? fmt(0.15 * aNumero(fEd), 1) : hEd}
+              onChange={setHEd}
+              advertencia={hAutomatico ? "Calculado como 0,15·F_Ed; pasá a manual para editarlo." : undefined}
+            />
+            <div className="col-span-2">
+              <CampoSeleccion id="modoH" etiqueta="Acción horizontal" valor={modoH} opciones={["H = 0,15·F automático", "H manual"]} onChange={setModoH} />
             </div>
           </div>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Materiales y armaduras</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="fck"
-                etiqueta="f_ck"
-                sufijo="MPa"
-                valor={fck}
-                onChange={setFck}
-              />
-              <CampoNumerico
-                id="fyk"
-                etiqueta="f_yk"
-                sufijo="MPa"
-                valor={fyk}
-                onChange={setFyk}
-              />
-              <CampoSeleccion
-                id="phiP"
-                etiqueta="ø del marco principal"
-                valor={phiP}
-                opciones={DIAMETROS_PRINCIPAL.map(String)}
-                onChange={setPhiP}
-              />
-              <CampoSeleccion
-                id="phiE"
-                etiqueta="ø de los cercos"
-                valor={phiE}
-                opciones={DIAMETROS_CERCO.map(String)}
-                onChange={setPhiE}
-              />
-              <CampoSeleccion
-                id="adherencia"
-                etiqueta="Condición de adherencia"
-                valor={adherencia}
-                opciones={["Buena", "Mala"]}
-                onChange={setAdherencia}
-              />
-              <CampoSeleccion
-                id="soldada"
-                etiqueta="Barra transversal soldada"
-                valor={soldada}
-                opciones={["No", "Sí"]}
-                onChange={setSoldada}
-              />
-              <p className="col-span-2 text-xs text-muted-foreground">
-                γ꜀ = 1,50 y γ_s = 1,15 (art. 2.4.2.4, tabla A19.2.1), situación persistente o
-                transitoria. En ménsulas cortas f_yd se topa además en 400 MPa.
-              </p>
-            </div>
+        <Etapa id="armadura" numero={3} titulo="Materiales y armaduras" descripcion="Marco principal del tirante y cercos.">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <CampoNumerico id="fck" etiqueta="f_ck" sufijo="MPa" valor={fck} onChange={setFck} />
+            <CampoNumerico id="fyk" etiqueta="f_yk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+            <CampoSeleccion id="phiP" etiqueta="ø del marco principal" valor={phiP} opciones={DIAMETROS_PRINCIPAL.map(String)} onChange={setPhiP} />
+            <CampoSeleccion id="phiE" etiqueta="ø de los cercos" valor={phiE} opciones={DIAMETROS_CERCO.map(String)} onChange={setPhiE} />
+            <CampoSeleccion id="adherencia" etiqueta="Condición de adherencia" valor={adherencia} opciones={["Buena", "Mala"]} onChange={setAdherencia} />
+            <CampoSeleccion id="soldada" etiqueta="Barra transversal soldada" valor={soldada} opciones={["No", "Sí"]} onChange={setSoldada} />
           </div>
-        </div>
+        </Etapa>
 
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
-          {resultado ? (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Modelo de bielas y tirantes</h3>
-                </div>
-                <div className="py-2">
-                  <DiagramaMensulaModelo
-                    acM={resultado.geometria.acM}
-                    hcM={resultado.geometria.hcM}
-                    h1M={resultado.geometria.h1M}
-                    hcolM={resultado.geometria.hcolM}
-                    apM={resultado.geometria.apM}
-                    vueloTotalM={resultado.r.despiece.vueloTotalM}
-                    zM={resultado.r.modelo.zM}
-                    yTiranteM={resultado.r.despiece.yTiranteM}
-                    thetaGrados={resultado.r.modelo.thetaGrados}
-                    d0M={resultado.r.hormigon.d0M}
-                    d0MinM={resultado.r.hormigon.d0MinM}
-                    fEdKN={resultado.fEdKN}
-                    hEdKN={resultado.hEdKN}
-                    traccionTiranteKN={Math.max(
-                      resultado.r.tirante.ftdAnejoKN,
-                      resultado.r.tirante.ftdInstruccionKN
-                    )}
-                    compresionBielaKN={resultado.r.hormigon.compresionBielaKN}
-                    esMensulaCorta={resultado.r.modelo.esMensulaCorta}
-                    tanEnRango={resultado.r.modelo.tanEnRango}
-                  />
-                </div>
-              </div>
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "a꜀ / h꜀ / b", valor: `${ac} / ${hc} / ${b} m` },
+              { etiqueta: "F_Ed / H_Ed", valor: `${fEd} / ${hAutomatico ? fmt(0.15 * aNumero(fEd), 1) : hEd} kN` },
+              { etiqueta: "f_ck / f_yk", valor: `${fck} / ${fyk} MPa` },
+              ...(resultado
+                ? [
+                    { etiqueta: "d / z", valor: `${fmt(resultado.r.modelo.dM, 3)} / ${fmt(resultado.r.modelo.zM, 3)} m`, derivado: true },
+                    { etiqueta: "θ biela", valor: `${fmt(resultado.r.modelo.thetaGrados, 1)}°`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              "Modelo de bielas y tirantes con z = 0,8·d. El tirante es el mayor entre el Anejo 19 (§J.3, crece con el vuelo) y la Instrucción española (§24.8.3.b, cotg θ = μ = 1,4): son métodos distintos.",
+              "f_yd topado en 400 MPa en ménsulas cortas (Montoya §24.8.2.d y §24.8.3), además de γ꜀ = 1,50 y γ_s = 1,15 de situación persistente.",
+              "Cuantía mecánica mínima del ACI que recoge Montoya (§24.8.2.c), además de la del art. 9.2.1.1.",
+              "Cercos verticales y horizontales: los verticales solos son inoperantes (Montoya §24.8.1). Mínimo 3 cercos y separación de 150 mm.",
+              "El marco es un lazo cerrado y el anclaje se mide sobre el eje de la barra (art. 8.4.3(3)).",
+              "No calcula V_Rd,c en la sección de arranque contra el pilar: esa comprobación va aparte.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Armado — alzado</h3>
-                </div>
-                <div className="py-2">
-                  <DiagramaMensulaArmado
-                    hcM={resultado.geometria.hcM}
-                    h1M={resultado.geometria.h1M}
-                    hcolM={resultado.geometria.hcolM}
-                    vueloTotalM={resultado.r.despiece.vueloTotalM}
-                    marco={resultado.r.despiece.marco}
-                    cercos={resultado.r.despiece.cercos}
-                    numeroBarras={resultado.r.tirante.numeroBarras}
-                    diametroPrincipalMm={Number(phiP)}
-                    diametroCercoMm={Number(phiE)}
-                    numeroCercos={resultado.r.cercos.numeroCercos}
-                    numeroCercosHorizontales={
-                      resultado.r.cercos.horizontales?.numeroCercos ?? 0
-                    }
-                    caso={resultado.r.cercos.caso}
-                    lbdMensulaMm={resultado.r.anclaje.lbdMensulaMm}
-                    disponibleMensulaMm={resultado.r.anclaje.disponibleMensulaMm}
-                    lbdPilarMm={resultado.r.anclaje.lbdPilarMm}
-                    pataPilarMm={resultado.r.anclaje.pataPilarMm}
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Armado — planta</h3>
-                </div>
-                <div className="py-2">
-                  <DiagramaMensulaPlanta
-                    hcolM={resultado.geometria.hcolM}
-                    vueloTotalM={resultado.r.despiece.vueloTotalM}
-                    bM={resultado.geometria.bM}
-                    acM={resultado.geometria.acM}
-                    apM={resultado.geometria.apM}
-                    bpM={resultado.geometria.bpM}
-                    recubrimientoM={resultado.geometria.recubrimientoM}
-                    cercos={resultado.r.despiece.cercos}
-                    numeroBarras={resultado.r.tirante.numeroBarras}
-                    diametroPrincipalMm={Number(phiP)}
-                    diametroCercoMm={Number(phiE)}
-                    anchoCercoM={resultado.geometria.bM - 2 * resultado.geometria.recubrimientoM}
-                  />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Es la única vista donde los cercos se leen como lazos cerrados: en alzado se
-                    superponen y parecen una sola línea. Sólo se dibuja la familia horizontal —los
-                    verticales están en el plano del alzado y en el despiece.
-                  </p>
-                </div>
-              </div>
-            </>
+        <Etapa id="resultados" numero={5} titulo="Resultados">
+          {!resultado ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Completá la geometría y las cargas para ver el modelo.
-              </div>
-            </div>
+            <Resultados
+              r={resultado.r}
+              geometria={resultado.geometria}
+              phiP={Number(phiP)}
+              phiE={Number(phiE)}
+            />
           )}
-        </div>
+        </Etapa>
       </div>
-
-      {resultado && (
-        <Resultados r={resultado.r} phiP={Number(phiP)} phiE={Number(phiE)} />
-      )}
       </ProveedorComprobaciones>
     </main>
   );
@@ -396,276 +258,186 @@ export default function Page() {
 
 interface ResultadosProps {
   r: ResultadoMensulaCorta;
+  geometria: { hcM: number; h1M: number; hcolM: number; bM: number; acM: number; apM: number; bpM: number; recubrimientoM: number };
   phiP: number;
   phiE: number;
 }
 
-function Resultados({ r, phiP, phiE }: ResultadosProps) {
+function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
   const cercoCm2 = r.cercos.asRealCm2 / r.cercos.numeroCercos;
 
   return (
-    <div className="space-y-6">
-      <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <ResultadoCheck
-          etiqueta="Nudo bajo la placa"
-          verifica={r.hormigon.nudo.verifica}
-          detalle="Ec. (6.61), nudo comprimido con tirante anclado, k₂ = 0,85. El ancho que resiste es el de la placa, no el de la ménsula."
-          comparacion={{
-            real: { etiqueta: "σ", valor: r.hormigon.nudo.sigmaMPa },
-            limite: { etiqueta: "k₂·ν′·f_cd", valor: r.hormigon.nudo.sigmaMaxMPa },
-            unidad: "MPa",
-            exige: "≤",
-          }}
+    <div className="space-y-10">
+      <ConclusionAutomatica />
+
+      <PanelMetricas
+        horizontal
+        metricas={[
+          { etiqueta: "θ biela", valor: `${fmt(r.modelo.thetaGrados, 1)}°`, nota: `tg θ ${fmt(r.modelo.tanTheta)}` },
+          { etiqueta: "F_td tirante", valor: `${fmt(Math.max(r.tirante.ftdAnejoKN, r.tirante.ftdInstruccionKN), 1)} kN`, nota: r.tirante.mandaInstruccion ? "manda la Instrucción" : "manda el Anejo 19" },
+          { etiqueta: "A_s tirante", valor: `${fmt(r.tirante.asNecCm2)} cm²`, nota: `${r.tirante.numeroBarras}ø${phiP} = ${fmt(r.tirante.asRealCm2)} cm²` },
+          { etiqueta: "Cercos", valor: `${r.cercos.numeroCercos} ø${phiE}`, nota: r.cercos.caso },
+        ]}
+      />
+
+      <div className="grid items-start gap-8 md:grid-cols-2">
+        <DiagramaMensulaArmado
+          hcM={geometria.hcM}
+          h1M={geometria.h1M}
+          hcolM={geometria.hcolM}
+          vueloTotalM={r.despiece.vueloTotalM}
+          marco={r.despiece.marco}
+          cercos={r.despiece.cercos}
+          numeroBarras={r.tirante.numeroBarras}
+          diametroPrincipalMm={phiP}
+          diametroCercoMm={phiE}
+          numeroCercos={r.cercos.numeroCercos}
+          numeroCercosHorizontales={r.cercos.horizontales?.numeroCercos ?? 0}
+          caso={r.cercos.caso}
+          lbdMensulaMm={r.anclaje.lbdMensulaMm}
+          disponibleMensulaMm={r.anclaje.disponibleMensulaMm}
+          lbdPilarMm={r.anclaje.lbdPilarMm}
+          pataPilarMm={r.anclaje.pataPilarMm}
         />
-        <ResultadoCheck
-          etiqueta="Biela comprimida"
-          verifica={r.hormigon.biela.verifica}
-          detalle="Ec. (6.56): la biela lleva la tracción transversal que toma el tirante, así que su tope es el reducido, 0,6·ν′·f_cd."
-          comparacion={{
-            real: { etiqueta: "σ", valor: r.hormigon.biela.sigmaMPa },
-            limite: { etiqueta: "0,6·ν′·f_cd", valor: r.hormigon.biela.sigmaMaxMPa },
-            unidad: "MPa",
-            exige: "≤",
-          }}
+        <DiagramaMensulaPlanta
+          hcolM={geometria.hcolM}
+          vueloTotalM={r.despiece.vueloTotalM}
+          bM={geometria.bM}
+          acM={geometria.acM}
+          apM={geometria.apM}
+          bpM={geometria.bpM}
+          recubrimientoM={geometria.recubrimientoM}
+          cercos={r.despiece.cercos}
+          numeroBarras={r.tirante.numeroBarras}
+          diametroPrincipalMm={phiP}
+          diametroCercoMm={phiE}
+          anchoCercoM={geometria.bM - 2 * geometria.recubrimientoM}
         />
-        <ResultadoCheck
-          etiqueta="Tensión tangencial"
-          verifica={r.hormigon.tangencial.verifica}
-          detalle="Montoya §24.8.2.e, pág. 394: τ_d ≤ 0,25·f_cd y en ningún caso más de 5 MPa."
-          comparacion={{
-            real: { etiqueta: "τ_d", valor: r.hormigon.tangencial.sigmaMPa },
-            limite: { etiqueta: "τ_lím", valor: r.hormigon.tangencial.sigmaMaxMPa },
-            unidad: "MPa",
-            exige: "≤",
-          }}
-        />
-        <ResultadoCheck
-          etiqueta="Canto útil en el borde (degollamiento)"
-          verifica={r.hormigon.verificaD0}
-          detalle="Montoya §24.8.1, pág. 393: con d₀ < d/2 puede abrirse una fisura oblicua entre el punto de aplicación de la carga y la cara inclinada. El fallo es repentino."
-          comparacion={{
-            real: { etiqueta: "d₀", valor: r.hormigon.d0M },
-            limite: { etiqueta: "d/2", valor: r.hormigon.d0MinM },
-            unidad: "m",
-            exige: "≥",
-            decimales: 3,
-          }}
-        />
-        <ResultadoCheck
-          etiqueta="Armadura principal del tirante"
-          verifica={r.tirante.verificaAs}
-          detalle={`${r.tirante.numeroBarras}ø${phiP}. Gobierna ${
-            r.tirante.mandaCuantiaMinima
-              ? "una cuantía mínima"
-              : r.tirante.mandaInstruccion
-                ? "la Instrucción española (§24.8.3.b)"
-                : "el Anejo 19 (§J.3)"
-          }.`}
-          comparacion={{
-            real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 },
-            limite: { etiqueta: "A_s nec", valor: r.tirante.asNecCm2 },
-            unidad: "cm²",
-            exige: "≥",
-          }}
-        />
-        <ResultadoCheck
-          etiqueta="Cuantía mecánica mínima"
-          verifica={r.tirante.asRealCm2 >= r.tirante.asMecanicaAciCm2}
-          detalle="Montoya §24.8.2.c: 0,04·b·d·f_cd/f_yd, del ACI. «Más bien severa, no figura en la Instrucción española y es determinante en muchos casos.»"
-          comparacion={{
-            real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 },
-            limite: { etiqueta: "A_s,mec", valor: r.tirante.asMecanicaAciCm2 },
-            unidad: "cm²",
-            exige: "≥",
-          }}
-        />
-        <ResultadoCheck
-          etiqueta={`Cercos ${r.cercos.caso}`}
-          verifica={r.cercos.verificaAs}
-          detalle={`${r.cercos.numeroCercos} cercos cerrados ø${phiE} de ${fmt(
-            cercoCm2
-          )} cm² cada uno (dos ramas). El área pedía ${r.cercos.numeroPorArea}; el resto sale del mínimo de 3 y de la separación de 150 mm.`}
-          comparacion={{
-            real: { etiqueta: "A_s real", valor: r.cercos.asRealCm2 },
-            limite: { etiqueta: "A_s nec", valor: r.cercos.asNecCm2 },
-            unidad: "cm²",
-            exige: "≥",
-          }}
-        />
-        {r.cercos.horizontales && (
+      </div>
+
+      <Subgrupo titulo="Hormigón · bielas y nudos">
+        <div>
           <ResultadoCheck
-            etiqueta="Cercos horizontales A₂"
-            verifica={r.cercos.horizontales.verificaAs}
-            detalle="Montoya §24.8.3.c: 0,2·F_vd en los 2/3 superiores de d. Van además de los verticales, no en su lugar."
-            comparacion={{
-              real: { etiqueta: "A_s real", valor: r.cercos.horizontales.asRealCm2 },
-              limite: { etiqueta: "A_s nec", valor: r.cercos.horizontales.asNecCm2 },
-              unidad: "cm²",
-              exige: "≥",
-            }}
+            etiqueta="Nudo bajo la placa"
+            verifica={r.hormigon.nudo.verifica}
+            detalle="Ec. (6.61), nudo comprimido con tirante anclado, k₂ = 0,85. Resiste el ancho de la placa, no el de la ménsula."
+            comparacion={{ real: { etiqueta: "σ", valor: r.hormigon.nudo.sigmaMPa }, limite: { etiqueta: "k₂·ν′·f_cd", valor: r.hormigon.nudo.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
           />
-        )}
-        <ResultadoCheck
-          etiqueta="Anclaje en la ménsula"
-          verifica={r.anclaje.verificaMensula}
-          detalle="Art. 8.4.3(3): se mide a lo largo del eje de la barra, así que la bajada por el borde y el retorno por el intradós cuentan."
-          comparacion={{
-            real: { etiqueta: "l_bd", valor: r.anclaje.lbdMensulaMm },
-            limite: { etiqueta: "disponible", valor: r.anclaje.disponibleMensulaMm },
-            unidad: "mm",
-            exige: "≤",
-            decimales: 0,
-          }}
-        />
-        <ResultadoCheck
-          etiqueta="Anclaje en el pilar"
-          verifica={r.anclaje.verificaPilar}
-          detalle={`La pata no se comprueba, se dimensiona: ${fmt(
-            r.anclaje.pataPilarMm,
-            0
-          )} mm, nunca menos de 15ø.`}
-          comparacion={{
-            real: { etiqueta: "l_bd", valor: r.anclaje.lbdPilarMm },
-            limite: { etiqueta: "disponible", valor: r.anclaje.disponiblePilarMm },
-            unidad: "mm",
-            exige: "≤",
-            decimales: 0,
-          }}
-        />
-      </div>
+          <ResultadoCheck
+            etiqueta="Biela comprimida"
+            verifica={r.hormigon.biela.verifica}
+            detalle="Ec. (6.56): la biela lleva tracción transversal, así que su tope es 0,6·ν′·f_cd."
+            comparacion={{ real: { etiqueta: "σ", valor: r.hormigon.biela.sigmaMPa }, limite: { etiqueta: "0,6·ν′·f_cd", valor: r.hormigon.biela.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+          />
+          <ResultadoCheck
+            etiqueta="Tensión tangencial"
+            verifica={r.hormigon.tangencial.verifica}
+            detalle="Montoya §24.8.2.e: τ_d ≤ 0,25·f_cd y nunca más de 5 MPa."
+            comparacion={{ real: { etiqueta: "τ_d", valor: r.hormigon.tangencial.sigmaMPa }, limite: { etiqueta: "τ_lím", valor: r.hormigon.tangencial.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+          />
+        </div>
+      </Subgrupo>
 
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <PanelFormulas
-          titulo="Modelo y tirante"
-          filas={[
-            {
-              etiqueta: "Canto útil",
-              valor: `${fmt(r.modelo.dM, 3)} m`,
-              formula: "d = h꜀ − c − ø_cerco − ø/2",
-            },
-            {
-              etiqueta: "Brazo mecánico",
-              valor: `${fmt(r.modelo.zM, 3)} m`,
-              formula: "z = 0,8·d",
-            },
-            {
-              etiqueta: "Ángulo de la biela",
-              valor: `${fmt(r.modelo.thetaGrados, 1)}°`,
-              formula: "tg θ = z/a꜀",
-              sustitucion: `tg θ = ${fmt(r.modelo.tanTheta)} — el §J.3(1) pide entre 1,0 y 2,5`,
-            },
-            {
-              etiqueta: "Tirante — Anejo 19 §J.3",
-              valor: `${fmt(r.tirante.ftdAnejoKN, 1)} kN`,
-              formula: "F_td = F_Ed·a꜀/z + H_Ed",
-              sustitucion: `A_s = ${fmt(r.tirante.asAnejoCm2)} cm²`,
-            },
-            {
-              etiqueta: "Tirante — Instrucción, §24.8.3.b",
-              valor: `${fmt(r.tirante.ftdInstruccionKN, 1)} kN`,
-              formula: "F_td = F_Ed·tg θ + H_Ed, con cotg θ = μ = 1,4",
-              sustitucion: `A_s = ${fmt(
-                r.tirante.asInstruccionCm2
-              )} cm² — no depende del vuelo`,
-            },
-            {
-              etiqueta: "Cuantía mínima",
-              valor: `${fmt(r.tirante.asMinimaCm2)} cm²`,
-              formula: "máx(0,26·f_ctm/f_yk·b·d ; 0,0013·b·d) — art. 9.2.1.1",
-            },
-            {
-              etiqueta: "Cuantía mecánica mínima",
-              valor: `${fmt(r.tirante.asMecanicaAciCm2)} cm²`,
-              formula: "0,04·b·d·f_cd/f_yd — Montoya §24.8.2.c",
-            },
-            {
-              etiqueta: "Armadura adoptada",
-              valor: `${r.tirante.numeroBarras}ø${phiP} = ${fmt(r.tirante.asRealCm2)} cm²`,
-              sustitucion: `Necesaria ${fmt(r.tirante.asNecCm2)} cm² — aprovechamiento ${fmt(
-                r.tirante.aprovechamiento * 100,
-                0
-              )} %`,
-            },
-          ]}
-        />
+      <Subgrupo titulo="Tirante y cercos">
+        <div>
+          <ResultadoCheck
+            etiqueta="Armadura principal del tirante"
+            verifica={r.tirante.verificaAs}
+            detalle={`${r.tirante.numeroBarras}ø${phiP}. Gobierna ${r.tirante.mandaCuantiaMinima ? "una cuantía mínima" : r.tirante.mandaInstruccion ? "la Instrucción española (§24.8.3.b)" : "el Anejo 19 (§J.3)"}.`}
+            comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+          />
+          <ResultadoCheck
+            etiqueta="Cuantía mecánica mínima del tirante"
+            verifica={r.tirante.asRealCm2 >= r.tirante.asMecanicaAciCm2}
+            detalle="Montoya §24.8.2.c: 0,04·b·d·f_cd/f_yd (ACI), a menudo determinante."
+            comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s,mec", valor: r.tirante.asMecanicaAciCm2 }, unidad: "cm²", exige: "≥" }}
+          />
+          <ResultadoCheck
+            etiqueta={`Cercos ${r.cercos.caso}`}
+            verifica={r.cercos.verificaAs}
+            detalle={`${r.cercos.numeroCercos} cercos cerrados ø${phiE} de ${fmt(cercoCm2)} cm² cada uno (dos ramas). El área pedía ${r.cercos.numeroPorArea}; el resto sale del mínimo de 3 y de la separación de 150 mm.`}
+            comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+          />
+          {r.cercos.horizontales && (
+            <ResultadoCheck
+              etiqueta="Cercos horizontales A₂"
+              verifica={r.cercos.horizontales.verificaAs}
+              detalle="Montoya §24.8.3.c: 0,2·F_vd en los 2/3 superiores de d, además de los verticales."
+              comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.horizontales.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.horizontales.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+            />
+          )}
+          <PanelFormulas
+            titulo="Ver desarrollo del modelo y el tirante"
+            filas={[
+              { etiqueta: "Canto útil", valor: `${fmt(r.modelo.dM, 3)} m`, formula: "d = h꜀ − c − ø_cerco − ø/2" },
+              { etiqueta: "Brazo mecánico", valor: `${fmt(r.modelo.zM, 3)} m`, formula: "z = 0,8·d" },
+              { etiqueta: "Ángulo de la biela", valor: `${fmt(r.modelo.thetaGrados, 1)}°`, formula: "tg θ = z/a꜀", sustitucion: `tg θ = ${fmt(r.modelo.tanTheta)} — el §J.3(1) pide entre 1,0 y 2,5` },
+              { etiqueta: "Tirante — Anejo 19 §J.3", valor: `${fmt(r.tirante.ftdAnejoKN, 1)} kN`, formula: "F_td = F_Ed·a꜀/z + H_Ed", sustitucion: `A_s = ${fmt(r.tirante.asAnejoCm2)} cm²` },
+              { etiqueta: "Tirante — Instrucción, §24.8.3.b", valor: `${fmt(r.tirante.ftdInstruccionKN, 1)} kN`, formula: "F_td = F_Ed·tg θ + H_Ed, con cotg θ = μ = 1,4", sustitucion: `A_s = ${fmt(r.tirante.asInstruccionCm2)} cm² — no depende del vuelo` },
+              { etiqueta: "Cuantía mínima", valor: `${fmt(r.tirante.asMinimaCm2)} cm²`, formula: "máx(0,26·f_ctm/f_yk·b·d ; 0,0013·b·d) — art. 9.2.1.1" },
+              { etiqueta: "Cuantía mecánica mínima", valor: `${fmt(r.tirante.asMecanicaAciCm2)} cm²`, formula: "0,04·b·d·f_cd/f_yd — Montoya §24.8.2.c" },
+              { etiqueta: "Armadura adoptada", valor: `${r.tirante.numeroBarras}ø${phiP} = ${fmt(r.tirante.asRealCm2)} cm²`, sustitucion: `Necesaria ${fmt(r.tirante.asNecCm2)} cm² — aprovechamiento ${fmt(r.tirante.aprovechamiento * 100, 0)} %` },
+            ]}
+          />
+        </div>
+      </Subgrupo>
 
-        <PanelFormulas
-          titulo="Materiales y anclaje"
-          filas={[
-            {
-              etiqueta: "f_cd",
-              valor: `${fmt(r.materiales.fcdMPa)} MPa`,
-              formula: "f_ck/γ꜀",
-            },
-            {
-              etiqueta: "f_yd de cálculo",
-              valor: `${fmt(r.materiales.fydMPa)} MPa`,
-              formula: "mín(f_yk/γ_s ; 400 MPa)",
-              sustitucion: r.materiales.topeFydAplicado
-                ? `Sin el tope daría ${fmt(
-                    r.materiales.fydCalculadoMPa
-                  )} MPa: el tope encarece la armadura un ${fmt(
-                    r.materiales.sobrecostoPorTope * 100,
-                    1
-                  )} %`
-                : "El tope de 400 MPa no muerde con este acero",
-            },
-            {
-              etiqueta: "ν′",
-              valor: fmt(r.materiales.nuPrima, 3),
-              formula: "1 − f_ck/250",
-            },
-            {
-              etiqueta: "f_ctm",
-              valor: `${fmt(r.materiales.fctmMPa)} MPa`,
-              formula: "tabla A19.3.1",
-            },
-            {
-              etiqueta: "f_bd",
-              valor: `${fmt(r.anclaje.fbdMPa)} MPa`,
-              formula: "2,25·η₁·η₂·f_ctd — ec. (8.2)",
-              sustitucion: `η₁ = ${fmt(r.anclaje.eta1, 1)} · η₂ = ${fmt(
-                r.anclaje.eta2,
-                2
-              )} · f_ctd = ${fmt(r.anclaje.fctdMPa)} MPa`,
-            },
-            {
-              etiqueta: "l_b,rqd",
-              valor: `${fmt(r.anclaje.lbRqdMm, 0)} mm`,
-              formula: "(ø/4)·(σ_sd/f_bd) — ec. (8.3)",
-              sustitucion: `σ_sd = ${fmt(
-                r.anclaje.sigmaSdMPa
-              )} MPa, con el acero realmente puesto`,
-            },
-            {
-              etiqueta: "l_bd en la ménsula",
-              valor: `${fmt(r.anclaje.lbdMensulaMm, 0)} mm`,
-              formula: "α₁·α₂·α₃·α₄·α₅·l_b,rqd ≥ l_b,mín — ec. (8.4)",
-              sustitucion: `α₁ = ${fmt(r.anclaje.alfa1, 2)} · α₂ = ${fmt(
-                r.anclaje.alfa2,
-                2
-              )} · α₄ = ${fmt(r.anclaje.alfa4, 2)} · α₅ = ${fmt(
-                r.anclaje.alfa5,
-                2
-              )} (presión de ${fmt(r.anclaje.presionTransversalMPa)} MPa bajo la placa)`,
-            },
-            {
-              etiqueta: "l_bd en el pilar",
-              valor: `${fmt(r.anclaje.lbdPilarMm, 0)} mm`,
-              sustitucion: `Sin α₅: del lado del pilar no hay presión transversal. l_b,mín = ${fmt(
-                r.anclaje.lbMinMm,
-                0
-              )} mm`,
-            },
-          ]}
-        />
-      </div>
+      <Subgrupo titulo="Condiciones constructivas" detalle="geometría del borde y anclajes">
+        <div>
+          <ResultadoCheck
+            etiqueta="Canto útil en el borde (degollamiento)"
+            verifica={r.hormigon.verificaD0}
+            detalle="Montoya §24.8.1: con d₀ < d/2 puede abrirse una fisura oblicua entre la carga y la cara inclinada. El fallo es repentino."
+            comparacion={{ real: { etiqueta: "d₀", valor: r.hormigon.d0M }, limite: { etiqueta: "d/2", valor: r.hormigon.d0MinM }, unidad: "m", exige: "≥", decimales: 3 }}
+          />
+          <ResultadoCheck
+            etiqueta="Anclaje del marco en la ménsula"
+            verifica={r.anclaje.verificaMensula}
+            detalle="Art. 8.4.3(3): se mide sobre el eje de la barra, así que la bajada por el borde y el retorno por el intradós cuentan."
+            comparacion={{ real: { etiqueta: "l_bd", valor: r.anclaje.lbdMensulaMm }, limite: { etiqueta: "disponible", valor: r.anclaje.disponibleMensulaMm }, unidad: "mm", exige: "≤", decimales: 0 }}
+          />
+          <ResultadoCheck
+            etiqueta="Anclaje del marco en el pilar"
+            verifica={r.anclaje.verificaPilar}
+            detalle={`La pata se dimensiona: ${fmt(r.anclaje.pataPilarMm, 0)} mm, nunca menos de 15ø.`}
+            comparacion={{ real: { etiqueta: "l_bd", valor: r.anclaje.lbdPilarMm }, limite: { etiqueta: "disponible", valor: r.anclaje.disponiblePilarMm }, unidad: "mm", exige: "≤", decimales: 0 }}
+          />
+          <PanelFormulas
+            titulo="Ver desarrollo de materiales y anclaje"
+            filas={[
+              { etiqueta: "f_cd", valor: `${fmt(r.materiales.fcdMPa)} MPa`, formula: "f_ck/γ꜀" },
+              {
+                etiqueta: "f_yd de cálculo",
+                valor: `${fmt(r.materiales.fydMPa)} MPa`,
+                formula: "mín(f_yk/γ_s ; 400 MPa)",
+                sustitucion: r.materiales.topeFydAplicado
+                  ? `Sin el tope daría ${fmt(r.materiales.fydCalculadoMPa)} MPa: el tope encarece la armadura un ${fmt(r.materiales.sobrecostoPorTope * 100, 1)} %`
+                  : "El tope de 400 MPa no muerde con este acero",
+              },
+              { etiqueta: "ν′", valor: fmt(r.materiales.nuPrima, 3), formula: "1 − f_ck/250" },
+              { etiqueta: "f_ctm", valor: `${fmt(r.materiales.fctmMPa)} MPa`, formula: "tabla A19.3.1" },
+              {
+                etiqueta: "f_bd",
+                valor: `${fmt(r.anclaje.fbdMPa)} MPa`,
+                formula: "2,25·η₁·η₂·f_ctd — ec. (8.2)",
+                sustitucion: `η₁ = ${fmt(r.anclaje.eta1, 1)} · η₂ = ${fmt(r.anclaje.eta2, 2)} · f_ctd = ${fmt(r.anclaje.fctdMPa)} MPa`,
+              },
+              { etiqueta: "l_b,rqd", valor: `${fmt(r.anclaje.lbRqdMm, 0)} mm`, formula: "(ø/4)·(σ_sd/f_bd) — ec. (8.3)", sustitucion: `σ_sd = ${fmt(r.anclaje.sigmaSdMPa)} MPa, con el acero realmente puesto` },
+              {
+                etiqueta: "l_bd en la ménsula",
+                valor: `${fmt(r.anclaje.lbdMensulaMm, 0)} mm`,
+                formula: "α₁·α₂·α₃·α₄·α₅·l_b,rqd ≥ l_b,mín — ec. (8.4)",
+                sustitucion: `α₁ = ${fmt(r.anclaje.alfa1, 2)} · α₂ = ${fmt(r.anclaje.alfa2, 2)} · α₄ = ${fmt(r.anclaje.alfa4, 2)} · α₅ = ${fmt(r.anclaje.alfa5, 2)} (presión de ${fmt(r.anclaje.presionTransversalMPa)} MPa bajo la placa)`,
+              },
+              { etiqueta: "l_bd en el pilar", valor: `${fmt(r.anclaje.lbdPilarMm, 0)} mm`, sustitucion: `Sin α₅: del lado del pilar no hay presión transversal. l_b,mín = ${fmt(r.anclaje.lbMinMm, 0)} mm` },
+            ]}
+          />
+        </div>
+      </Subgrupo>
 
       <SeccionPlegable
         titulo="Despiece"
-        resumen={`${r.tirante.numeroBarras}ø${phiP} de ${fmt(
-          r.despiece.desarrolloBarraM
-        )} m · ${r.despiece.cercos.length} cercos ø${phiE}`}
+        resumen={`${r.tirante.numeroBarras}ø${phiP} de ${fmt(r.despiece.desarrolloBarraM)} m · ${r.despiece.cercos.length} cercos ø${phiE}`}
       >
         <div className="space-y-4 text-sm">
           <div>
@@ -684,64 +456,14 @@ function Resultados({ r, phiP, phiE }: ResultadosProps) {
               {r.despiece.cercos.map((c, i) => (
                 <li key={i} className="font-mono text-xs">
                   {c.tipo === "horizontal"
-                    ? `H · y = ${fmt(c.y1M * 1000, 0)} mm · luz ${fmt(
-                        c.luzM * 1000,
-                        0
-                      )} mm · desarrollo ${fmt(c.desarrolloM * 1000, 0)} mm${
-                        c.abrazaLaPata ? " · abraza la pata del marco" : ""
-                      }`
-                    : `V · x = ${fmt(c.x1M * 1000, 0)} mm · luz ${fmt(
-                        c.luzM * 1000,
-                        0
-                      )} mm · desarrollo ${fmt(c.desarrolloM * 1000, 0)} mm`}
+                    ? `H · y = ${fmt(c.y1M * 1000, 0)} mm · luz ${fmt(c.luzM * 1000, 0)} mm · desarrollo ${fmt(c.desarrolloM * 1000, 0)} mm${c.abrazaLaPata ? " · abraza la pata del marco" : ""}`
+                    : `V · x = ${fmt(c.x1M * 1000, 0)} mm · luz ${fmt(c.luzM * 1000, 0)} mm · desarrollo ${fmt(c.desarrolloM * 1000, 0)} mm`}
                 </li>
               ))}
             </ul>
           </div>
         </div>
       </SeccionPlegable>
-
-      <PanelAyuda titulo="Qué mirar antes de usar este resultado">
-        <p>
-          <strong>El tirante sale distinto por cada fuente y no es un error de redondeo.</strong> El
-          Anejo 19 lo saca de la geometría del modelo y crece con el vuelo; la Instrucción
-          española fija la cotangente de la biela en el coeficiente de rozamiento —1,4 si la
-          ménsula se hormigona monolítica con el pilar— y da un valor independiente de a꜀. cotg
-          1,4 equivale a tg θ = 0,71, fuera del rango 1,0–2,5 que pide el propio §J.3(1): son
-          métodos distintos, no el mismo con otro número. Se arma por el mayor de los dos.
-        </p>
-        <p>
-          <strong>f_yd está topado en 400 MPa</strong> y no sale de γ_s: es un tope del elemento,
-          que Montoya repite en las cuatro fórmulas del capítulo (§24.8.2.d y §24.8.3.b, c y e,
-          págs. 394-395). Con B500S el cálculo daría 435 MPa, así que el tope pesa un 9 % sobre
-          toda la armadura de la ménsula, principal y cercos.
-        </p>
-        <p>
-          <strong>Los cercos verticales solos son inoperantes.</strong> Montoya lo dice con esas
-          palabras en §24.8.1, pág. 393: es un «error grave que se comete con alguna frecuencia».
-          Cuando el vuelo obliga a verticales, el articulado los cuantifica pero su propia fig.
-          A19.J.6(b) dibuja además horizontales sin ponerles número; los cuantifica §24.8.3.c en
-          los 2/3 superiores de d. Van las dos familias.
-        </p>
-        <p>
-          <strong>El marco es un lazo cerrado, no una barra con patilla.</strong> Fig. A19.J.6,
-          letra A: «dispositivos de anclaje o lazos». El anclaje se mide sobre el eje de la barra
-          (art. 8.4.3(3)), así que la bajada por el borde y el retorno por el intradós son los que
-          dan la longitud disponible del lado de la ménsula. Cortar el marco al llegar al borde
-          deja la barra sin anclar justo donde está más traccionada.
-        </p>
-        <p>
-          <strong>Esta herramienta no calcula V_Rd,c.</strong> El modelo de bielas y tirantes cubre
-          el mecanismo de la ménsula, no la comprobación de cortante de la sección de arranque
-          contra el pilar. Si la ménsula está en el arranque de un pilar muy solicitado, esa
-          comprobación va aparte.
-        </p>
-        <p>
-          Los coeficientes γ꜀ = 1,50 y γ_s = 1,15 son los de situación persistente o transitoria
-          (tabla A19.2.1). En situación accidental cambian y este motor todavía no los contempla.
-          Las cargas F_Ed y H_Ed entran <strong>ya mayoradas</strong>.
-        </p>
-      </PanelAyuda>
     </div>
   );
 }

@@ -25,6 +25,26 @@ versionada, por derechos de autor.
 
 No hay base de datos: la persistencia es `localStorage` (ver `ARCHITECTURE.md`).
 
+## Dos reglas que no se negocian
+
+Valen en cualquier computadora y en cualquier sesión, local o en la nube.
+
+- **Nunca mezclar normas en un mismo cálculo.** Cada módulo se resuelve entero
+  con la norma que declara en `normasDisponibles`: si declara ACI 318, todo
+  ACI; si declara EC2 o el Código Estructural, todo eso. No se toma una
+  expresión del otro cuerpo aunque parezca mejor o ya esté implementada al
+  lado. Cada norma es un sistema calibrado y una pieza ajena rompe la
+  calibración: el resultado deja de ser citable contra ningún articulado.
+  Antes de conectar dos módulos, comparar la norma de cada uno; si no
+  coinciden, no se conectan, y se dice por qué. Precedente: `diferidas.ts`
+  (Apéndice B del Anejo 19) alimenta deformaciones y muros, pero no
+  pretensado, que es ACI 318 y trae sus propias pérdidas.
+- **Fusionar una PR sólo cuando se pide con esas palabras** ("fusionala",
+  "dale, fusionalo"). Aprobar el contenido —"está bien", "no pasa nada"— no
+  autoriza el merge, aunque venga justo después de preguntar si se fusiona.
+  La PR es el punto de revisión antes de producción. Después de abrirla,
+  dejarla abierta; preguntar una vez y no insistir.
+
 ## Forma de trabajar
 
 0. **Traer los cambios antes de tocar nada.** El proyecto se edita desde más de

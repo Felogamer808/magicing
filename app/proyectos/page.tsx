@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
-import { TemaToggle } from "@/components/TemaToggle";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
 import { contarCalculos, crearProyecto, leerArchivo } from "@/lib/proyectos/modelo";
 
@@ -46,11 +45,10 @@ export default function ProyectosPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 md:hidden">
         <Link href="/" aria-label="MagicIng — inicio">
           <Logo className="h-7 w-auto" titulo="" />
         </Link>
-        <TemaToggle />
       </div>
 
       <div>

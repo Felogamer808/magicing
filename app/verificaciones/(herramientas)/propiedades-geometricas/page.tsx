@@ -2,8 +2,11 @@
 
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa } from "@/components/verificaciones/comun/HojaTecnica";
 import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -24,6 +27,12 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "propiedades-geometricas")!;
+
+const ETAPAS = [
+  { id: "forma-seccion", titulo: "Sección" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 /**
  * El catálogo agrupado por familia, una sola vez y a nivel de módulo. Filtrarlo
@@ -123,10 +132,12 @@ export default function PropiedadesGeometricasPage() {
 
   const estado = calcularEstado(def, textos);
 
+  const avisos: AvisoRevision[] = estado.ok ? [] : [{ tipo: "error", texto: estado.motivo }];
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Secciones · Herramientas de análisis</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -135,129 +146,113 @@ export default function PropiedadesGeometricasPage() {
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
-      <EncabezadoEtapa id="datos" numero={1} titulo="Herramienta" descripcion="Datos y resultados se actualizan juntos." />
 
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          No hay una fórmula por perfil: se integra el contorno por el teorema de Green, así que
-          cada sección es nada más que la lista de sus vértices. Eso da además el producto de
-          inercia I<sub>xy</sub> y la orientación de los ejes principales, que es lo que una tabla
-          de perfiles no suele traer y lo que explica que un ángulo cargado en vertical flecte
-          también de costado.
-        </div>
-      </div>
-
-      {/*
-        Los datos ocupan una columna angosta y el dibujo la ancha, al lado, para
-        poder cambiar una dimensión y ver el contorno sin scrollear. Los
-        resultados pasan a la banda de abajo, a todo el ancho. Debajo de xl todo
-        se apila en una sola columna, en el orden en que se usa: datos, dibujo,
-        resultados.
-
-        El corte va en xl y no en lg porque a 1024 px las dos columnas dan 269 y
-        404: los campos quedan apretados y el dibujo sale más chico que apilado.
-      */}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Sección</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <CampoSeleccion
-                  id="familia"
-                  etiqueta="Familia"
-                  valor={FAMILIAS.find((f) => f.id === familia)!.nombre}
-                  opciones={FAMILIAS.map((f) => f.nombre)}
-                  onChange={(nombre) => {
-                    const f = FAMILIAS.find((x) => x.nombre === nombre);
-                    if (!f) return;
-                    setFamilia(f.id);
-                    const primera = CATALOGO_SECCIONES.find((s) => s.familia === f.id);
-                    if (primera) setId(primera.id);
-                  }}
-                />
-                <CampoSeleccion
-                  id="seccion"
-                  etiqueta="Forma"
-                  valor={def.nombre}
-                  opciones={deLaFamilia.map((s) => s.nombre)}
-                  onChange={(nombre) => {
-                    const s = deLaFamilia.find((x) => x.nombre === nombre);
-                    if (s) setId(s.id);
-                  }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">{def.descripcion}</p>
-            </div>
-          </div>
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Dimensiones</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {def.parametros.map((q) => {
-                const unidad = q.unidad ?? "cm";
-                return (
-                  <CampoNumerico
-                    key={`${def.id}-${q.clave}`}
-                    id={`param-${q.clave}`}
-                    etiqueta={q.etiqueta}
-                    sufijo={unidad || undefined}
-                    valor={textos[q.clave] ?? ""}
-                    onChange={(v) => cambiarParam(q.clave, v)}
-                    advertencia={q.ayuda}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/*
-          El layout de verificaciones topa los esquemas en 20rem de alto para que
-          un dibujo vertical no quede al triple que los demás. Acá el dibujo tiene
-          columna propia, así que el tope es lo único que impide que crezca:
-          subirlo a 32rem lo deja gobernado por el ancho de la columna, no por el
-          alto. Debajo de xl vuelve a valer el tope general.
-        */}
-        <div className="border-t border-border/60 pt-5">
-          <div className="mb-3">
-            <h3 className="text-sm font-medium">Dibujo</h3>
-          </div>
-          <div>
-            {estado.ok ? (
+      <div className="flex flex-col gap-12">
+        <Etapa id="forma-seccion" numero={1} titulo="Sección" descripcion={def.descripcion}>
+          <DatosConDibujo
+            datos={
               <>
-                <DiagramaSeccion
-                  lleno={estado.datos.lleno}
-                  huecos={estado.datos.huecos}
-                  props={estado.datos.props}
-                />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Punteado gris: ejes centroidales x-y, los de I<sub>x</sub> e I<sub>y</sub>. Verde:
-                  ejes principales, sólo se dibujan cuando están girados.
-                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <CampoSeleccion
+                    id="familia"
+                    etiqueta="Familia"
+                    valor={FAMILIAS.find((f) => f.id === familia)!.nombre}
+                    opciones={FAMILIAS.map((f) => f.nombre)}
+                    onChange={(nombre) => {
+                      const f = FAMILIAS.find((x) => x.nombre === nombre);
+                      if (!f) return;
+                      setFamilia(f.id);
+                      const primera = CATALOGO_SECCIONES.find((s) => s.familia === f.id);
+                      if (primera) setId(primera.id);
+                    }}
+                  />
+                  <CampoSeleccion
+                    id="seccion"
+                    etiqueta="Forma"
+                    valor={def.nombre}
+                    opciones={deLaFamilia.map((s) => s.nombre)}
+                    onChange={(nombre) => {
+                      const s = deLaFamilia.find((x) => x.nombre === nombre);
+                      if (s) setId(s.id);
+                    }}
+                  />
+                </div>
+                <Subgrupo titulo="Dimensiones">
+                  <div className="grid grid-cols-2 gap-4">
+                    {def.parametros.map((q) => {
+                      const unidad = q.unidad ?? "cm";
+                      return (
+                        <CampoNumerico
+                          key={`${def.id}-${q.clave}`}
+                          id={`param-${q.clave}`}
+                          etiqueta={q.etiqueta}
+                          sufijo={unidad || undefined}
+                          valor={textos[q.clave] ?? ""}
+                          onChange={(v) => cambiarParam(q.clave, v)}
+                          advertencia={q.ayuda}
+                        />
+                      );
+                    })}
+                  </div>
+                </Subgrupo>
               </>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
-            )}
-          </div>
-        </div>
-      </div>
+            }
+            dibujo={
+              estado.ok ? (
+                <div className="w-full space-y-2">
+                  <DiagramaSeccion lleno={estado.datos.lleno} huecos={estado.datos.huecos} props={estado.datos.props} />
+                  <p className="text-xs text-muted-foreground">
+                    Punteado gris: ejes centroidales x-y, los de I<sub>x</sub> e I<sub>y</sub>. Verde:
+                    ejes principales, sólo se dibujan cuando están girados.
+                  </p>
+                </div>
+              ) : null
+            }
+          />
+        </Etapa>
 
-      <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {!estado.ok ? (
-          <div className="border-t border-border/60 pt-5">
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              {estado.motivo}
+        <Etapa id="revision" numero={2} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Familia", valor: FAMILIAS.find((f) => f.id === familia)!.nombre },
+              { etiqueta: "Forma", valor: def.nombre },
+              ...def.parametros.map((q) => ({ etiqueta: q.etiqueta, valor: `${textos[q.clave] ?? ""} ${q.unidad ?? "cm"}`.trim() })),
+            ]}
+            hipotesis={[
+              "Integración del contorno por el teorema de Green: cada sección es la lista de sus vértices, sin fórmulas por perfil.",
+              "Los huecos se restan del contorno lleno.",
+              "Ejes principales por el círculo de Mohr, con el producto de inercia Ixy.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={3} titulo="Resultados">
+          {!estado.ok ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">{estado.motivo}</span>
             </div>
-          </div>
-        ) : (
-          <ResultadoPropiedades datos={estado.datos} />
-        )}
+          ) : (
+            <div className="space-y-10">
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Área", valor: `${fmt(estado.datos.props.areaCm2, 2)} cm²` },
+                  { etiqueta: "Ix", valor: `${fmt(estado.datos.props.ixCm4, 1)} cm⁴` },
+                  { etiqueta: "Iy", valor: `${fmt(estado.datos.props.iyCm4, 1)} cm⁴` },
+                  { etiqueta: "I2 (mínima)", valor: `${fmt(estado.datos.props.i2Cm4, 1)} cm⁴`, nota: `θ = ${fmt(Math.abs(estado.datos.props.anguloPrincipalGrados) < 0.005 ? 0 : estado.datos.props.anguloPrincipalGrados, 2)}°` },
+                ]}
+              />
+              <div className="grid items-start gap-x-8 gap-y-10 md:grid-cols-2">
+                <ResultadoPropiedades datos={estado.datos} />
+              </div>
+            </div>
+          )}
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>
@@ -279,10 +274,7 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
 
   return (
     <>
-      <div className="border-t border-border/60 pt-5">
-        <div className="mb-3">
-          <h3 className="text-sm font-medium">Área y centroide</h3>
-        </div>
+      <Subgrupo titulo="Área y centroide">
         <div className="py-0">
           <Dato etiqueta="Área A" valor={`${fmt(p.areaCm2, 2)} cm²`} />
           <Dato etiqueta="Perímetro" valor={`${fmt(p.perimetroCm, 2)} cm`} />
@@ -290,12 +282,9 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
           <Dato etiqueta="Centroide yG" valor={`${fmt(p.centroideYCm, 3)} cm`} />
           <Dato etiqueta="Envolvente" valor={`${fmt(p.anchoTotalCm, 1)} × ${fmt(p.altoTotalCm, 1)} cm`} />
         </div>
-      </div>
+      </Subgrupo>
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="mb-3">
-          <h3 className="text-sm font-medium">Inercias respecto del centroide</h3>
-        </div>
+      <Subgrupo titulo="Inercias respecto del centroide">
         <div className="py-0">
           <Dato etiqueta={<>I<sub>x</sub></>} valor={`${fmt(p.ixCm4, 1)} cm⁴`} />
           <Dato etiqueta={<>I<sub>y</sub></>} valor={`${fmt(p.iyCm4, 1)} cm⁴`} />
@@ -303,24 +292,18 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
           <Dato etiqueta={<>Radio de giro i<sub>x</sub></>} valor={`${fmt(p.radioGiroXCm, 3)} cm`} />
           <Dato etiqueta={<>Radio de giro i<sub>y</sub></>} valor={`${fmt(p.radioGiroYCm, 3)} cm`} />
         </div>
-      </div>
+      </Subgrupo>
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="mb-3">
-          <h3 className="text-sm font-medium">Módulos resistentes elásticos</h3>
-        </div>
+      <Subgrupo titulo="Módulos resistentes elásticos">
         <div className="py-0">
           <Dato etiqueta={<>W<sub>x</sub> fibra superior (v = {fmt(p.ySuperiorCm, 2)} cm)</>} valor={w(p.wxSuperiorCm3)} />
           <Dato etiqueta={<>W<sub>x</sub> fibra inferior (v = {fmt(p.yInferiorCm, 2)} cm)</>} valor={w(p.wxInferiorCm3)} />
           <Dato etiqueta={<>W<sub>y</sub> izquierda (v = {fmt(p.xIzquierdoCm, 2)} cm)</>} valor={w(p.wyIzquierdoCm3)} />
           <Dato etiqueta={<>W<sub>y</sub> derecha (v = {fmt(p.xDerechoCm, 2)} cm)</>} valor={w(p.wyDerechoCm3)} />
         </div>
-      </div>
+      </Subgrupo>
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="mb-3">
-          <h3 className="text-sm font-medium">Ejes principales</h3>
-        </div>
+      <Subgrupo titulo="Ejes principales">
         <div className="space-y-3 pt-0">
           <div>
             <Dato etiqueta={<>I<sub>1</sub> (máxima)</>} valor={`${fmt(p.i1Cm4, 1)} cm⁴`} />
@@ -342,7 +325,7 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
             ]}
           />
         </div>
-      </div>
+      </Subgrupo>
     </>
   );
 }

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { GrillaSecciones } from "@/components/GrillaSecciones";
 import { Logo } from "@/components/Logo";
-import { TemaToggle } from "@/components/TemaToggle";
 import { buscarArea, registroAreas, seccionesDeArea } from "@/lib/verificaciones/registry";
 
 export function generateStaticParams() {
@@ -26,7 +25,7 @@ export default async function PaginaArea({ params }: PageProps<"/areas/[area]">)
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-10 px-6 py-16">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 md:hidden">
         <Link
           href="/"
           className="flex items-center gap-2 transition-colors hover:text-primary"
@@ -35,7 +34,6 @@ export default async function PaginaArea({ params }: PageProps<"/areas/[area]">)
           <ArrowLeft className="h-4 w-4" />
           <Logo className="h-7 w-auto" titulo="" />
         </Link>
-        <TemaToggle />
       </div>
 
       <div className="drafting-marks flex flex-col gap-3 border border-border bg-card/60 px-6 py-8 sm:px-10 sm:py-10">

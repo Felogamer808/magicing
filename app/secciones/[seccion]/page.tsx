@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { IndiceVerificaciones } from "@/components/IndiceVerificaciones";
 import { Logo } from "@/components/Logo";
-import { TemaToggle } from "@/components/TemaToggle";
 import { areaDeSeccion, buscarSeccion, registroSecciones } from "@/lib/verificaciones/registry";
 
 export function generateStaticParams() {
@@ -28,7 +27,7 @@ export default async function PaginaSeccion({ params }: PageProps<"/secciones/[s
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-10 px-6 py-16">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 md:hidden">
         {/*
           Se vuelve al área y no al inicio: es de donde se viene, y con dos
           disciplinas mandar a la portada obliga a volver a elegir la misma.
@@ -41,7 +40,6 @@ export default async function PaginaSeccion({ params }: PageProps<"/secciones/[s
           <ArrowLeft className="h-4 w-4" />
           <Logo className="h-7 w-auto" titulo="" />
         </Link>
-        <TemaToggle />
       </div>
 
       <div className="drafting-marks flex flex-col gap-3 border border-border bg-card/60 px-6 py-8 sm:px-10 sm:py-10">

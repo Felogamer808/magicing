@@ -6,7 +6,12 @@ import { ArrowRight, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { agruparPorCategoria, verificacionesDeSeccion } from "@/lib/verificaciones/registry";
+import {
+  agruparPorCategoria,
+  agruparPorSeccion,
+  registroVerificaciones,
+  verificacionesDeSeccion,
+} from "@/lib/verificaciones/registry";
 import { validacionDe } from "@/lib/verificaciones/validacion";
 
 /** Quita tildes para que "fisuracion" encuentre "Fisuración". */
@@ -17,13 +22,17 @@ function normalizar(texto: string) {
     .replace(/[̀-ͯ]/g, "");
 }
 
-export function IndiceVerificaciones({ seccion }: { seccion: string }) {
+/**
+ * Sin `seccion` lista el catálogo entero, agrupado por sección en vez de por
+ * categoría (ver `agruparPorSeccion`).
+ */
+export function IndiceVerificaciones({ seccion }: { seccion?: string }) {
   const [consulta, setConsulta] = useState("");
 
   const { categorias, total } = useMemo(() => {
     const q = normalizar(consulta.trim());
     const coincide = (t: string) => normalizar(t).includes(q);
-    const deLaSeccion = verificacionesDeSeccion(seccion);
+    const deLaSeccion = seccion ? verificacionesDeSeccion(seccion) : registroVerificaciones;
 
     const filtradas = q
       ? deLaSeccion.filter(
@@ -35,7 +44,8 @@ export function IndiceVerificaciones({ seccion }: { seccion: string }) {
         )
       : deLaSeccion;
 
-    return { categorias: agruparPorCategoria(filtradas), total: filtradas.length };
+    const categorias = seccion ? agruparPorCategoria(filtradas) : agruparPorSeccion(filtradas);
+    return { categorias, total: filtradas.length };
   }, [consulta, seccion]);
 
   return (

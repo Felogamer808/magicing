@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
-import { TemaToggle } from "@/components/TemaToggle";
 import {
   registroSecciones,
   registroVerificaciones,
@@ -60,11 +59,10 @@ export default function AlcancePage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-12">
-      <div className="flex items-center justify-between gap-4 print:hidden">
+      <div className="flex items-center justify-between gap-4 print:hidden md:hidden">
         <Link href="/" aria-label="MagicIng — inicio">
           <Logo className="h-7 w-auto" titulo="" />
         </Link>
-        <TemaToggle />
       </div>
 
       <div>

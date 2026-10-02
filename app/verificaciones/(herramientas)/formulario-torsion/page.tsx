@@ -2,8 +2,11 @@
 
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa } from "@/components/verificaciones/comun/HojaTecnica";
 import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -23,6 +26,12 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "formulario-torsion")!;
+
+const ETAPAS = [
+  { id: "caso-carga", titulo: "Caso y carga" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const POR_FAMILIA = new Map<FamiliaTorsion, readonly CasoTorsion[]>(
   FAMILIAS_TORSION.map((f) => [f.id, CASOS_TORSION.filter((c) => c.familia === f.id)])
@@ -95,10 +104,12 @@ export default function FormularioTorsionPage() {
 
   const estado = calcularEstado(caso, textos);
 
+  const avisos: AvisoRevision[] = estado.ok ? [] : [{ tipo: "error", texto: estado.motivo }];
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Estática · Herramientas de análisis</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -107,125 +118,101 @@ export default function FormularioTorsionPage() {
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
-      <EncabezadoEtapa id="datos" numero={1} titulo="Herramienta" descripcion="Datos y resultados se actualizan juntos." />
 
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">{NOTA_FAMILIA[familia]}</div>
-      </div>
-
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Caso</h3>
+      <div className="flex flex-col gap-12">
+        <Etapa id="caso-carga" numero={1} titulo="Caso y carga" descripcion={caso.descripcion}>
+          <div className="max-w-2xl space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CampoSeleccion
+                id="familia"
+                etiqueta="Apoyo"
+                valor={FAMILIAS_TORSION.find((f) => f.id === familia)!.nombre}
+                opciones={FAMILIAS_TORSION.map((f) => f.nombre)}
+                onChange={(nombre) => {
+                  const f = FAMILIAS_TORSION.find((x) => x.nombre === nombre);
+                  if (!f) return;
+                  setFamilia(f.id);
+                  const primero = CASOS_TORSION.find((c) => c.familia === f.id);
+                  if (primero) setId(primero.id);
+                }}
+              />
+              <CampoSeleccion
+                id="caso"
+                etiqueta="Esquema"
+                valor={caso.nombre}
+                opciones={deLaFamilia.map((c) => c.nombre)}
+                onChange={(nombre) => {
+                  const c = deLaFamilia.find((x) => x.nombre === nombre);
+                  if (c) setId(c.id);
+                }}
+              />
             </div>
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <CampoSeleccion
-                  id="familia"
-                  etiqueta="Apoyo"
-                  valor={FAMILIAS_TORSION.find((f) => f.id === familia)!.nombre}
-                  opciones={FAMILIAS_TORSION.map((f) => f.nombre)}
-                  onChange={(nombre) => {
-                    const f = FAMILIAS_TORSION.find((x) => x.nombre === nombre);
-                    if (!f) return;
-                    setFamilia(f.id);
-                    const primero = CASOS_TORSION.find((c) => c.familia === f.id);
-                    if (primero) setId(primero.id);
-                  }}
-                />
-                <CampoSeleccion
-                  id="caso"
-                  etiqueta="Esquema"
-                  valor={caso.nombre}
-                  opciones={deLaFamilia.map((c) => c.nombre)}
-                  onChange={(nombre) => {
-                    const c = deLaFamilia.find((x) => x.nombre === nombre);
-                    if (c) setId(c.id);
-                  }}
-                />
+            <Subgrupo titulo="Geometría y carga">
+              <div className="grid grid-cols-2 gap-4">
+                {caso.parametros.map((p) => (
+                  <CampoNumerico
+                    key={`${caso.id}-${p.clave}`}
+                    id={`param-${p.clave}`}
+                    etiqueta={p.etiqueta}
+                    sufijo={p.unidad ?? "m"}
+                    valor={textos[p.clave] ?? ""}
+                    onChange={(v) => cambiarParam(p.clave, v)}
+                  />
+                ))}
               </div>
-              <p className="text-sm text-muted-foreground">{caso.descripcion}</p>
-            </div>
+            </Subgrupo>
           </div>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Geometría y carga</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {caso.parametros.map((p) => (
-                <CampoNumerico
-                  key={`${caso.id}-${p.clave}`}
-                  id={`param-${p.clave}`}
-                  etiqueta={p.etiqueta}
-                  sufijo={p.unidad ?? "m"}
-                  valor={textos[p.clave] ?? ""}
-                  onChange={(v) => cambiarParam(p.clave, v)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        <Etapa id="revision" numero={2} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Apoyo", valor: FAMILIAS_TORSION.find((f) => f.id === familia)!.nombre },
+              { etiqueta: "Esquema", valor: caso.nombre },
+              ...caso.parametros.map((p) => ({ etiqueta: p.etiqueta, valor: `${textos[p.clave] ?? ""} ${p.unidad ?? "m"}` })),
+            ]}
+            hipotesis={[
+              NOTA_FAMILIA[familia],
+              "El signo del torsor sigue el que se cargue: es la superposición directa de lo aplicado.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-        <div className="border-t border-border/60 pt-5">
-          <div className="mb-3">
-            <h3 className="text-sm font-medium">Diagrama</h3>
-          </div>
-          <div>
-            {estado.ok ? (
-              <>
+        <Etapa id="resultados" numero={3} titulo="Resultados">
+          {!estado.ok ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">{estado.motivo}</span>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Torsor máximo", valor: `${fmt(estado.resultado.torsorMax.valor)} kN·m`, nota: `en x = ${fmt(estado.resultado.torsorMax.xM, 2)} m` },
+                  {
+                    etiqueta: caso.condicion === "empotrada-libre" ? "Reacción en el empotramiento" : "Reacción en cada apoyo",
+                    valor: `${fmt(estado.resultado.reaccionApoyoKNm)} kN·m`,
+                    nota: caso.condicion === "apoyada-simetrica" ? "signo opuesto en cada extremo" : undefined,
+                  },
+                ]}
+              />
+              <Subgrupo titulo="Diagrama de torsores">
                 <DiagramaTorsion
                   largoM={estado.entrada.largoM}
                   cargas={estado.entrada.cargas}
                   resultado={estado.resultado}
                   condicion={caso.condicion}
                 />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  El signo del torsor sigue el que se cargue: no hay convención de tracción/compresión
-                  que lo fuerce, es la superposición directa de lo aplicado.
-                </p>
-              </>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
-            )}
-          </div>
-        </div>
+              </Subgrupo>
+            </div>
+          )}
+        </Etapa>
       </div>
-
-      {estado.ok && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Torsor máximo</h3>
-            </div>
-            <div className="pt-0">
-              <p className="font-mono text-sm tabular-nums">
-                {fmt(estado.resultado.torsorMax.valor)} kN·m en x ={" "}
-                {fmt(estado.resultado.torsorMax.xM, 2)} m
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">
-                {caso.condicion === "empotrada-libre" ? "Reacción en el empotramiento" : "Reacción en cada apoyo"}
-              </h3>
-            </div>
-            <div className="pt-0">
-              <p className="font-mono text-sm tabular-nums">
-                {fmt(estado.resultado.reaccionApoyoKNm)} kN·m
-              </p>
-              {caso.condicion === "apoyada-simetrica" && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Con signo opuesto en cada extremo: se equilibran entre sí.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       </ProveedorComprobaciones>
     </main>
   );

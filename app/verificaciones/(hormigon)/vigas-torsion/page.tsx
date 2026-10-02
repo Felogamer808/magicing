@@ -18,6 +18,7 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
+import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import {
   CroquisArmaduraFlexion,
   CroquisGeometriaViga,
@@ -340,8 +341,13 @@ export default function VigasTorsionPage() {
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
                       { etiqueta: "As por momento", valor: `${fmt(resultado.flexionPositiva.asCalculadoCm2)} cm²` },
                       { etiqueta: "+ Al/4 por torsión", valor: `${fmt(resultado.torsion.alPorCaraCm2)} cm²` },
-                      { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.flexionPositiva.asMinMecanicoCm2)} cm²` },
-                      { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.flexionPositiva.asMinGeometricoCm2)} cm²` },
+                      { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionPositiva.fctmFlMPa, 2)} MPa` },
+                      {
+                        etiqueta: "As,min",
+                        formula: "b·h/4,8 · fctm,fl/fyd",
+                        sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionPositiva.fctmFlMPa, 2)}/${fmt(aNumero(fyk) / GAMMA_S, 1)}`,
+                        valor: `${fmt(resultado.flexionPositiva.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
+                      },
                     ]}
                   />
                 </CardContent>

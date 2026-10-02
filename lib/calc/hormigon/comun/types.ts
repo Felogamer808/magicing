@@ -67,10 +67,10 @@ export interface ResultadoFlexion {
   deformacionAcero: number;
   /** As requerido por momento (cm²) */
   asCalculadoCm2: number;
-  /** As mínimo mecánico (cm²) */
-  asMinMecanicoCm2: number;
-  /** As mínimo geométrico (cm²) */
-  asMinGeometricoCm2: number;
+  /** Resistencia media a flexotracción fctm,fl (MPa), Anejo 19 art. 3.1.8, ec. (3.23). */
+  fctmFlMPa: number;
+  /** As,min de la armadura de tracción (cm²), Anejo 19 art. 9.2.1.1 (1), ec. (9.1). */
+  asMinCm2: number;
   /** As necesario = máx(calculado, mínimos) (cm²) */
   asNecCm2: number;
   /** As real de la armadura elegida (cm²) */

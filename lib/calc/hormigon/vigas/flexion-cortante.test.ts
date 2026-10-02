@@ -46,10 +46,24 @@ describe("flexión positiva (bloque VIGA)", () => {
     expect(r.asCalculadoCm2).toBeCloseTo(1.13645581051722, 6);
   });
 
-  it("reproduce los mínimos mecánico y geométrico", () => {
-    expect(r.asMinMecanicoCm2).toBeCloseTo(12.09087, 4);
-    expect(r.asMinGeometricoCm2).toBeCloseTo(17.64, 6);
-    expect(r.asNecCm2).toBeCloseTo(17.64, 6); // domina el mínimo geométrico
+  /*
+   * La planilla daba 17,64 cm²: mínimo geométrico de 2,8 ‰ de la EHE‑08, que
+   * no es del Anejo 19. El valor de acá sale a mano de la ec. (9.1),
+   * art. 9.2.1.1 (1), pág. 140, con fctm,fl de la ec. (3.23), pág. 31:
+   *   h = 700 mm → 1,6 − 0,7 = 0,9 < 1, fctm,fl = fctm = 0,3·30^(2/3) = 2,8965 MPa
+   *   W/z = (0,9·0,7²/6)/(0,8·0,7) = 0,13125 m²
+   *   As,min = 0,13125 · 2,8965/434,78 · 10⁴ = 8,7437 cm²
+   */
+  it("aplica la cuantía mínima del Anejo 19, ec. (9.1)", () => {
+    expect(r.fctmFlMPa).toBeCloseTo(2.896468, 5);
+    expect(r.asMinCm2).toBeCloseTo(8.743713, 5);
+    expect(r.asNecCm2).toBeCloseTo(8.743713, 5); // gobierna el mínimo: As calculado es 1,14 cm²
+  });
+
+  it("en cantos chicos fctm,fl crece con (1,6 − h)", () => {
+    const losa = { b: 1, h: 0.2, recubrimiento: 0.03 };
+    const rLosa = calcularFlexion(materiales, losa, 0.16, { momento: 5, armaduraReal: [{ numero: 5, diametroMm: 10 }] });
+    expect(rLosa.fctmFlMPa).toBeCloseTo(1.4 * 2.896468, 5);
   });
 
   it("reproduce As real y no verifica (igual que en Excel: I13=FALSO)", () => {
@@ -81,8 +95,10 @@ describe("flexión negativa (bloque VIGA, con mínimo corregido)", () => {
     expect(r.asCalculadoCm2).toBeCloseTo(0.496606854036821, 6);
   });
 
-  it("aplica el mínimo geométrico también en negativa (a diferencia del Excel original)", () => {
-    expect(r.asNecCm2).toBeCloseTo(17.64, 6);
+  // Antes 17,64 cm² (2,8 ‰ de la EHE‑08); ahora la ec. (9.1) del Anejo 19,
+  // igual que en positiva porque W es el mismo respecto de las dos caras.
+  it("aplica la cuantía mínima también en negativa (a diferencia del Excel original)", () => {
+    expect(r.asNecCm2).toBeCloseTo(8.743713, 5);
     expect(r.asRealCm2).toBeCloseTo(5.65486677646163, 6);
     // En la planilla original esto daba VERDADERO por el bug de L9=MAX(L8) sin mínimo.
     expect(r.verificaAs).toBe(false);

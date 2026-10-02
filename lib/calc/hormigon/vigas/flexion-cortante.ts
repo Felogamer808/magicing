@@ -123,6 +123,32 @@ export function calcularCantoUtil(
   return geometria.h - calcularDisposicionArmadura(geometria, armaduraPositiva).distanciaCentroideM;
 }
 
+/**
+ * Resistencia media a flexotracción, Anejo 19, art. 3.1.8 (1), ec. (3.23),
+ * pág. 31: fctm,fl = máx{(1,6 − h/1000)·fctm; fctm}, con h en mm.
+ */
+export function resistenciaFlexotraccionMPa(fctmMPa: number, hM: number): number {
+  return Math.max((1.6 - hM) * fctmMPa, fctmMPa);
+}
+
+/**
+ * Armadura mínima de tracción de una sección rectangular, Anejo 19,
+ * art. 9.2.1.1 (1), ec. (9.1), pág. 140:
+ *
+ *   As,min = (W / z) · fctm,fl / fyd,  con W = b·h²/6 y z ≈ 0,8·h
+ *
+ * Es la única cuantía mínima que fija el Anejo 19 para vigas. La planilla
+ * original sumaba un mínimo geométrico de 2,8 ‰ y uno mecánico de 0,04·Ac,
+ * que son de la EHE‑08 (art. 42.3): mezclados en un cálculo EC2 exigían el
+ * doble de armadura de lo que pide la norma que el módulo declara.
+ */
+export function armaduraMinimaFlexionCm2(geometria: GeometriaViga, fctmFlMPa: number, fydMPa: number): number {
+  const { b, h } = geometria;
+  const moduloResistente = (b * h ** 2) / 6;
+  const brazo = 0.8 * h;
+  return 100 ** 2 * (moduloResistente / brazo) * (fctmFlMPa / fydMPa);
+}
+
 export function calcularFlexion(
   materiales: MaterialesDerivados,
   geometria: GeometriaViga,
@@ -130,23 +156,23 @@ export function calcularFlexion(
   datos: DatosFlexion
 ): ResultadoFlexion {
   const { b, h } = geometria;
-  const { fcd, fyd } = materiales;
+  const { fcd, fyd, fctm } = materiales;
   const { momento, armaduraReal, asAdicionalCm2 = 0 } = datos;
 
   const mu = momento / (b * d ** 2 * fcd * 1000);
   const omega = 1 - Math.sqrt(1 - 2 * mu);
   const asCalculadoCm2 = (100 ** 2 * omega * b * d * fcd) / fyd;
 
-  // As mínimo mecánico y geométrico (criterio de oficina, aplicado por igual
-  // a armadura positiva y negativa: el mínimo no depende del signo del momento).
-  const asMinMecanicoCm2 = (100 ** 2 * 0.045 * b * d * fcd) / fyd;
-  const asMinGeometricoCm2 = 100 ** 2 * (2.8 / 1000) * b * h;
+  // El mínimo se aplica igual a la armadura positiva y a la negativa: en una
+  // sección rectangular W es el mismo respecto de las dos caras.
+  const fctmFlMPa = resistenciaFlexotraccionMPa(fctm, h);
+  const asMinCm2 = armaduraMinimaFlexionCm2(geometria, fctmFlMPa, fyd);
 
   const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
 
   // La armadura de torsión se suma a la de flexión (no se toma el máximo): son
   // esfuerzos concomitantes que traccionan las mismas barras.
-  const asNecCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2) + asAdicionalCm2;
+  const asNecCm2 = Math.max(asCalculadoCm2, asMinCm2) + asAdicionalCm2;
   const asRealCm2 = disposicion.areaTotalCm2;
   const aprovechamiento = asNecCm2 / asRealCm2;
   const verificaAs = asRealCm2 >= asNecCm2;
@@ -164,8 +190,8 @@ export function calcularFlexion(
     zM,
     deformacionAcero,
     asCalculadoCm2,
-    asMinMecanicoCm2,
-    asMinGeometricoCm2,
+    fctmFlMPa,
+    asMinCm2,
     asNecCm2,
     asRealCm2,
     aprovechamiento,

@@ -26,6 +26,7 @@ import {
   calcularFlexion,
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { aNumero } from "@/lib/verificaciones/formato";
+import { BETA_1_EMPOTRAMIENTO_PARCIAL } from "@/lib/calc/hormigon/comun/coeficientes";
 
 /** Arma los grupos de armadura para el motor: la 2ª capa sólo entra si tiene barras cargadas. */
 export function armarGrupos(
@@ -69,6 +70,13 @@ export interface ResueltoVigaFlexionCortante {
   flexionPositiva: ResultadoFlexion;
   flexionNegativa: ResultadoFlexion;
   cortante: ResultadoCortante;
+  /**
+   * Momento con el que se dimensionó la armadura superior: el cargado o, en
+   * construcción monolítica, β1·M+ si es mayor (Anejo 19, art. 9.2.1.2 (1)).
+   */
+  momentoNegativoCalculo: number;
+  /** El mínimo de empotramiento parcial supera al momento negativo cargado. */
+  gobiernaMinimoApoyo: boolean;
 }
 
 export function resolverVigaFlexionCortante(
@@ -128,8 +136,17 @@ export function resolverVigaFlexionCortante(
     momento: v.momentoPos,
     armaduraReal: gruposPositiva,
   });
+  // En construcción monolítica el apoyo nunca se dimensiona por debajo de
+  // β1·M+, aunque el cálculo dé un momento negativo menor o nulo. El campo es
+  // texto como el resto: sin él —cálculos guardados antes de que existiera—
+  // vale "no", para que la memoria rehaga esos cálculos con el mismo número.
+  const monolitica = campos.monolitica === "si";
+  const minimoApoyo = BETA_1_EMPOTRAMIENTO_PARCIAL * v.momentoPos;
+  const gobiernaMinimoApoyo = monolitica && minimoApoyo > v.momentoNeg;
+  const momentoNegativoCalculo = gobiernaMinimoApoyo ? minimoApoyo : v.momentoNeg;
+
   const flexionNegativa = calcularFlexion(materiales, geometria, d, {
-    momento: v.momentoNeg,
+    momento: momentoNegativoCalculo,
     armaduraReal: gruposNegativa,
   });
   const cortante = calcularCortante(materiales, geometria, d, flexionNegativa.asRealCm2, {
@@ -138,5 +155,8 @@ export function resolverVigaFlexionCortante(
     numeroRamas: v.numeroRamas,
   });
 
-  return { v, materiales, gruposPositiva, gruposNegativa, d, flexionPositiva, flexionNegativa, cortante };
+  return {
+    v, materiales, gruposPositiva, gruposNegativa, d, flexionPositiva, flexionNegativa, cortante,
+    momentoNegativoCalculo, gobiernaMinimoApoyo,
+  };
 }

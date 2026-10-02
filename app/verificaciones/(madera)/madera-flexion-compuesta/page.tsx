@@ -3,14 +3,18 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { CroquisSeccionMadera } from "@/components/verificaciones/madera/CroquisSeccionMadera";
 import { CurvaPandeoMadera } from "@/components/verificaciones/madera/CurvaPandeoMadera";
 import { DiagramaInteraccionMadera } from "@/components/verificaciones/madera/DiagramaInteraccionMadera";
 import {
@@ -30,6 +34,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-flexion-compuesta")!;
+
+const ETAPAS = [
+  { id: "material", titulo: "Material" },
+  { id: "seccion", titulo: "Sección" },
+  { id: "esfuerzos", titulo: "Esfuerzos" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const SIGNOS = ["Compresión", "Tracción"] as const;
 const PROBLEMAS = ["Columna: pandeo por compresión", "Viga: vuelco lateral, ec. (6.35)"] as const;
@@ -138,10 +150,13 @@ export default function MaderaFlexionCompuestaPage() {
   }, [ancho, canto, lky, lkz, luz, fmkV, ft0k, fc0k, e005, g005, axil, my, mz,
       tipo, servicio, duracion, signo, problema]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!r) avisos.push({ tipo: "error", texto: "Cargá sección, resistencias, longitudes de pandeo y esfuerzos con valores válidos." });
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -151,111 +166,130 @@ export default function MaderaFlexionCompuestaPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          Cuatro pares de expresiones para lo que parece un solo problema. Cuál se aplica no lo
-          elige el proyectista: lo deciden el signo del axil y la esbeltez, y el art. 6.3.2(2) lo
-          dice explícito. Acá el despacho es automático, y el modo elegido se declara arriba del
-          resultado.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Material y sección</h3></div>
-            <div className="space-y-4">
-              <SelectorMadera
-                tipo={tipo} onTipo={setTipo}
-                servicio={servicio} onServicio={setServicio}
-                duracion={duracion} onDuracion={setDuracion}
-              />
+        <Etapa id="material" numero={1} titulo="Material" descripcion="Tipo de madera, condiciones de servicio y valores característicos.">
+          <div className="max-w-2xl space-y-4">
+            <SelectorMadera
+              tipo={tipo} onTipo={setTipo}
+              servicio={servicio} onServicio={setServicio}
+              duracion={duracion} onDuracion={setDuracion}
+            />
+            <div className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="fmk" etiqueta="fm,k" sufijo="MPa" valor={fmkV} onChange={setFmk} />
+              <CampoNumerico id="ft0k" etiqueta="ft,0,k" sufijo="MPa" valor={ft0k} onChange={setFt0k} />
+              <CampoNumerico id="fc0k" etiqueta="fc,0,k" sufijo="MPa" valor={fc0k} onChange={setFc0k} />
+              <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
+              <CampoNumerico id="g005" etiqueta="G0,05" sufijo="GPa" valor={g005} onChange={setG005} />
+            </div>
+          </div>
+        </Etapa>
+
+        <Etapa id="seccion" numero={2} titulo="Sección y pandeo" descripcion="Dimensiones y longitudes de pandeo de cada eje.">
+          <DatosConDibujo
+            datos={
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
                 <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
                 <CampoNumerico id="lky" etiqueta="Long. pandeo eje y" sufijo="m" valor={lky} onChange={setLky} />
                 <CampoNumerico id="lkz" etiqueta="Long. pandeo eje z" sufijo="m" valor={lkz} onChange={setLkz} />
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <CampoNumerico id="fmk" etiqueta="fm,k" sufijo="MPa" valor={fmkV} onChange={setFmk} />
-                <CampoNumerico id="ft0k" etiqueta="ft,0,k" sufijo="MPa" valor={ft0k} onChange={setFt0k} />
-                <CampoNumerico id="fc0k" etiqueta="fc,0,k" sufijo="MPa" valor={fc0k} onChange={setFc0k} />
-                <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
-                <CampoNumerico id="g005" etiqueta="G0,05" sufijo="GPa" valor={g005} onChange={setG005} />
-              </div>
-            </div>
-          </div>
+            }
+            dibujo={<CroquisSeccionMadera anchoM={aNumero(ancho)} cantoM={aNumero(canto)} />}
+          />
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Esfuerzos</h3></div>
-            <div className="space-y-4">
-              <CampoSeleccion id="signo" etiqueta="Signo del axil" valor={signo}
-                              opciones={SIGNOS} onChange={setSigno} />
-              <div className="grid grid-cols-3 gap-4">
-                <CampoNumerico id="axil" etiqueta="Nd" sufijo="kN" valor={axil} onChange={setAxil} />
-                <CampoNumerico id="my" etiqueta="My,d" sufijo="kN·m" valor={my} onChange={setMy} />
-                <CampoNumerico id="mz" etiqueta="Mz,d" sufijo="kN·m" valor={mz} onChange={setMz} />
-              </div>
-              {signo === SIGNOS[0] && (
-                <>
-                  <CampoSeleccion id="problema" etiqueta="Qué gobierna la estabilidad"
-                                  valor={problema} opciones={PROBLEMAS} onChange={setProblema} />
-                  {problema === PROBLEMAS[1] && (
-                    <CampoNumerico id="luz" etiqueta="Luz de la viga" sufijo="m"
-                                   valor={luz} onChange={setLuz} />
-                  )}
-                </>
-              )}
-              <PanelAyuda titulo="Por qué el axil va al cuadrado en un caso y lineal en el otro">
-                <p>
-                  En las ecs. <strong className="text-foreground">(6.19) y (6.20)</strong>, que son
-                  las de la pieza corta, el término de axil está{" "}
-                  <strong className="text-foreground">al cuadrado</strong>. En las{" "}
-                  <strong className="text-foreground">(6.23) y (6.24)</strong>, las de la pieza
-                  esbelta, es <strong className="text-foreground">lineal</strong>.
-                </p>
-                <p>
-                  No es un descuido de la norma. En la pieza corta el axil casi no interactúa con
-                  la flexión y la parábola lo refleja. En la esbelta, el axil amplifica la flecha y
-                  con ella el momento, así que penaliza en proporción directa. Usar el cuadrado en
-                  una pieza esbelta deja la verificación del lado inseguro, y por eso el modo se
-                  despacha por esbeltez y no se puede elegir a mano.
-                </p>
-                <p>
-                  El umbral es λrel ≤ 0,3 <em>en los dos ejes</em>, art. 6.3.2(2). Basta que uno
-                  lo supere para ir por el 6.3.2.
-                </p>
-                <p>
-                  La <strong className="text-foreground">ec. (6.35)</strong> es otra cosa: es la
-                  viga comprimida cuyo problema es volcar de costado, no pandear como columna. Ahí
-                  se invierten los exponentes —la flexión al cuadrado y el axil lineal—.
-                </p>
-              </PanelAyuda>
+        <Etapa id="esfuerzos" numero={3} titulo="Esfuerzos" descripcion="El signo del axil y la esbeltez deciden qué par de expresiones se aplica.">
+          <div className="max-w-2xl space-y-4">
+            <CampoSeleccion id="signo" etiqueta="Signo del axil" valor={signo} opciones={SIGNOS} onChange={setSigno} />
+            <div className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="axil" etiqueta="Nd" sufijo="kN" valor={axil} onChange={setAxil} />
+              <CampoNumerico id="my" etiqueta="My,d" sufijo="kN·m" valor={my} onChange={setMy} />
+              <CampoNumerico id="mz" etiqueta="Mz,d" sufijo="kN·m" valor={mz} onChange={setMz} />
             </div>
+            {signo === SIGNOS[0] && (
+              <>
+                <CampoSeleccion id="problema" etiqueta="Qué gobierna la estabilidad" valor={problema} opciones={PROBLEMAS} onChange={setProblema} />
+                {problema === PROBLEMAS[1] && (
+                  <CampoNumerico id="luz" etiqueta="Luz de la viga" sufijo="m" valor={luz} onChange={setLuz} />
+                )}
+              </>
+            )}
+            <PanelAyuda titulo="Por qué el axil va al cuadrado en un caso y lineal en el otro">
+              <p>
+                En las ecs. <strong className="text-foreground">(6.19) y (6.20)</strong>, que son
+                las de la pieza corta, el término de axil está{" "}
+                <strong className="text-foreground">al cuadrado</strong>. En las{" "}
+                <strong className="text-foreground">(6.23) y (6.24)</strong>, las de la pieza
+                esbelta, es <strong className="text-foreground">lineal</strong>.
+              </p>
+              <p>
+                No es un descuido de la norma. En la pieza corta el axil casi no interactúa con
+                la flexión y la parábola lo refleja. En la esbelta, el axil amplifica la flecha y
+                con ella el momento, así que penaliza en proporción directa. Usar el cuadrado en
+                una pieza esbelta deja la verificación del lado inseguro, y por eso el modo se
+                despacha por esbeltez y no se puede elegir a mano.
+              </p>
+              <p>
+                El umbral es λrel ≤ 0,3 <em>en los dos ejes</em>, art. 6.3.2(2). Basta que uno
+                lo supere para ir por el 6.3.2.
+              </p>
+              <p>
+                La <strong className="text-foreground">ec. (6.35)</strong> es otra cosa: es la
+                viga comprimida cuyo problema es volcar de costado, no pandear como columna. Ahí
+                se invierten los exponentes —la flexión al cuadrado y el axil lineal—.
+              </p>
+            </PanelAyuda>
           </div>
-        </div>
+        </Etapa>
 
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Madera", valor: `${tipo} · ${servicio}` },
+              { etiqueta: "Duración de la carga", valor: duracion },
+              { etiqueta: "fm,k · ft,0,k · fc,0,k", valor: `${fmkV} · ${ft0k} · ${fc0k} MPa` },
+              { etiqueta: "E0,05 · G0,05", valor: `${e005} · ${g005} GPa` },
+              { etiqueta: "Sección b × h", valor: `${ancho} × ${canto} m` },
+              { etiqueta: "lk,y · lk,z", valor: `${lky} · ${lkz} m` },
+              { etiqueta: "Nd · My,d · Mz,d", valor: `${axil} kN (${signo.toLowerCase()}) · ${my} · ${mz} kN·m` },
+              ...(r ? [{ etiqueta: "Modo", valor: NOMBRE_MODO[r.resultado.modo], derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "EC5, arts. 6.2.3 y 6.2.4 (pieza corta), 6.3.2 (pandeo) y 6.3.3, ec. (6.35) (vuelco con compresión).",
+              "El modo lo deciden el signo del axil y la esbeltez: con λrel ≤ 0,3 en los dos ejes no hay reducción por pandeo (art. 6.3.2(2)).",
+              "kh por eje en flexión y con la dimensión mayor en tracción; la compresión no lleva kh.",
+              "km = 0,7 cuando hay flexión en los dos ejes.",
+              "Vuelco: longitud eficaz de viga apoyada con carga distribuida aplicada en el borde comprimido.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!r ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Cargá sección, resistencias, longitudes de pandeo y esfuerzos con valores válidos.
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "σ axil", valor: `${fmt(r.sigmaAxil, 2)} MPa`, nota: r.traccionada ? "tracción" : "compresión" },
+                  { etiqueta: "σm,y,d · σm,z,d", valor: `${fmt(r.sigmaMY, 2)} · ${fmt(r.sigmaMZ, 2)} MPa` },
+                  { etiqueta: "λrel,y · λrel,z", valor: `${fmt(r.ejeY.lambdaRel, 2)} · ${fmt(r.ejeZ.lambdaRel, 2)}` },
+                  { etiqueta: "Aprovechamiento", valor: fmt(r.resultado.aprovechamiento, 3), nota: `gobierna la ${r.resultado.gobierna}` },
+                ]}
+              />
+
+              <Subgrupo titulo="Interacción axil-flexión" detalle={NOMBRE_MODO[r.resultado.modo]}>
                 <div className="space-y-3">
-                  <p className="rounded-md border border-border bg-card/60 px-3 py-2 font-mono text-[12.5px]">
-                    {NOMBRE_MODO[r.resultado.modo]}
-                  </p>
                   <ResultadoCheck
                     etiqueta={`Interacción · gobierna la ${r.resultado.gobierna}`}
                     verifica={r.resultado.verifica}
@@ -273,12 +307,6 @@ export default function MaderaFlexionCompuestaPage() {
                       reducir por pandeo.
                     </p>
                   )}
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Interacción</h3></div>
-                <div className="space-y-4">
                   <DiagramaInteraccionMadera
                     modo={r.resultado.modo}
                     ratioAxil={r.ratioAxil}
@@ -287,13 +315,12 @@ export default function MaderaFlexionCompuestaPage() {
                     verifica={r.resultado.verifica}
                   />
                   <PanelFormulas
-                    titulo="Ver desarrollo"
+                    titulo="Ver desarrollo de la interacción"
                     filas={[
                       { etiqueta: "σ del axil", valor: `${fmt(r.sigmaAxil, 3)} MPa` },
                       { etiqueta: "σm,y,d", valor: `${fmt(r.sigmaMY, 3)} MPa` },
                       { etiqueta: "σm,z,d", valor: `${fmt(r.sigmaMZ, 3)} MPa` },
-                      { etiqueta: r.traccionada ? "ft,0,d" : "fc,0,d",
-                        valor: `${fmt(r.traccionada ? r.ft0d.valor : r.fc0d.valor, 3)} MPa` },
+                      { etiqueta: r.traccionada ? "ft,0,d" : "fc,0,d", valor: `${fmt(r.traccionada ? r.ft0d.valor : r.fc0d.valor, 3)} MPa` },
                       { etiqueta: "fm,y,d", valor: `${fmt(r.fmYd.valor, 3)} MPa` },
                       { etiqueta: "fm,z,d", valor: `${fmt(r.fmZd.valor, 3)} MPa` },
                       { etiqueta: "kc,y", valor: fmt(r.ejeY.kc, 3) },
@@ -312,27 +339,24 @@ export default function MaderaFlexionCompuestaPage() {
                     ]}
                   />
                 </div>
-              </div>
+              </Subgrupo>
 
               {!r.traccionada && (
-                <div className="border-t border-border/60 pt-5">
-                  <div className="mb-3"><h3 className="text-sm font-medium">Pandeo de la columna</h3></div>
-                  <div>
-                    <CurvaPandeoMadera
-                      tipo={r.t}
-                      fc0kMPa={r.fc0kN}
-                      e005GPa={r.e}
-                      lambdaRelY={r.ejeY.lambdaRel}
-                      lambdaRelZ={r.ejeZ.lambdaRel}
-                      kcY={r.ejeY.kc}
-                      kcZ={r.ejeZ.kc}
-                    />
-                  </div>
-                </div>
+                <Subgrupo titulo="Pandeo de la columna">
+                  <CurvaPandeoMadera
+                    tipo={r.t}
+                    fc0kMPa={r.fc0kN}
+                    e005GPa={r.e}
+                    lambdaRelY={r.ejeY.lambdaRel}
+                    lambdaRelZ={r.ejeZ.lambdaRel}
+                    kcY={r.ejeY.kc}
+                    kcZ={r.ejeZ.kc}
+                  />
+                </Subgrupo>
               )}
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

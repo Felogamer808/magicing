@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { CapaMaterial } from "@/components/verificaciones/croquis/Primitivas";
 
 interface FilaDiagrama {
   numero: number;
@@ -20,7 +21,19 @@ interface SeccionVigaDiagramaProps {
   armaduraPositiva: ArmaduraDiagrama;
   armaduraNegativa: ArmaduraDiagrama;
   diametroEstriboMm: number;
+  /** Elemento a resaltar porque su campo tiene el foco. */
+  resaltar?: ElementoSeccionViga | null;
+  /**
+   * Caras cuya armadura no entra en el ancho, según el cálculo. Se dibujan en
+   * rojo con aviso: un dibujo prolijo de barras que no caben diría lo contrario
+   * de lo que dice el resultado.
+   */
+  noEntra?: { inferior: boolean; superior: boolean };
+  /** Omitir el resumen de armaduras al pie, cuando la página ya lo muestra. */
+  sinResumen?: boolean;
 }
+
+export type ElementoSeccionViga = "b" | "h" | "recubrimiento" | "inferior" | "superior" | "estribo";
 
 function distribuir(n: number, desde: number, hasta: number): number[] {
   if (n <= 1) return [(desde + hasta) / 2];
@@ -66,6 +79,9 @@ export function SeccionVigaDiagrama({
   armaduraPositiva,
   armaduraNegativa,
   diametroEstriboMm,
+  resaltar = null,
+  noEntra = { inferior: false, superior: false },
+  sinResumen = false,
 }: SeccionVigaDiagramaProps) {
   const arrowId = useId();
 
@@ -76,7 +92,7 @@ export function SeccionVigaDiagrama({
   const PAD_LEFT = 52;
   const PAD_TOP = 34;
   const PAD_RIGHT = 46;
-  const PAD_BOTTOM = 14;
+  const PAD_BOTTOM = noEntra.inferior ? 40 : 28;
 
   const escala = Math.min(MAX_W / bM, MAX_H / hM);
   const w = bM * escala;
@@ -103,13 +119,24 @@ export function SeccionVigaDiagrama({
 
   const yCentroidePos = filasPos[0]?.y ?? coverY1;
 
+  const cota = (e: ElementoSeccionViga) =>
+    resaltar === e
+      ? { stroke: "var(--mat-cota)", strokeWidth: 1.6, opacity: 1 }
+      : { stroke: "currentColor", strokeWidth: 1, opacity: 0.75 };
+  const textoCota = (e: ElementoSeccionViga) =>
+    resaltar === e ? { fill: "var(--mat-cota)", fontWeight: 700 } : {};
+  const colorBarra = (cara: "inferior" | "superior") =>
+    noEntra[cara] ? "var(--destructive)" : "var(--mat-armadura)";
+  const halo = (cara: "inferior" | "superior") => resaltar === cara;
+
   return (
     <div className="flex flex-col items-center gap-3">
       <svg
         viewBox={`0 0 ${viewW} ${viewH}`}
         className="h-auto w-full text-primary"
         fill="none"
-        aria-hidden="true"
+        role="img"
+        aria-label={`Sección de ${fmtM(bM)} por ${fmtM(hM)}, recubrimiento ${fmtM(recubrimientoM)}. Armadura inferior ${etiquetaArmadura(armaduraPositiva)}, superior ${etiquetaArmadura(armaduraNegativa)}, estribo Ø${diametroEstriboMm}.`}
       >
         <defs>
           <marker id={arrowId} markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
@@ -118,7 +145,7 @@ export function SeccionVigaDiagrama({
         </defs>
 
         {/* cota b */}
-        <g stroke="currentColor" strokeWidth="1" opacity="0.75">
+        <g {...cota("b")}>
           <path d={`M${x0} ${y0 - 16} L${x0} ${y0 - 4}`} />
           <path d={`M${x1} ${y0 - 16} L${x1} ${y0 - 4}`} />
           <path
@@ -133,12 +160,13 @@ export function SeccionVigaDiagrama({
           textAnchor="middle"
           className="fill-current font-mono"
           fontSize="10.5"
+          {...textoCota("b")}
         >
           b = {fmtM(bM)}
         </text>
 
         {/* cota h */}
-        <g stroke="currentColor" strokeWidth="1" opacity="0.75">
+        <g {...cota("h")}>
           <path d={`M${x0 - 16} ${y0} L${x0 - 4} ${y0}`} />
           <path d={`M${x0 - 16} ${y1} L${x0 - 4} ${y1}`} />
           <path
@@ -154,21 +182,13 @@ export function SeccionVigaDiagrama({
           className="fill-current font-mono"
           fontSize="10.5"
           transform={`rotate(-90 ${PAD_LEFT - 22} ${(y0 + y1) / 2})`}
+          {...textoCota("h")}
         >
           h = {fmtM(hM)}
         </text>
 
         {/* sección de hormigón */}
-        <rect
-          x={x0}
-          y={y0}
-          width={w}
-          height={h}
-          stroke="currentColor"
-          strokeWidth="2"
-          fill="var(--color-muted)"
-          fillOpacity="0.4"
-        />
+        <CapaMaterial x={x0} y={y0} ancho={w} alto={h} material="hormigon" />
 
         {/* estribo */}
         <rect
@@ -176,12 +196,20 @@ export function SeccionVigaDiagrama({
           y={coverY0}
           width={Math.max(coverX1 - coverX0, 0)}
           height={Math.max(coverY1 - coverY0, 0)}
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeDasharray="3 2"
-          opacity="0.8"
-          rx="2"
+          stroke="var(--mat-armadura)"
+          strokeWidth={resaltar === "estribo" ? 2.6 : 1.4}
+          rx="3"
         />
+
+        {/* cota de recubrimiento, al pie, de la cara al estribo */}
+        <g {...cota("recubrimiento")}>
+          <path d={`M${x0} ${y1 + 4} L${x0} ${y1 + 14}`} />
+          <path d={`M${coverX0} ${y1 + 4} L${coverX0} ${y1 + 14}`} />
+          <path d={`M${x0} ${y1 + 10} L${coverX0} ${y1 + 10}`} />
+        </g>
+        <text x={coverX0 + 4} y={y1 + 13} className="fill-current font-mono" fontSize="9.5" {...textoCota("recubrimiento")}>
+          r = {fmtM(recubrimientoM)}
+        </text>
 
         {/* cota d: de la fibra comprimida al centroide de la armadura positiva */}
         <g stroke="currentColor" strokeWidth="0.75" opacity="0.6" strokeDasharray="2 2">
@@ -198,18 +226,29 @@ export function SeccionVigaDiagrama({
         {/* armadura negativa (superior), una fila por capa */}
         {filasNeg.map((fila, i) =>
           distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
-            <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill="currentColor" />
+            <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("superior")} stroke={halo("superior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
           ))
         )}
 
         {/* armadura positiva (inferior), una fila por capa */}
         {filasPos.map((fila, i) =>
           distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
-            <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill="currentColor" />
+            <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("inferior")} stroke={halo("inferior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
           ))
+        )}
+        {noEntra.superior && (
+          <text x={(x0 + x1) / 2} y={y0 - 26} textAnchor="middle" fill="var(--destructive)" className="font-mono" fontSize="9.5">
+            la armadura superior no entra en el ancho
+          </text>
+        )}
+        {noEntra.inferior && (
+          <text x={(x0 + x1) / 2} y={y1 + 30} textAnchor="middle" fill="var(--destructive)" className="font-mono" fontSize="9.5">
+            la armadura inferior no entra en el ancho
+          </text>
         )}
       </svg>
 
+      {!sinResumen && (
       <dl className="grid w-full max-w-xs grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground">
         <dt>Positiva</dt>
         <dd className="text-right text-foreground">{etiquetaArmadura(armaduraPositiva)}</dd>
@@ -220,6 +259,7 @@ export function SeccionVigaDiagrama({
         <dt>d</dt>
         <dd className="text-right text-foreground">{fmtM(dM)}</dd>
       </dl>
+      )}
     </div>
   );
 }

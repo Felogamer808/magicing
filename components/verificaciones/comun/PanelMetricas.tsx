@@ -16,7 +16,25 @@ export interface Metrica {
   destacada?: boolean;
 }
 
-export function PanelMetricas({ metricas }: { metricas: Metrica[] }) {
+/**
+ * `horizontal`: las magnitudes en fila, sin caja, separadas por una línea
+ * vertical. Es la forma de la hoja técnica, donde el panel ocupa el ancho de
+ * la etapa y no una columna al costado de un dibujo.
+ */
+export function PanelMetricas({ metricas, horizontal = false }: { metricas: Metrica[]; horizontal?: boolean }) {
+  if (horizontal) {
+    return (
+      <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-4">
+        {metricas.map((m) => (
+          <div key={m.etiqueta} className="border-l border-border/70 pl-3">
+            <dt className="text-[11px] text-muted-foreground">{m.etiqueta}</dt>
+            <dd className="font-mono text-lg font-medium tabular-nums">{m.valor}</dd>
+            {m.nota && <p className="text-[11px] leading-snug text-muted-foreground">{m.nota}</p>}
+          </div>
+        ))}
+      </dl>
+    );
+  }
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-1">
       {metricas.map((m) => (

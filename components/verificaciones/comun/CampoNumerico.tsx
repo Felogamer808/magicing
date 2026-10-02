@@ -16,6 +16,8 @@ interface CampoNumericoProps {
   sugerencias?: readonly number[];
   /** Aviso al pie del campo cuando el valor cargado es válido pero llamativo. */
   advertencia?: string;
+  /** Etiqueta sólo para lectores de pantalla, cuando una cabecera de columna ya la dice. */
+  ocultarEtiqueta?: boolean;
 }
 
 export function CampoNumerico({
@@ -26,12 +28,13 @@ export function CampoNumerico({
   onChange,
   sugerencias,
   advertencia,
+  ocultarEtiqueta = false,
 }: CampoNumericoProps) {
   const listaId = `${useId()}-sugerencias`;
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>
+      <Label htmlFor={id} className={ocultarEtiqueta ? "sr-only" : undefined}>
         {etiqueta} {sufijo && <span className="text-muted-foreground">({sufijo})</span>}
       </Label>
       <Input

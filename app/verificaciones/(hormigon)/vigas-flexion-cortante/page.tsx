@@ -406,6 +406,7 @@ export default function VigasFlexionCortantePage() {
             hipotesis={[
               "γc = 1,5 y γs = 1,15: fcd = fck/γc, fyd = fyk/γs.",
               "Flexión con bloque rectangular de compresión de canto 0,8·x y tensión fcd.",
+              "Cuantía mínima de tracción As,min = W/z · fctm,fl/fyd, con z = 0,8·h (Anejo 19, art. 9.2.1.1 (1), ec. (9.1)).",
               "El canto útil d se mide hasta el centroide de la armadura inferior y se usa para los dos momentos.",
               "Cortante con estribos verticales, brazo 0,9·d y fyd de estribos limitada a 400 MPa.",
               "La cuantía ρl del cortante se toma con la armadura superior.",
@@ -494,8 +495,13 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionPositiva.asCalculadoCm2)} cm²` },
-                      { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.flexionPositiva.asMinMecanicoCm2)} cm²` },
-                      { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.flexionPositiva.asMinGeometricoCm2)} cm²` },
+                      { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionPositiva.fctmFlMPa, 2)} MPa` },
+                      {
+                        etiqueta: "As,min",
+                        formula: "b·h/4,8 · fctm,fl/fyd",
+                        sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionPositiva.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
+                        valor: `${fmt(resultado.flexionPositiva.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
+                      },
                     ]}
                   />
                   <ResultadoCheck
@@ -518,8 +524,13 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "μ", valor: fmt(resultado.flexionNegativa.mu, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionNegativa.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionNegativa.asCalculadoCm2)} cm²` },
-                      { etiqueta: "As mín. mecánico", valor: `${fmt(resultado.flexionNegativa.asMinMecanicoCm2)} cm²` },
-                      { etiqueta: "As mín. geométrico", valor: `${fmt(resultado.flexionNegativa.asMinGeometricoCm2)} cm²` },
+                      { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionNegativa.fctmFlMPa, 2)} MPa` },
+                      {
+                        etiqueta: "As,min",
+                        formula: "b·h/4,8 · fctm,fl/fyd",
+                        sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionNegativa.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
+                        valor: `${fmt(resultado.flexionNegativa.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
+                      },
                     ]}
                   />
                   <ResultadoCheck

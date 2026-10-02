@@ -5,8 +5,11 @@ import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -23,6 +26,14 @@ import {
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
+
+const ETAPAS = [
+  { id: "materiales", titulo: "Materiales" },
+  { id: "seccion", titulo: "Sección" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 /**
  * La separación sigue importando —es la que decide si las zonas de influencia
@@ -110,10 +121,17 @@ export default function FisuracionPage() {
     };
   }, [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, hayFamilia2]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos. La familia 1 y el momento cuasipermanente son obligatorios." });
+  } else if (resultado.r.usaTopeSeparacionAmplia) {
+    avisos.push({ tipo: "aviso", texto: "La separación supera 5·(c + Ø/2): s r,max sale del tope 1,3·(h − x), ec. (7.14), y no de la adherencia de las barras." });
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Estado límite de servicio</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -123,140 +141,134 @@ export default function FisuracionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          El momento a introducir es el de la combinación cuasipermanente, no el de cálculo:
-          la fisuración se verifica en servicio. k2 vale 0,5 para carga mantenida o repetida
-          y 1,0 para carga instantánea.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
-            </div>
+        <Etapa id="materiales" numero={1} titulo="Materiales y criterio" descripcion="Hormigón, acero y la abertura que se admite.">
+          <div className="grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-3">
+            <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+            <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+            <CampoNumerico id="esGPa" etiqueta="Es" sufijo="GPa" valor={esGPa} onChange={setEsGPa} />
+            <CampoNumerico id="k2" etiqueta="k2 (0,5 flexión · 1,0 tracción)" valor={k2} onChange={setK2} />
+            <CampoNumerico id="wAdm" etiqueta="w admisible" sufijo="mm" valor={wAdm} onChange={setWAdm} />
           </div>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Parámetros de fisuración</h3></div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
-              <CampoNumerico id="k2" etiqueta="k2 (0,5 flexión · 1,0 tracción)" valor={k2} onChange={setK2} />
-              <CampoNumerico id="wAdm" etiqueta="w admisible" sufijo="mm" valor={wAdm} onChange={setWAdm} />
-            </div>
-          </div>
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Sección y solicitación</h3></div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div className="col-span-full">
-                <CroquisSeccionFisuracion />
+        <Etapa id="seccion" numero={2} titulo="Sección y solicitación" descripcion="El momento es el de la combinación cuasipermanente, no el de cálculo: la fisuración se verifica en servicio.">
+          <DatosConDibujo
+            datos={
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
+                <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
+                <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
               </div>
-              <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-              <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
-              <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
-            </div>
-          </div>
+            }
+            dibujo={<CroquisSeccionFisuracion />}
+          />
+        </Etapa>
 
+        <Etapa id="armadura" numero={3} titulo="Armadura traccionada" descripcion="Barras en el ancho b; la segunda familia es opcional.">
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className="border-t border-border/60 pt-5">
-              <div className="mb-3"><h3 className="text-sm font-medium">Familia 1</h3></div>
+            <Subgrupo titulo="Familia 1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-full">
                   <CroquisFamiliaFisuracion numero={1} />
                 </div>
                 <CampoDiametro id="phi1" etiqueta="Ø" valor={phi1} onChange={setPhi1} />
-                <CampoNumerico
-                  id="numero1"
-                  etiqueta="Nº de barras"
-                  valor={numero1}
-                  onChange={setNumero1}
-                />
+                <CampoNumerico id="numero1" etiqueta="Nº de barras" valor={numero1} onChange={setNumero1} />
                 <div className="col-span-full">
                   <SeparacionEquivalente anchoTxt={b} numeroTxt={numero1} diametroTxt={phi1} />
                 </div>
               </div>
-            </div>
+            </Subgrupo>
 
             {hayFamilia2 ? (
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Familia 2</h3>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Quitar la segunda familia"
-                    onClick={() => setFamilia2("No")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+              <Subgrupo titulo="Familia 2">
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-full flex justify-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setFamilia2("No")}>
+                      <X className="h-4 w-4" /> Quitar
+                    </Button>
+                  </div>
                   <div className="col-span-full">
                     <CroquisFamiliaFisuracion numero={2} />
                   </div>
                   <CampoDiametro id="phi2" etiqueta="Ø" valor={phi2} onChange={setPhi2} />
-                  <CampoNumerico
-                    id="numero2"
-                    etiqueta="Nº de barras"
-                    valor={numero2}
-                    onChange={setNumero2}
-                  />
+                  <CampoNumerico id="numero2" etiqueta="Nº de barras" valor={numero2} onChange={setNumero2} />
                   <div className="col-span-full">
                     <SeparacionEquivalente anchoTxt={b} numeroTxt={numero2} diametroTxt={phi2} />
                   </div>
                 </div>
-              </div>
+              </Subgrupo>
             ) : (
-              <div className="border-t border-border/60 pt-5">
-                <div className="flex h-full flex-col items-start justify-center gap-2 py-6">
-                  <p className="text-sm text-muted-foreground">
-                    Una segunda familia de otro diámetro, si la sección la tiene.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Si quedó un diámetro inservible de una sesión anterior,
-                      // se repone: agregar la familia y que aparezca en "Ø0" no
-                      // le sirve a nadie.
-                      if (!(aNumero(phi2) > 0)) setPhi2("10");
-                      if (!(aNumero(numero2) > 0)) setNumero2("4");
-                      setFamilia2("Sí");
-                    }}
-                  >
-                    <Plus className="h-4 w-4" /> Agregar segunda familia
-                  </Button>
-                </div>
+              <div className="flex flex-col items-start justify-center gap-2 py-6">
+                <p className="text-sm text-muted-foreground">
+                  Una segunda familia de otro diámetro, si la sección la tiene.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Si quedó un diámetro inservible de una sesión anterior,
+                    // se repone: agregar la familia y que aparezca en "Ø0" no
+                    // le sirve a nadie.
+                    if (!(aNumero(phi2) > 0)) setPhi2("10");
+                    if (!(aNumero(numero2) > 0)) setNumero2("4");
+                    setFamilia2("Sí");
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Agregar segunda familia
+                </Button>
               </div>
             )}
           </div>
-        </div>
+        </Etapa>
 
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "fck / fyk / Es", valor: `${fck} / ${fyk} MPa / ${esGPa} GPa` },
+              { etiqueta: "Sección b × h", valor: `${b} × ${h} m, recubrimiento ${rg} m` },
+              { etiqueta: "M cuasipermanente", valor: `${mqp} kN·m` },
+              { etiqueta: "Armadura", valor: `${numero1}Ø${phi1}${hayFamilia2 ? ` + ${numero2}Ø${phi2}` : ""}` },
+              { etiqueta: "k2 · w adm", valor: `${k2} · ${wAdm} mm` },
+              ...(resultado ? [{ etiqueta: "As total", valor: `${fmt(resultado.r.asM2 * 10000, 2)} cm²`, derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "Anejo 19, art. 7.3.4: wk = s r,max · (εsm − εcm).",
+              "Combinación cuasipermanente; kt = 0,4 (carga de larga duración).",
+              "k2 = 0,5 para flexión y 1,0 para tracción pura.",
+              "εsm − εcm no baja de 0,6·σs/Es.",
+              "Con separación mayor que 5·(c + Ø/2), s r,max = 1,3·(h − x), ec. (7.14).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores válidos. La familia 1 y el momento cuasipermanente son obligatorios.
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Abertura de fisura</h3></div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "wk", valor: `${fmt(resultado.r.wkMm, 3)} mm`, nota: `admisible ${fmt(resultado.n.wAdm, 2)} mm` },
+                  { etiqueta: "σs", valor: `${fmt(resultado.r.sigmaSMPa, 1)} MPa` },
+                  { etiqueta: "s r,max", valor: `${fmt(resultado.r.srMaxMm, 1)} mm` },
+                  { etiqueta: "Fibra neutra x", valor: `${fmt(resultado.r.xM * 1000, 1)} mm` },
+                ]}
+              />
+
+              <Subgrupo titulo="Abertura de fisura">
                 <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Abertura característica admisible"
@@ -267,12 +279,6 @@ export default function FisuracionPage() {
                       unidad: "mm", exige: "≤", decimales: 3,
                     }}
                   />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">wk = s r,max · (εsm − εcm)</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {fmt(resultado.r.srMaxMm, 1)} mm × {resultado.r.epsilonSmMenosCm.toExponential(3)}
-                    </p>
-                  </div>
                   <DiagramaFisuracion
                     resultado={resultado.r}
                     bM={resultado.n.b}
@@ -282,7 +288,7 @@ export default function FisuracionPage() {
                     wAdmMm={resultado.n.wAdm}
                   />
                   {resultado.r.usaTopeSeparacionAmplia && (
-                    <p className="rounded-md border border-primary/40 p-3 text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Las barras están a {fmt(resultado.r.sMm, 0)} mm, por encima del límite
                       5·(c + Ø/2) = {fmt(5 * (resultado.n.rg * 1000 + resultado.r.diametroEqMm / 2), 0)} mm.
                       A partir de ahí la fisura ya no la gobierna la adherencia de las barras sino el
@@ -293,7 +299,7 @@ export default function FisuracionPage() {
                     </p>
                   )}
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de la abertura de fisura"
                     filas={[
                       { etiqueta: "d", valor: `${fmt(resultado.r.dM, 3)} m` },
                       { etiqueta: "Fibra neutra x", valor: `${fmt(resultado.r.xM * 1000, 1)} mm` },
@@ -308,31 +314,14 @@ export default function FisuracionPage() {
                       { etiqueta: "Ac eficaz", valor: `${fmt(resultado.r.acEficazM2 * 10000, 1)} cm²` },
                       { etiqueta: "Cuantía eficaz ρp,ef", valor: fmt(resultado.r.rhoPEf * 100, 3) + " %" },
                       { etiqueta: "Separación máxima de fisuras s r,max", valor: `${fmt(resultado.r.srMaxMm, 1)} mm` },
+                      { etiqueta: "wk", formula: "s r,max · (εsm − εcm)", sustitucion: `${fmt(resultado.r.srMaxMm, 1)} × ${resultado.r.epsilonSmMenosCm.toExponential(3)}`, valor: `${fmt(resultado.r.wkMm, 3)} mm` },
                     ]}
                   />
                 </div>
-              </div>
+              </Subgrupo>
 
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Tensiones en la armadura</h3></div>
+              <Subgrupo titulo="Tensiones en la armadura" detalle={`αe = Es/Ecm = ${fmt(resultado.r.alphaE, 2)}`}>
                 <div className="space-y-3">
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-mono text-xs text-muted-foreground">
-                      σs = {fmt(resultado.r.sigmaSMPa, 1)} MPa · αe = Es/Ecm = {fmt(resultado.r.alphaE, 2)}
-                    </p>
-                  </div>
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "Brazo mecánico z = d − x/3", valor: `${fmt(resultado.r.dM - resultado.r.xM / 3, 3)} m` },
-                      { etiqueta: "kt (carga cuasipermanente)", valor: "0,40" },
-                      { etiqueta: "εsm − εcm", valor: resultado.r.epsilonSmMenosCm.toExponential(4) },
-                      {
-                        etiqueta: "Piso 0,6·σs/Es",
-                        valor: ((0.6 * resultado.r.sigmaSMPa) / (resultado.n.esGPa * 1000)).toExponential(4),
-                      },
-                    ]}
-                  />
                   {Math.abs(
                     resultado.r.epsilonSmMenosCm - (0.6 * resultado.r.sigmaSMPa) / (resultado.n.esGPa * 1000)
                   ) < 1e-12 && (
@@ -341,11 +330,24 @@ export default function FisuracionPage() {
                       más deformación de la que el articulado permite descontar.
                     </p>
                   )}
+                  <PanelFormulas
+                    titulo="Ver desarrollo de las tensiones"
+                    filas={[
+                      { etiqueta: "Brazo mecánico z = d − x/3", valor: `${fmt(resultado.r.dM - resultado.r.xM / 3, 3)} m` },
+                      { etiqueta: "σs", valor: `${fmt(resultado.r.sigmaSMPa, 1)} MPa` },
+                      { etiqueta: "kt (carga cuasipermanente)", valor: "0,40" },
+                      { etiqueta: "εsm − εcm", valor: resultado.r.epsilonSmMenosCm.toExponential(4) },
+                      {
+                        etiqueta: "Piso 0,6·σs/Es",
+                        valor: ((0.6 * resultado.r.sigmaSMPa) / (resultado.n.esGPa * 1000)).toExponential(4),
+                      },
+                    ]}
+                  />
                 </div>
-              </div>
-            </>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

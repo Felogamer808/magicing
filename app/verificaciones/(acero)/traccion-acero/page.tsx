@@ -4,8 +4,11 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -25,6 +28,15 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "traccion-acero")!;
+
+const ETAPAS = [
+  { id: "seccion", titulo: "Sección" },
+  { id: "seccion-critica", titulo: "Agujeros" },
+  { id: "shear-lag", titulo: "Shear lag" },
+  { id: "solicitacion", titulo: "Solicitación" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const SECCION_CRITICA = ["Sin agujeros", "Con agujeros"] as const;
 const CADENA = ["Recta", "En zigzag"] as const;
@@ -116,10 +128,17 @@ export default function TraccionAceroPage() {
     transmision, xBarra, largoConexion, uManual,
   ]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Completá la sección, la longitud, el material y la carga con valores positivos (U entre 0 y 1)." });
+  } else if (resultado.superaEsbeltezRecomendada) {
+    avisos.push({ tipo: "aviso", texto: `L/rmin = ${fmt(resultado.esbeltez, 1)} pasa de 300, el límite que recomienda la nota del art. D1. No es requisito duro.` });
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -129,161 +148,157 @@ export default function TraccionAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          Artículo D2, por el método ASD: fluencia (Ωt = {fmt(OMEGA_T_FLUENCIA, 2)}) sobre la sección
-          bruta y rotura (Ωt = {fmt(OMEGA_T_ROTURA, 2)}) sobre la sección efectiva, descontados los
-          agujeros y corregida por shear lag. Con A36 hace falta perder cerca de un cuarto de la
-          sección antes de que la rotura llegue a gobernar sobre la fluencia; con aceros de mayor
-          límite elástico, mucho menos.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
+        <Etapa id="seccion" numero={1} titulo="Sección y material" descripcion="El perfil, su longitud y el acero.">
           <SelectorSeccionAcero
             familia={seccion.familia}
             paramsTexto={seccion.paramsTexto}
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
-          />
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Longitud y material</h3>
-            </div>
+          >
             <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="lM" etiqueta="Longitud de la barra" sufijo="m" valor={lM} onChange={setLM} />
+              <div />
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="fu" etiqueta="Fu" sufijo="MPa" valor={fu} onChange={setFu} />
             </div>
-          </div>
+          </SelectorSeccionAcero>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Sección crítica — art. B4</h3>
-            </div>
-            <div className="space-y-4">
-              <CampoSeleccion
-                id="seccionCritica"
-                etiqueta="¿La sección crítica tiene agujeros?"
-                valor={seccionCritica}
-                opciones={SECCION_CRITICA}
-                onChange={setSeccionCritica}
-              />
-              {seccionCritica === SECCION_CRITICA[1] && (
-                <>
-                  <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="nAgujeros" etiqueta="Agujeros en la cadena" valor={nAgujeros} onChange={setNAgujeros} />
-                    <CampoNumerico id="diametroAgujero" etiqueta="Diámetro nominal" sufijo="mm" valor={diametroAgujero} onChange={setDiametroAgujero} />
-                    <CampoNumerico id="espesorAgujero" etiqueta="Espesor perforado" sufijo="mm" valor={espesorAgujero} onChange={setEspesorAgujero} />
-                  </div>
-                  <CampoSeleccion id="cadena" etiqueta="Traza de la cadena" valor={cadena} opciones={CADENA} onChange={setCadena} />
-                  {cadena === CADENA[1] && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <CampoNumerico id="zigzagS" etiqueta="Paso longitudinal s" sufijo="mm" valor={zigzagS} onChange={setZigzagS} />
-                      <CampoNumerico id="zigzagG" etiqueta="Paso transversal g" sufijo="mm" valor={zigzagG} onChange={setZigzagG} />
-                    </div>
-                  )}
-                </>
-              )}
-              <PanelAyuda titulo="Por qué el área neta puede ser mayor cortando en diagonal">
-                <p>
-                  Cada agujero descuenta (φnom + 2 mm)·t: el diámetro nominal más 2 mm de holgura
-                  de perforación, ec. (B4-3b). El espesor es el del elemento perforado, no
-                  necesariamente el de catálogo de toda la sección —puede ser sólo un ala o una
-                  chapa soldada aparte—, por eso se carga aparte.
-                </p>
-                <p>
-                  Cuando la cadena de agujeros no es recta, cortar en diagonal alarga el camino de
-                  rotura y por eso la norma <em>devuelve</em> área: suma t·s²/(4g) por cada escalón,
-                  con s el paso a lo largo de la barra y g el paso entre las filas de agujeros que
-                  conecta. Es contraintuitivo —parece que zigzaguear debería perder más sección, y
-                  hace lo contrario— pero es la fibra la que sigue el camino más corto, no la línea
-                  recta.
-                </p>
-              </PanelAyuda>
-            </div>
-          </div>
-
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Shear lag — art. D3</h3>
-            </div>
-            <div className="space-y-4">
-              <CampoSeleccion
-                id="transmision"
-                etiqueta="¿Toda la sección transmite la fuerza?"
-                valor={transmision}
-                opciones={TRANSMISION}
-                onChange={setTransmision}
-              />
-              {transmision === TRANSMISION[1] && (
-                <div className="grid grid-cols-2 gap-4">
-                  <CampoNumerico id="xBarra" etiqueta="Excentricidad x̄" sufijo="mm" valor={xBarra} onChange={setXBarra} />
-                  <CampoNumerico id="largoConexion" etiqueta="Largo de la conexión L" sufijo="mm" valor={largoConexion} onChange={setLargoConexion} />
+        <Etapa id="seccion-critica" numero={2} titulo="Sección crítica" descripcion="Art. B4: los agujeros que descuentan área en la sección por donde rompe.">
+          <div className="max-w-2xl space-y-4">
+            <CampoSeleccion id="seccionCritica" etiqueta="¿La sección crítica tiene agujeros?" valor={seccionCritica} opciones={SECCION_CRITICA} onChange={setSeccionCritica} />
+            {seccionCritica === SECCION_CRITICA[1] && (
+              <>
+                <div className="grid grid-cols-3 gap-4">
+                  <CampoNumerico id="nAgujeros" etiqueta="Agujeros en la cadena" valor={nAgujeros} onChange={setNAgujeros} />
+                  <CampoNumerico id="diametroAgujero" etiqueta="Diámetro nominal" sufijo="mm" valor={diametroAgujero} onChange={setDiametroAgujero} />
+                  <CampoNumerico id="espesorAgujero" etiqueta="Espesor perforado" sufijo="mm" valor={espesorAgujero} onChange={setEspesorAgujero} />
                 </div>
-              )}
-              {transmision === TRANSMISION[2] && (
-                <CampoNumerico id="uManual" etiqueta="U" valor={uManual} onChange={setUManual} />
-              )}
-              <PanelAyuda titulo="Qué es shear lag y por qué no siempre gobierna">
-                <p>
-                  Cuando la fuerza entra por menos que toda la sección —un ángulo tomado de una sola
-                  ala, un perfil conectado sólo por el alma o sólo por las alas—, el tramo cercano a
-                  la conexión no llega a repartir la tensión entre todos los elementos: hace falta
-                  un corte para transmitirla, y ese corte tiene su propio límite. El área efectiva
-                  Ae = U·An, ec. (D3-1), lo recoge bajando el área que se usa contra Fu.
-                </p>
-                <p>
-                  Este formulario resuelve el Caso 2 de la tabla D3.1 —el general, U = 1 − x̄/L—, que
-                  es el que cubre la enorme mayoría de las conexiones reales. La tabla completa tiene
-                  casos más específicos para geometrías particulares (HSS redondos con chapa pasante
-                  entre ellos, por ejemplo) que no están cubiertos acá: si se conoce el U de un caso
-                  así, se carga directo con la tercera opción.
-                </p>
-                <p>
-                  Cuanto más corta la conexión o mayor la excentricidad x̄, más castiga U. Con la
-                  sección soldada en todo su perímetro o abulonada por todos sus elementos, U = 1 y
-                  no hay nada que corregir.
-                </p>
-              </PanelAyuda>
-            </div>
+                <CampoSeleccion id="cadena" etiqueta="Traza de la cadena" valor={cadena} opciones={CADENA} onChange={setCadena} />
+                {cadena === CADENA[1] && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="zigzagS" etiqueta="Paso longitudinal s" sufijo="mm" valor={zigzagS} onChange={setZigzagS} />
+                    <CampoNumerico id="zigzagG" etiqueta="Paso transversal g" sufijo="mm" valor={zigzagG} onChange={setZigzagG} />
+                  </div>
+                )}
+              </>
+            )}
+            <PanelAyuda titulo="Por qué el área neta puede ser mayor cortando en diagonal">
+              <p>
+                Cada agujero descuenta (φnom + 2 mm)·t: el diámetro nominal más 2 mm de holgura
+                de perforación, ec. (B4-3b). El espesor es el del elemento perforado, no
+                necesariamente el de catálogo de toda la sección —puede ser sólo un ala o una
+                chapa soldada aparte—, por eso se carga aparte.
+              </p>
+              <p>
+                Cuando la cadena de agujeros no es recta, cortar en diagonal alarga el camino de
+                rotura y por eso la norma <em>devuelve</em> área: suma t·s²/(4g) por cada escalón,
+                con s el paso a lo largo de la barra y g el paso entre las filas de agujeros que
+                conecta. Es contraintuitivo —parece que zigzaguear debería perder más sección, y
+                hace lo contrario— pero es la fibra la que sigue el camino más corto, no la línea
+                recta.
+              </p>
+            </PanelAyuda>
           </div>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-medium">Solicitación</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="pRequerida" etiqueta="Tracción requerida" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
-          {!resultado ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Completá la sección, la longitud, el material y la carga con valores positivos.
+        <Etapa id="shear-lag" numero={3} titulo="Shear lag" descripcion="Art. D3: si la fuerza entra por toda la sección o sólo por parte.">
+          <div className="max-w-2xl space-y-4">
+            <CampoSeleccion id="transmision" etiqueta="¿Toda la sección transmite la fuerza?" valor={transmision} opciones={TRANSMISION} onChange={setTransmision} />
+            {transmision === TRANSMISION[1] && (
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="xBarra" etiqueta="Excentricidad x̄" sufijo="mm" valor={xBarra} onChange={setXBarra} />
+                <CampoNumerico id="largoConexion" etiqueta="Largo de la conexión L" sufijo="mm" valor={largoConexion} onChange={setLargoConexion} />
               </div>
+            )}
+            {transmision === TRANSMISION[2] && (
+              <CampoNumerico id="uManual" etiqueta="U" valor={uManual} onChange={setUManual} />
+            )}
+            <PanelAyuda titulo="Qué es shear lag y por qué no siempre gobierna">
+              <p>
+                Cuando la fuerza entra por menos que toda la sección —un ángulo tomado de una sola
+                ala, un perfil conectado sólo por el alma o sólo por las alas—, el tramo cercano a
+                la conexión no llega a repartir la tensión entre todos los elementos: hace falta
+                un corte para transmitirla, y ese corte tiene su propio límite. El área efectiva
+                Ae = U·An, ec. (D3-1), lo recoge bajando el área que se usa contra Fu.
+              </p>
+              <p>
+                Este formulario resuelve el Caso 2 de la tabla D3.1 —el general, U = 1 − x̄/L—, que
+                es el que cubre la enorme mayoría de las conexiones reales. La tabla completa tiene
+                casos más específicos para geometrías particulares (HSS redondos con chapa pasante
+                entre ellos, por ejemplo) que no están cubiertos acá: si se conoce el U de un caso
+                así, se carga directo con la tercera opción.
+              </p>
+              <p>
+                Cuanto más corta la conexión o mayor la excentricidad x̄, más castiga U. Con la
+                sección soldada en todo su perímetro o abulonada por todos sus elementos, U = 1 y
+                no hay nada que corregir.
+              </p>
+            </PanelAyuda>
+          </div>
+        </Etapa>
+
+        <Etapa id="solicitacion" numero={4} titulo="Solicitación" descripcion="Tracción requerida de la combinación ASD.">
+          <div className="grid max-w-xl grid-cols-2 gap-4">
+            <CampoNumerico id="pRequerida" etiqueta="Tracción requerida" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
+          </div>
+        </Etapa>
+
+        <Etapa id="revision" numero={5} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Sección", valor: resultado ? resultado.designacion : "—" },
+              { etiqueta: "Longitud", valor: `${lM} m` },
+              { etiqueta: "Fy / Fu", valor: `${fy} / ${fu} MPa` },
+              {
+                etiqueta: "Agujeros",
+                valor: seccionCritica === SECCION_CRITICA[1]
+                  ? `${nAgujeros} × Ø${diametroAgujero} mm en t = ${espesorAgujero} mm${cadena === CADENA[1] ? `, zigzag s ${zigzagS} / g ${zigzagG} mm` : ""}`
+                  : "sin agujeros",
+              },
+              { etiqueta: "Transmisión", valor: transmision },
+              { etiqueta: "P requerida", valor: `${pRequerida} kN` },
+              ...(resultado ? [{ etiqueta: "U", valor: fmt(resultado.u, 3), derivado: true }] : []),
+            ]}
+            hipotesis={[
+              `AISC 360, art. D2, por ASD: fluencia sobre la sección bruta (Ωt = ${fmt(OMEGA_T_FLUENCIA, 2)}) y rotura sobre la efectiva (Ωt = ${fmt(OMEGA_T_ROTURA, 2)}).`,
+              "Cada agujero descuenta (φnom + 2 mm)·t, ec. (B4-3b); en zigzag se suma t·s²/(4g) por escalón.",
+              "Shear lag por el Caso 2 de la tabla D3.1 (U = 1 − x̄/L) o con un U conocido de otro caso.",
+              "La esbeltez L/rmin ≤ 300 de la nota del art. D1 es recomendación: se avisa, no bloquea.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={6} titulo="Resultados">
+          {!resultado ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">Resultado</h3>
-                </div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Fluencia Pn/Ωt", valor: `${fmt(resultado.admisibleFluenciaKN, 1)} kN`, nota: "D2a" },
+                  { etiqueta: "Rotura Pn/Ωt", valor: `${fmt(resultado.admisibleRoturaKN, 1)} kN`, nota: "D2b" },
+                  { etiqueta: "Ae", valor: `${fmt(resultado.areaEfectivaM2 * 1e4, 2)} cm²`, nota: `Ag ${fmt(resultado.areaBrutaM2 * 1e4, 2)} cm²` },
+                  { etiqueta: "L/rmin", valor: fmt(resultado.esbeltez, 1), nota: "recomendado ≤ 300" },
+                ]}
+              />
+
+              <Subgrupo titulo="Resistencia a tracción" detalle={`${resultado.designacion} · gobierna ${resultado.gobierna}`}>
                 <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta={`${resultado.designacion} — tracción admisible`}
+                    etiqueta="Tracción admisible"
                     verifica={resultado.verifica === true}
                     comparacion={{
                       real: { etiqueta: "P requerida", valor: aNumero(pRequerida) },
@@ -291,15 +306,6 @@ export default function TraccionAceroPage() {
                       unidad: "kN", exige: "≤", decimales: 1,
                     }}
                   />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">
-                      Gobierna {resultado.gobierna}: {fmt(resultado.admisibleKN, 1)} kN
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Ag = {fmt(resultado.areaBrutaM2 * 1e4, 2)} cm² · An = {fmt(resultado.areaNetaM2 * 1e4, 2)} cm² · Ae
-                      = {fmt(resultado.areaEfectivaM2 * 1e4, 2)} cm²
-                    </p>
-                  </div>
                   {resultado.superaEsbeltezRecomendada && (
                     <p className="text-xs text-muted-foreground">
                       La esbeltez L/rmin = {fmt(resultado.esbeltez, 1)} pasa de 300. La nota de
@@ -308,36 +314,16 @@ export default function TraccionAceroPage() {
                       duro y no bloquea la verificación de arriba.
                     </p>
                   )}
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">
-                    Fluencia (D2a) · {fmt(resultado.admisibleFluenciaKN, 1)} kN
-                  </h3>
-                </div>
-                <div>
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de la fluencia (D2a)"
                     filas={[
                       { etiqueta: "Ag", valor: `${fmt(resultado.areaBrutaM2 * 1e4, 2)} cm²` },
                       { etiqueta: "Pn = Fy·Ag  (D2-1)", valor: `${fmt(resultado.pnFluenciaKN, 1)} kN` },
                       { etiqueta: `Pn/Ωt con Ωt = ${OMEGA_T_FLUENCIA}`, valor: `${fmt(resultado.admisibleFluenciaKN, 1)} kN` },
                     ]}
                   />
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3">
-                  <h3 className="text-sm font-medium">
-                    Rotura (D2b) · {fmt(resultado.admisibleRoturaKN, 1)} kN
-                  </h3>
-                </div>
-                <div>
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de la rotura (D2b)"
                     filas={[
                       { etiqueta: "An  (B4-3b)", valor: `${fmt(resultado.areaNetaM2 * 1e4, 2)} cm²` },
                       { etiqueta: "U", valor: fmt(resultado.u, 3) },
@@ -347,10 +333,10 @@ export default function TraccionAceroPage() {
                     ]}
                   />
                 </div>
-              </div>
-            </>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

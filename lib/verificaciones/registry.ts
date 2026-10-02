@@ -692,6 +692,18 @@ export function agruparPorCategoria(items: VerificacionMeta[]) {
 }
 
 /** Igual que agruparPorCategoria, para las secciones de un área. */
+/**
+ * Agrupa por sección, con su nombre como título y en el orden de
+ * `registroSecciones`. Es lo que se usa al listar todas juntas: agrupar por
+ * categoría mezclaría piezas de distinto material, porque "Vigas" o "Uniones"
+ * existen en más de una sección.
+ */
+export function agruparPorSeccion(items: VerificacionMeta[]): [string, VerificacionMeta[]][] {
+  return registroSecciones
+    .map((s): [string, VerificacionMeta[]] => [s.nombre, items.filter((v) => v.seccion === s.id)])
+    .filter(([, deLaSeccion]) => deLaSeccion.length > 0);
+}
+
 export function agruparPorGrupo(items: SeccionMeta[]) {
   const grupos = new Map<string, SeccionMeta[]>();
   for (const item of items) {

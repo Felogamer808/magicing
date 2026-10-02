@@ -548,7 +548,7 @@ export default function VigasFlexionCortantePage() {
               </Subgrupo>
 
               <Subgrupo titulo="Estado de rotura con el momento positivo">
-                <div className="mx-auto w-full max-w-md">
+                <div className="mx-auto w-full max-w-xl">
                   <DiagramaRotura
                     bM={aNumero(b)}
                     hM={aNumero(h)}

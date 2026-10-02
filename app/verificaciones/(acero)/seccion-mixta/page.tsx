@@ -10,6 +10,8 @@ import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
+import { LeyendaTecnica } from "@/components/verificaciones/comun/LeyendaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { DiagramaCFT } from "@/components/verificaciones/acero/DiagramaCFT";
 import { calcularSeccionMixta } from "@/lib/calc/acero/seccion-mixta";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
@@ -137,9 +139,40 @@ export default function SeccionMixtaPage() {
             <>
               <Card className="drafting-marks">
                 <CardHeader><CardTitle className="text-base">Sección</CardTitle></CardHeader>
-                <CardContent className="flex flex-col items-center gap-3 py-2">
-                  <DiagramaCFT dMm={resultado.n.dMm} tMm={resultado.n.tMm} numeroBarras={resultado.n.nBarras} diametroBarraMm={resultado.n.phiBarra} />
-                  <div className="flex gap-2">
+                <CardContent className="space-y-4 py-2">
+                  <div className="grid items-center gap-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                    <div className="flex justify-center">
+                      <DiagramaCFT dMm={resultado.n.dMm} tMm={resultado.n.tMm} numeroBarras={resultado.n.nBarras} diametroBarraMm={resultado.n.phiBarra} />
+                    </div>
+                    <PanelMetricas
+                      metricas={[
+                        {
+                          etiqueta: "Tubo de acero",
+                          valor: `${fmt(resultado.r.propiedades.asM2 * 1e4, 1)} cm²`,
+                          nota: `${fmt((resultado.r.propiedades.asM2 / resultado.r.propiedades.agM2) * 100, 1)} % del área bruta`,
+                        },
+                        {
+                          etiqueta: "Núcleo de hormigón",
+                          valor: `${fmt(resultado.r.propiedades.acM2 * 1e4, 1)} cm²`,
+                          nota: `${fmt((resultado.r.propiedades.acM2 / resultado.r.propiedades.agM2) * 100, 1)} % del área bruta`,
+                        },
+                        {
+                          etiqueta: "Armadura",
+                          valor: `${fmt(resultado.r.propiedades.asrM2 * 1e4, 2)} cm²`,
+                          nota: `${fmt((resultado.r.propiedades.asrM2 / resultado.r.propiedades.agM2) * 100, 2)} % — mínimo 0,4 %`,
+                          destacada: !resultado.r.propiedades.verificaArmaduraMinima,
+                        },
+                      ]}
+                    />
+                  </div>
+                  <LeyendaTecnica
+                    entradas={[
+                      { color: "var(--mat-acero)", etiqueta: "Tubo de acero", nota: `Fy ${fmt(resultado.n.fy, 0)} MPa`, rayado: true },
+                      { color: "var(--mat-hormigon)", etiqueta: "Hormigón de relleno", nota: `f'c ${fmt(resultado.n.fc, 0)} MPa` },
+                      { color: "var(--mat-armadura)", etiqueta: "Armadura longitudinal" },
+                    ]}
+                  />
+                  <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary" className="font-mono">Compresión: {resultado.r.compresion.clase}</Badge>
                     <Badge variant="secondary" className="font-mono">Flexión: {resultado.r.flexion.clase}</Badge>
                   </div>

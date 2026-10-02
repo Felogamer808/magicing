@@ -33,6 +33,14 @@ export const GAMMA_C = 1.5;
 export const GAMMA_S = 1.15;
 
 /**
+ * β1 — fracción del máximo momento del vano para la que se dimensiona la
+ * sección de apoyo en construcción monolítica, aunque en proyecto se hayan
+ * supuesto apoyos simples (empotramiento parcial).
+ * Anejo 19, art. 9.2.1.2 (1), pág. 140.
+ */
+export const BETA_1_EMPOTRAMIENTO_PARCIAL = 0.15;
+
+/**
  * γF — coeficiente único con el que zapatas y pilotes mayoran su carga vertical.
  * Esas verificaciones reciben cargas características: el terreno se comprueba
  * con Nk sin mayorar, pero el armado y el punzonamiento necesitan Nd.

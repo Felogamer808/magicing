@@ -49,6 +49,16 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
         filas: [
           { etiqueta: "Mmax +", valor: `${fmt(v.momentoPos)} kN·m` },
           { etiqueta: "Mmax −", valor: `${fmt(v.momentoNeg)} kN·m` },
+          // Si el mínimo de apoyo gobernó, la memoria tiene que decir con qué
+          // momento se dimensionó la armadura superior, no sólo el cargado.
+          ...(r.gobiernaMinimoApoyo
+            ? [
+                {
+                  etiqueta: "M− de cálculo (0,15·M+, Anejo 19 art. 9.2.1.2)",
+                  valor: `${fmt(r.momentoNegativoCalculo)} kN·m`,
+                },
+              ]
+            : []),
           { etiqueta: "Vd", valor: `${fmt(v.vd)} kN` },
         ],
       },

@@ -90,6 +90,8 @@ export default function VigasFlexionCortantePage() {
   const [numeroNeg2, setNumeroNeg2] = useCampo("numeroNeg2", "0");
   const [diametroNeg2, setDiametroNeg2] = useCampo("diametroNeg2", "12");
 
+  const [monolitica, setMonolitica] = useCampo("monolitica", "si");
+
   const [vd, setVd] = useCampo("vd", "1076");
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
@@ -106,13 +108,13 @@ export default function VigasFlexionCortantePage() {
         fck, fyk, b, h, recubrimiento,
         momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
         momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
-        vd, diametroEstribo, numeroRamas,
+        vd, diametroEstribo, numeroRamas, monolitica,
       }),
     [
     fck, fyk, b, h, recubrimiento,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
-    vd, diametroEstribo, numeroRamas,
+    vd, diametroEstribo, numeroRamas, monolitica,
     ]
   );
 
@@ -205,6 +207,11 @@ export default function VigasFlexionCortantePage() {
     avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
   } else {
     if (noEntra.inferior) avisos.push({ tipo: "aviso", texto: "La armadura inferior no entra en el ancho disponible." });
+    if (resultado.gobiernaMinimoApoyo)
+      avisos.push({
+        tipo: "aviso",
+        texto: `La armadura superior se dimensiona para el mínimo de apoyo, ${fmt(resultado.momentoNegativoCalculo, 1)} kN·m, mayor que el M− cargado.`,
+      });
     if (noEntra.superior) avisos.push({ tipo: "aviso", texto: "La armadura superior no entra en el ancho disponible." });
   }
 
@@ -280,6 +287,32 @@ export default function VigasFlexionCortantePage() {
                 momentoNegativoKNm={aNumero(momentoNeg) || 0}
                 resaltar={resaltarMomento}
               />
+            </div>
+            <div className="space-y-1">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  id="monolitica"
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+                  checked={monolitica === "si"}
+                  onChange={(e) => setMonolitica(e.target.checked ? "si" : "no")}
+                />
+                <span>
+                  Construcción monolítica: el apoyo se dimensiona para al menos 0,15·M+
+                  <span className="ml-1 font-mono text-[11px] text-muted-foreground">
+                    Anejo 19, art. 9.2.1.2 (1)
+                  </span>
+                </span>
+              </label>
+              {resultado?.gobiernaMinimoApoyo && (
+                <p className="pl-6 font-mono text-[13px] tabular-nums">
+                  M− de cálculo = 0,15 · {fmt(resultado.v.momentoPos, 1)} ={" "}
+                  <strong>{fmt(resultado.momentoNegativoCalculo, 1)} kN·m</strong>
+                  <span className="ml-2 font-sans text-xs text-muted-foreground">
+                    gobierna sobre el M− cargado ({fmt(resultado.v.momentoNeg, 1)} kN·m)
+                  </span>
+                </p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Los dos momentos y el cortante se cargan en valor absoluto. El signo sólo dice qué
@@ -377,6 +410,9 @@ export default function VigasFlexionCortantePage() {
               "Cortante con estribos verticales, brazo 0,9·d y fyd de estribos limitada a 400 MPa.",
               "La cuantía ρl del cortante se toma con la armadura superior.",
               "La separación de estribos la dimensiona la herramienta: no es un dato.",
+              monolitica === "si"
+                ? "Construcción monolítica: M− de cálculo ≥ 0,15·M+ (Anejo 19, art. 9.2.1.2 (1), pág. 140)."
+                : "Sin mínimo de empotramiento parcial: la viga no es monolítica con sus apoyos.",
             ]}
             avisos={avisos}
           />
@@ -474,6 +510,10 @@ export default function VigasFlexionCortantePage() {
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión negativa"
                     filas={[
+                      {
+                        etiqueta: "M− de cálculo",
+                        valor: `${fmt(resultado.momentoNegativoCalculo, 2)} kN·m${resultado.gobiernaMinimoApoyo ? " (0,15·M+)" : ""}`,
+                      },
                       { etiqueta: "d", valor: `${fmt(resultado.d, 3)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionNegativa.mu, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionNegativa.omega, 5) },

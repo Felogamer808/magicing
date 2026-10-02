@@ -1,8 +1,9 @@
 "use client";
 
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa } from "@/components/verificaciones/comun/HojaTecnica";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -123,7 +124,8 @@ export default function PropiedadesGeometricasPage() {
   const estado = calcularEstado(def, textos);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Secciones · Herramientas de análisis</p>
@@ -133,16 +135,18 @@ export default function PropiedadesGeometricasPage() {
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
+      <EncabezadoEtapa id="datos" numero={1} titulo="Herramienta" descripcion="Datos y resultados se actualizan juntos." />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           No hay una fórmula por perfil: se integra el contorno por el teorema de Green, así que
           cada sección es nada más que la lista de sus vértices. Eso da además el producto de
           inercia I<sub>xy</sub> y la orientación de los ejes principales, que es lo que una tabla
           de perfiles no suele traer y lo que explica que un ángulo cargado en vertical flecte
           también de costado.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/*
         Los datos ocupan una columna angosta y el dibujo la ancha, al lado, para
@@ -156,11 +160,11 @@ export default function PropiedadesGeometricasPage() {
       */}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Sección</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Sección</h3>
+            </div>
+            <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <CampoSeleccion
                   id="familia"
@@ -187,14 +191,14 @@ export default function PropiedadesGeometricasPage() {
                 />
               </div>
               <p className="text-sm text-muted-foreground">{def.descripcion}</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Dimensiones</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Dimensiones</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               {def.parametros.map((q) => {
                 const unidad = q.unidad ?? "cm";
                 return (
@@ -209,8 +213,8 @@ export default function PropiedadesGeometricasPage() {
                   />
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/*
@@ -220,11 +224,11 @@ export default function PropiedadesGeometricasPage() {
           subirlo a 32rem lo deja gobernado por el ancho de la columna, no por el
           alto. Debajo de xl vuelve a valer el tope general.
         */}
-        <Card className="self-start xl:[&_svg]:max-h-[32rem]">
-          <CardHeader>
-            <CardTitle className="text-base">Dibujo</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="border-t border-border/60 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium">Dibujo</h3>
+          </div>
+          <div>
             {estado.ok ? (
               <>
                 <DiagramaSeccion
@@ -240,21 +244,22 @@ export default function PropiedadesGeometricasPage() {
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
         {!estado.ok ? (
-          <Card className="md:col-span-2 xl:col-span-3">
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          <div className="border-t border-border/60 pt-5">
+            <div className="py-10 text-center text-sm text-muted-foreground">
               {estado.motivo}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           <ResultadoPropiedades datos={estado.datos} />
         )}
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }
@@ -274,49 +279,49 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Área y centroide</CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Área y centroide</h3>
+        </div>
+        <div className="py-0">
           <Dato etiqueta="Área A" valor={`${fmt(p.areaCm2, 2)} cm²`} />
           <Dato etiqueta="Perímetro" valor={`${fmt(p.perimetroCm, 2)} cm`} />
           <Dato etiqueta="Centroide xG" valor={`${fmt(p.centroideXCm, 3)} cm`} />
           <Dato etiqueta="Centroide yG" valor={`${fmt(p.centroideYCm, 3)} cm`} />
           <Dato etiqueta="Envolvente" valor={`${fmt(p.anchoTotalCm, 1)} × ${fmt(p.altoTotalCm, 1)} cm`} />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Inercias respecto del centroide</CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Inercias respecto del centroide</h3>
+        </div>
+        <div className="py-0">
           <Dato etiqueta={<>I<sub>x</sub></>} valor={`${fmt(p.ixCm4, 1)} cm⁴`} />
           <Dato etiqueta={<>I<sub>y</sub></>} valor={`${fmt(p.iyCm4, 1)} cm⁴`} />
           <Dato etiqueta={<>I<sub>xy</sub></>} valor={`${fmt(p.ixyCm4, 1)} cm⁴`} />
           <Dato etiqueta={<>Radio de giro i<sub>x</sub></>} valor={`${fmt(p.radioGiroXCm, 3)} cm`} />
           <Dato etiqueta={<>Radio de giro i<sub>y</sub></>} valor={`${fmt(p.radioGiroYCm, 3)} cm`} />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Módulos resistentes elásticos</CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Módulos resistentes elásticos</h3>
+        </div>
+        <div className="py-0">
           <Dato etiqueta={<>W<sub>x</sub> fibra superior (v = {fmt(p.ySuperiorCm, 2)} cm)</>} valor={w(p.wxSuperiorCm3)} />
           <Dato etiqueta={<>W<sub>x</sub> fibra inferior (v = {fmt(p.yInferiorCm, 2)} cm)</>} valor={w(p.wxInferiorCm3)} />
           <Dato etiqueta={<>W<sub>y</sub> izquierda (v = {fmt(p.xIzquierdoCm, 2)} cm)</>} valor={w(p.wyIzquierdoCm3)} />
           <Dato etiqueta={<>W<sub>y</sub> derecha (v = {fmt(p.xDerechoCm, 2)} cm)</>} valor={w(p.wyDerechoCm3)} />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ejes principales</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Ejes principales</h3>
+        </div>
+        <div className="space-y-3 pt-0">
           <div>
             <Dato etiqueta={<>I<sub>1</sub> (máxima)</>} valor={`${fmt(p.i1Cm4, 1)} cm⁴`} />
             <Dato etiqueta={<>I<sub>2</sub> (mínima)</>} valor={`${fmt(p.i2Cm4, 1)} cm⁴`} />
@@ -336,8 +341,8 @@ function ResultadoPropiedades({ datos }: { datos: ContornoConPropiedades }) {
               { etiqueta: "Comprobación I1 + I2 = Ix + Iy", valor: `${fmt(p.i1Cm4 + p.i2Cm4, 1)} = ${fmt(p.ixCm4 + p.iyCm4, 1)} cm⁴` },
             ]}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </>
   );
 }

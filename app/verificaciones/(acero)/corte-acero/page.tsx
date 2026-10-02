@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -95,7 +96,8 @@ export default function CorteAceroPage() {
   }, [seccion.familia, seccion.params, seccion.completos, conRigidizadores, aRigidizadores, lv, fy, e, vRequerido]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Vigas · Estructuras metálicas</p>
@@ -106,18 +108,22 @@ export default function CorteAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           <strong>G2</strong> en perfiles I y canales, sin acción de campo tensional;{" "}
           <strong>G4</strong> en tubos rectangulares y cajones, donde resisten las dos caras;{" "}
           <strong>G5</strong> en tubos redondos, que trabajan con media sección y necesitan la
           distancia del corte máximo al nulo. Ojo con el coeficiente de seguridad: solo las almas
           robustas de perfiles I laminados (h/tw ≤ 2,24·√(E/Fy)) van con Ωv = 1,50 por el art.
           G1(a). Los canales y los tubos usan siempre 1,67.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <SelectorSeccionAcero
             familia={seccion.familia}
@@ -127,11 +133,11 @@ export default function CorteAceroPage() {
             onParamChange={seccion.cambiarParam}
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Alma y material</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Alma y material</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5 y G5 no los usa. */}
               {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && (
                 <>
@@ -165,14 +171,14 @@ export default function CorteAceroPage() {
               )}
               <CampoNumerico id="fyCorte" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eCorte" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solicitación</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Solicitación</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="vRequerido"
                 etiqueta="Corte requerido"
@@ -180,24 +186,26 @@ export default function CorteAceroPage() {
                 valor={vRequerido}
                 onChange={setVRequerido}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, el material y el corte con valores positivos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resultado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Resultado</h3>
+                </div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — corte admisible (art. ${resultado.articulo})`}
                     verifica={resultado.verifica === true}
@@ -240,21 +248,22 @@ export default function CorteAceroPage() {
                       </>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Detalle</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Detalle</h3>
+                </div>
+                <div>
                   <PanelFormulas titulo="Ver cálculo" filas={filasDe(resultado)} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

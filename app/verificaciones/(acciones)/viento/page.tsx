@@ -3,11 +3,12 @@
 import { useMemo } from "react";
 import { Plus, X } from "lucide-react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -256,7 +257,8 @@ export default function VientoPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Acciones</p>
@@ -267,8 +269,11 @@ export default function VientoPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           γ0 se calcula solo a partir de la envolvente en planta (el mayor a y el mayor b entre los
           niveles cargados) y la altura total (fig. 8.2), para el caso habitual de construcciones
           apoyadas en el suelo con λa&lt;0,5 o λb&lt;1. Fuera de ese rango (edificios altos en
@@ -278,14 +283,15 @@ export default function VientoPage() {
           nivel, no en pc (art. 6.2.6.2). El coeficiente de caras laterales y techo (Ce, fig. 8.6,
           α=0°) también sale de γ solo. Cada lado (A y B) es una dirección de viento distinta, con
           su propio γ, y por eso se cargan por separado.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría y niveles</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría y niveles</h3></div>
+            <div className="space-y-4">
               <CroquisGeometriaViento />
               <CroquisPlantaViento />
               <div className="space-y-3">
@@ -348,12 +354,12 @@ export default function VientoPage() {
                   ? `${geometria.numericos.length} niveles · coronación a ${fmt(geometria.alturaTotal)} m · envolvente ${fmt(geometria.aEnvolvente)}×${fmt(geometria.bEnvolvente)} m.`
                   : "Completá cada nivel con altura de piso, a, b y repeticiones positivos."}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sitio y seguridad</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sitio y seguridad</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoSeleccion id="velocidad" etiqueta="Velocidad" valor={velocidad} opciones={["Costero", "Continental"]} onChange={(v) => setVelocidad(v as TipoVelocidad)} />
               <CampoSeleccion id="topografia" etiqueta="Topografía" valor={topografia} opciones={["Normal", "Expuesto", "Protegido"]} onChange={(v) => setTopografia(v as TipoTopografia)} />
               <CampoSeleccion id="terreno" etiqueta="Terreno" valor={terreno} opciones={["I", "II", "III", "IV"]} onChange={(v) => setTerreno(v as TipoTerreno)} />
@@ -404,13 +410,13 @@ export default function VientoPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {coeficientesSitio && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Coeficientes del sitio</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3"><h3 className="text-sm font-medium">Coeficientes del sitio</h3></div>
+              <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <CampoValorCalculado
                     id="vk"
@@ -460,13 +466,13 @@ export default function VientoPage() {
                     ...(resultado ? [{ etiqueta: "a/b", valor: fmt(resultado.r.relacionAB, 3) }] : []),
                   ]}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Lado A (+X) — γ0,a</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Lado A (+X) — γ0,a</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoGamma0
                 id="gammaA"
                 etiqueta="γ0,a"
@@ -483,12 +489,12 @@ export default function VientoPage() {
                 valor={fmt(ceLateralAEfectivo, 2)}
                 nota="fig. 8.6, α=0°"
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Lado B (+Y) — γ0,b</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Lado B (+Y) — γ0,b</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoGamma0
                 id="gammaB"
                 etiqueta="γ0,b"
@@ -505,18 +511,20 @@ export default function VientoPage() {
                 valor={fmt(ceLateralBEfectivo, 2)}
                 nota="fig. 8.6, α=0°"
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los niveles (altura de piso, a y b positivos) y γ positivo en ambos lados
                 para ver los resultados.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
               <BloqueLado
@@ -539,6 +547,7 @@ export default function VientoPage() {
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }
@@ -667,9 +676,9 @@ function BloqueLado({
   const ladoSlug = titulo.replace(/[^a-zA-Z0-9]/g, "");
 
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">{titulo}</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
+    <div className="border-t border-border/60 pt-5">
+      <div className="mb-3"><h3 className="text-sm font-medium">{titulo}</h3></div>
+      <div className="space-y-4">
         <div className="grid grid-cols-3 gap-4">
           {caso.caras.map((cara) => (
             <CampoValorCalculado
@@ -768,7 +777,7 @@ function BloqueLado({
         </div>
 
         <DiagramaCargaViento alturaTotalM={alturaTotalM} niveles={niveles} />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

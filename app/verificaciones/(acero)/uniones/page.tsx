@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -101,7 +102,8 @@ export default function UnionesPage() {
   }, [fy, fu, fck, lx, ly, tChapa, dPerno, lc, nPernos, ag, ae, nMax, cortePerno, momentoPernos, distancias]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Uniones</p>
@@ -112,13 +114,17 @@ export default function UnionesPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
       {/* ---------- Soldadura ---------- */}
       <h2 className="spec-label border-b pb-2">Cordón de soldadura en perfil H</h2>
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Perfil y cordón</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Perfil y cordón</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisPerfilSoldadura />
               </div>
@@ -136,29 +142,31 @@ export default function UnionesPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solicitaciones</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Solicitaciones</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="px" etiqueta="Px" sufijo="kN" valor={px} onChange={setPx} />
               <CampoNumerico id="py" etiqueta="Py" sufijo="kN" valor={py} onChange={setPy} />
               <CampoNumerico id="pz" etiqueta="Pz" sufijo="kN" valor={pz} onChange={setPz} />
               <CampoNumerico id="mx" etiqueta="Mx" sufijo="kN·m" valor={mx} onChange={setMx} />
               <CampoNumerico id="my" etiqueta="My" sufijo="kN·m" valor={my} onChange={setMy} />
               <CampoNumerico id="mz" etiqueta="Mz" sufijo="kN·m" valor={mz} onChange={setMz} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!soldadura ? (
-            <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Completá los datos del perfil.</CardContent></Card>
+            <div className="border-t border-border/60 pt-5"><div className="py-10 text-center text-sm text-muted-foreground">Completá los datos del perfil.</div></div>
           ) : (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Verificación del cordón</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3"><h3 className="text-sm font-medium">Verificación del cordón</h3></div>
+              <div className="space-y-3">
                 <ResultadoCheck
                   etiqueta={`Tensión admisible del electrodo ${electrodo}`}
                   verifica={soldadura.verifica}
@@ -185,8 +193,8 @@ export default function UnionesPage() {
                     { etiqueta: "τ por momento (x, y, z)", valor: `${fmt(soldadura.tauXMKPa / 1000, 1)} / ${fmt(soldadura.tauYMKPa / 1000, 1)} / ${fmt(soldadura.tauZMKPa / 1000, 1)} MPa` },
                   ]}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -195,18 +203,18 @@ export default function UnionesPage() {
       <h2 className="spec-label border-b pb-2 pt-4">Chapa de base con pernos de anclaje</h2>
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="fu" etiqueta="Fu" sufijo="MPa" valor={fu} onChange={setFu} />
               <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Chapa y pernos</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Chapa y pernos</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisChapaBase />
               </div>
@@ -218,12 +226,12 @@ export default function UnionesPage() {
               <CampoNumerico id="nPernos" etiqueta="Nº pernos" valor={nPernos} onChange={setNPernos} />
               <CampoNumerico id="ag" etiqueta="Ag" sufijo="m²" valor={ag} onChange={setAg} />
               <CampoNumerico id="ae" etiqueta="Ae" sufijo="m²" valor={ae} onChange={setAe} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solicitaciones</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Solicitaciones</h3></div>
+            <div className="grid grid-cols-1 gap-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="nMax" etiqueta="N máx" sufijo="kN" valor={nMax} onChange={setNMax} />
                 <CampoNumerico id="cortePerno" etiqueta="Corte" sufijo="kN" valor={cortePerno} onChange={setCortePerno} />
@@ -239,18 +247,18 @@ export default function UnionesPage() {
                   className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
           {!chapa ? (
-            <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Completá los datos de la chapa (Lx debe superar 0,12 m).</CardContent></Card>
+            <div className="border-t border-border/60 pt-5"><div className="py-10 text-center text-sm text-muted-foreground">Completá los datos de la chapa (Lx debe superar 0,12 m).</div></div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Verificaciones</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Verificaciones</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="I. Aplastamiento del hormigón"
                     verifica={chapa.aplastamientoHormigon.verifica}
@@ -296,12 +304,12 @@ export default function UnionesPage() {
                       unidad: "kN", exige: "≤",
                     }}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Fuerza en cada fila de pernos</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Fuerza en cada fila de pernos</h3></div>
+                <div>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
                     {chapa.fuerzasPernosKN.map((f, i) => (
                       <div key={i} className="contents">
@@ -310,12 +318,13 @@ export default function UnionesPage() {
                       </div>
                     ))}
                   </dl>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

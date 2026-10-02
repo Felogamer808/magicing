@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -198,7 +199,8 @@ export default function MaderaFuegoPage() {
   }, [ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, carasDibujo]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Situación accidental</p>
@@ -209,22 +211,26 @@ export default function MaderaFuegoPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           La madera es el único material estructural que se verifica a fuego{" "}
           <strong className="text-foreground">quitando sección</strong> en vez de bajando
           resistencias. La capa carbonizada no resiste pero protege: por dentro de la línea de
           carbonización la madera sigue fría y conserva su resistencia entera. Por eso una viga de
           buena escuadría aguanta 60 minutos sin ninguna protección, y por eso la resistencia al
           fuego se compra con canto y no con tratamientos.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Exposición</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Exposición</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="tipo" etiqueta="Material" valor={tipo} opciones={TIPOS} onChange={setTipo} />
               <CampoSeleccion id="especie" etiqueta="Especie (tabla 3.1)" valor={especie}
                               opciones={ESPECIES} onChange={setEspecie} />
@@ -300,12 +306,12 @@ export default function MaderaFuegoPage() {
                   no arde es canto útil que se conserva entero.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sección y esfuerzos</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sección y esfuerzos</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
                 <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
@@ -321,20 +327,22 @@ export default function MaderaFuegoPage() {
                 Los esfuerzos son los de la combinación accidental de incendio, bastante menores
                 que los de ELU: las variables entran con ψ1 o ψ2 y no con γQ.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá sección, tiempo de exposición y resistencias con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : r.agotada ? (
-            <Card>
-              <CardContent className="space-y-3 py-8 text-center">
+            <div className="border-t border-border/60 pt-5">
+              <div className="space-y-3 py-8 text-center">
                 <p className="text-sm font-medium text-destructive">
                   A los {fmt(aNumero(tiempo), 0)} minutos no queda sección eficaz.
                 </p>
@@ -343,13 +351,13 @@ export default function MaderaFuegoPage() {
                   sección no da para tanto. Hay que engrosar la escuadría, reducir el tiempo
                   requerido o proteger las caras expuestas.
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   {aNumero(momento) > 0 && (
                     <ResultadoCheck
                       etiqueta="Flexión sobre la sección eficaz"
@@ -377,14 +385,14 @@ export default function MaderaFuegoPage() {
                     tensión resistente en incendio es {fmt(r.relacion, 2)} veces la de frío, así que
                     si la pieza no verifica el problema es de sección y no de clase resistente.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Qué cambia respecto del cálculo en frío</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Qué cambia respecto del cálculo en frío</h3>
+                </div>
+                <div className="space-y-3">
                   <dl className="divide-y divide-border/60 text-sm">
                     {[
                       {
@@ -428,12 +436,12 @@ export default function MaderaFuegoPage() {
                     está flexión y vuelco lateral. Lo que se compara acá es la sección y el
                     material, que sí son la misma pieza mirada en dos momentos.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Sección carbonizada</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Sección carbonizada</h3></div>
+                <div className="space-y-4">
                   {/*
                     La sección deja de ser un dibujito dentro de una tarjeta
                     vacía: ocupa el ancho, lleva su leyenda debajo y las
@@ -560,12 +568,13 @@ export default function MaderaFuegoPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

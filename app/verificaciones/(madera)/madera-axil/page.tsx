@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -158,7 +159,8 @@ export default function MaderaAxilPage() {
       cargaApoyo, anchoApoyo, largoApoyo, vuelo, vecina, apoyo]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
@@ -169,20 +171,24 @@ export default function MaderaAxilPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           La madera es el material donde más se separan las dos compresiones: fc,90,k anda por 2,5
           MPa contra 21 de fc,0,k, un factor diez. Por eso el apoyo de una viga —que trabaja
           perpendicular a la fibra— decide el canto tan a menudo como la flexión, y por eso el art.
           6.1.5 se toma el trabajo de definir un área eficaz mayor que la de contacto.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material y sección</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material y sección</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -202,12 +208,12 @@ export default function MaderaAxilPage() {
                 <CampoNumerico id="fc90k" etiqueta="fc,90,k" sufijo="MPa" valor={fc90k} onChange={setFc90k} />
                 <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Axil paralelo a la fibra</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Axil paralelo a la fibra</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="traccion" etiqueta="Nt,d (tracción)" sufijo="kN"
                                valor={traccion} onChange={setTraccion} />
@@ -233,12 +239,12 @@ export default function MaderaAxilPage() {
                   Extenderlo a fc,0,k sería inventar resistencia.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Apoyo: compresión perpendicular</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Apoyo: compresión perpendicular</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="cargaApoyo" etiqueta="Fc,90,d" sufijo="kN"
                                valor={cargaApoyo} onChange={setCargaApoyo} />
@@ -268,22 +274,24 @@ export default function MaderaAxilPage() {
                   Va de 1,0 a 1,75 y acá se calcula, diciendo el motivo del valor que salió.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá sección, resistencias y longitudes de pandeo con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   {r.rTraccion && (
                     <ResultadoCheck
                       etiqueta="Tracción paralela, ec. (6.1)"
@@ -324,13 +332,13 @@ export default function MaderaAxilPage() {
                       kc,90 = {fmt(r.factorKc90.kc90, 2)}. {r.factorKc90.motivo}
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {r.rCompresion && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Pandeo</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Pandeo</h3></div>
+                  <div className="space-y-4">
                     <CurvaPandeoMadera
                       tipo={r.t}
                       fc0kMPa={r.fc0kV}
@@ -354,14 +362,14 @@ export default function MaderaAxilPage() {
                         { etiqueta: "kc adoptado (el menor)", valor: fmt(r.rCompresion.kc, 3) },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {r.rPerpendicular && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Área eficaz de apoyo</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Área eficaz de apoyo</h3></div>
+                  <div className="space-y-4">
                     <CroquisApoyoMadera
                       longitudContactoM={r.la}
                       incrementoExtremoM={r.rPerpendicular.incrementoExtremoM}
@@ -380,13 +388,13 @@ export default function MaderaAxilPage() {
                         { etiqueta: "kc,90·fc,90,d", valor: `${fmt(r.rPerpendicular.resistenciaReducidaMPa, 3)} MPa` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resistencias de cálculo</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resistencias de cálculo</h3></div>
+                <div>
                   <PanelFormulas
                     titulo="Ver desarrollo"
                     filas={[
@@ -400,12 +408,13 @@ export default function MaderaAxilPage() {
                       { etiqueta: "fc,90,d", valor: `${fmt(r.fc90d.valor, 3)} MPa` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

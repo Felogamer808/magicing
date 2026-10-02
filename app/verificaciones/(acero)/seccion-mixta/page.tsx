@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -65,7 +66,8 @@ export default function SeccionMixtaPage() {
   }, [es, fy, fc, ec, dMm, tMm, lM, phiBarra, nBarras, p, m, v, yG, lFuego]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Pilares</p>
@@ -76,29 +78,33 @@ export default function SeccionMixtaPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Válido para secciones circulares rellenas de hormigón. A diferencia del resto de la
           herramienta, este cálculo sigue AISC 360 por el método de tensiones admisibles (ASD),
           que es lo que usa la planilla original para este elemento.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="es" etiqueta="Es" sufijo="MPa" valor={es} onChange={setEs} />
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="fc" etiqueta="f'c" sufijo="MPa" valor={fc} onChange={setFc} />
               <CampoNumerico id="ec" etiqueta="Ec" sufijo="MPa" valor={ec} onChange={setEc} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="col-span-full">
                 <CroquisSeccionMixta />
               </div>
@@ -108,38 +114,40 @@ export default function SeccionMixtaPage() {
               <CampoDiametro id="phiBarra" etiqueta="Ø armadura" valor={phiBarra} onChange={setPhiBarra} />
               <CampoNumerico id="nBarras" etiqueta="Nº barras" valor={nBarras} onChange={setNBarras} />
               <CampoNumerico id="yG" etiqueta="yG" sufijo="mm" valor={yG} onChange={setYG} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solicitaciones de servicio</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Solicitaciones de servicio</h3></div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <CampoNumerico id="p" etiqueta="P" sufijo="kN" valor={p} onChange={setP} />
               <CampoNumerico id="m" etiqueta="M" sufijo="kN·m" valor={m} onChange={setM} />
               <CampoNumerico id="v" etiqueta="V" sufijo="kN" valor={v} onChange={setV} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Situación de incendio</CardTitle></CardHeader>
-            <CardContent>
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Situación de incendio</h3></div>
+            <div>
               <CampoNumerico id="lFuego" etiqueta="Longitud de pandeo" sufijo="m" valor={lFuego} onChange={setLFuego} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá los datos con valores válidos (el espesor debe ser menor que el radio).
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card className="drafting-marks">
-                <CardHeader><CardTitle className="text-base">Sección</CardTitle></CardHeader>
-                <CardContent className="space-y-4 py-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Sección</h3></div>
+                <div className="space-y-4 py-2">
                   <div className="grid items-center gap-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
                     <div className="flex justify-center">
                       <DiagramaCFT dMm={resultado.n.dMm} tMm={resultado.n.tMm} numeroBarras={resultado.n.nBarras} diametroBarraMm={resultado.n.phiBarra} />
@@ -176,12 +184,12 @@ export default function SeccionMixtaPage() {
                     <Badge variant="secondary" className="font-mono">Compresión: {resultado.r.compresion.clase}</Badge>
                     <Badge variant="secondary" className="font-mono">Flexión: {resultado.r.flexion.clase}</Badge>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Compresión</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Compresión</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Carga axial admisible"
                     verifica={resultado.r.compresion.verificaCompresion}
@@ -212,12 +220,12 @@ export default function SeccionMixtaPage() {
                       { etiqueta: "Pn", valor: `${fmt(resultado.r.compresion.pnKN)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Flexión y corte</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Flexión y corte</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Momento admisible"
                     verifica={resultado.r.flexion.verificaFlexion}
@@ -246,24 +254,25 @@ export default function SeccionMixtaPage() {
                       { etiqueta: "Vn", valor: `${fmt(resultado.r.corte.vnKN)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Situación de incendio</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Situación de incendio</h3></div>
+                <div className="space-y-2">
                   <p className="font-mono text-sm">Nfi,cr = {fmt(resultado.r.fuego.nfiCrKN)} kN</p>
                   <p className="text-xs text-muted-foreground">
                     Carga crítica de pandeo con los módulos reducidos por temperatura
                     (Es,θ = 0,31·Es y Ec,θ = 0,15·Ec, valores fijos de la planilla para ~600 °C).
                     Es un valor de referencia: compararlo con la carga en situación de incendio.
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

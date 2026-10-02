@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
@@ -140,7 +141,8 @@ export default function PretensadoPage() {
   const escalaCanto = aNumero(hC) || 1;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Vigas y losas · Hormigón pretensado</p>
@@ -151,20 +153,24 @@ export default function PretensadoPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Pieza pretesada según ACI 318-19. El cálculo va en dos etapas y esa distinción es la que
           manda: el pretensado se introduce sobre la <strong>sección simple</strong> —la pieza
           premoldeada sola— y las cargas posteriores actúan sobre la <strong>sección compuesta</strong>,
           ya con la carpeta. Por eso se cargan las dos por separado.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Materiales</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Materiales</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fc" etiqueta="f'c premoldeado" sufijo="MPa" valor={fc} onChange={setFc} />
               <CampoNumerico id="fci" etiqueta="f'ci (transferencia)" sufijo="MPa" valor={fci} onChange={setFci} />
               <CampoNumerico id="fcSitu" etiqueta="f'c in situ (carpeta)" sufijo="MPa" valor={fcSitu} onChange={setFcSitu} />
@@ -172,12 +178,12 @@ export default function PretensadoPage() {
               <CampoNumerico id="areaToron" etiqueta="Área por torón" sufijo="mm²" valor={areaToron} onChange={setAreaToron} />
               <CampoNumerico id="fuerzaToron" etiqueta="Fuerza por torón" sufijo="kN" valor={fuerzaToron} onChange={setFuerzaToron} />
               <CampoNumerico id="fyPasiva" etiqueta="fy pasiva" sufijo="MPa" valor={fyPasiva} onChange={setFyPasiva} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sección simple (premoldeado)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sección simple (premoldeado)</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               {resultado && (
                 <div className="col-span-full">
                   <SeccionPretensadaDiagrama
@@ -201,12 +207,12 @@ export default function PretensadoPage() {
               <CampoNumerico id="iS" etiqueta="Inercia" sufijo="m⁴" valor={iS} onChange={setIS} />
               <CampoNumerico id="ygS" etiqueta="yg (desde abajo)" sufijo="m" valor={ygS} onChange={setYgS} />
               <CampoNumerico id="perimS" etiqueta="Perímetro" sufijo="m" valor={perimS} onChange={setPerimS} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Sección compuesta (con carpeta)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Sección compuesta (con carpeta)</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="hC" etiqueta="h" sufijo="m" valor={hC} onChange={setHC} />
               <CampoNumerico id="bC" etiqueta="b comprimido" sufijo="m" valor={bC} onChange={setBC} />
               <CampoNumerico id="aC" etiqueta="Área" sufijo="m²" valor={aC} onChange={setAC} />
@@ -215,12 +221,12 @@ export default function PretensadoPage() {
               <CampoNumerico id="perimC" etiqueta="Perímetro" sufijo="m" valor={perimC} onChange={setPerimC} />
               <CampoNumerico id="recPret" etiqueta="Rec. mec. pretensado" sufijo="m" valor={recPret} onChange={setRecPret} />
               <CampoNumerico id="recPas" etiqueta="Rec. mec. pasiva" sufijo="m" valor={recPas} onChange={setRecPas} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Cargas y armaduras</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Cargas y armaduras</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="cargaMuerta" etiqueta="Carga muerta" sufijo="kN/m" valor={cargaMuerta} onChange={setCargaMuerta} />
               <CampoNumerico id="sobrecarga" etiqueta="Sobrecarga de uso" sufijo="kN/m" valor={sobrecarga} onChange={setSobrecarga} />
               <CampoNumerico id="ev" etiqueta="Ev" sufijo="kN/m" valor={ev} onChange={setEv} />
@@ -230,23 +236,25 @@ export default function PretensadoPage() {
               <CampoNumerico id="pInst" etiqueta="Pérdidas instantáneas" sufijo="%" valor={pInst} onChange={setPInst} />
               <CampoNumerico id="pDif" etiqueta="Pérdidas diferidas" sufijo="%" valor={pDif} onChange={setPDif} />
               <CampoNumerico id="hr" etiqueta="Humedad relativa" sufijo="%" valor={hr} onChange={setHr} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá materiales, las dos secciones, cargas y armaduras con valores válidos.
                 El baricentro y el recubrimiento tienen que caer dentro del canto.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resumen</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resumen</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Flexión última (art. 20.3)"
                     verifica={resultado.flexion.verifica}
@@ -292,14 +300,14 @@ export default function PretensadoPage() {
                       unidad: "mm", exige: "≤", decimales: 1,
                     }}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Tensiones en servicio</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Tensiones en servicio</h3>
+                </div>
+                <div className="space-y-6">
                   <p className="text-xs text-muted-foreground">
                     La banda verde es el rango admisible de cada situación. El trapecio es el
                     diagrama de tensiones entre las dos fibras: en transferencia el pretensado
@@ -315,12 +323,12 @@ export default function PretensadoPage() {
                       <DiagramaTensiones situacion={t} hM={escalaCanto} escalaMPa={escalaTension} />
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Pérdidas de pretensado</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Pérdidas de pretensado</h3></div>
+                <div className="space-y-4">
                   <DiagramaPerdidas
                     tensionTrasTesadoMPa={resultado.perdidas.tensionTrasTesadoMPa}
                     esMPa={resultado.perdidas.esMPa}
@@ -344,12 +352,12 @@ export default function PretensadoPage() {
                       { etiqueta: "Tensión efectiva", valor: `${fmt(resultado.perdidas.tensionEfectivaMPa, 0)} MPa` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Flexión y flechas</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Flexión y flechas</h3></div>
+                <div className="space-y-4">
                   <DiagramaFlexion
                     hM={aNumero(hC)}
                     bM={aNumero(bC)}
@@ -391,12 +399,13 @@ export default function PretensadoPage() {
                       { etiqueta: "Flecha total", valor: `${fmt(resultado.deformaciones.totalMm, 1)} / ${fmt(resultado.deformaciones.limiteTotalMm, 1)} mm` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

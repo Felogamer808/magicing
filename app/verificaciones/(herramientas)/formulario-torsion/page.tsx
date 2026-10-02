@@ -1,8 +1,9 @@
 "use client";
 
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa } from "@/components/verificaciones/comun/HojaTecnica";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -95,7 +96,8 @@ export default function FormularioTorsionPage() {
   const estado = calcularEstado(caso, textos);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Estática · Herramientas de análisis</p>
@@ -105,18 +107,20 @@ export default function FormularioTorsionPage() {
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
+      <EncabezadoEtapa id="datos" numero={1} titulo="Herramienta" descripcion="Datos y resultados se actualizan juntos." />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">{NOTA_FAMILIA[familia]}</CardContent>
-      </Card>
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">{NOTA_FAMILIA[familia]}</div>
+      </div>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Caso</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Caso</h3>
+            </div>
+            <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <CampoSeleccion
                   id="familia"
@@ -143,14 +147,14 @@ export default function FormularioTorsionPage() {
                 />
               </div>
               <p className="text-sm text-muted-foreground">{caso.descripcion}</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría y carga</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Geometría y carga</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               {caso.parametros.map((p) => (
                 <CampoNumerico
                   key={`${caso.id}-${p.clave}`}
@@ -161,15 +165,15 @@ export default function FormularioTorsionPage() {
                   onChange={(v) => cambiarParam(p.clave, v)}
                 />
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        <Card className="self-start xl:[&_svg]:max-h-[32rem]">
-          <CardHeader>
-            <CardTitle className="text-base">Diagrama</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="border-t border-border/60 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium">Diagrama</h3>
+          </div>
+          <div>
             {estado.ok ? (
               <>
                 <DiagramaTorsion
@@ -186,30 +190,30 @@ export default function FormularioTorsionPage() {
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {estado.ok && (
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Torsor máximo</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Torsor máximo</h3>
+            </div>
+            <div className="pt-0">
               <p className="font-mono text-sm tabular-nums">
                 {fmt(estado.resultado.torsorMax.valor)} kN·m en x ={" "}
                 {fmt(estado.resultado.torsorMax.xM, 2)} m
               </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
+            </div>
+          </div>
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">
                 {caso.condicion === "empotrada-libre" ? "Reacción en el empotramiento" : "Reacción en cada apoyo"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
+              </h3>
+            </div>
+            <div className="pt-0">
               <p className="font-mono text-sm tabular-nums">
                 {fmt(estado.resultado.reaccionApoyoKNm)} kN·m
               </p>
@@ -218,10 +222,11 @@ export default function FormularioTorsionPage() {
                   Con signo opuesto en cada extremo: se equilibran entre sí.
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
+      </ProveedorComprobaciones>
     </main>
   );
 }

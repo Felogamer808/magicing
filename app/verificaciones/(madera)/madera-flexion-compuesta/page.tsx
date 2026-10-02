@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -138,7 +139,8 @@ export default function MaderaFlexionCompuestaPage() {
       tipo, servicio, duracion, signo, problema]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
@@ -149,20 +151,24 @@ export default function MaderaFlexionCompuestaPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Cuatro pares de expresiones para lo que parece un solo problema. Cuál se aplica no lo
           elige el proyectista: lo deciden el signo del axil y la esbeltez, y el art. 6.3.2(2) lo
           dice explícito. Acá el despacho es automático, y el modo elegido se declara arriba del
           resultado.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material y sección</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material y sección</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -181,12 +187,12 @@ export default function MaderaFlexionCompuestaPage() {
                 <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
                 <CampoNumerico id="g005" etiqueta="G0,05" sufijo="GPa" valor={g005} onChange={setG005} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Esfuerzos</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Esfuerzos</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="signo" etiqueta="Signo del axil" valor={signo}
                               opciones={SIGNOS} onChange={setSigno} />
               <div className="grid grid-cols-3 gap-4">
@@ -229,22 +235,24 @@ export default function MaderaFlexionCompuestaPage() {
                   se invierten los exponentes —la flexión al cuadrado y el axil lineal—.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá sección, resistencias, longitudes de pandeo y esfuerzos con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <p className="rounded-md border border-border bg-card/60 px-3 py-2 font-mono text-[12.5px]">
                     {NOMBRE_MODO[r.resultado.modo]}
                   </p>
@@ -265,12 +273,12 @@ export default function MaderaFlexionCompuestaPage() {
                       reducir por pandeo.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Interacción</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Interacción</h3></div>
+                <div className="space-y-4">
                   <DiagramaInteraccionMadera
                     modo={r.resultado.modo}
                     ratioAxil={r.ratioAxil}
@@ -303,13 +311,13 @@ export default function MaderaFlexionCompuestaPage() {
                         : [{ etiqueta: "Segunda expresión", valor: fmt(r.resultado.expresionB, 4) }]),
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {!r.traccionada && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Pandeo de la columna</CardTitle></CardHeader>
-                  <CardContent>
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Pandeo de la columna</h3></div>
+                  <div>
                     <CurvaPandeoMadera
                       tipo={r.t}
                       fc0kMPa={r.fc0kN}
@@ -319,13 +327,14 @@ export default function MaderaFlexionCompuestaPage() {
                       kcY={r.ejeY.kc}
                       kcZ={r.ejeZ.kc}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

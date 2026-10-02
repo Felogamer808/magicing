@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -147,7 +148,8 @@ export default function MaderaUnionesPage() {
       planos, fed, config, clavija, especie, servicio, duracion]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Uniones</p>
@@ -158,21 +160,25 @@ export default function MaderaUnionesPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           El método de Johansen consiste en escribir todos los modos de fallo posibles y quedarse
           con el menor. De ahí sale la trampa principal del artículo:{" "}
           <strong className="text-foreground">omitir un modo es siempre inseguro</strong>, porque el
           mínimo de menos candidatos nunca es más chico. Acá se escriben todos y se muestran uno al
           lado del otro.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Configuración</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Configuración</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="config" etiqueta="Tipo de unión" valor={config}
                               opciones={CONFIGURACIONES} onChange={setConfig} />
               <div className="grid grid-cols-2 gap-4">
@@ -185,12 +191,12 @@ export default function MaderaUnionesPage() {
                 <CampoSeleccion id="duracion" etiqueta="Duración de la carga" valor={duracion}
                                 opciones={DURACIONES} onChange={setDuracion} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Clavija y piezas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Clavija y piezas</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="d" etiqueta="Diámetro d" sufijo="mm" valor={d} onChange={setD}
                                sugerencias={[8, 10, 12, 16, 20, 24]} />
@@ -222,12 +228,12 @@ export default function MaderaUnionesPage() {
                   penetración; en doble, t1 son las laterales y t2 la central.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Grupo y solicitación</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Grupo y solicitación</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nMedios" etiqueta="n en la fila" valor={nMedios} onChange={setNMedios} />
                 <CampoNumerico id="separacion" etiqueta="Separación a1" sufijo="mm"
@@ -256,22 +262,24 @@ export default function MaderaUnionesPage() {
                   rosca no tienen de dónde agarrarse. Si no se conoce Fax,Rk, va cero.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá diámetro, espesores, densidades y el grupo con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Capacidad de la unión"
                     verifica={r.aprovechamiento <= 1}
@@ -292,12 +300,12 @@ export default function MaderaUnionesPage() {
                       salto de régimen de hasta el 30 %.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Modos de fallo</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Modos de fallo</h3></div>
+                <div className="space-y-4">
                   <DiagramaModosFallo resultado={r.union} />
                   <PanelFormulas
                     titulo="Ver desarrollo"
@@ -322,12 +330,13 @@ export default function MaderaUnionesPage() {
                       { etiqueta: "Fv,Rd de la unión", valor: `${fmt(r.capacidadKN, 2)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

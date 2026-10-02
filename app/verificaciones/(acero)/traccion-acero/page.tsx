@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -116,7 +117,8 @@ export default function TraccionAceroPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>
@@ -127,17 +129,21 @@ export default function TraccionAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Artículo D2, por el método ASD: fluencia (Ωt = {fmt(OMEGA_T_FLUENCIA, 2)}) sobre la sección
           bruta y rotura (Ωt = {fmt(OMEGA_T_ROTURA, 2)}) sobre la sección efectiva, descontados los
           agujeros y corregida por shear lag. Con A36 hace falta perder cerca de un cuarto de la
           sección antes de que la rotura llegue a gobernar sobre la fluencia; con aceros de mayor
           límite elástico, mucho menos.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <SelectorSeccionAcero
             familia={seccion.familia}
@@ -147,22 +153,22 @@ export default function TraccionAceroPage() {
             onParamChange={seccion.cambiarParam}
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Longitud y material</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Longitud y material</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="lM" etiqueta="Longitud de la barra" sufijo="m" valor={lM} onChange={setLM} />
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="fu" etiqueta="Fu" sufijo="MPa" valor={fu} onChange={setFu} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Sección crítica — art. B4</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Sección crítica — art. B4</h3>
+            </div>
+            <div className="space-y-4">
               <CampoSeleccion
                 id="seccionCritica"
                 etiqueta="¿La sección crítica tiene agujeros?"
@@ -202,14 +208,14 @@ export default function TraccionAceroPage() {
                   recta.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Shear lag — art. D3</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Shear lag — art. D3</h3>
+            </div>
+            <div className="space-y-4">
               <CampoSeleccion
                 id="transmision"
                 etiqueta="¿Toda la sección transmite la fuerza?"
@@ -247,33 +253,35 @@ export default function TraccionAceroPage() {
                   no hay nada que corregir.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solicitación</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Solicitación</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="pRequerida" etiqueta="Tracción requerida" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, la longitud, el material y la carga con valores positivos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resultado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Resultado</h3>
+                </div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — tracción admisible`}
                     verifica={resultado.verifica === true}
@@ -300,16 +308,16 @@ export default function TraccionAceroPage() {
                       duro y no bloquea la verificación de arriba.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">
                     Fluencia (D2a) · {fmt(resultado.admisibleFluenciaKN, 1)} kN
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </h3>
+                </div>
+                <div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -318,16 +326,16 @@ export default function TraccionAceroPage() {
                       { etiqueta: `Pn/Ωt con Ωt = ${OMEGA_T_FLUENCIA}`, valor: `${fmt(resultado.admisibleFluenciaKN, 1)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">
                     Rotura (D2b) · {fmt(resultado.admisibleRoturaKN, 1)} kN
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </h3>
+                </div>
+                <div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -338,12 +346,13 @@ export default function TraccionAceroPage() {
                       { etiqueta: `Pn/Ωt con Ωt = ${OMEGA_T_ROTURA}`, valor: `${fmt(resultado.admisibleRoturaKN, 1)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

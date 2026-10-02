@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -66,7 +67,8 @@ export default function FlexoCompresionPage() {
   }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>
@@ -77,17 +79,21 @@ export default function FlexoCompresionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Artículo H1.1. No agrega resistencias nuevas: combina la axial admisible del capítulo E
           con las dos flexionales del capítulo F. La ecuación cambia de forma según cuánto pese la
           axial — con Pr/Pc ≥ 0,2 manda H1-1a, por debajo H1-1b. Con Pr = 0 —una viga con momento en
           los dos ejes y sin carga axial— la H1-1b se reduce sola a Mrx/Mcx + Mry/Mcy ≤ 1: sirve
           también para verificar flexión biaxial pura, sin tener que cargar una axial ficticia.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <SelectorSeccionAcero
             familia={seccion.familia}
@@ -97,11 +103,11 @@ export default function FlexoCompresionPage() {
             onParamChange={seccion.cambiarParam}
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Longitudes y material</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Longitudes y material</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="lcxFC"
                 etiqueta="Lc eje fuerte"
@@ -161,37 +167,39 @@ export default function FlexoCompresionPage() {
                   </p>
                 </PanelAyuda>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solicitaciones</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Solicitaciones</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="pFC" etiqueta="Compresión Pr (0 si es una viga)" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
               <div />
               <CampoNumerico id="mrx" etiqueta="Momento Mrx" sufijo="kN·m" valor={mrx} onChange={setMrx} />
               <CampoNumerico id="mry" etiqueta="Momento Mry" sufijo="kN·m" valor={mry} onChange={setMry} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, las longitudes y el material con valores positivos. La
                 compresión y los momentos pueden ser cero.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resultado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Resultado</h3>
+                </div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — interacción ${resultado.ecuacion}`}
                     verifica={resultado.verifica}
@@ -224,14 +232,14 @@ export default function FlexoCompresionPage() {
                       abajo la axial cuenta a la mitad.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resistencias que entran</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Resistencias que entran</h3>
+                </div>
+                <div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -251,12 +259,13 @@ export default function FlexoCompresionPage() {
                       { etiqueta: "Interacción", valor: fmt(resultado.interaccion, 4) },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

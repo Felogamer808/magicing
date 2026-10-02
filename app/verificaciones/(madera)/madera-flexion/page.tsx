@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -136,7 +137,8 @@ export default function MaderaFlexionPage() {
       caso, borde, arriostrado]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
@@ -147,20 +149,24 @@ export default function MaderaFlexionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Dos comprobaciones sobre la misma viga, y conviene no confundirlas. El art. 6.1.6 agota
           el material a flexión. El art. 6.3.3 la vuelca de costado <em>antes</em> de agotarla: una
           viga de mucho canto y poca anchura puede pasar holgada la primera y no llegar a la mitad
           en la segunda.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -177,24 +183,24 @@ export default function MaderaFlexionPage() {
                 Los valores característicos se cargan a mano, como en la planilla. Salen de EN 338
                 para maciza y de EN 14080 para laminada; en coníferas G0,05 anda por E0,05/16.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría y esfuerzos</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría y esfuerzos</h3></div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
               <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
               <CampoNumerico id="luz" etiqueta="Luz l" sufijo="m" valor={luz} onChange={setLuz} />
               <div />
               <CampoNumerico id="my" etiqueta="My,d (eje fuerte)" sufijo="kN·m" valor={my} onChange={setMy} />
               <CampoNumerico id="mz" etiqueta="Mz,d (eje débil)" sufijo="kN·m" valor={mz} onChange={setMz} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Condiciones de vuelco</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Condiciones de vuelco</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="caso" etiqueta="Viga y carga (tabla 6.1)"
                               valor={caso} opciones={CASOS} onChange={setCaso} />
               <CampoSeleccion id="borde" etiqueta="Dónde se aplica la carga"
@@ -218,22 +224,24 @@ export default function MaderaFlexionPage() {
                   el art. 6.3.3(5), y suele ser mucho más barato que ensanchar la viga.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá geometría, resistencias y momentos con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={r.hayEsviada ? "Flexión esviada, ecs. (6.11) y (6.12)" : "Flexión, art. 6.1.6"}
                     verifica={r.esviada.verifica}
@@ -261,19 +269,19 @@ export default function MaderaFlexionPage() {
                       arriba es la misma que la del art. 6.1.6.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Sección</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Sección</h3></div>
+                <div>
                   <CroquisSeccionMadera anchoM={r.b} cantoM={r.h} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Vuelco lateral</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Vuelco lateral</h3></div>
+                <div className="space-y-4">
                   <CurvaVuelco
                     lambdaRelM={r.vuelco.lambdaRelM}
                     kcritActual={r.vuelco.kcrit}
@@ -290,12 +298,12 @@ export default function MaderaFlexionPage() {
                       { etiqueta: "kcrit·fm,d", valor: `${fmt(r.vuelco.resistenciaReducidaMPa, 2)} MPa` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Desarrollo</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Desarrollo</h3></div>
+                <div>
                   <PanelFormulas
                     titulo="Resistencias y tensiones"
                     filas={[
@@ -319,12 +327,13 @@ export default function MaderaFlexionPage() {
                       { etiqueta: "Ec. (6.12)", valor: fmt(r.esviada.aprovechamiento612, 3) },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

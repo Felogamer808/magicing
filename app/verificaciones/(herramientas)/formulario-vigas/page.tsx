@@ -1,8 +1,9 @@
 "use client";
 
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa } from "@/components/verificaciones/comun/HojaTecnica";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -126,7 +127,8 @@ export default function FormularioVigasPage() {
   const estado = calcularEstado(caso, textos, eiKNm2);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Estática · Herramientas de análisis</p>
@@ -136,17 +138,19 @@ export default function FormularioVigasPage() {
       </div>
 
       <AvisoCombinacion idVerificacion={meta.id} />
+      <EncabezadoEtapa id="datos" numero={1} titulo="Herramienta" descripcion="Datos y resultados se actualizan juntos." />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           No hay una fórmula por caso: la viga se resuelve por rigidez directa, con la matriz y las
           cargas de empotramiento integradas de las funciones de forma, así que no hay ninguna
           expresión de tabla copiada a mano. Los elementos se cortan en cada apoyo, cada carga
           puntual y cada extremo de trapecio, con lo cual la carga queda lineal dentro de cada uno y
           la solución coincide con la exacta de Euler-Bernoulli, no la aproxima. El formulario
           clásico está del otro lado: se usa como test, para contrastar los coeficientes.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/*
         Los datos ocupan una columna angosta y el dibujo la ancha, al lado, para
@@ -160,11 +164,11 @@ export default function FormularioVigasPage() {
       */}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Caso</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Caso</h3>
+            </div>
+            <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <CampoSeleccion
                   id="familia"
@@ -191,14 +195,14 @@ export default function FormularioVigasPage() {
                 />
               </div>
               <p className="text-sm text-muted-foreground">{caso.descripcion}</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría y cargas</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Geometría y cargas</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               {caso.parametros.map((p) => (
                 <CampoNumerico
                   key={`${caso.id}-${p.clave}`}
@@ -210,14 +214,14 @@ export default function FormularioVigasPage() {
                   advertencia={p.ayuda}
                 />
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Rigidez</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Rigidez</h3>
+            </div>
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico
                   id="eGPa"
@@ -244,8 +248,8 @@ export default function FormularioVigasPage() {
                 </a>
                 .
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/*
@@ -255,11 +259,11 @@ export default function FormularioVigasPage() {
           subirlo a 32rem lo deja gobernado por el ancho de la columna, no por el
           alto. Debajo de xl vuelve a valer el tope general.
         */}
-        <Card className="self-start xl:[&_svg]:max-h-[32rem]">
-          <CardHeader>
-            <CardTitle className="text-base">Diagramas</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="border-t border-border/60 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium">Diagramas</h3>
+          </div>
+          <div>
             {estado.ok ? (
               <>
                 <DiagramasViga
@@ -276,21 +280,22 @@ export default function FormularioVigasPage() {
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">{estado.motivo}</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
         {!estado.ok ? (
-          <Card className="md:col-span-2 xl:col-span-3">
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          <div className="border-t border-border/60 pt-5">
+            <div className="py-10 text-center text-sm text-muted-foreground">
               {estado.motivo}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           <ResultadoVigaPanel caso={caso} estado={estado} />
         )}
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }
@@ -330,11 +335,11 @@ function ResultadoVigaPanel({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Reacciones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Reacciones</h3>
+        </div>
+        <div className="space-y-3 pt-0">
           <div>
             {apoyos.map((x) => (
               <Dato
@@ -352,14 +357,14 @@ function ResultadoVigaPanel({
             Reacción vertical positiva hacia arriba; momento de empotramiento positivo antihorario.
             Cierre de equilibrio vertical: {fmt(Math.abs(r.desequilibrioKN), 6)} kN.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Esfuerzos máximos</CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Esfuerzos máximos</h3>
+        </div>
+        <div className="py-0">
           <Dato
             etiqueta={`Cortante máximo (x = ${fmt(r.cortanteMax.xM, 2)} m)`}
             valor={`${fmt(sinCeroNegativo(r.cortanteMax.valor), 2)} kN`}
@@ -372,14 +377,14 @@ function ResultadoVigaPanel({
             etiqueta={`Momento máximo negativo (x = ${fmt(r.momentoMin.xM, 2)} m)`}
             valor={`${fmt(sinCeroNegativo(r.momentoMin.valor), 2)} kN·m`}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Flecha</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
+      <div className="border-t border-border/60 pt-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-medium">Flecha</h3>
+        </div>
+        <div className="space-y-3 pt-0">
           <div>
             <Dato
               etiqueta={`Flecha máxima (x = ${fmt(r.flechaMax.xM, 2)} m)`}
@@ -399,8 +404,8 @@ function ResultadoVigaPanel({
             total y el módulo de la flecha, y se compara contra el límite del elemento —no lo
             impone esta pantalla, que es de estática y no conoce la norma que aplica.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {caso.normalizacion && <Coeficientes caso={caso} estado={estado} />}
     </>
@@ -434,11 +439,11 @@ function Coeficientes({
   const simboloV = n.patron === "uniforme" ? `${n.claveCarga}·${n.claveLuz}` : n.claveCarga;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Coeficientes de tabla</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-0">
+    <div className="border-t border-border/60 pt-5">
+      <div className="mb-3">
+        <h3 className="text-sm font-medium">Coeficientes de tabla</h3>
+      </div>
+      <div className="space-y-3 pt-0">
         <PanelFormulas
           titulo={`Referidos a ${simboloM} y ${simboloV}`}
           filas={[
@@ -457,7 +462,7 @@ function Coeficientes({
           Contrastar estos números contra el formulario impreso es la forma más rápida de detectar
           un dato mal cargado: el coeficiente no depende ni de la luz ni del valor de la carga.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

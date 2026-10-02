@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -122,7 +123,8 @@ export default function MaderaCortantePage() {
       hef, proyeccion, xApoyo, lado, forma]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
@@ -133,20 +135,24 @@ export default function MaderaCortantePage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Las tres comprobaciones comparten resistencia —fv,d— porque la madera falla a rasante por
           el mismo plano de fibra, venga el esfuerzo de un cortante, de la concentración de una
           entalladura o de un torsor. Lo que cambia entre ellas es el factor que multiplica a fv,d:
           kv la castiga, kshape la premia.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material y sección</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material y sección</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -176,12 +182,12 @@ export default function MaderaCortantePage() {
                   3.3(3) sólo suben fm,k y ft,0,k.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Entalladura en el apoyo</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Entalladura en el apoyo</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="conEntalladura" etiqueta="¿La viga está entallada?"
                               valor={conEntalladura} opciones={HAY_ENTALLADURA}
                               onChange={setConEntalladura} />
@@ -220,12 +226,12 @@ export default function MaderaCortantePage() {
                   </PanelAyuda>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Torsión</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Torsión</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="torsor" etiqueta="Td" sufijo="kN·m" valor={torsor} onChange={setTorsor} />
                 <CampoSeleccion id="forma" etiqueta="Forma de la sección"
@@ -235,22 +241,24 @@ export default function MaderaCortantePage() {
                 Dejalo en cero si la pieza no tiene torsor. El coeficiente α1 de la tensión de
                 torsión se interpola de la tabla clásica en vez de leerse a mano.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá sección, resistencia y esfuerzos con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Cortante, ec. (6.13)"
                     verifica={r.cortante.verifica}
@@ -293,21 +301,21 @@ export default function MaderaCortantePage() {
                       El canto eficaz tiene que ser mayor que cero y no puede superar el canto total.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Anchura eficaz</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Anchura eficaz</h3></div>
+                <div>
                   <CroquisSeccionMadera anchoM={r.b} cantoM={r.h}
                                         anchoEficazM={r.cortante.anchoEficazM} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {r.entalladura && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Entalladura</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Entalladura</h3></div>
+                  <div className="space-y-4">
                     <CroquisEntalladura
                       cantoM={r.h}
                       cantoEficazM={r.hefV}
@@ -326,13 +334,13 @@ export default function MaderaCortantePage() {
                         { etiqueta: "τd = 1,5·Vd/(bef·hef)", valor: `${fmt(r.entalladura.tauDMPa, 3)} MPa` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Desarrollo</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Desarrollo</h3></div>
+                <div>
                   <PanelFormulas
                     titulo="Resistencia y tensiones"
                     filas={[
@@ -366,12 +374,13 @@ export default function MaderaCortantePage() {
                         : []),
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

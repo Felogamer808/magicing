@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -143,7 +144,8 @@ export default function CompresionAceroPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>
@@ -154,8 +156,11 @@ export default function CompresionAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Artículo E3: pandeo por flexión de barras sin elementos esbeltos, por el método ASD
           (Ωc = 1,67). Se resuelven los dos ejes por separado y gobierna el menor. La longitud
           efectiva Lc = K·L se carga ya multiplicada por K. En secciones doblemente simétricas
@@ -163,10 +168,11 @@ export default function CompresionAceroPage() {
           con conectores intermedios en vez de soldadura corrida, se suma la esbeltez modificada
           del artículo E6.2 —columnas armadas—, más abajo. En tubos de pared muy delgada puede
           gobernar el pandeo local del artículo E7, que todavía no está implementado.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
           <SelectorSeccionAcero
             familia={seccion.familia}
@@ -176,11 +182,11 @@ export default function CompresionAceroPage() {
             onParamChange={seccion.cambiarParam}
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Longitudes y material</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Longitudes y material</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="lcx" etiqueta="Lc eje fuerte" sufijo="m" valor={lcx} onChange={setLcx} />
               <CampoNumerico id="lcy" etiqueta="Lc eje débil" sufijo="m" valor={lcy} onChange={setLcy} />
               {esDoblementeSimetrica && (
@@ -188,20 +194,20 @@ export default function CompresionAceroPage() {
               )}
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="e" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
-            </CardContent>
+            </div>
             {esDoblementeSimetrica && (
-              <CardContent className="pt-0 text-xs text-muted-foreground">
+              <div className="pt-0 text-xs text-muted-foreground">
                 Sección doblemente simétrica: también se verifica el pandeo torsional del art.
                 E4, con Kz·L la distancia entre puntos arriostrados al giro.
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solicitación</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3">
+              <h3 className="text-sm font-medium">Solicitación</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico
                 id="pRequerida"
                 etiqueta="Compresión requerida"
@@ -209,15 +215,15 @@ export default function CompresionAceroPage() {
                 valor={pRequerida}
                 onChange={setPRequerida}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {esColumnaArmable && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Columna armada — art. E6.2</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <div className="border-t border-border/60 pt-5">
+              <div className="mb-3">
+                <h3 className="text-sm font-medium">Columna armada — art. E6.2</h3>
+              </div>
+              <div className="space-y-4">
                 <CampoSeleccion
                   id="conexion"
                   etiqueta="Unión entre los dos canales"
@@ -267,25 +273,27 @@ export default function CompresionAceroPage() {
                     tipo y diámetro del conector—, así que queda a cargo de la verificación aparte.
                   </p>
                 </PanelAyuda>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá la sección, las longitudes, el material y la carga con valores positivos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resultado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">Resultado</h3>
+                </div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={`${resultado.designacion} — compresión admisible`}
                     verifica={resultado.verifica === true}
@@ -322,50 +330,50 @@ export default function CompresionAceroPage() {
                     cae en un punto de la curva; gobierna el de menor resistencia, marcado en rojo.
                     {resultado.pandeoTorsional && " El pandeo torsional del art. E4 no está en esta curva: se compara aparte."}
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">
                     Pandeo eje fuerte · {fmt(resultado.ejeFuerte.admisibleKN, 1)} kN
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </h3>
+                </div>
+                <div>
                   <FilasDeEje eje={resultado.ejeFuerte} corregidaPorColumnaArmada={false} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium">
                     Pandeo eje débil · {fmt(resultado.ejeDebil.admisibleKN, 1)} kN
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </h3>
+                </div>
+                <div>
                   <FilasDeEje eje={resultado.ejeDebil} corregidaPorColumnaArmada={!!resultado.columnaArmada} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.pandeoTorsional && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium">
                       Pandeo torsional · art. E4 · {fmt(resultado.pandeoTorsional.admisibleKN, 1)} kN
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                    </h3>
+                  </div>
+                  <div>
                     <FilasDeTorsional torsional={resultado.pandeoTorsional} />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {resultado.columnaArmada && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Columna armada — art. E6.2</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-medium">Columna armada — art. E6.2</h3>
+                  </div>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Separación entre conectores"
                       verifica={resultado.columnaArmada.cumpleSeparacionMaxima}
@@ -401,13 +409,14 @@ export default function CompresionAceroPage() {
                         conectores.
                       </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

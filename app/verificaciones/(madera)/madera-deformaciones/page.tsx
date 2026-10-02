@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -107,7 +108,8 @@ export default function MaderaDeformacionesPage() {
       tipo, servicio, elemento, exigencia]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Estado límite de servicio</p>
@@ -118,21 +120,25 @@ export default function MaderaDeformacionesPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           En madera el servicio suele decidir el canto antes que el agotamiento. Con kdef = 2,00 en
           clase de servicio 3 la fluencia <strong className="text-foreground">triplica</strong> la
           flecha de la parte permanente, un factor que ningún otro material estructural tiene. Y a
           diferencia del hormigón, la deformación por cortante no es despreciable: E/G ronda 16 en
           vez de 2,4.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material y sección</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material y sección</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -150,12 +156,12 @@ export default function MaderaDeformacionesPage() {
                 Servicio se calcula con los módulos <strong>medios</strong>, art. 2.2.3(2), no con
                 los característicos del quinto percentil que usan pandeo y vuelco.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Cargas de servicio</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Cargas de servicio</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="qg" etiqueta="qG distribuida" sufijo="kN/m" valor={qg} onChange={setQg} />
                 <CampoNumerico id="qq" etiqueta="qQ distribuida" sufijo="kN/m" valor={qq} onChange={setQq} />
@@ -182,12 +188,12 @@ export default function MaderaDeformacionesPage() {
                   accesibles.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Límites</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Límites</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="elemento" etiqueta="Tipo de elemento" valor={elemento}
                               opciones={ELEMENTOS} onChange={setElemento} />
               <CampoSeleccion id="exigencia" etiqueta="Extremo del rango de la tabla 7.2"
@@ -196,22 +202,24 @@ export default function MaderaDeformacionesPage() {
                 La tabla 7.2 da rangos y no valores, porque el límite depende de qué cuelga de la
                 viga. La elección es del proyectista y por eso se declara acá.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá sección, módulos y cargas con valores válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   {r.comprobaciones.map((c) => (
                     <ResultadoCheck
                       key={c.etiqueta}
@@ -226,19 +234,19 @@ export default function MaderaDeformacionesPage() {
                       }}
                     />
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Componentes de la deformación</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Componentes de la deformación</h3></div>
+                <div>
                   <DiagramaFlechas componentes={r.componentes} contraflechaMm={r.wc} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Desarrollo</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Desarrollo</h3></div>
+                <div>
                   <PanelFormulas
                     titulo="Ver cálculo de la flecha"
                     filas={[
@@ -266,12 +274,13 @@ export default function MaderaDeformacionesPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

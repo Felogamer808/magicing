@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -149,7 +150,8 @@ export default function MaderaSeccionVariablePage() {
       fmk, fvk, ft90k, fc90k, fmjdek, tipo, servicio, duracion, forma, borde]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Piezas de canto variable</p>
@@ -160,21 +162,25 @@ export default function MaderaSeccionVariablePage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Estas vigas fallan por <strong className="text-foreground">delaminación en el
           vértice</strong>, no por flexión. Cortar la pendiente deja las fibras terminando contra
           la cara, y en el vértice el momento intenta enderezar las láminas curvadas y las despega:
           ahí manda ft,90,k, que anda por 0,5 MPa contra 28 de fm,k. El apartado 6.4.3 sólo se
           aplica a laminada encolada y microlaminada.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Material</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Material</h3></div>
+            <div className="space-y-4">
               <SelectorMadera
                 tipo={tipo} onTipo={setTipo}
                 servicio={servicio} onServicio={setServicio}
@@ -186,12 +192,12 @@ export default function MaderaSeccionVariablePage() {
                 <CampoNumerico id="ft90k" etiqueta="ft,90,k" sufijo="MPa" valor={ft90k} onChange={setFt90k} />
                 <CampoNumerico id="fc90k" etiqueta="fc,90,k" sufijo="MPa" valor={fc90k} onChange={setFc90k} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Geometría y carga</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Geometría y carga</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="forma" etiqueta="Forma de la viga" valor={forma}
                               opciones={FORMAS} onChange={setForma} />
               <div className="grid grid-cols-2 gap-4">
@@ -230,23 +236,25 @@ export default function MaderaSeccionVariablePage() {
                   en un factor cinco. A 4,3° la brecha en km,α es del 22 %; a 12°, más del doble.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Cargá geometría, carga y resistencias con valores válidos. El canto del vértice
                 tiene que ser mayor que el del apoyo.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Borde inclinado, ec. (6.38)"
                     verifica={r.aprovechaBorde <= 1}
@@ -286,12 +294,12 @@ export default function MaderaSeccionVariablePage() {
                       {fmt(r.volumen.topeM3, 3)} m³, como pide el art. 6.4.3(6).
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Alzado</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Alzado</h3></div>
+                <div>
                   <CroquisVigaVariable
                     forma={r.formaV}
                     luzM={r.l}
@@ -300,12 +308,12 @@ export default function MaderaSeccionVariablePage() {
                     posicionCriticaM={r.critica.posicionM}
                     cantoCriticoM={r.critica.cantoM}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Desarrollo</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Desarrollo</h3></div>
+                <div className="space-y-4">
                   <PanelFormulas
                     titulo="Borde inclinado"
                     filas={[
@@ -350,12 +358,13 @@ export default function MaderaSeccionVariablePage() {
                         : []),
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

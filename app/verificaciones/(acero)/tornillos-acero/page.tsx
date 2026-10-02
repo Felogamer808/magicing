@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
@@ -219,7 +220,8 @@ export default function TornillosAceroPage() {
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="spec-label">Uniones · Estructuras metálicas</p>
@@ -230,8 +232,11 @@ export default function TornillosAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
+      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
+
+
+      <div className="border-t border-border/60 pt-5">
+        <div className="py-4 text-sm text-muted-foreground">
           Artículo J3, por el método ASD. Un bulón puede fallar de tres maneras distintas y
           cualquiera puede gobernar: corte del vástago —depende sólo del bulón— (Ω ={" "}
           {fmt(OMEGA_J, 2)}), o aplastamiento y arrancamiento de la chapa —dependen de la chapa y no
@@ -239,14 +244,15 @@ export default function TornillosAceroPage() {
           tracción según cuánto corte haya. Si la conexión es <em>slip-critical</em>, se agrega la
           verificación de deslizamiento del art. J3.8 —que no reemplaza a las de contacto: si la
           unión llega a deslizar, termina apoyando en aplastamiento igual—.
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="flex flex-col gap-12">
+          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Grupo de bulones</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Grupo de bulones</h3></div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="filas" etiqueta="Filas" valor={filas} onChange={setFilas} />
                 <CampoNumerico id="columnas" etiqueta="Columnas" valor={columnas} onChange={setColumnas} />
@@ -266,31 +272,31 @@ export default function TornillosAceroPage() {
                   conexiones a momento.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Solicitación en el centroide del grupo</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Solicitación en el centroide del grupo</h3></div>
+            <div className="grid grid-cols-3 gap-4">
               <CampoNumerico id="fx" etiqueta="Fx" sufijo="kN" valor={fx} onChange={setFx} />
               <CampoNumerico id="fy" etiqueta="Fy" sufijo="kN" valor={fy} onChange={setFy} />
               <CampoNumerico id="momento" etiqueta="M" sufijo="kN·m" valor={momento} onChange={setMomento} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bulón</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Bulón</h3></div>
+            <div className="grid grid-cols-3 gap-4">
               <CampoNumerico id="diametro" etiqueta="Diámetro" sufijo="mm" valor={diametro} onChange={setDiametro}
                              sugerencias={[12, 16, 20, 22, 24, 27, 30]} />
               <CampoSeleccion id="grado" etiqueta="Grado" valor={grado} opciones={GRADOS} onChange={setGrado} />
               <CampoNumerico id="planosDeCorte" etiqueta="Planos de corte" valor={planosDeCorte} onChange={setPlanosDeCorte} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Chapas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Chapas</h3></div>
+            <div className="space-y-4">
               <p className="text-sm font-medium">Chapa 1</p>
               <div className="grid grid-cols-3 gap-4">
                 <CampoNumerico id="espesor1" etiqueta="Espesor" sufijo="mm" valor={espesor1} onChange={setEspesor1} />
@@ -328,12 +334,12 @@ export default function TornillosAceroPage() {
                   fuerza —no la distancia entre centros—.
                 </p>
               </PanelAyuda>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Tracción simultánea — art. J3.7</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Tracción simultánea — art. J3.7</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="hayTraccion" etiqueta="¿El bulón más exigido también tracciona?" valor={hayTraccion}
                               opciones={HAY_TRACCION} onChange={setHayTraccion} />
               {hayTraccion === HAY_TRACCION[1] && (
@@ -357,12 +363,12 @@ export default function TornillosAceroPage() {
                   </PanelAyuda>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8 (slip-critical)</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Deslizamiento — art. J3.8 (slip-critical)</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="hayDeslizamiento" etiqueta="¿Es una conexión slip-critical?" valor={hayDeslizamiento}
                               opciones={HAY_DESLIZAMIENTO} onChange={setHayDeslizamiento} />
               {hayDeslizamiento === HAY_DESLIZAMIENTO[1] && (
@@ -398,12 +404,12 @@ export default function TornillosAceroPage() {
                   </PanelAyuda>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bloque de corte — art. J4.3</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border-t border-border/60 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-medium">Bloque de corte — art. J4.3</h3></div>
+            <div className="space-y-4">
               <CampoSeleccion id="hayBloque" etiqueta="¿Corresponde verificar?" valor={hayBloque}
                               opciones={HAY_BLOQUE} onChange={setHayBloque} />
               {hayBloque === HAY_BLOQUE[1] && (
@@ -446,23 +452,25 @@ export default function TornillosAceroPage() {
                   </PanelAyuda>
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
+          <ConclusionAutomatica />
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            <div className="border-t border-border/60 pt-5">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 Completá el grupo de bulones, el bulón, las chapas y la solicitación con valores
                 válidos.
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={`Bulón más exigido — gobierna ${resultado.bulon.modoDeFalla}`}
                     verifica={resultado.critico.vKN <= resultado.bulon.admisibleKN}
@@ -476,12 +484,12 @@ export default function TornillosAceroPage() {
                     {resultado.n.filas * resultado.n.columnas} bulones · Vx = {fmt(resultado.critico.vxKN, 2)} kN ·
                     Vy = {fmt(resultado.critico.vyKN, 2)} kN
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Reparto elástico</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Reparto elástico</h3></div>
+                <div className="space-y-4">
                   {/*
                     El índice elegido puede quedar fuera de rango al achicar el
                     grupo, así que se acota en vez de guardarse validado: el
@@ -555,12 +563,12 @@ export default function TornillosAceroPage() {
                       valor: `${fmt(f.vKN, 2)} kN`,
                     }))}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resistencia del bulón</CardTitle></CardHeader>
-                <CardContent>
+              <div className="border-t border-border/60 pt-5">
+                <div className="mb-3"><h3 className="text-sm font-medium">Resistencia del bulón</h3></div>
+                <div>
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
@@ -573,13 +581,13 @@ export default function TornillosAceroPage() {
                       { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.bulon.admisibleKN, 2)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {resultado.traccion && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Interacción tracción-corte — art. J3.7</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Interacción tracción-corte — art. J3.7</h3></div>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Tracción con corte simultáneo"
                       verifica={resultado.traccionReqKN <= resultado.traccion.admisibleKN}
@@ -598,14 +606,14 @@ export default function TornillosAceroPage() {
                         { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.traccion.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {resultado.deslizamiento && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Deslizamiento — art. J3.8</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Deslizamiento — art. J3.8</h3></div>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Deslizamiento (slip-critical)"
                       verifica={resultado.critico.vKN <= resultado.deslizamiento.admisibleKN}
@@ -622,14 +630,14 @@ export default function TornillosAceroPage() {
                         { etiqueta: `Rn/Ω con Ω = 1,5/φ = ${fmt(resultado.deslizamiento.omega, 2)}`, valor: `${fmt(resultado.deslizamiento.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {resultado.bloque && (
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Bloque de corte</CardTitle></CardHeader>
-                  <CardContent className="space-y-3">
+                <div className="border-t border-border/60 pt-5">
+                  <div className="mb-3"><h3 className="text-sm font-medium">Bloque de corte</h3></div>
+                  <div className="space-y-3">
                     <ResultadoCheck
                       etiqueta="Bloque de corte — art. J4.3"
                       verifica={resultado.critico.vKN <= resultado.bloque.admisibleKN}
@@ -648,13 +656,14 @@ export default function TornillosAceroPage() {
                         { etiqueta: `Rn/Ω con Ω = ${OMEGA_J}`, valor: `${fmt(resultado.bloque.admisibleKN, 2)} kN` },
                       ]}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

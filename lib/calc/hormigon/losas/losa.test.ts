@@ -54,14 +54,27 @@ describe("losa: armado positivo", () => {
     // As real X = φ12/10cm (11.31) + malla Y φ10/15cm (5.24)
     expect(r.positivo.x.asRealCm2PorM).toBeCloseTo(16.5457213089062, 6);
     expect(r.positivo.x.verificaAs).toBe(true);
-    expect(r.positivo.x.lbNetaMm).toBeCloseTo(205.00713510764, 5);
+    // Anclaje, Anejo 19 art. 8.4 (la planilla daba 205 mm con la EHE-08). A mano:
+    //   e = 0,15 ≤ 0,25 → adherencia buena, η1 = 1 (fig. A19.8.2)
+    //   fbd = 2,25·0,7·0,3·30^(2/3)/1,5 = 3,04129 MPa                (8.2)
+    //   σsd = 434,78·11,3066/16,5457 = 297,112 MPa
+    //   lb,rqd = (12/4)·297,112/3,04129 = 293,078 mm                  (8.3)
+    //   cd = mín((100 − 12)/2, 20 + 10) = 30 → α2 = 1 − 0,15·(30 − 12)/12 = 0,775
+    //   lbd = 0,775·293,078 = 227,135 mm (> mín. 120)
+    expect(r.positivo.x.situacionAdherencia).toBe("buena");
+    expect(r.positivo.x.anclaje.sigmaSdMPa).toBeCloseTo(297.111790, 5);
+    expect(r.positivo.x.cdMm).toBeCloseTo(30, 9);
+    expect(r.positivo.x.anclaje.lbdMm).toBeCloseTo(227.135379, 5);
   });
 
   it("reproduce el armado en Y, que con φ10/15cm no llega", () => {
     expect(r.positivo.y.asNecCm2PorM).toBeCloseTo(5.81394, 4);
     expect(r.positivo.y.asRealCm2PorM).toBeCloseTo(5.23598775598299, 6);
     expect(r.positivo.y.verificaAs).toBe(false);
-    expect(r.positivo.y.lbNetaMm).toBeCloseTo(277.594631910421, 5);
+    // As,nec > As,real → σsd = fyd. lb,rqd = 2,5·434,78/3,04129 = 357,400;
+    // cd = mín(70, 20) = 20 → α2 = 0,85; lbd = 303,790 mm
+    expect(r.positivo.y.anclaje.sigmaSdMPa).toBeCloseTo(434.782609, 5);
+    expect(r.positivo.y.anclaje.lbdMm).toBeCloseTo(303.789697, 5);
   });
 
   it("sin la convención de malla general, X no suma la armadura de Y", () => {
@@ -77,7 +90,10 @@ describe("losa: armado negativo", () => {
     expect(r.negativo.x.asNecCm2PorM).toBeCloseTo(8.81026701892389, 6);
     expect(r.negativo.x.asRealCm2PorM).toBeCloseTo(7.5398223686155, 6);
     expect(r.negativo.x.verificaAs).toBe(false);
-    expect(r.negativo.x.lbNetaMm).toBeCloseTo(350.549386505309, 5);
+    // σsd = fyd; lb,rqd = 3·434,78/3,04129 = 428,880; cd = 30 → α2 = 0,775;
+    // lbd = 332,382 mm. Arriba, pero con e ≤ 0,25 sigue siendo adherencia buena.
+    expect(r.negativo.x.situacionAdherencia).toBe("buena");
+    expect(r.negativo.x.anclaje.lbdMm).toBeCloseTo(332.381669, 5);
   });
 
   it("redondea la separación máxima a múltiplos de 2 cm", () => {
@@ -95,5 +111,19 @@ describe("losa: momento resistente de un armado dado", () => {
     expect(r.asRealCm2PorM).toBeCloseTo(7.5398223686155, 6);
     expect(r.dM).toBeCloseTo(0.124, 9);
     expect(r.momentoKNmPorM).toBeCloseTo(37.9628551257742, 5);
+  });
+});
+
+describe("losa: adherencia y forma del anclaje", () => {
+  it("con e > 0,25 m la armadura superior pasa a adherencia mala y la inferior no", () => {
+    const gruesa = calcularLosa(materiales, { ...geometria, e: 0.3 }, datos);
+    expect(gruesa.positivo.x.situacionAdherencia).toBe("buena");
+    expect(gruesa.negativo.x.situacionAdherencia).toBe("mala");
+    expect(gruesa.negativo.x.anclaje.eta1).toBe(0.7);
+  });
+
+  it("con gancho y cd ≤ 3Ø no hay reducción por forma (α1 = 1, tabla A19.8.2)", () => {
+    const conGancho = calcularLosa(materiales, geometria, { ...datos, formaAnclaje: "gancho" });
+    expect(conGancho.positivo.x.anclaje.alfa1).toBe(1);
   });
 });

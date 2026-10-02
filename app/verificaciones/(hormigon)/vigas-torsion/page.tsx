@@ -337,7 +337,7 @@ export default function VigasTorsionPage() {
                   <PanelFormulas
                     titulo="Ver cálculo"
                     filas={[
-                      { etiqueta: "d", valor: `${fmt(resultado.d, 4)} m` },
+                      { etiqueta: "d⁺", valor: `${fmt(resultado.d, 4)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
                       { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionPositiva.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },

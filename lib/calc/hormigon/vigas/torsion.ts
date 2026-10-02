@@ -45,7 +45,10 @@ export interface ResultadoTorsion {
 }
 
 export interface ResultadoVigaTorsion {
+  /** Canto útil hasta la armadura inferior: momento positivo (m). */
   d: number;
+  /** Canto útil hasta la armadura superior: momento negativo y cortante (m). */
+  dNegativo: number;
   torsion: ResultadoTorsion;
   flexionPositiva: ResultadoFlexion;
   flexionNegativa: ResultadoFlexion;
@@ -117,7 +120,13 @@ export function calcularVigaConTorsion(
   // Esta hoja sigue con un solo diámetro por cara: se envuelve en un arreglo
   // de un elemento porque el motor de flexión ahora admite varios grupos
   // (capas de Ø distinto), pero acá no hace falta esa opción.
+  // Cada momento con su canto útil: d⁺ hasta la armadura inferior para el
+  // positivo, d⁻ hasta la superior para el negativo. La planilla usaba d⁺ para
+  // los dos. El cortante va con d⁻ porque su ρl ya sale de la armadura
+  // superior: se verifica la sección de apoyo, y d y ρl tienen que referirse
+  // a la misma armadura de tracción (Anejo 19, art. 6.2.2 (1)).
   const d = calcularCantoUtil(geometria, [datos.armaduraPositiva]);
+  const dNegativo = calcularCantoUtil(geometria, [datos.armaduraNegativa]);
 
   const comunes: Pick<DatosFlexion, "asAdicionalCm2"> = { asAdicionalCm2: torsion.alPorCaraCm2 };
 
@@ -126,13 +135,13 @@ export function calcularVigaConTorsion(
     armaduraReal: [datos.armaduraPositiva],
     ...comunes,
   });
-  const flexionNegativa = calcularFlexion(materiales, geometria, d, {
+  const flexionNegativa = calcularFlexion(materiales, geometria, dNegativo, {
     momento: datos.momentoNegativo,
     armaduraReal: [datos.armaduraNegativa],
     ...comunes,
   });
 
-  const cortante = calcularCortante(materiales, geometria, d, flexionNegativa.asRealCm2, {
+  const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     ...datos.cortante,
     a90AdicionalCm2PorM: torsion.atCm2PorM,
     pasoSeparacionM: PASO_SEPARACION_TORSION_M,
@@ -155,6 +164,7 @@ export function calcularVigaConTorsion(
 
   return {
     d,
+    dNegativo,
     torsion,
     flexionPositiva,
     flexionNegativa,

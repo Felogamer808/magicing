@@ -171,12 +171,14 @@ export default function VigasFlexionCortantePage() {
     const disposicionPositiva = calcularDisposicionArmadura(geometria, gruposPositiva);
     const disposicionNegativa = calcularDisposicionArmadura(geometria, gruposNegativa);
     const d = geometria.h - disposicionPositiva.distanciaCentroideM;
+    const dNegativo = geometria.h - disposicionNegativa.distanciaCentroideM;
 
     return {
       bM: v.b,
       hM: v.h,
       recubrimientoM: v.recubrimiento,
       dM: d,
+      dNegativoM: dNegativo,
       armaduraPositiva: { capas: disposicionPositiva.filas },
       armaduraNegativa: { capas: disposicionNegativa.filas },
       diametroEstriboMm: v.diametroEstribo,
@@ -413,7 +415,8 @@ export default function VigasFlexionCortantePage() {
               { etiqueta: "Recubrimiento", valor: `${recubrimiento} m` },
               ...(resultado
                 ? [
-                    { etiqueta: "Canto útil d", valor: `${fmt(resultado.d, 3)} m`, derivado: true },
+                    { etiqueta: "Canto útil d⁺", valor: `${fmt(resultado.d, 3)} m`, derivado: true },
+                    { etiqueta: "Canto útil d⁻", valor: `${fmt(resultado.dNegativo, 3)} m`, derivado: true },
                     { etiqueta: "As inferior", valor: `${fmt(resultado.flexionPositiva.asRealCm2)} cm²`, derivado: true },
                     { etiqueta: "As superior", valor: `${fmt(resultado.flexionNegativa.asRealCm2)} cm²`, derivado: true },
                   ]
@@ -423,7 +426,7 @@ export default function VigasFlexionCortantePage() {
               "γc = 1,5 y γs = 1,15: fcd = fck/γc, fyd = fyk/γs.",
               "Flexión con bloque rectangular de compresión de canto 0,8·x y tensión fcd.",
               "Cuantía mínima de tracción As,min = W/z · fctm,fl/fyd, con z = 0,8·h (Anejo 19, art. 9.2.1.1 (1), ec. (9.1)).",
-              "El canto útil d se mide hasta el centroide de la armadura inferior y se usa para los dos momentos.",
+              "Canto útil d⁺ hasta la armadura inferior para M+; d⁻ hasta la superior para M− y para el cortante.",
               "Cortante con estribos verticales, brazo 0,9·d y fyd de estribos limitada a 400 MPa.",
               "La cuantía ρl del cortante se toma con la armadura superior.",
               "La separación de estribos la dimensiona la herramienta: no es un dato.",
@@ -474,7 +477,7 @@ export default function VigasFlexionCortantePage() {
               <PanelMetricas
                 horizontal
                 metricas={[
-                  { etiqueta: "Canto útil d", valor: `${fmt(resultado.d, 3)} m` },
+                  { etiqueta: "Canto útil d⁺ / d⁻", valor: `${fmt(resultado.d, 3)} / ${fmt(resultado.dNegativo, 3)} m` },
                   {
                     etiqueta: "As nec. inferior",
                     valor: asNecesaria(resultado.flexionPositiva),
@@ -508,7 +511,7 @@ export default function VigasFlexionCortantePage() {
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión positiva"
                     filas={[
-                      { etiqueta: "d", valor: `${fmt(resultado.d, 3)} m` },
+                      { etiqueta: "d⁺", valor: `${fmt(resultado.d, 3)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
                       { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionPositiva.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
@@ -539,7 +542,7 @@ export default function VigasFlexionCortantePage() {
                         etiqueta: "M− de cálculo",
                         valor: `${fmt(resultado.momentoNegativoCalculo, 2)} kN·m${resultado.gobiernaMinimoApoyo ? " (0,15·M+)" : ""}`,
                       },
-                      { etiqueta: "d", valor: `${fmt(resultado.d, 3)} m` },
+                      { etiqueta: "d⁻", valor: `${fmt(resultado.dNegativo, 3)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionNegativa.mu, 5) },
                       { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionNegativa.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionNegativa.omega, 5) },
@@ -596,6 +599,7 @@ export default function VigasFlexionCortantePage() {
                       <PanelFormulas
                         titulo="Ver desarrollo del cortante"
                         filas={[
+                          { etiqueta: "d⁻", valor: `${fmt(resultado.dNegativo, 3)} m` },
                           { etiqueta: "k", valor: fmt(resultado.cortante.k, 3) },
                           { etiqueta: "ρl", valor: fmt(resultado.cortante.rhoL, 5) },
                           { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },

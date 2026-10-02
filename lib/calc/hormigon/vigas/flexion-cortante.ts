@@ -17,9 +17,6 @@ import {
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
 import { EPSILON_CU3, ES_MPA, LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
 
-/** Recubrimiento de estribo asumido (m), fijo según el criterio de oficina de la planilla original. */
-const DIAMETRO_ESTRIBO_CALADO_M = 0.006;
-
 /** Separación libre mínima entre barras (EC2 8.2): el mayor entre el diámetro de barra y 20 mm. */
 function separacionMinM(diametroMm: number): number {
   return Math.max(diametroMm, 20) / 1000;
@@ -72,7 +69,10 @@ export function calcularDisposicionArmadura(
   grupos: readonly ArmaduraElegida[]
 ): DisposicionArmadura {
   const { b, recubrimiento } = geometria;
-  const anchoDisponible = b - 2 * (recubrimiento + DIAMETRO_ESTRIBO_CALADO_M);
+  // La planilla asumía siempre un estribo de 6 mm, aunque el formulario pide
+  // el diámetro: con Ø10 el canto útil salía 4 mm optimista.
+  const estriboM = geometria.diametroEstriboMm / 1000;
+  const anchoDisponible = b - 2 * (recubrimiento + estriboM);
 
   const capacidadPorGrupo = grupos.map((g) => {
     const diametroM = g.diametroMm / 1000;
@@ -84,7 +84,7 @@ export function calcularDisposicionArmadura(
     distribuirEnCapas(g.numero, capacidadPorGrupo[i]).map((numero) => ({ numero, diametroMm: g.diametroMm }))
   );
 
-  let bordeM = recubrimiento + DIAMETRO_ESTRIBO_CALADO_M;
+  let bordeM = recubrimiento + estriboM;
   let sumaPonderadaM = 0;
   let areaTotalCm2 = 0;
 

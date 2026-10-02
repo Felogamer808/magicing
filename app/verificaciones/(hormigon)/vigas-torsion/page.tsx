@@ -83,7 +83,7 @@ export default function VigasTorsionPage() {
     }
 
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
+    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
 
     return calcularVigaConTorsion(materiales, geometria, {
       torsion: { td: v.td },
@@ -116,7 +116,7 @@ export default function VigasTorsionPage() {
       return null;
     }
 
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
+    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
     const dispPos = calcularDisposicionArmadura(geometria, [{ numero: v.numeroPos, diametroMm: v.diametroPos }]);
     const dispNeg = calcularDisposicionArmadura(geometria, [{ numero: v.numeroNeg, diametroMm: v.diametroNeg }]);
 

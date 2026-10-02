@@ -13,6 +13,8 @@ interface CampoDiametroProps {
   etiqueta: string;
   valor: string;
   onChange: (valor: string) => void;
+  /** Etiqueta sólo para lectores de pantalla, cuando una cabecera de columna ya la dice. */
+  ocultarEtiqueta?: boolean;
 }
 
 /**
@@ -25,14 +27,14 @@ interface CampoDiametroProps {
  * sitio (pilotes, pernos, perfiles huecos) siguen con CampoNumerico: no
  * comparten la serie comercial de armaduras.
  */
-export function CampoDiametro({ id, etiqueta, valor, onChange }: CampoDiametroProps) {
+export function CampoDiametro({ id, etiqueta, valor, onChange, ocultarEtiqueta = false }: CampoDiametroProps) {
   const esComercial = (DIAMETROS_ARMADURA as readonly number[]).some((d) => String(d) === valor);
   const [otroForzado, setOtroForzado] = useState(false);
   const enModoOtro = otroForzado || (valor !== "" && !esComercial);
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{etiqueta}</Label>
+      <Label htmlFor={id} className={ocultarEtiqueta ? "sr-only" : undefined}>{etiqueta}</Label>
       <div className="flex gap-2">
         <Select
           value={enModoOtro ? OTRO : valor}

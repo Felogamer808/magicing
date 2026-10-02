@@ -3,8 +3,11 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { EncabezadoEtapa, IndiceEtapas } from "@/components/verificaciones/comun/HojaTecnica";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -40,6 +43,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-flexion")!;
+
+const ETAPAS = [
+  { id: "material", titulo: "Material" },
+  { id: "geometria", titulo: "Geometría" },
+  { id: "vuelco", titulo: "Vuelco" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const CASOS = Object.values(NOMBRE_CASO_VUELCO);
 const casoDesdeEtiqueta = (e: string): CasoVuelco =>
@@ -136,10 +147,13 @@ export default function MaderaFlexionPage() {
   }, [ancho, canto, luz, fmk, e005, g005, my, mz, tipo, servicio, duracion, reparto,
       caso, borde, arriostrado]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!r) avisos.push({ tipo: "error", texto: "Cargá geometría, resistencias y momentos con valores válidos." });
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Piezas rectas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -149,98 +163,117 @@ export default function MaderaFlexionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={[{ id: "datos", titulo: "Datos" }, { id: "resultados", titulo: "Resultados" }]} />
-
-
-      <div className="border-t border-border/60 pt-5">
-        <div className="py-4 text-sm text-muted-foreground">
-          Dos comprobaciones sobre la misma viga, y conviene no confundirlas. El art. 6.1.6 agota
-          el material a flexión. El art. 6.3.3 la vuelca de costado <em>antes</em> de agotarla: una
-          viga de mucho canto y poca anchura puede pasar holgada la primera y no llegar a la mitad
-          en la segunda.
-        </div>
-      </div>
+      <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-          <EncabezadoEtapa id="datos" numero={1} titulo="Datos" descripcion="Lo que define el elemento y sus acciones." />
-        <div className="space-y-6">
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Material</h3></div>
-            <div className="space-y-4">
-              <SelectorMadera
-                tipo={tipo} onTipo={setTipo}
-                servicio={servicio} onServicio={setServicio}
-                duracion={duracion} onDuracion={setDuracion}
-              />
-              <CampoSeleccion id="reparto" etiqueta="Reparto transversal de carga"
-                              valor={reparto} opciones={REPARTO} onChange={setReparto} />
-              <div className="grid grid-cols-3 gap-4">
-                <CampoNumerico id="fmk" etiqueta="fm,k" sufijo="MPa" valor={fmk} onChange={setFmk} />
-                <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
-                <CampoNumerico id="g005" etiqueta="G0,05" sufijo="GPa" valor={g005} onChange={setG005} />
+        <Etapa id="material" numero={1} titulo="Material" descripcion="Tipo de madera, condiciones de servicio y valores característicos.">
+          <div className="max-w-2xl space-y-4">
+            <SelectorMadera
+              tipo={tipo} onTipo={setTipo}
+              servicio={servicio} onServicio={setServicio}
+              duracion={duracion} onDuracion={setDuracion}
+            />
+            <CampoSeleccion id="reparto" etiqueta="Reparto transversal de carga" valor={reparto} opciones={REPARTO} onChange={setReparto} />
+            <div className="grid grid-cols-3 gap-4">
+              <CampoNumerico id="fmk" etiqueta="fm,k" sufijo="MPa" valor={fmk} onChange={setFmk} />
+              <CampoNumerico id="e005" etiqueta="E0,05" sufijo="GPa" valor={e005} onChange={setE005} />
+              <CampoNumerico id="g005" etiqueta="G0,05" sufijo="GPa" valor={g005} onChange={setG005} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Los valores característicos se cargan a mano, como en la planilla. Salen de EN 338
+              para maciza y de EN 14080 para laminada; en coníferas G0,05 anda por E0,05/16.
+            </p>
+          </div>
+        </Etapa>
+
+        <Etapa id="geometria" numero={2} titulo="Geometría y esfuerzos" descripcion="Sección, luz y momentos de cálculo en cada eje.">
+          <DatosConDibujo
+            datos={
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
+                <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
+                <CampoNumerico id="luz" etiqueta="Luz l" sufijo="m" valor={luz} onChange={setLuz} />
+                <div />
+                <CampoNumerico id="my" etiqueta="My,d (eje fuerte)" sufijo="kN·m" valor={my} onChange={setMy} />
+                <CampoNumerico id="mz" etiqueta="Mz,d (eje débil)" sufijo="kN·m" valor={mz} onChange={setMz} />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Los valores característicos se cargan a mano, como en la planilla. Salen de EN 338
-                para maciza y de EN 14080 para laminada; en coníferas G0,05 anda por E0,05/16.
+            }
+            dibujo={<CroquisSeccionMadera anchoM={aNumero(ancho)} cantoM={aNumero(canto)} />}
+          />
+        </Etapa>
+
+        <Etapa id="vuelco" numero={3} titulo="Condiciones de vuelco" descripcion="Art. 6.3.3: cómo está cargada y arriostrada la viga.">
+          <div className="max-w-2xl space-y-4">
+            <CampoSeleccion id="caso" etiqueta="Viga y carga (tabla 6.1)" valor={caso} opciones={CASOS} onChange={setCaso} />
+            <CampoSeleccion id="borde" etiqueta="Dónde se aplica la carga" valor={borde} opciones={BORDES} onChange={setBorde} />
+            <CampoSeleccion id="arriostrado" etiqueta="¿Borde comprimido arriostrado?" valor={arriostrado} opciones={ARRIOSTRADO} onChange={setArriostrado} />
+            <PanelAyuda titulo="Por qué importa tanto dónde se apoya la carga">
+              <p>
+                La nota a la tabla 6.1 suma <strong className="text-foreground">2h</strong> a la
+                longitud eficaz cuando la carga cuelga del borde comprimido, y descuenta 0,5h
+                cuando se apoya en el traccionado. Entre los dos extremos hay 2,5 veces el canto:
+                en una viga de 1,25 m son más de 3 m de longitud eficaz.
               </p>
-            </div>
+              <p>
+                El motivo es físico. Si la carga va arriba, al girar la viga la carga la acompaña
+                y aumenta el vuelco. Si va colgada abajo, actúa como un péndulo y endereza.
+              </p>
+              <p>
+                <strong className="text-foreground">Arriostrar</strong> el borde comprimido en
+                toda su longitud —una losa clavada, correas continuas— permite tomar kcrit = 1 por
+                el art. 6.3.3(5), y suele ser mucho más barato que ensanchar la viga.
+              </p>
+            </PanelAyuda>
           </div>
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Geometría y esfuerzos</h3></div>
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="ancho" etiqueta="Anchura b" sufijo="m" valor={ancho} onChange={setAncho} />
-              <CampoNumerico id="canto" etiqueta="Canto h" sufijo="m" valor={canto} onChange={setCanto} />
-              <CampoNumerico id="luz" etiqueta="Luz l" sufijo="m" valor={luz} onChange={setLuz} />
-              <div />
-              <CampoNumerico id="my" etiqueta="My,d (eje fuerte)" sufijo="kN·m" valor={my} onChange={setMy} />
-              <CampoNumerico id="mz" etiqueta="Mz,d (eje débil)" sufijo="kN·m" valor={mz} onChange={setMz} />
-            </div>
-          </div>
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Madera", valor: `${tipo} · ${servicio}` },
+              { etiqueta: "Duración de la carga", valor: duracion },
+              { etiqueta: "fm,k · E0,05 · G0,05", valor: `${fmk} MPa · ${e005} · ${g005} GPa` },
+              { etiqueta: "Sección b × h", valor: `${ancho} × ${canto} m, luz ${luz} m` },
+              { etiqueta: "My,d · Mz,d", valor: `${my} · ${mz} kN·m` },
+              { etiqueta: "Vuelco", valor: `${caso} · ${borde}${arriostrado === ARRIOSTRADO[1] ? " · arriostrado" : ""}` },
+              ...(r ? [
+                { etiqueta: "kmod · γM", valor: `${fmt(r.km, 2)} · ${fmt(r.gammaM, 2)}`, derivado: true },
+                { etiqueta: "fm,y,d", valor: `${fmt(r.fmYd.valor, 2)} MPa`, derivado: true },
+              ] : []),
+            ]}
+            hipotesis={[
+              "EC5, art. 6.1.6 (agotamiento a flexión, ecs. 6.11 y 6.12) y 6.3.3 (vuelco lateral).",
+              "kh por separado en cada eje: canto para el fuerte y anchura para el débil.",
+              "km = 0,7 en flexión esviada de sección rectangular.",
+              "Longitud eficaz de la tabla 6.1 con la corrección de la nota según el borde cargado; con el borde comprimido arriostrado, kcrit = 1 (art. 6.3.3(5)).",
+              "Valores característicos cargados a mano (EN 338 / EN 14080).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-          <div className="border-t border-border/60 pt-5">
-            <div className="mb-3"><h3 className="text-sm font-medium">Condiciones de vuelco</h3></div>
-            <div className="space-y-4">
-              <CampoSeleccion id="caso" etiqueta="Viga y carga (tabla 6.1)"
-                              valor={caso} opciones={CASOS} onChange={setCaso} />
-              <CampoSeleccion id="borde" etiqueta="Dónde se aplica la carga"
-                              valor={borde} opciones={BORDES} onChange={setBorde} />
-              <CampoSeleccion id="arriostrado" etiqueta="¿Borde comprimido arriostrado?"
-                              valor={arriostrado} opciones={ARRIOSTRADO} onChange={setArriostrado} />
-              <PanelAyuda titulo="Por qué importa tanto dónde se apoya la carga">
-                <p>
-                  La nota a la tabla 6.1 suma <strong className="text-foreground">2h</strong> a la
-                  longitud eficaz cuando la carga cuelga del borde comprimido, y descuenta 0,5h
-                  cuando se apoya en el traccionado. Entre los dos extremos hay 2,5 veces el canto:
-                  en una viga de 1,25 m son más de 3 m de longitud eficaz.
-                </p>
-                <p>
-                  El motivo es físico. Si la carga va arriba, al girar la viga la carga la acompaña
-                  y aumenta el vuelco. Si va colgada abajo, actúa como un péndulo y endereza.
-                </p>
-                <p>
-                  <strong className="text-foreground">Arriostrar</strong> el borde comprimido en
-                  toda su longitud —una losa clavada, correas continuas— permite tomar kcrit = 1 por
-                  el art. 6.3.3(5), y suele ser mucho más barato que ensanchar la viga.
-                </p>
-              </PanelAyuda>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <EncabezadoEtapa id="resultados" numero={2} titulo="Resultados" />
-          <ConclusionAutomatica />
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!r ? (
-            <div className="border-t border-border/60 pt-5">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Cargá geometría, resistencias y momentos con valores válidos.
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
             </div>
           ) : (
-            <>
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Resultado</h3></div>
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "σm,y,d", valor: `${fmt(r.sigmaY, 2)} MPa`, nota: `fm,y,d ${fmt(r.fmYd.valor, 2)} MPa` },
+                  { etiqueta: "Aprovechamiento", valor: fmt(r.esviada.aprovechamiento, 3), nota: r.hayEsviada ? "flexión esviada" : "flexión recta" },
+                  { etiqueta: "λrel,m", valor: fmt(r.vuelco.lambdaRelM, 3) },
+                  { etiqueta: "kcrit", valor: fmt(r.vuelco.kcrit, 3), nota: r.vuelco.sinReduccion ? "sin reducción" : "reduce fm,d" },
+                ]}
+              />
+
+              <Subgrupo titulo="Agotamiento a flexión" detalle="art. 6.1.6">
                 <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta={r.hayEsviada ? "Flexión esviada, ecs. (6.11) y (6.12)" : "Flexión, art. 6.1.6"}
@@ -252,60 +285,8 @@ export default function MaderaFlexionPage() {
                       decimales: 3,
                     }}
                   />
-                  <ResultadoCheck
-                    etiqueta="Vuelco lateral, ec. (6.33)"
-                    verifica={r.vuelco.verifica}
-                    comparacion={{
-                      real: { etiqueta: "σm,d", valor: r.vuelco.sigmaMdMPa },
-                      limite: { etiqueta: "kcrit·fm,d", valor: r.vuelco.resistenciaReducidaMPa },
-                      unidad: "MPa",
-                      exige: "≤",
-                      decimales: 2,
-                    }}
-                  />
-                  {r.vuelco.sinReduccion && !r.vuelco.verifica === false && (
-                    <p className="text-xs text-muted-foreground">
-                      kcrit = 1: con esta esbeltez el vuelco no descuenta nada y la comprobación de
-                      arriba es la misma que la del art. 6.1.6.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Sección</h3></div>
-                <div>
-                  <CroquisSeccionMadera anchoM={r.b} cantoM={r.h} />
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Vuelco lateral</h3></div>
-                <div className="space-y-4">
-                  <CurvaVuelco
-                    lambdaRelM={r.vuelco.lambdaRelM}
-                    kcritActual={r.vuelco.kcrit}
-                    arriostrado={arriostrado === ARRIOSTRADO[1]}
-                  />
                   <PanelFormulas
-                    titulo="Ver cálculo del vuelco"
-                    filas={[
-                      { etiqueta: "lef (tabla 6.1 + nota)", valor: `${fmt(r.vuelco.longitudEficazM, 3)} m` },
-                      { etiqueta: "Itor", valor: `${fmt(r.props.itorM4 * 1e4, 2)} ·10⁻⁴ m⁴` },
-                      { etiqueta: "σm,crit  (6.32)", valor: `${fmt(r.vuelco.sigmaCritMPa, 2)} MPa` },
-                      { etiqueta: "λrel,m = √(fm,k/σm,crit)  (6.30)", valor: fmt(r.vuelco.lambdaRelM, 3) },
-                      { etiqueta: "kcrit  (6.34)", valor: fmt(r.vuelco.kcrit, 3) },
-                      { etiqueta: "kcrit·fm,d", valor: `${fmt(r.vuelco.resistenciaReducidaMPa, 2)} MPa` },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-border/60 pt-5">
-                <div className="mb-3"><h3 className="text-sm font-medium">Desarrollo</h3></div>
-                <div>
-                  <PanelFormulas
-                    titulo="Resistencias y tensiones"
+                    titulo="Ver desarrollo de resistencias y tensiones"
                     filas={[
                       { etiqueta: "kmod (tabla 3.1)", valor: fmt(r.km, 2) },
                       { etiqueta: "γM (tabla 2.3)", valor: fmt(r.gammaM, 2) },
@@ -328,10 +309,48 @@ export default function MaderaFlexionPage() {
                     ]}
                   />
                 </div>
-              </div>
-            </>
+              </Subgrupo>
+
+              <Subgrupo titulo="Vuelco lateral" detalle="art. 6.3.3">
+                <div className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta="Vuelco lateral, ec. (6.33)"
+                    verifica={r.vuelco.verifica}
+                    comparacion={{
+                      real: { etiqueta: "σm,d", valor: r.vuelco.sigmaMdMPa },
+                      limite: { etiqueta: "kcrit·fm,d", valor: r.vuelco.resistenciaReducidaMPa },
+                      unidad: "MPa",
+                      exige: "≤",
+                      decimales: 2,
+                    }}
+                  />
+                  {r.vuelco.sinReduccion && (
+                    <p className="text-xs text-muted-foreground">
+                      kcrit = 1: con esta esbeltez el vuelco no descuenta nada y la comprobación
+                      coincide con la del art. 6.1.6.
+                    </p>
+                  )}
+                  <CurvaVuelco
+                    lambdaRelM={r.vuelco.lambdaRelM}
+                    kcritActual={r.vuelco.kcrit}
+                    arriostrado={arriostrado === ARRIOSTRADO[1]}
+                  />
+                  <PanelFormulas
+                    titulo="Ver desarrollo del vuelco"
+                    filas={[
+                      { etiqueta: "lef (tabla 6.1 + nota)", valor: `${fmt(r.vuelco.longitudEficazM, 3)} m` },
+                      { etiqueta: "Itor", valor: `${fmt(r.props.itorM4 * 1e4, 2)} ·10⁻⁴ m⁴` },
+                      { etiqueta: "σm,crit  (6.32)", valor: `${fmt(r.vuelco.sigmaCritMPa, 2)} MPa` },
+                      { etiqueta: "λrel,m = √(fm,k/σm,crit)  (6.30)", valor: fmt(r.vuelco.lambdaRelM, 3) },
+                      { etiqueta: "kcrit  (6.34)", valor: fmt(r.vuelco.kcrit, 3) },
+                      { etiqueta: "kcrit·fm,d", valor: `${fmt(r.vuelco.resistenciaReducidaMPa, 2)} MPa` },
+                    ]}
+                  />
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
       </ProveedorComprobaciones>
     </main>

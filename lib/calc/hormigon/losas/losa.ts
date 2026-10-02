@@ -1,4 +1,5 @@
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 
 export interface GeometriaLosa {
   /** Espesor de la losa (m) */
@@ -21,8 +22,8 @@ export interface ResultadoDireccionLosa {
   mu: number;
   omega: number;
   asCalculadoCm2PorM: number;
-  asMinMecanicoCm2PorM: number;
-  asMinGeometricoCm2PorM: number;
+  /** As,min por metro, Anejo 19 art. 9.3.1.1 (1) → 9.2.1.1 (1), ec. (9.1) (cm²/m) */
+  asMinCm2PorM: number;
   asNecCm2PorM: number;
   /** Separación que haría falta para cubrir As,nec con el diámetro elegido (m) */
   separacionNecM: number;
@@ -38,8 +39,10 @@ export interface ResultadoDireccionLosa {
 }
 
 export interface ResultadoLosa {
-  asMinMecanicoCm2PorM: number;
-  asMinGeometricoCm2PorM: number;
+  /** fctm,fl con el espesor de la losa, ec. (3.23) (MPa) */
+  fctmFlMPa: number;
+  /** As,min por metro de ancho, igual en las dos direcciones (cm²/m) */
+  asMinCm2PorM: number;
   positivo: { x: ResultadoDireccionLosa; y: ResultadoDireccionLosa };
   negativo: { x: ResultadoDireccionLosa; y: ResultadoDireccionLosa };
 }
@@ -60,15 +63,17 @@ function armarDireccion(
   /** Armadura de la malla general que también colabora en esta dirección (cm²/m) */
   asMallaAdicionalCm2PorM = 0
 ): ResultadoDireccionLosa {
-  const { fcd, fyd, fyk } = materiales;
+  const { fcd, fyd, fyk, fctm } = materiales;
 
-  const asMinMecanicoCm2PorM = (0.04 * e * fcd * 100 ** 2) / fyd;
-  const asMinGeometricoCm2PorM = (1.8 / 1000) * e * 100 ** 2;
+  // Anejo 19, art. 9.3.1.1 (1), pág. 146: en losas se aplica el mínimo de
+  // vigas, ec. (9.1), por metro de ancho. La planilla usaba 0,04·e·fcd/fyd
+  // y 1,8 ‰·e, que son de la EHE‑08 (art. 42.3).
+  const asMinCm2PorM = armaduraMinimaTraccionCm2(1, e, resistenciaFlexotraccionMPa(fctm, e), fyd);
 
   const mu = momentoKNmPorM / (d ** 2 * fcd * 1000);
   const omega = 1 - Math.sqrt(1 - 2 * mu);
   const asCalculadoCm2PorM = ((omega * d * fcd) / fyd) * 100 ** 2;
-  const asNecCm2PorM = Math.max(asCalculadoCm2PorM, asMinMecanicoCm2PorM, asMinGeometricoCm2PorM);
+  const asNecCm2PorM = Math.max(asCalculadoCm2PorM, asMinCm2PorM);
 
   const area = areaBarraCm2(armado.diametroMm);
   const separacionNecM = area / asNecCm2PorM;
@@ -91,8 +96,7 @@ function armarDireccion(
     mu,
     omega,
     asCalculadoCm2PorM,
-    asMinMecanicoCm2PorM,
-    asMinGeometricoCm2PorM,
+    asMinCm2PorM,
     asNecCm2PorM,
     separacionNecM,
     separacionMaxM,
@@ -134,7 +138,8 @@ export function calcularLosa(
   datos: DatosLosa
 ): ResultadoLosa {
   const { e, recubrimientoPositivo, recubrimientoNegativo } = geometria;
-  const { fcd, fyd } = materiales;
+  const { fyd, fctm } = materiales;
+  const fctmFlMPa = resistenciaFlexotraccionMPa(fctm, e);
   const xIncluyeMallaEnY = datos.xIncluyeMallaEnY ?? true;
 
   const dPosY = e - recubrimientoPositivo - datos.armadoPositivoY.diametroMm / 2000;
@@ -165,8 +170,8 @@ export function calcularLosa(
   const negX = armarDireccion(materiales, e, dNegX, datos.momentoNegativoX, datos.armadoNegativoX);
 
   return {
-    asMinMecanicoCm2PorM: (0.04 * e * fcd * 100 ** 2) / fyd,
-    asMinGeometricoCm2PorM: (1.8 / 1000) * e * 100 ** 2,
+    fctmFlMPa,
+    asMinCm2PorM: armaduraMinimaTraccionCm2(1, e, fctmFlMPa, fyd),
     positivo: { x: posX, y: posY },
     negativo: { x: negX, y: negY },
   };

@@ -23,9 +23,17 @@ const datos = {
 describe("losa: cuantías mínimas", () => {
   const r = calcularLosa(materiales, geometria, datos);
 
-  it("reproduce As mecánica y geométrica mínimas", () => {
-    expect(r.asMinMecanicoCm2PorM).toBeCloseTo(2.76, 6);
-    expect(r.asMinGeometricoCm2PorM).toBeCloseTo(2.7, 6);
+  /*
+   * La planilla daba 2,76 (0,04·e·fcd/fyd) y 2,70 (1,8 ‰·e), de la EHE‑08.
+   * Anejo 19, art. 9.3.1.1 (1) → 9.2.1.1 (1), ec. (9.1), por metro, a mano:
+   *   fctm,fl = (1,6 − 0,15)·0,3·30^(2/3) = 1,45·2,8965 = 4,19988 MPa  (3.23)
+   *   As,min = 1·0,15·4,19988/(4,8·434,78)·10⁴ = 3,01866 cm²/m
+   * En losas finas sube respecto de la EHE: fctm,fl crece al bajar el espesor.
+   */
+  it("aplica la cuantía mínima del Anejo 19, ec. (9.1), por metro", () => {
+    expect(r.fctmFlMPa).toBeCloseTo(4.199879, 5);
+    expect(r.asMinCm2PorM).toBeCloseTo(3.018663, 5);
+    expect(r.positivo.y.asMinCm2PorM).toBeCloseTo(3.018663, 5);
   });
 });
 

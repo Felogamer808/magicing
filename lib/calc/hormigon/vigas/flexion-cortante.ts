@@ -16,6 +16,7 @@ import {
 } from "@/lib/calc/hormigon/comun/cortante";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
 import { EPSILON_CU3, ES_MPA, LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
+import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 
 /** Separación libre mínima entre barras (EC2 8.2): el mayor entre el diámetro de barra y 20 mm. */
 function separacionMinM(diametroMm: number): number {
@@ -125,32 +126,6 @@ export function calcularCantoUtil(
 }
 
 /**
- * Resistencia media a flexotracción, Anejo 19, art. 3.1.8 (1), ec. (3.23),
- * pág. 31: fctm,fl = máx{(1,6 − h/1000)·fctm; fctm}, con h en mm.
- */
-export function resistenciaFlexotraccionMPa(fctmMPa: number, hM: number): number {
-  return Math.max((1.6 - hM) * fctmMPa, fctmMPa);
-}
-
-/**
- * Armadura mínima de tracción de una sección rectangular, Anejo 19,
- * art. 9.2.1.1 (1), ec. (9.1), pág. 140:
- *
- *   As,min = (W / z) · fctm,fl / fyd,  con W = b·h²/6 y z ≈ 0,8·h
- *
- * Es la única cuantía mínima que fija el Anejo 19 para vigas. La planilla
- * original sumaba un mínimo geométrico de 2,8 ‰ y uno mecánico de 0,04·Ac,
- * que son de la EHE‑08 (art. 42.3): mezclados en un cálculo EC2 exigían el
- * doble de armadura de lo que pide la norma que el módulo declara.
- */
-export function armaduraMinimaFlexionCm2(geometria: GeometriaViga, fctmFlMPa: number, fydMPa: number): number {
-  const { b, h } = geometria;
-  const moduloResistente = (b * h ** 2) / 6;
-  const brazo = 0.8 * h;
-  return 100 ** 2 * (moduloResistente / brazo) * (fctmFlMPa / fydMPa);
-}
-
-/**
  * Momento reducido límite para que la armadura de tracción fluya.
  *
  * Con el hormigón agotado (εc = εcu3) y el acero justo en fluencia
@@ -189,7 +164,7 @@ export function calcularFlexion(
   // El mínimo se aplica igual a la armadura positiva y a la negativa: en una
   // sección rectangular W es el mismo respecto de las dos caras.
   const fctmFlMPa = resistenciaFlexotraccionMPa(fctm, h);
-  const asMinCm2 = armaduraMinimaFlexionCm2(geometria, fctmFlMPa, fyd);
+  const asMinCm2 = armaduraMinimaTraccionCm2(b, h, fctmFlMPa, fyd);
 
   const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
 

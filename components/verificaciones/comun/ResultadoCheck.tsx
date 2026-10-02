@@ -1,9 +1,13 @@
+"use client";
+
 import { BarraDemandaCapacidad } from "@/components/verificaciones/comun/BarraDemandaCapacidad";
 import {
   EstadoVerificacionChip,
   type EstadoVerificacion,
 } from "@/components/verificaciones/comun/EstadoVerificacion";
 import { fmt } from "@/lib/verificaciones/formato";
+import { useId } from "react";
+import { useAnotarComprobacion } from "@/components/verificaciones/comun/RegistroComprobaciones";
 
 /** Una de las dos magnitudes que se enfrentan en la comprobación. */
 interface MagnitudComparada {
@@ -81,6 +85,21 @@ export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacio
     comparacion !== undefined &&
     Number.isFinite(comparacion.real.valor) &&
     Number.isFinite(comparacion.limite.valor);
+
+  // Se anota en el registro de la página (si hay uno) para la conclusión
+  // general. La utilización es la misma que dibuja la barra: demanda sobre
+  // capacidad, dada vuelta cuando se exige "≥".
+  const utilizacion =
+    comparable && comparacion
+      ? comparacion.exige === "≤"
+        ? comparacion.real.valor / comparacion.limite.valor
+        : comparacion.limite.valor / comparacion.real.valor
+      : undefined;
+  useAnotarComprobacion(useId(), {
+    etiqueta: etiqueta.charAt(0).toLowerCase() + etiqueta.slice(1),
+    estado: estadoFinal,
+    utilizacion: utilizacion !== undefined && Number.isFinite(utilizacion) ? utilizacion : undefined,
+  });
 
   /*
    * Fila, no tarjeta: las comprobaciones se leen una debajo de otra con la

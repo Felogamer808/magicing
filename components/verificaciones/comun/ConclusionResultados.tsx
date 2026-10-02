@@ -41,9 +41,13 @@ export function ConclusionResultados({ comprobaciones }: { comprobaciones: reado
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-base font-semibold">
           {estado === "no-cumple"
-            ? `No cumple: ${fallan.length} de ${evaluadas.length} comprobaciones fallan`
+            ? evaluadas.length === 1
+            ? "No cumple la comprobación"
+            : `No cumple: ${fallan.length} de ${evaluadas.length} comprobaciones ${fallan.length === 1 ? "falla" : "fallan"}`
             : estado === "cumple"
-              ? `Cumple las ${evaluadas.length} comprobaciones`
+              ? evaluadas.length === 1
+              ? "Cumple la comprobación"
+              : `Cumple las ${evaluadas.length} comprobaciones`
               : "Sin comprobaciones evaluadas"}
         </p>
         <EstadoVerificacionChip estado={estado} />

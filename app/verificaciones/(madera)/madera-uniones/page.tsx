@@ -2,8 +2,12 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -37,6 +41,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-uniones")!;
+
+const ETAPAS = [
+  { id: "configuracion", titulo: "Configuración" },
+  { id: "piezas", titulo: "Clavija y piezas" },
+  { id: "grupo", titulo: "Grupo" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 const CONFIGURACIONES = [
   "Madera-madera, cortadura simple",
@@ -146,9 +158,14 @@ export default function MaderaUnionesPage() {
   }, [d, fuk, t1, t2, rho1, rho2, angulo, espesorChapa, fax, nMedios, separacion,
       planos, fed, config, clavija, especie, servicio, duracion]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!r) avisos.push({ tipo: "error", texto: "Cargá diámetro, espesores, densidades y el grupo con valores válidos." });
+  else if (r.usaChapa && r.claseChapa === "intermedia") avisos.push({ tipo: "aviso", texto: "La chapa cae entre delgada y gruesa: se interpola linealmente, como manda el art. 8.2.3(1)." });
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Uniones</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -158,120 +175,133 @@ export default function MaderaUnionesPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          El método de Johansen consiste en escribir todos los modos de fallo posibles y quedarse
-          con el menor. De ahí sale la trampa principal del artículo:{" "}
-          <strong className="text-foreground">omitir un modo es siempre inseguro</strong>, porque el
-          mínimo de menos candidatos nunca es más chico. Acá se escriben todos y se muestran uno al
-          lado del otro.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Configuración</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <CampoSeleccion id="config" etiqueta="Tipo de unión" valor={config}
-                              opciones={CONFIGURACIONES} onChange={setConfig} />
-              <div className="grid grid-cols-2 gap-4">
-                <CampoSeleccion id="clavija" etiqueta="Medio de fijación" valor={clavija}
-                                opciones={CLAVIJAS} onChange={setClavija} />
-                <CampoSeleccion id="especie" etiqueta="Especie" valor={especie}
-                                opciones={ESPECIES} onChange={setEspecie} />
-                <CampoSeleccion id="servicio" etiqueta="Clase de servicio" valor={servicio}
-                                opciones={CLASES_SERVICIO} onChange={setServicio} />
-                <CampoSeleccion id="duracion" etiqueta="Duración de la carga" valor={duracion}
-                                opciones={DURACIONES} onChange={setDuracion} />
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-12">
+        <Etapa id="configuracion" numero={1} titulo="Configuración" descripcion="Tipo de unión, medio de fijación y condiciones de servicio.">
+          <div className="max-w-2xl space-y-4">
+            <CampoSeleccion id="config" etiqueta="Tipo de unión" valor={config} opciones={CONFIGURACIONES} onChange={setConfig} />
+            <div className="grid grid-cols-2 gap-4">
+              <CampoSeleccion id="clavija" etiqueta="Medio de fijación" valor={clavija} opciones={CLAVIJAS} onChange={setClavija} />
+              <CampoSeleccion id="especie" etiqueta="Especie" valor={especie} opciones={ESPECIES} onChange={setEspecie} />
+              <CampoSeleccion id="servicio" etiqueta="Clase de servicio" valor={servicio} opciones={CLASES_SERVICIO} onChange={setServicio} />
+              <CampoSeleccion id="duracion" etiqueta="Duración de la carga" valor={duracion} opciones={DURACIONES} onChange={setDuracion} />
+            </div>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Clavija y piezas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="d" etiqueta="Diámetro d" sufijo="mm" valor={d} onChange={setD}
-                               sugerencias={[8, 10, 12, 16, 20, 24]} />
-                <CampoNumerico id="fuk" etiqueta="fu,k del acero" sufijo="MPa" valor={fuk} onChange={setFuk} />
-                <CampoNumerico id="t1" etiqueta="t1" sufijo="mm" valor={t1} onChange={setT1} />
-                <CampoNumerico id="t2" etiqueta="t2" sufijo="mm" valor={t2} onChange={setT2} />
-                <CampoNumerico id="rho1" etiqueta="ρk pieza 1" sufijo="kg/m³" valor={rho1} onChange={setRho1} />
-                <CampoNumerico id="rho2" etiqueta="ρk pieza 2" sufijo="kg/m³" valor={rho2} onChange={setRho2} />
-                <CampoNumerico id="angulo" etiqueta="Ángulo carga-fibra" sufijo="°"
-                               valor={angulo} onChange={setAngulo} />
-                <CampoNumerico id="espesorChapa" etiqueta="Espesor de chapa" sufijo="mm"
-                               valor={espesorChapa} onChange={setEspesorChapa} />
-              </div>
-              <PanelAyuda titulo="Las unidades de este artículo, que son la trampa">
-                <p>
-                  <strong className="text-foreground">Todo va en milímetros y newtons.</strong> La
-                  ec. (8.32) escribe fh,0,k = 0,082·(1 − 0,01·d)·ρk con{" "}
-                  <em>d en milímetros</em>. Poniendo el diámetro en metros el paréntesis pasa de
-                  0,90 a 0,9999 y la resistencia al aplastamiento sale un 11 % alta, sin que
-                  ningún resultado intermedio lo delate.
-                </p>
-                <p>
-                  <strong className="text-foreground">fu,k, no fy,k.</strong> El momento plástico
-                  de la ec. (8.30) usa la resistencia a <em>tracción</em> del acero del perno.
-                </p>
-                <p>
-                  <strong className="text-foreground">t1 y t2</strong> cambian de significado según
-                  la configuración: en cortadura simple, t1 es la pieza de cabeza y t2 la
-                  penetración; en doble, t1 son las laterales y t2 la central.
-                </p>
-              </PanelAyuda>
-            </CardContent>
-          </Card>
+        <Etapa id="piezas" numero={2} titulo="Clavija y piezas" descripcion="Todo en milímetros y newtons, como lo escribe el articulado.">
+          <div className="max-w-2xl space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="d" etiqueta="Diámetro d" sufijo="mm" valor={d} onChange={setD} sugerencias={[8, 10, 12, 16, 20, 24]} />
+              <CampoNumerico id="fuk" etiqueta="fu,k del acero" sufijo="MPa" valor={fuk} onChange={setFuk} />
+              <CampoNumerico id="t1" etiqueta="t1" sufijo="mm" valor={t1} onChange={setT1} />
+              <CampoNumerico id="t2" etiqueta="t2" sufijo="mm" valor={t2} onChange={setT2} />
+              <CampoNumerico id="rho1" etiqueta="ρk pieza 1" sufijo="kg/m³" valor={rho1} onChange={setRho1} />
+              <CampoNumerico id="rho2" etiqueta="ρk pieza 2" sufijo="kg/m³" valor={rho2} onChange={setRho2} />
+              <CampoNumerico id="angulo" etiqueta="Ángulo carga-fibra" sufijo="°" valor={angulo} onChange={setAngulo} />
+              <CampoNumerico id="espesorChapa" etiqueta="Espesor de chapa" sufijo="mm" valor={espesorChapa} onChange={setEspesorChapa} />
+            </div>
+            <PanelAyuda titulo="Las unidades de este artículo, que son la trampa">
+              <p>
+                <strong className="text-foreground">Todo va en milímetros y newtons.</strong> La
+                ec. (8.32) escribe fh,0,k = 0,082·(1 − 0,01·d)·ρk con{" "}
+                <em>d en milímetros</em>. Poniendo el diámetro en metros el paréntesis pasa de
+                0,90 a 0,9999 y la resistencia al aplastamiento sale un 11 % alta, sin que
+                ningún resultado intermedio lo delate.
+              </p>
+              <p>
+                <strong className="text-foreground">fu,k, no fy,k.</strong> El momento plástico
+                de la ec. (8.30) usa la resistencia a <em>tracción</em> del acero del perno.
+              </p>
+              <p>
+                <strong className="text-foreground">t1 y t2</strong> cambian de significado según
+                la configuración: en cortadura simple, t1 es la pieza de cabeza y t2 la
+                penetración; en doble, t1 son las laterales y t2 la central.
+              </p>
+            </PanelAyuda>
+          </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Grupo y solicitación</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="nMedios" etiqueta="n en la fila" valor={nMedios} onChange={setNMedios} />
-                <CampoNumerico id="separacion" etiqueta="Separación a1" sufijo="mm"
-                               valor={separacion} onChange={setSeparacion} />
-                <CampoNumerico id="planos" etiqueta="Planos de cortadura" valor={planos} onChange={setPlanos} />
-                <CampoNumerico id="fax" etiqueta="Fax,Rk (efecto soga)" sufijo="kN"
-                               valor={fax} onChange={setFax} />
-              </div>
+        <Etapa id="grupo" numero={3} titulo="Grupo y solicitación" descripcion="Medios en la fila, planos de cortadura y la fuerza que transmite la unión.">
+          <div className="max-w-2xl space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <CampoNumerico id="nMedios" etiqueta="n en la fila" valor={nMedios} onChange={setNMedios} />
+              <CampoNumerico id="separacion" etiqueta="Separación a1" sufijo="mm" valor={separacion} onChange={setSeparacion} />
+              <CampoNumerico id="planos" etiqueta="Planos de cortadura" valor={planos} onChange={setPlanos} />
+              <CampoNumerico id="fax" etiqueta="Fax,Rk (efecto soga)" sufijo="kN" valor={fax} onChange={setFax} />
               <CampoNumerico id="fed" etiqueta="Fv,Ed de la unión" sufijo="kN" valor={fed} onChange={setFed} />
-              <PanelAyuda titulo="Por qué una fila de n pernos no vale n pernos">
-                <p>
-                  El reparto entre pernos alineados con la fibra no es uniforme: los de los
-                  extremos toman más carga y la madera se hiende antes de que los del medio
-                  lleguen a su capacidad. La ec. (8.34) lo recoge con un número eficaz nef que
-                  puede quedar en 0,7·n. Ignorarlo sobrestima la unión un 40 %.
-                </p>
-                <p>
-                  Sólo aplica a la componente <em>paralela a la fibra</em>, y sólo dentro de cada
-                  fila: dos filas separadas perpendicularmente suman enteras.
-                </p>
-                <p>
-                  El <strong className="text-foreground">efecto soga</strong> es el aporte de la
-                  tracción axial de la clavija, Fax,Rk/4, topado por el art. 8.2.2(2) según el
-                  tipo: 25 % en pernos, 15 % en clavos circulares, 100 % en tirafondos y{" "}
-                  <strong className="text-foreground">0 % en pasadores</strong>, que sin cabeza ni
-                  rosca no tienen de dónde agarrarse. Si no se conoce Fax,Rk, va cero.
-                </p>
-              </PanelAyuda>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <PanelAyuda titulo="Por qué una fila de n pernos no vale n pernos">
+              <p>
+                El reparto entre pernos alineados con la fibra no es uniforme: los de los
+                extremos toman más carga y la madera se hiende antes de que los del medio
+                lleguen a su capacidad. La ec. (8.34) lo recoge con un número eficaz nef que
+                puede quedar en 0,7·n. Ignorarlo sobrestima la unión un 40 %.
+              </p>
+              <p>
+                Sólo aplica a la componente <em>paralela a la fibra</em>, y sólo dentro de cada
+                fila: dos filas separadas perpendicularmente suman enteras.
+              </p>
+              <p>
+                El <strong className="text-foreground">efecto soga</strong> es el aporte de la
+                tracción axial de la clavija, Fax,Rk/4, topado por el art. 8.2.2(2) según el
+                tipo: 25 % en pernos, 15 % en clavos circulares, 100 % en tirafondos y{" "}
+                <strong className="text-foreground">0 % en pasadores</strong>, que sin cabeza ni
+                rosca no tienen de dónde agarrarse. Si no se conoce Fax,Rk, va cero.
+              </p>
+            </PanelAyuda>
+          </div>
+        </Etapa>
 
-        <div className="space-y-6">
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Unión", valor: config },
+              { etiqueta: "Medio · especie", valor: `${clavija} · ${especie}` },
+              { etiqueta: "Servicio · duración", valor: `${servicio} · ${duracion}` },
+              { etiqueta: "d · fu,k", valor: `${d} mm · ${fuk} MPa` },
+              { etiqueta: "t1 · t2", valor: `${t1} · ${t2} mm` },
+              { etiqueta: "ρk 1 · ρk 2", valor: `${rho1} · ${rho2} kg/m³` },
+              { etiqueta: "Ángulo carga-fibra", valor: `${angulo}°` },
+              { etiqueta: "Grupo", valor: `${nMedios} en la fila, a1 = ${separacion} mm, ${planos} planos` },
+              { etiqueta: "Fv,Ed · Fax,Rk", valor: `${fed} · ${fax} kN` },
+              ...(r ? [{ etiqueta: "nef", valor: fmt(r.nef, 2), derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "EC5, art. 8.2 (Johansen): se escriben todos los modos de fallo y gobierna el menor.",
+              "fh,α,k por las ecs. (8.31) a (8.33); My,Rk con fu,k por la ec. (8.30).",
+              "Efecto soga topado por el art. 8.2.2(2) según el tipo de medio.",
+              "Chapa entre delgada y gruesa: interpolación lineal (art. 8.2.3(1)).",
+              "nef de la ec. (8.34) aplicado a la fila; la capacidad pasa por kmod y γM de uniones (ec. 2.17).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!r ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Cargá diámetro, espesores, densidades y el grupo con valores válidos.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Fv,Rk por plano y medio", valor: `${fmt(r.union.fvRkKN, 2)} kN` },
+                  { etiqueta: "Fv,Rd por plano y medio", valor: `${fmt(r.fvRdPorMedioKN, 2)} kN`, nota: `kmod ${fmt(r.km, 2)}` },
+                  { etiqueta: "nef", valor: fmt(r.nef, 2), nota: `de ${fmt(r.n, 0)} medios` },
+                  { etiqueta: "Fv,Rd de la unión", valor: `${fmt(r.capacidadKN, 2)} kN`, nota: `${fmt(r.nPlanos, 0)} planos` },
+                ]}
+              />
+
+              <Subgrupo titulo="Capacidad de la unión">
+                <div className="space-y-3">
                   <ResultadoCheck
                     etiqueta="Capacidad de la unión"
                     verifica={r.aprovechamiento <= 1}
@@ -280,27 +310,11 @@ export default function MaderaUnionesPage() {
                       limite: { etiqueta: "Fv,Rd", valor: r.capacidadKN },
                       unidad: "kN", exige: "≤", decimales: 2,
                     }}
+                    detalle={`${fmt(r.fvRdPorMedioKN, 2)} kN por plano y por medio × ${fmt(r.nef, 2)} medios eficaces × ${fmt(r.nPlanos, 0)} planos`}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {fmt(r.fvRdPorMedioKN, 2)} kN por plano y por medio × {fmt(r.nef, 2)} medios
-                    eficaces (de {fmt(r.n, 0)}) × {fmt(r.nPlanos, 0)} planos.
-                  </p>
-                  {r.usaChapa && r.claseChapa === "intermedia" && (
-                    <p className="text-xs text-muted-foreground">
-                      La chapa cae entre delgada y gruesa: el art. 8.2.3(1) manda interpolar
-                      linealmente, y eso es lo que se hizo. Clasificarla con un umbral daría un
-                      salto de régimen de hasta el 30 %.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Modos de fallo</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
                   <DiagramaModosFallo resultado={r.union} />
                   <PanelFormulas
-                    titulo="Ver desarrollo"
+                    titulo="Ver desarrollo de la capacidad"
                     filas={[
                       { etiqueta: "k90  (8.33)", valor: fmt(r.factorK90, 3) },
                       {
@@ -309,11 +323,7 @@ export default function MaderaUnionesPage() {
                         formula: "0,082·(1 − 0,01·d)·ρk / (k90·sen²α + cos²α)",
                       },
                       { etiqueta: "fh,2,k", valor: `${fmt(r.fh2, 2)} MPa` },
-                      {
-                        etiqueta: "My,Rk  (8.30)",
-                        valor: `${fmt(r.my, 0)} N·mm`,
-                        formula: "0,3 · fu,k · d^2,6",
-                      },
+                      { etiqueta: "My,Rk  (8.30)", valor: `${fmt(r.my, 0)} N·mm`, formula: "0,3 · fu,k · d^2,6" },
                       { etiqueta: "Fv,Rk por plano y medio", valor: `${fmt(r.union.fvRkKN, 3)} kN` },
                       { etiqueta: "kmod (tabla 3.1)", valor: fmt(r.km, 2) },
                       { etiqueta: "γM de uniones (tabla 2.3)", valor: fmt(GAMMA_M_UNIONES, 2) },
@@ -322,12 +332,13 @@ export default function MaderaUnionesPage() {
                       { etiqueta: "Fv,Rd de la unión", valor: `${fmt(r.capacidadKN, 2)} kN` },
                     ]}
                   />
-                </CardContent>
-              </Card>
-            </>
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

@@ -3,8 +3,12 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { useSeccionAcero } from "@/lib/hooks/useSeccionAcero";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
+import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
@@ -17,6 +21,14 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexo-compresion")!;
+
+const ETAPAS = [
+  { id: "seccion", titulo: "Sección" },
+  { id: "longitudes", titulo: "Longitudes" },
+  { id: "solicitaciones", titulo: "Solicitaciones" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 export default function FlexoCompresionPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
@@ -65,9 +77,13 @@ export default function FlexoCompresionPage() {
     }
   }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, las longitudes y el material con valores positivos. La compresión y los momentos pueden ser cero." });
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <ProveedorComprobaciones>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Barras · Estructuras metálicas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
@@ -77,139 +93,120 @@ export default function FlexoCompresionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          Artículo H1.1. No agrega resistencias nuevas: combina la axial admisible del capítulo E
-          con las dos flexionales del capítulo F. La ecuación cambia de forma según cuánto pese la
-          axial — con Pr/Pc ≥ 0,2 manda H1-1a, por debajo H1-1b. Con Pr = 0 —una viga con momento en
-          los dos ejes y sin carga axial— la H1-1b se reduce sola a Mrx/Mcx + Mry/Mcy ≤ 1: sirve
-          también para verificar flexión biaxial pura, sin tener que cargar una axial ficticia.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
+      <div className="flex flex-col gap-12">
+        <Etapa id="seccion" numero={1} titulo="Sección y material" descripcion="El perfil y el acero.">
           <SelectorSeccionAcero
             familia={seccion.familia}
             paramsTexto={seccion.paramsTexto}
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
-          />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Longitudes y material</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico
-                id="lcxFC"
-                etiqueta="Lc eje fuerte"
-                sufijo="m"
-                valor={lcx}
-                onChange={setLcx}
-                advertencia="Longitud efectiva de pandeo por compresión, Lc=K·L (cap. E), eje x"
-              />
-              <CampoNumerico
-                id="lcyFC"
-                etiqueta="Lc eje débil"
-                sufijo="m"
-                valor={lcy}
-                onChange={setLcy}
-                advertencia="Lo mismo que Lc eje fuerte, pero eje y"
-              />
-              <CampoNumerico
-                id="lbFC"
-                etiqueta="Lb sin arriostrar"
-                sufijo="m"
-                valor={lb}
-                onChange={setLb}
-                advertencia="Distancia entre arriostramientos del ala comprimida (cap. F); no tiene por qué coincidir con Lc"
-              />
-              <CampoNumerico
-                id="cbFC"
-                etiqueta="Cb"
-                valor={cb}
-                onChange={setCb}
-                advertencia="Corrige Mn según la forma del diagrama de momentos en Lb; 1 es siempre válido y conservador"
-              />
+          >
+            <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fyFC" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eFC" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
-              <div className="col-span-2">
-                <PanelAyuda titulo="Qué son Lc, Lb y Cb">
-                  <p>
-                    <strong className="text-foreground">Lc eje fuerte / Lc eje débil.</strong> La
-                    longitud efectiva de pandeo por compresión de cada eje (cap. E), Lc=K·L ya
-                    cargada con K adentro. Son dos porque la barra puede estar arriostrada distinto
-                    en cada dirección — por ejemplo, correas a media altura que la sujetan sólo en
-                    el eje débil.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Lb sin arriostrar.</strong> La distancia
-                    entre los puntos que impiden que el ala comprimida se desplace lateralmente o
-                    gire — el dato que entra en el pandeo lateral-torsional del cap. F. No tiene por
-                    qué coincidir con ningún Lc: un arriostramiento puede frenar el giro del ala sin
-                    frenar el pandeo por compresión de toda la sección, y viceversa.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Cb.</strong> Corrige Mn del cap. F según la
-                    forma del diagrama de momentos dentro de Lb (art. F1, ec. F1-1): un momento
-                    uniforme en todo el tramo —el caso más desfavorable para el pandeo
-                    lateral-torsional— da Cb=1; si el momento varía o cambia de signo dentro del
-                    tramo, Cb sube (hasta 3) y la resistencia real es mayor. Cargar 1 siempre es
-                    válido, aunque conservador.
-                  </p>
-                </PanelAyuda>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </SelectorSeccionAcero>
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solicitaciones</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="pFC" etiqueta="Compresión Pr (0 si es una viga)" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
-              <div />
-              <CampoNumerico id="mrx" etiqueta="Momento Mrx" sufijo="kN·m" valor={mrx} onChange={setMrx} />
-              <CampoNumerico id="mry" etiqueta="Momento Mry" sufijo="kN·m" valor={mry} onChange={setMry} />
-            </CardContent>
-          </Card>
-        </div>
+        <Etapa id="longitudes" numero={2} titulo="Longitudes y arriostramiento" descripcion="Lc para el pandeo por compresión (cap. E) y Lb, Cb para la flexión (cap. F).">
+          <div className="grid max-w-2xl grid-cols-2 gap-4">
+            <CampoNumerico id="lcxFC" etiqueta="Lc eje fuerte" sufijo="m" valor={lcx} onChange={setLcx} advertencia="Longitud efectiva de pandeo por compresión, Lc=K·L (cap. E), eje x" />
+            <CampoNumerico id="lcyFC" etiqueta="Lc eje débil" sufijo="m" valor={lcy} onChange={setLcy} advertencia="Lo mismo que Lc eje fuerte, pero eje y" />
+            <CampoNumerico id="lbFC" etiqueta="Lb sin arriostrar" sufijo="m" valor={lb} onChange={setLb} advertencia="Distancia entre arriostramientos del ala comprimida (cap. F); no tiene por qué coincidir con Lc" />
+            <CampoNumerico id="cbFC" etiqueta="Cb" valor={cb} onChange={setCb} advertencia="Corrige Mn según la forma del diagrama de momentos en Lb; 1 es siempre válido y conservador" />
+            <div className="col-span-2">
+              <PanelAyuda titulo="Qué son Lc, Lb y Cb">
+                <p>
+                  <strong className="text-foreground">Lc eje fuerte / Lc eje débil.</strong> La
+                  longitud efectiva de pandeo por compresión de cada eje (cap. E), Lc=K·L ya
+                  cargada con K adentro. Son dos porque la barra puede estar arriostrada distinto
+                  en cada dirección — por ejemplo, correas a media altura que la sujetan sólo en
+                  el eje débil.
+                </p>
+                <p>
+                  <strong className="text-foreground">Lb sin arriostrar.</strong> La distancia
+                  entre los puntos que impiden que el ala comprimida se desplace lateralmente o
+                  gire — el dato que entra en el pandeo lateral-torsional del cap. F. No tiene por
+                  qué coincidir con ningún Lc: un arriostramiento puede frenar el giro del ala sin
+                  frenar el pandeo por compresión de toda la sección, y viceversa.
+                </p>
+                <p>
+                  <strong className="text-foreground">Cb.</strong> Corrige Mn del cap. F según la
+                  forma del diagrama de momentos dentro de Lb (art. F1, ec. F1-1): un momento
+                  uniforme en todo el tramo —el caso más desfavorable para el pandeo
+                  lateral-torsional— da Cb=1; si el momento varía o cambia de signo dentro del
+                  tramo, Cb sube (hasta 3) y la resistencia real es mayor. Cargar 1 siempre es
+                  válido, aunque conservador.
+                </p>
+              </PanelAyuda>
+            </div>
+          </div>
+        </Etapa>
 
-        <div className="space-y-6">
+        <Etapa id="solicitaciones" numero={3} titulo="Solicitaciones" descripcion="Con Pr = 0 la página verifica flexión biaxial pura, sin cargar una axial ficticia.">
+          <div className="grid max-w-2xl grid-cols-2 gap-4">
+            <CampoNumerico id="pFC" etiqueta="Compresión Pr (0 si es una viga)" sufijo="kN" valor={pRequerida} onChange={setPRequerida} />
+            <div />
+            <CampoNumerico id="mrx" etiqueta="Momento Mrx" sufijo="kN·m" valor={mrx} onChange={setMrx} />
+            <CampoNumerico id="mry" etiqueta="Momento Mry" sufijo="kN·m" valor={mry} onChange={setMry} />
+          </div>
+        </Etapa>
+
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "Sección", valor: resultado ? resultado.designacion : "—" },
+              { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
+              { etiqueta: "Lc fuerte / débil", valor: `${lcx} / ${lcy} m` },
+              { etiqueta: "Lb · Cb", valor: `${lb} m · ${cb}` },
+              { etiqueta: "Pr · Mrx · Mry", valor: `${pRequerida} kN · ${mrx} · ${mry} kN·m` },
+              ...(resultado ? [{ etiqueta: "Pr/Pc", valor: fmt(resultado.relacionAxial, 3), derivado: true }] : []),
+            ]}
+            hipotesis={[
+              "AISC 360, art. H1.1, por ASD: combina la axial admisible del capítulo E con las dos flexionales del capítulo F, sin resistencias nuevas.",
+              "Con Pr/Pc ≥ 0,2 manda la ec. H1-1a; por debajo, la H1-1b.",
+              "Con Pr = 0 la H1-1b se reduce a Mrx/Mcx + Mry/Mcy ≤ 1: flexión biaxial pura.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá la sección, las longitudes y el material con valores positivos. La
-                compresión y los momentos pueden ser cero.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resultado</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionAutomatica />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "Pc = Pn/Ωc", valor: `${fmt(resultado.pcKN, 1)} kN`, nota: `pandeo eje ${resultado.gobiernaCompresion}` },
+                  { etiqueta: "Mcx", valor: `${fmt(resultado.mcxKNm, 1)} kN·m`, nota: `art. ${resultado.articuloFlexion}` },
+                  { etiqueta: "Mcy", valor: `${fmt(resultado.mcyKNm, 1)} kN·m` },
+                  { etiqueta: "Pr/Pc", valor: fmt(resultado.relacionAxial, 3), nota: `ec. ${resultado.ecuacion}` },
+                ]}
+              />
+
+              <Subgrupo titulo="Interacción axial-flexión" detalle={`${resultado.designacion} · ec. ${resultado.ecuacion}`}>
+                <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta={`${resultado.designacion} — interacción ${resultado.ecuacion}`}
+                    etiqueta={`Interacción ${resultado.ecuacion}`}
                     verifica={resultado.verifica}
                     comparacion={{
                       real: { etiqueta: "interacción", valor: resultado.interaccion },
                       limite: { etiqueta: "límite", valor: 1 },
                       unidad: "", exige: "≤", decimales: 3,
                     }}
-                    detalle={`Pr/Pc = ${fmt(resultado.relacionAxial, 3)}`}
+                    detalle={`Axial ${fmt(resultado.terminos.axial, 3)} · flexión x ${fmt(resultado.terminos.flexionX, 3)} · flexión y ${fmt(resultado.terminos.flexionY, 3)}`}
                   />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">Aporte de cada término</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Axial {fmt(resultado.terminos.axial, 3)} · Flexión x{" "}
-                      {fmt(resultado.terminos.flexionX, 3)} · Flexión y{" "}
-                      {fmt(resultado.terminos.flexionY, 3)}
-                    </p>
-                  </div>
                   <div className="flex flex-col items-center gap-2">
                     <DiagramaInteraccion
                       relacionAxial={resultado.relacionAxial}
@@ -224,23 +221,12 @@ export default function FlexoCompresionPage() {
                       abajo la axial cuenta a la mitad.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Resistencias que entran</CardTitle>
-                </CardHeader>
-                <CardContent>
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de la interacción"
                     filas={[
                       { etiqueta: "Pc = Pn/Ωc  (cap. E)", valor: `${fmt(resultado.pcKN, 1)} kN` },
                       { etiqueta: "Gobierna el pandeo por el eje", valor: resultado.gobiernaCompresion },
-                      {
-                        etiqueta: `Mcx = Mnx/Ωb  (art. ${resultado.articuloFlexion})`,
-                        valor: `${fmt(resultado.mcxKNm, 1)} kN·m`,
-                      },
+                      { etiqueta: `Mcx = Mnx/Ωb  (art. ${resultado.articuloFlexion})`, valor: `${fmt(resultado.mcxKNm, 1)} kN·m` },
                       { etiqueta: "Gobierna la flexión", valor: resultado.zonaFlexion },
                       {
                         etiqueta: `Mcy = Mny/Ωb  (art. ${resultado.articuloFlexion === "F2" ? "F6" : resultado.articuloFlexion})`,
@@ -251,12 +237,13 @@ export default function FlexoCompresionPage() {
                       { etiqueta: "Interacción", valor: fmt(resultado.interaccion, 4) },
                     ]}
                   />
-                </CardContent>
-              </Card>
-            </>
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
+      </ProveedorComprobaciones>
     </main>
   );
 }

@@ -7,6 +7,7 @@ import { ConclusionResultados } from "@/components/verificaciones/comun/Conclusi
 import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
@@ -98,12 +99,17 @@ export default function LosasPage() {
 
   const direcciones = resultado
     ? [
-        { etiqueta: "positivo X", r: resultado.losa.positivo.x },
-        { etiqueta: "positivo Y", r: resultado.losa.positivo.y },
-        { etiqueta: "negativo X", r: resultado.losa.negativo.x },
-        { etiqueta: "negativo Y", r: resultado.losa.negativo.y },
+        { etiqueta: "positivo X", r: resultado.losa.positivo.x, separacionM: resultado.v.sPosX },
+        { etiqueta: "positivo Y", r: resultado.losa.positivo.y, separacionM: resultado.v.sPosY },
+        { etiqueta: "negativo X", r: resultado.losa.negativo.x, separacionM: resultado.v.sNegX },
+        { etiqueta: "negativo Y", r: resultado.losa.negativo.y, separacionM: resultado.v.sNegY },
       ]
     : [];
+
+  // Separación máxima entre barras de losas, Anejo 19 art. 9.3.1.1 (3), pág.
+  // 146: s ≤ 300 mm y s ≤ 3h. Es una regla de armado, independiente de la
+  // separación que pide el momento, que ya cubre la comprobación de As.
+  const separacionMaxConstructivaM = resultado ? Math.min(3 * resultado.v.e, 0.3) : NaN;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -206,7 +212,7 @@ export default function LosasPage() {
               "Como en la planilla, el armado positivo en X computa la malla general de Y más el refuerzo propio en X.",
               "Canto útil del positivo con el recubrimiento de positivos (la planilla usaba el de negativos).",
               "Anclaje por el Anejo 19, art. 8.4, con σsd = fyd·As,nec/As,real, cd = mín(a/2, c) y adherencia según la fig. A19.8.2.",
-              "Separación máxima informada: mín(s necesaria, 3e, 30 cm), redondeada a 2 cm.",
+              "Separación entre barras ≤ mín(3h, 300 mm), Anejo 19 art. 9.3.1.1 (3): condición constructiva.",
               "No incluye punzonamiento: está en su propia página.",
             ]}
             avisos={avisos}
@@ -222,11 +228,17 @@ export default function LosasPage() {
           ) : (
             <div className="space-y-10">
               <ConclusionResultados
-                comprobaciones={direcciones.map((d) => ({
-                  etiqueta: `armado ${d.etiqueta}`,
-                  estado: d.r.verificaAs ? "cumple" : "no-cumple",
-                  utilizacion: d.r.aprovechamiento,
-                }))}
+                comprobaciones={[
+                  ...direcciones.map((d) => ({
+                    etiqueta: `armado ${d.etiqueta}`,
+                    estado: d.r.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
+                    utilizacion: d.r.aprovechamiento,
+                  })),
+                  ...direcciones.map((d) => ({
+                    etiqueta: `separación ${d.etiqueta}`,
+                    estado: d.separacionM <= separacionMaxConstructivaM + 1e-9 ? ("cumple" as const) : ("no-cumple" as const),
+                  })),
+                ]}
               />
 
               <PanelMetricas
@@ -282,6 +294,25 @@ export default function LosasPage() {
                   separacionM={resultado.v.sNegY}
                 />
               </div>
+
+              <Subgrupo titulo="Condiciones constructivas" detalle={`s ≤ mín(3h, 300 mm) = ${fmt(separacionMaxConstructivaM * 100, 0)} cm`}>
+                <div className="space-y-3">
+                  {direcciones.map((d) => (
+                    <ResultadoCheck
+                      key={d.etiqueta}
+                      etiqueta={`Separación ${d.etiqueta} (art. 9.3.1.1 (3))`}
+                      verifica={d.separacionM <= separacionMaxConstructivaM + 1e-9}
+                      comparacion={{
+                        real: { etiqueta: "s", valor: d.separacionM * 100 },
+                        limite: { etiqueta: "s máx", valor: separacionMaxConstructivaM * 100 },
+                        unidad: "cm",
+                        exige: "≤",
+                        decimales: 0,
+                      }}
+                    />
+                  ))}
+                </div>
+              </Subgrupo>
 
               <Subgrupo titulo="Momento resistente del armado positivo X" detalle="informativo">
                 <div className="space-y-2">

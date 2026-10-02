@@ -1,16 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
-import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
-import { SolicitacionesVigaDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesVigaDiagrama";
+import { EditorCapas } from "@/components/verificaciones/comun/EditorCapas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
+import { ConclusionResultados } from "@/components/verificaciones/comun/ConclusionResultados";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
+import {
+  SeccionVigaDiagrama,
+  type ElementoSeccionViga,
+} from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
+import { ConvencionMomentosViga } from "@/components/verificaciones/hormigon/ConvencionMomentosViga";
+import { EstriboLongitudinal, EstriboTransversal } from "@/components/verificaciones/hormigon/EstribosViga";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
@@ -19,15 +27,39 @@ import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-c
 import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
-import {
-  CroquisArmaduraFlexion,
-  CroquisGeometriaViga,
-  CroquisMateriales,
-  CroquisRamasEstribo,
-} from "@/components/verificaciones/croquis/CroquisViga";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Geometría y materiales" },
+  { id: "solicitaciones", titulo: "Solicitaciones" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
+
+/** Qué parte de los dibujos corresponde a cada campo, para resaltarla con el foco. */
+const ELEMENTO_DE_CAMPO: Record<string, ElementoSeccionViga | "positivo" | "negativo"> = {
+  b: "b",
+  h: "h",
+  recubrimiento: "recubrimiento",
+  numeroPos: "inferior",
+  diametroPos: "inferior",
+  numeroNeg: "superior",
+  diametroNeg: "superior",
+  diametroEstribo: "estribo",
+  numeroRamas: "estribo",
+  momentoPos: "positivo",
+  momentoNeg: "negativo",
+};
+
+/** Motivo, para el detalle de la comprobación, cuando la sección queda sobrearmada. */
+function motivoSobrearmada(f: { sobrearmada: boolean; mu: number; muLim: number }): string | undefined {
+  return f.sobrearmada
+    ? `μ = ${fmt(f.mu, 3)} > μlim = ${fmt(f.muLim, 3)}: el acero no llega a fluir. Hace falta armadura de compresión o más canto.`
+    : undefined;
+}
 
 export default function VigasTorsionPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -52,6 +84,8 @@ export default function VigasTorsionPage() {
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
 
   const [td, setTd] = useCampo("td", "30");
+
+  const [foco, setFoco] = useState<string | null>(null);
 
   const resultado = useMemo(() => {
     const v = {
@@ -125,17 +159,53 @@ export default function VigasTorsionPage() {
       hM: v.h,
       recubrimientoM: v.recubrimiento,
       dM: v.h - dispPos.distanciaCentroideM,
+      dNegativoM: v.h - dispNeg.distanciaCentroideM,
       armaduraPositiva: { capas: dispPos.filas },
       armaduraNegativa: { capas: dispNeg.filas },
       diametroEstriboMm: v.diametroEstribo,
     };
   }, [b, h, recubrimiento, numeroPos, diametroPos, numeroNeg, diametroNeg, diametroEstribo]);
 
+  const elementoFoco = foco ? (ELEMENTO_DE_CAMPO[foco.replace(/-otro$/, "")] ?? null) : null;
+  const resaltarSeccion =
+    elementoFoco && elementoFoco !== "positivo" && elementoFoco !== "negativo" ? elementoFoco : null;
+  const resaltarMomento =
+    elementoFoco === "positivo" || elementoFoco === "negativo" ? elementoFoco : null;
+  const seguirFoco = {
+    onFocus: (e: FocusEvent<HTMLElement>) => setFoco(e.target.id || null),
+    onBlur: () => setFoco(null),
+  };
+
+  const noEntra = {
+    inferior: resultado ? !resultado.flexionPositiva.verificaEntraEnAncho : false,
+    superior: resultado ? !resultado.flexionNegativa.verificaEntraEnAncho : false,
+  };
+
+  const dibujoSeccion = diagrama ? (
+    <SeccionVigaDiagrama {...diagrama} resaltar={resaltarSeccion} noEntra={noEntra} sinResumen />
+  ) : (
+    <p className="py-10 text-center text-sm text-muted-foreground">
+      La sección se dibuja cuando la geometría y la armadura tienen valores válidos.
+    </p>
+  );
+
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+  } else {
+    if (resultado.flexionPositiva.sobrearmada)
+      avisos.push({ tipo: "aviso", texto: "Con el momento positivo la sección queda sobrearmada: hace falta armadura de compresión o más canto." });
+    if (resultado.flexionNegativa.sobrearmada)
+      avisos.push({ tipo: "aviso", texto: "Con el momento negativo la sección queda sobrearmada: hace falta armadura de compresión o más canto." });
+    if (noEntra.inferior) avisos.push({ tipo: "aviso", texto: "La armadura inferior no entra en el ancho disponible." });
+    if (noEntra.superior) avisos.push({ tipo: "aviso", texto: "La armadura superior no entra en el ancho disponible." });
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Vigas</p>
+          <p className="spec-label">Vigas · verificación de sección</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
@@ -143,136 +213,206 @@ export default function VigasTorsionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      {diagrama && (
-        <Card className="drafting-marks">
-          <CardHeader>
-            <CardTitle className="text-base">Sección</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center py-2">
-            <SeccionVigaDiagrama {...diagrama} />
-          </CardContent>
-        </Card>
-      )}
+      <IndiceEtapas etapas={ETAPAS} />
 
-      <Card className="drafting-marks">
-        <CardHeader>
-          <CardTitle className="text-base">Solicitaciones</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center py-2">
-          <SolicitacionesVigaDiagrama
-            momentoPositivoKNm={aNumero(momentoPos) || 0}
-            momentoNegativoKNm={aNumero(momentoNeg) || 0}
-            cortanteKN={aNumero(vd) || 0}
-            torsorKNm={aNumero(td) || 0}
+      <div className="flex flex-col gap-12" {...seguirFoco}>
+        <Etapa id="geometria" numero={1} titulo="Geometría y materiales" descripcion="La sección rectangular y los materiales que la forman.">
+          <DatosConDibujo
+            datos={
+              <>
+                <Subgrupo titulo="Materiales">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                    <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Sección">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                    <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    El recubrimiento se mide de la cara exterior al estribo.
+                  </p>
+                </Subgrupo>
+              </>
+            }
+            dibujo={dibujoSeccion}
           />
-        </CardContent>
-      </Card>
+        </Etapa>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Datos */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Materiales</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="col-span-full">
-                <CroquisMateriales />
-              </div>
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div className="col-span-full">
-                <CroquisGeometriaViga />
-              </div>
-              <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
-              <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-              <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/30">
-            <CardHeader>
-              <CardTitle className="text-base">Torsión</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CampoNumerico id="td" etiqueta="Td" sufijo="kN·m" valor={td} onChange={setTd} />
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armadura positiva</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4">
-                <div className="col-span-full">
-                  <CroquisArmaduraFlexion numero={aNumero(numeroPos)} cara="inferior" />
-                </div>
-                <CampoNumerico id="momentoPos" etiqueta="Mmax+" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
-                <div className="grid grid-cols-2 gap-4">
-                  <CampoNumerico id="numeroPos" etiqueta="Nº barras" valor={numeroPos} onChange={setNumeroPos} />
-                  <CampoDiametro id="diametroPos" etiqueta="Ø" valor={diametroPos} onChange={setDiametroPos} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armadura negativa</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4">
-                <div className="col-span-full">
-                  <CroquisArmaduraFlexion numero={aNumero(numeroNeg)} cara="superior" />
-                </div>
-                <CampoNumerico id="momentoNeg" etiqueta="Mmax-" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
-                <div className="grid grid-cols-2 gap-4">
-                  <CampoNumerico id="numeroNeg" etiqueta="Nº barras" valor={numeroNeg} onChange={setNumeroNeg} />
-                  <CampoDiametro id="diametroNeg" etiqueta="Ø" valor={diametroNeg} onChange={setDiametroNeg} />
-                </div>
-              </CardContent>
-            </Card>
+        <Etapa
+          id="solicitaciones"
+          numero={2}
+          titulo="Solicitaciones"
+          descripcion="Esfuerzos de cálculo ya mayorados, concomitantes en la misma sección. La herramienta no modela el vano."
+        >
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <CampoNumerico id="momentoPos" etiqueta="M+ positivo" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
+              <CampoNumerico id="momentoNeg" etiqueta="M− negativo" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
+              <CampoNumerico id="vd" etiqueta="Vd cortante" sufijo="kN" valor={vd} onChange={setVd} />
+              <CampoNumerico id="td" etiqueta="Td torsor" sufijo="kN·m" valor={td} onChange={setTd} />
+            </div>
+            <div className="flex justify-center">
+              <ConvencionMomentosViga
+                momentoPositivoKNm={aNumero(momentoPos) || 0}
+                momentoNegativoKNm={aNumero(momentoNeg) || 0}
+                resaltar={resaltarMomento}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Los momentos, el cortante y el torsor se cargan en valor absoluto. La torsión suma
+              armadura longitudinal en las dos caras y transversal en los estribos.
+            </p>
           </div>
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Cortante</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div className="col-span-full">
-                <CroquisRamasEstribo ramas={aNumero(numeroRamas)} />
-              </div>
-              <CampoNumerico id="vd" etiqueta="Vd" sufijo="kN" valor={vd} onChange={setVd} />
-              <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
-              <CampoNumerico id="numeroRamas" etiqueta="Nº ramas" valor={numeroRamas} onChange={setNumeroRamas} />
-            </CardContent>
-          </Card>
-        </div>
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Barras longitudinales por cara y estribos.">
+          <DatosConDibujo
+            datos={
+              <Subgrupo titulo="Longitudinal">
+                <EditorCapas
+                  filas={[
+                    {
+                      posicion: "Inferior",
+                      numero: { id: "numeroPos", valor: numeroPos, onChange: setNumeroPos },
+                      diametro: { id: "diametroPos", valor: diametroPos, onChange: setDiametroPos },
+                    },
+                    {
+                      posicion: "Superior",
+                      numero: { id: "numeroNeg", valor: numeroNeg, onChange: setNumeroNeg },
+                      diametro: { id: "diametroNeg", valor: diametroNeg, onChange: setDiametroNeg },
+                    },
+                  ]}
+                />
+                <p className="text-xs text-muted-foreground">
+                  La inferior toma el momento positivo; la superior, el negativo. Cada una suma un
+                  cuarto de la armadura longitudinal de torsión.
+                </p>
+              </Subgrupo>
+            }
+            dibujo={dibujoSeccion}
+          />
 
-        {/* Resultados */}
-        <div className="space-y-6">
+          <div className="mt-10">
+            <DatosConDibujo
+              datos={
+                <Subgrupo titulo="Transversal · estribos">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
+                    <CampoNumerico id="numeroRamas" etiqueta="Nº de ramas" valor={numeroRamas} onChange={setNumeroRamas} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Las ramas son las patas verticales que cortan la sección en un mismo plano: un
+                    estribo cerrado aporta 2. La separación la calcula la herramienta y aparece en los
+                    resultados.
+                  </p>
+                </Subgrupo>
+              }
+              dibujo={
+                <EstriboTransversal
+                  ramas={aNumero(numeroRamas)}
+                  diametroMm={aNumero(diametroEstribo)}
+                  resaltado={resaltarSeccion === "estribo"}
+                />
+              }
+            />
+          </div>
+        </Etapa>
+
+        <Etapa
+          id="revision"
+          numero={4}
+          titulo="Revisión"
+          descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos."
+        >
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
+              { etiqueta: "b × h", valor: `${b} × ${h} m` },
+              { etiqueta: "Td", valor: `${td} kN·m` },
+              ...(resultado
+                ? [
+                    { etiqueta: "Canto útil d⁺ / d⁻", valor: `${fmt(resultado.d, 3)} / ${fmt(resultado.dNegativo, 3)} m`, derivado: true },
+                    { etiqueta: "Espesor eficaz tef", valor: `${fmt(resultado.torsion.tM, 3)} m`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              "γc = 1,5 y γs = 1,15: fcd = fck/γc, fyd = fyk/γs.",
+              "Sección hueca equivalente con tef = A/u, no menor que 2 veces la distancia del borde al eje de la armadura longitudinal (Anejo 19, art. 6.3.2 (1)).",
+              "Bielas a 45°: TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ, con ν = 0,6·(1 − fck/250) (ec. 6.30).",
+              "La armadura longitudinal de torsión se reparte en cuartos y cada cara suma uno a su armadura de flexión.",
+              "Cortante con d⁻ y ρl de la armadura superior; fyd de estribos limitada a 400 MPa.",
+              "La separación de estribos la dimensiona la herramienta: no es un dato.",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
+
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores numéricos válidos para ver los resultados.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Torsión</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionResultados
+                comprobaciones={[
+                  {
+                    etiqueta: "bielas de torsión",
+                    estado: resultado.torsion.verificaBielas ? "cumple" : "no-cumple",
+                    utilizacion: aNumero(td) / resultado.torsion.tRdMaxKNm,
+                  },
+                  {
+                    etiqueta: "interacción torsión + cortante",
+                    estado: resultado.verificaInteraccionBielas ? "cumple" : "no-cumple",
+                    utilizacion: resultado.interaccionBielas,
+                  },
+                  {
+                    etiqueta: "flexión positiva",
+                    estado: resultado.flexionPositiva.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.flexionPositiva.asNecCm2 / resultado.flexionPositiva.asRealCm2,
+                  },
+                  {
+                    etiqueta: "flexión negativa",
+                    estado: resultado.flexionNegativa.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.flexionNegativa.asNecCm2 / resultado.flexionNegativa.asRealCm2,
+                  },
+                  {
+                    etiqueta: "compresión oblicua del alma",
+                    estado: resultado.cortante.verificaVRdMax ? "cumple" : "no-cumple",
+                    utilizacion: aNumero(vd) / resultado.cortante.vRdMax,
+                  },
+                  {
+                    etiqueta: "armadura inferior en el ancho",
+                    estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                  },
+                  {
+                    etiqueta: "armadura superior en el ancho",
+                    estado: resultado.flexionNegativa.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                  },
+                ]}
+              />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "TRd,max", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m`, nota: `Td ${fmt(aNumero(td))} kN·m` },
+                  { etiqueta: "Al de torsión", valor: `${fmt(resultado.torsion.alCm2)} cm²`, nota: `${fmt(resultado.torsion.alPorCaraCm2)} cm² por cara` },
+                  { etiqueta: "At de torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m`, nota: "se suma a los estribos" },
+                  { etiqueta: "VRd,max", valor: `${fmt(resultado.cortante.vRdMax)} kN`, nota: `Vd ${fmt(aNumero(vd))} kN` },
+                ]}
+              />
+
+              <Subgrupo titulo="Torsión">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Bielas comprimidas"
+                    etiqueta="Torsión · bielas comprimidas"
                     verifica={resultado.torsion.verificaBielas}
                     comparacion={{
                       real: { etiqueta: "Td", valor: aNumero(td) },
@@ -281,82 +421,56 @@ export default function VigasTorsionPage() {
                     }}
                   />
                   <ResultadoCheck
-                    etiqueta="Interacción torsión + cortante"
+                    etiqueta="Interacción torsión + cortante en las bielas"
                     verifica={resultado.verificaInteraccionBielas}
+                    detalle="Las bielas son las mismas para los dos esfuerzos: la suma no puede pasar de 1 (Anejo 19, art. 6.3.2 (4), ec. (6.29))."
                     comparacion={{
                       real: { etiqueta: "Td/TRd,max + Vd/VRd,max", valor: resultado.interaccionBielas },
                       limite: { etiqueta: "límite", valor: 1 },
                       unidad: "", exige: "≤", decimales: 3,
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Las bielas son las mismas para los dos esfuerzos, así que no alcanza con que cada
-                    uno verifique por separado: el articulado exige que la suma de los dos
-                    aprovechamientos no pase de 1 (Anejo 19, art. 6.3.2 (4), ec. (6.29)).
+                  <p className="pt-3 text-sm">
+                    <span className="font-medium">
+                      {resultado.soloArmaduraMinima ? "Basta con la armadura mínima" : "Hace falta armadura de torsión"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {" "}— Td/TRd,c + Vd/VRd,c = {fmt(resultado.interaccionFisuracion, 3)}{" "}
+                      {resultado.soloArmaduraMinima ? "≤" : ">"} 1 (art. 6.3.2 (5), ec. (6.31)).
+                    </span>
                   </p>
-                  <p className="text-sm">
-                    {resultado.soloArmaduraMinima ? (
-                      <>
-                        <span className="font-medium">Basta con la armadura mínima</span>
-                        <span className="text-muted-foreground">
-                          {" "}— Td/TRd,c + Vd/VRd,c = {fmt(resultado.interaccionFisuracion, 3)} ≤ 1 (art. 6.3.2 (5), ec. (6.31)).
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium">Hace falta armadura de torsión</span>
-                        <span className="text-muted-foreground">
-                          {" "}— Td/TRd,c + Vd/VRd,c = {fmt(resultado.interaccionFisuracion, 3)} &gt; 1 (art. 6.3.2 (5), ec. (6.31)).
-                        </span>
-                      </>
-                    )}
-                  </p>
-                  <Separator />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">Aportes de la torsión a la armadura</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Transversal +{fmt(resultado.torsion.atCm2PorM)} cm²/m · Longitudinal{" "}
-                      {fmt(resultado.torsion.alCm2)} cm² ({fmt(resultado.torsion.alPorCaraCm2)} cm² por cara)
-                    </p>
-                  </div>
                   <PanelFormulas
                     titulo="Ver desarrollo de la torsión"
                     filas={[
                       { etiqueta: "A/u", valor: `${fmt(resultado.torsion.tAreaPerimetroM, 4)} m` },
                       { etiqueta: "Mínimo 2·c (borde → eje de barra)", valor: `${fmt(resultado.torsion.tMinimoM, 4)} m` },
                       { etiqueta: "Espesor eficaz tef", valor: `${fmt(resultado.torsion.tM, 4)} m` },
-                      { etiqueta: "Perímetro medio ue", valor: `${fmt(resultado.torsion.ueM, 4)} m` },
-                      { etiqueta: "Área encerrada Ae", valor: `${fmt(resultado.torsion.aeM2, 4)} m²` },
+                      { etiqueta: "Perímetro medio uk", valor: `${fmt(resultado.torsion.ueM, 4)} m` },
+                      { etiqueta: "Área encerrada Ak", valor: `${fmt(resultado.torsion.aeM2, 4)} m²` },
                       { etiqueta: "ν = 0,6·(1 − fck/250)", valor: fmt(resultado.torsion.nu, 3) },
                       { etiqueta: "TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m` },
                       { etiqueta: "TRd,c = 2·Ak·tef·fctd", valor: `${fmt(resultado.torsion.tRdCKNm)} kN·m` },
+                      { etiqueta: "At = Td/(2·Ak·fywd)", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
+                      { etiqueta: "ΣAsl = Td·uk/(2·Ak·fyd)", valor: `${fmt(resultado.torsion.alCm2)} cm²` },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Flexión positiva</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <Subgrupo titulo="Flexión y cortante">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Flexión positiva · armadura inferior suficiente"
                     verifica={resultado.flexionPositiva.verificaAs}
-                    detalle={resultado.flexionPositiva.sobrearmada ? `μ = ${fmt(resultado.flexionPositiva.mu, 3)} > μlim = ${fmt(resultado.flexionPositiva.muLim, 3)}: el acero no fluye; hace falta armadura de compresión o más canto.` : undefined}
+                    detalle={motivoSobrearmada(resultado.flexionPositiva)}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionPositiva.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.flexionPositiva.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
                   />
-                  <ResultadoCheck
-                    etiqueta="Armadura entra en el ancho disponible"
-                    verifica={resultado.flexionPositiva.verificaEntraEnAncho}
-                    detalle={describirCapas(resultado.flexionPositiva.capas)}
-                  />
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de flexión positiva"
                     filas={[
                       { etiqueta: "d⁺", valor: `${fmt(resultado.d, 4)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
@@ -373,47 +487,27 @@ export default function VigasTorsionPage() {
                       },
                     ]}
                   />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Flexión negativa</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Flexión negativa · armadura superior suficiente"
                     verifica={resultado.flexionNegativa.verificaAs}
-                    detalle={resultado.flexionNegativa.sobrearmada ? `μ = ${fmt(resultado.flexionNegativa.mu, 3)} > μlim = ${fmt(resultado.flexionNegativa.muLim, 3)}: el acero no fluye; hace falta armadura de compresión o más canto.` : undefined}
+                    detalle={motivoSobrearmada(resultado.flexionNegativa)}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionNegativa.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.flexionNegativa.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
                   />
-                  <ResultadoCheck
-                    etiqueta="Armadura entra en el ancho disponible"
-                    verifica={resultado.flexionNegativa.verificaEntraEnAncho}
-                    detalle={describirCapas(resultado.flexionNegativa.capas)}
-                  />
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de flexión negativa"
                     filas={[
+                      { etiqueta: "d⁻", valor: `${fmt(resultado.dNegativo, 4)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionNegativa.mu, 5) },
                       { etiqueta: "As por momento", valor: `${fmt(resultado.flexionNegativa.asCalculadoCm2)} cm²` },
                       { etiqueta: "+ Al/4 por torsión", valor: `${fmt(resultado.torsion.alPorCaraCm2)} cm²` },
                     ]}
                   />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Cortante</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="No se supera la compresión oblicua del alma"
+                    etiqueta="Cortante · compresión oblicua del alma"
                     verifica={resultado.cortante.verificaVRdMax}
                     comparacion={{
                       real: { etiqueta: "Vd", valor: aNumero(vd) },
@@ -421,32 +515,60 @@ export default function VigasTorsionPage() {
                       unidad: "kN", exige: "≤",
                     }}
                   />
-                  <Separator />
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">
-                      Estribado: {fmt(aNumero(numeroRamas), 0)} ramas Ø{fmt(aNumero(diametroEstribo), 0)} cada{" "}
-                      {fmt(resultado.cortante.separacionAdoptadaM * 100, 0)} cm
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Área real {fmt(resultado.cortante.areaRealCm2PorM)} cm²/m ≥ necesaria{" "}
-                      {fmt(resultado.cortante.a90Cm2PorM)} cm²/m (incluye torsión)
-                    </p>
-                  </div>
-                  <PanelFormulas
-                    titulo="Ver cálculo"
-                    filas={[
-                      { etiqueta: "k", valor: fmt(resultado.cortante.k, 3) },
-                      { etiqueta: "ρl", valor: fmt(resultado.cortante.rhoL, 5) },
-                      { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },
-                      { etiqueta: "VRd,c,mín", valor: `${fmt(resultado.cortante.vRdCMin)} kN` },
-                      { etiqueta: "A90 por cortante", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
-                      { etiqueta: "+ At por torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
-                      { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
-                      { etiqueta: "Separación máxima admitida", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
-                    ]}
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Condiciones constructivas" detalle="disposición del armado, sin magnitudes que comparar">
+                <div>
+                  <ResultadoCheck
+                    etiqueta="La armadura inferior entra en el ancho"
+                    verifica={resultado.flexionPositiva.verificaEntraEnAncho}
+                    detalle={describirCapas(resultado.flexionPositiva.capas)}
                   />
-                </CardContent>
-              </Card>
+                  <ResultadoCheck
+                    etiqueta="La armadura superior entra en el ancho"
+                    verifica={resultado.flexionNegativa.verificaEntraEnAncho}
+                    detalle={describirCapas(resultado.flexionNegativa.capas)}
+                  />
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Estribado adoptado" detalle="dimensionamiento, no verificación">
+                <DatosConDibujo
+                  datos={
+                    <>
+                      <p className="font-mono text-base font-semibold tabular-nums">
+                        {fmt(aNumero(numeroRamas), 0)} ramas Ø{fmt(aNumero(diametroEstribo), 0)} cada{" "}
+                        {fmt(resultado.cortante.separacionAdoptadaM * 100, 0)} cm
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Área resultante {fmt(resultado.cortante.areaRealCm2PorM)} cm²/m; necesaria{" "}
+                        {fmt(resultado.cortante.a90Cm2PorM)} cm²/m, que ya incluye la de torsión.
+                      </p>
+                      <PanelFormulas
+                        titulo="Ver desarrollo del cortante"
+                        filas={[
+                          { etiqueta: "d⁻", valor: `${fmt(resultado.dNegativo, 3)} m` },
+                          { etiqueta: "k", valor: fmt(resultado.cortante.k, 3) },
+                          { etiqueta: "ρl", valor: fmt(resultado.cortante.rhoL, 5) },
+                          { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },
+                          { etiqueta: "VRd,c,mín", valor: `${fmt(resultado.cortante.vRdCMin)} kN` },
+                          { etiqueta: "A90 por cortante", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
+                          { etiqueta: "+ At por torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
+                          { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
+                          { etiqueta: "Separación máxima admitida", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                        ]}
+                      />
+                    </>
+                  }
+                  dibujo={
+                    <EstriboLongitudinal
+                      separacionM={resultado.cortante.separacionAdoptadaM}
+                      diametroMm={aNumero(diametroEstribo)}
+                    />
+                  }
+                />
+              </Subgrupo>
 
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}
@@ -462,9 +584,9 @@ export default function VigasTorsionPage() {
                   asRealPosCm2: resultado.flexionPositiva.asRealCm2,
                 }}
               />
-            </>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
     </main>
   );

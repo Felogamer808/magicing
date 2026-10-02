@@ -1,5 +1,11 @@
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
+import {
+  calcularAnclaje,
+  type FormaAnclaje,
+  type ResultadoAnclaje,
+  type SituacionAdherencia,
+} from "@/lib/calc/hormigon/comun/anclaje";
 
 export interface GeometriaLosa {
   /** Espesor de la losa (m) */
@@ -32,10 +38,12 @@ export interface ResultadoDireccionLosa {
   asRealCm2PorM: number;
   aprovechamiento: number;
   verificaAs: boolean;
-  /** Longitud básica de anclaje en posición II (mm) */
-  lbIIMm: number;
-  /** Longitud neta de anclaje (mm) */
-  lbNetaMm: number;
+  /** Adherencia de la barra según su posición al hormigonar (fig. A19.8.2) */
+  situacionAdherencia: SituacionAdherencia;
+  /** cd = mín(a/2, c), fig. A19.8.3 (mm) */
+  cdMm: number;
+  /** Anclaje según el Anejo 19, art. 8.4, con σsd = fyd·As,nec/As,real */
+  anclaje: ResultadoAnclaje;
 }
 
 export interface ResultadoLosa {
@@ -54,16 +62,33 @@ function redondearSeparacionMaxM(valor: number): number {
   return Math.floor(valor / 2 / 0.01 + 1e-9) * 0.01 * 2;
 }
 
+interface ContextoAnclaje {
+  cara: "inferior" | "superior";
+  /** Distancia de la cara de la losa al borde de la barra (m): c de la fig. A19.8.3 */
+  cM: number;
+  forma: FormaAnclaje;
+}
+
+/**
+ * Adherencia según la fig. A19.8.2: con espesor ≤ 250 mm todas las barras
+ * están en condiciones buenas; por encima, las de la cara superior quedan en
+ * la zona de adherencia mala y las de la inferior siguen buenas.
+ */
+function situacionAdherencia(cara: "inferior" | "superior", e: number): SituacionAdherencia {
+  return cara === "inferior" || e <= 0.25 ? "buena" : "mala";
+}
+
 function armarDireccion(
   materiales: MaterialesDerivados,
   e: number,
   d: number,
   momentoKNmPorM: number,
   armado: ArmadoLosa,
+  contexto: ContextoAnclaje,
   /** Armadura de la malla general que también colabora en esta dirección (cm²/m) */
   asMallaAdicionalCm2PorM = 0
 ): ResultadoDireccionLosa {
-  const { fcd, fyd, fyk, fctm } = materiales;
+  const { fck, fcd, fyd, fyk, fctm } = materiales;
 
   // Anejo 19, art. 9.3.1.1 (1), pág. 146: en losas se aplica el mínimo de
   // vigas, ec. (9.1), por metro de ancho. La planilla usaba 0,04·e·fcd/fyd
@@ -84,11 +109,25 @@ function armarDireccion(
   const asRealCm2PorM = area / armado.separacionM + asMallaAdicionalCm2PorM;
   const verificaAs = asRealCm2PorM >= asNecCm2PorM;
 
-  const lbIIMm = Math.max(1.4 * 1.2 * armado.diametroMm ** 2, (fyk * armado.diametroMm) / 14);
-  const lbNetaMm = Math.max(
-    (lbIIMm * 0.7 * asNecCm2PorM) / asRealCm2PorM,
-    10 * armado.diametroMm,
-    150
+  // Anclaje, Anejo 19 art. 8.4. La planilla usaba la EHE-08 (art. 69):
+  // lb = máx(m·Ø², fyk·Ø/14) en posición II y un 0,7 fijo de patilla.
+  // σsd con As,nec/As,real: la barra ancla la fuerza que necesita, no su
+  // capacidad plena (art. 8.4.3 (2)). cd = mín(a/2, c) con a la separación
+  // libre entre barras (fig. A19.8.3).
+  const sigmaSdMPa = fyd * Math.min(asNecCm2PorM / asRealCm2PorM, 1);
+  const separacionLibreMm = armado.separacionM * 1000 - armado.diametroMm;
+  const cdMm = Math.min(separacionLibreMm / 2, contexto.cM * 1000);
+  const situacion = situacionAdherencia(contexto.cara, e);
+  const anclaje = calcularAnclaje(
+    { fckMPa: fck, fykMPa: fyk },
+    {
+      diametroMm: armado.diametroMm,
+      situacion,
+      forma: contexto.forma,
+      esfuerzo: "traccion",
+      recubrimientoMm: cdMm,
+      sigmaSdMPa,
+    }
   );
 
   return {
@@ -103,8 +142,9 @@ function armarDireccion(
     asRealCm2PorM,
     aprovechamiento: asNecCm2PorM / asRealCm2PorM,
     verificaAs,
-    lbIIMm,
-    lbNetaMm,
+    situacionAdherencia: situacion,
+    cdMm,
+    anclaje,
   };
 }
 
@@ -124,6 +164,8 @@ export interface DatosLosa {
    * adicional en X, tal como lo hace la planilla en el armado positivo.
    */
   xIncluyeMallaEnY?: boolean;
+  /** Forma del anclaje de las barras. Por defecto, recta. */
+  formaAnclaje?: FormaAnclaje;
 }
 
 /**
@@ -156,18 +198,27 @@ export function calcularLosa(
     datos.armadoNegativoY.diametroMm / 1000 -
     datos.armadoNegativoX.diametroMm / 2000;
 
-  const posY = armarDireccion(materiales, e, dPosY, datos.momentoPositivoY, datos.armadoPositivoY);
+  // Y va en la capa exterior y X por dentro, apoyada sobre ella: la c de X
+  // suma el diámetro de Y.
+  const forma = datos.formaAnclaje ?? "recta";
+  const ctx = (cara: "inferior" | "superior", cM: number): ContextoAnclaje => ({ cara, cM, forma });
+
+  const posY = armarDireccion(materiales, e, dPosY, datos.momentoPositivoY, datos.armadoPositivoY,
+    ctx("inferior", recubrimientoPositivo));
   const posX = armarDireccion(
     materiales,
     e,
     dPosX,
     datos.momentoPositivoX,
     datos.armadoPositivoX,
+    ctx("inferior", recubrimientoPositivo + datos.armadoPositivoY.diametroMm / 1000),
     xIncluyeMallaEnY ? posY.asRealCm2PorM : 0
   );
 
-  const negY = armarDireccion(materiales, e, dNegY, datos.momentoNegativoY, datos.armadoNegativoY);
-  const negX = armarDireccion(materiales, e, dNegX, datos.momentoNegativoX, datos.armadoNegativoX);
+  const negY = armarDireccion(materiales, e, dNegY, datos.momentoNegativoY, datos.armadoNegativoY,
+    ctx("superior", recubrimientoNegativo));
+  const negX = armarDireccion(materiales, e, dNegX, datos.momentoNegativoX, datos.armadoNegativoX,
+    ctx("superior", recubrimientoNegativo + datos.armadoNegativoY.diametroMm / 1000));
 
   return {
     fctmFlMPa,

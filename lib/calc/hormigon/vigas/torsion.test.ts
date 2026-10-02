@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularTorsion, calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
 
+// La planilla asumía siempre un estribo de 6 mm para ubicar las barras. Estos
+// casos reproducen sus números, así que lo fijan igual; el diámetro real se
+// prueba aparte.
+const ESTRIBO_PLANILLA_MM = 6;
+
 // Caso real de la hoja "VIGAS CON TORSION" de CALCULOS TODO.xlsx, con Td=30 kN·m
 // cargado en la celda L22 (en la planilla queda en 0, que no ejercita nada).
 // Todos los valores esperados salen de recalcular esa hoja con Excel.
 
 const materiales = derivarMateriales({ fck: 30, fyk: 500 });
-const geometria = { b: 0.2, h: 0.7, recubrimiento: 0.035 };
+const geometria = { b: 0.2, h: 0.7, recubrimiento: 0.035, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
 
 describe("torsión: sección hueca equivalente", () => {
   const r = calcularTorsion(materiales, geometria, { td: 30 });

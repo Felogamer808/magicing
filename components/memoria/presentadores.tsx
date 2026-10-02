@@ -25,11 +25,11 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
 
   const { v, d, flexionPositiva: pos, flexionNegativa: neg, cortante } = r;
   const disposicionPositiva = calcularDisposicionArmadura(
-    { b: v.b, h: v.h, recubrimiento: v.recubrimiento },
+    { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo },
     r.gruposPositiva
   );
   const disposicionNegativa = calcularDisposicionArmadura(
-    { b: v.b, h: v.h, recubrimiento: v.recubrimiento },
+    { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo },
     r.gruposNegativa
   );
 

@@ -21,8 +21,13 @@ export interface GeometriaViga {
   b: number;
   /** Canto total de la sección (m) */
   h: number;
-  /** Recubrimiento geométrico de armadura (m) */
+  /** Recubrimiento geométrico de armadura (m), medido de la cara exterior al estribo */
   recubrimiento: number;
+  /**
+   * Diámetro del estribo (mm). Las barras longitudinales apoyan en su cara
+   * interior: corre el canto útil y achica el ancho disponible.
+   */
+  diametroEstriboMm: number;
 }
 
 export interface ArmaduraElegida {

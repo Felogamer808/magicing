@@ -10,6 +10,11 @@ import {
   momentoReducidoLimite,
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 
+// La planilla asumía siempre un estribo de 6 mm para ubicar las barras. Estos
+// casos reproducen sus números, así que lo fijan igual; el diámetro real se
+// prueba aparte.
+const ESTRIBO_PLANILLA_MM = 6;
+
 // Caso real extraído de la planilla "CALCULOS TODO.xlsx", hoja "VIGAS 1", bloque "VIGA".
 // Los valores esperados son los que produce Excel; sirven para garantizar paridad numérica.
 
@@ -26,14 +31,14 @@ describe("materiales EC2", () => {
 
 describe("canto útil", () => {
   it("coincide con F7 de la planilla", () => {
-    const d = calcularCantoUtil({ b: 0.9, h: 0.7, recubrimiento: 0.04 }, [{ numero: 10, diametroMm: 10 }]);
+    const d = calcularCantoUtil({ b: 0.9, h: 0.7, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM }, [{ numero: 10, diametroMm: 10 }]);
     expect(d).toBeCloseTo(0.649, 9);
   });
 });
 
 describe("flexión positiva (bloque VIGA)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
-  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
+  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]);
 
   const r = calcularFlexion(materiales, geometria, d, {
@@ -62,7 +67,7 @@ describe("flexión positiva (bloque VIGA)", () => {
   });
 
   it("en cantos chicos fctm,fl crece con (1,6 − h)", () => {
-    const losa = { b: 1, h: 0.2, recubrimiento: 0.03 };
+    const losa = { b: 1, h: 0.2, recubrimiento: 0.03, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
     const rLosa = calcularFlexion(materiales, losa, 0.16, { momento: 5, armaduraReal: [{ numero: 5, diametroMm: 10 }] });
     expect(rLosa.fctmFlMPa).toBeCloseTo(1.4 * 2.896468, 5);
   });
@@ -82,7 +87,7 @@ describe("flexión positiva (bloque VIGA)", () => {
 
 describe("flexión negativa (bloque VIGA, con mínimo corregido)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
-  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
+  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]); // mismo canto que la positiva, como en la planilla
 
   const r = calcularFlexion(materiales, geometria, d, {
@@ -108,7 +113,7 @@ describe("flexión negativa (bloque VIGA, con mínimo corregido)", () => {
 
 describe("cortante (bloque VIGA)", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
-  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04 };
+  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]);
   const asNegativaRealCm2 = 5.65486677646163;
 
@@ -175,7 +180,7 @@ describe("cortante (bloque VIGA)", () => {
 describe("armadura que no entra en una fila (viga angosta)", () => {
   // b=0.3m, recubrimiento=0.04m, estribo asumido 6mm: ancho disponible = 0.208m.
   // 6 barras φ20 con separación mínima de 20mm no entran en una fila (caben 5) → 2 filas de 3.
-  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const armadura = [{ numero: 6, diametroMm: 20 }];
 
   it("calcula la capacidad por fila y reparte en 2 capas de 3", () => {
@@ -197,7 +202,7 @@ describe("armadura que no entra en una fila (viga angosta)", () => {
 });
 
 describe("armadura con dos capas de diámetro distinto (ej. 2Ø16 + 2Ø20)", () => {
-  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const grupos = [
     { numero: 2, diametroMm: 16 },
     { numero: 2, diametroMm: 20 },
@@ -252,7 +257,7 @@ describe("armadura con dos capas de diámetro distinto (ej. 2Ø16 + 2Ø20)", () 
 
 describe("geometría del agotamiento", () => {
   const materiales = derivarMateriales({ fck: 25, fyk: 500 });
-  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04 };
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const d = 0.45;
   const armadura = [{ diametroMm: 16, numero: 4 }];
 
@@ -302,7 +307,7 @@ describe("geometría del agotamiento", () => {
  */
 describe("límite de μ: el acero tiene que fluir", () => {
   const materiales = derivarMateriales({ fck: 30, fyk: 500 });
-  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.03 };
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.03, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const d = 0.45;
   const armadura = [{ numero: 6, diametroMm: 25 }];
 
@@ -327,5 +332,34 @@ describe("límite de μ: el acero tiene que fluir", () => {
       expect(Number.isNaN(r.asNecCm2)).toBe(true);
       expect(Number.isFinite(r.mu)).toBe(true);
     }
+  });
+});
+
+/*
+ * El estribo es el que se carga, no 6 mm fijos. A mano, b = 0,30, h = 0,50,
+ * r = 0,04, 3Ø16 en una fila:
+ *   Ø6:  centroide a 0,040 + 0,006 + 0,008 = 0,054 → d = 0,446 m
+ *   Ø10: centroide a 0,040 + 0,010 + 0,008 = 0,058 → d = 0,442 m
+ * y el ancho disponible baja de 0,30 − 2·0,046 = 0,208 a 0,30 − 2·0,050 = 0,200.
+ */
+describe("diámetro de estribo cargado", () => {
+  const armadura = [{ numero: 3, diametroMm: 16 }];
+  const conEstribo = (mm: number) => ({ b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: mm });
+
+  it("corre el canto útil con el diámetro real", () => {
+    expect(calcularCantoUtil(conEstribo(6), armadura)).toBeCloseTo(0.446, 9);
+    expect(calcularCantoUtil(conEstribo(10), armadura)).toBeCloseTo(0.442, 9);
+  });
+
+  it("achica el ancho disponible: 7Ø12 entran en una fila con Ø6 y no con Ø10", () => {
+    // Por fila caben floor((ancho + s)/(Ø + s)), con s = máx(Ø, 20 mm) = 0,020:
+    //   Ø6:  floor((0,208 + 0,020)/(0,012 + 0,020)) = floor(7,125) = 7
+    //   Ø10: floor((0,200 + 0,020)/(0,012 + 0,020)) = floor(6,875) = 6
+    const ancho6 = calcularDisposicionArmadura(conEstribo(6), [{ numero: 7, diametroMm: 12 }]);
+    const ancho10 = calcularDisposicionArmadura(conEstribo(10), [{ numero: 7, diametroMm: 12 }]);
+    expect(ancho6.capacidadPorGrupo[0]).toBe(7);
+    expect(ancho10.capacidadPorGrupo[0]).toBe(6);
+    expect(ancho6.filas).toHaveLength(1);
+    expect(ancho10.filas).toHaveLength(2);
   });
 });

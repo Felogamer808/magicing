@@ -165,7 +165,7 @@ export default function VigasFlexionCortantePage() {
       return null;
     }
 
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento };
+    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
     const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
     const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
     const disposicionPositiva = calcularDisposicionArmadura(geometria, gruposPositiva);

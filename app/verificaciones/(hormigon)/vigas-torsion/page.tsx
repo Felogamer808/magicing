@@ -276,7 +276,7 @@ export default function VigasTorsionPage() {
                     verifica={resultado.torsion.verificaBielas}
                     comparacion={{
                       real: { etiqueta: "Td", valor: aNumero(td) },
-                      limite: { etiqueta: "Tu1", valor: resultado.torsion.tu1KNm },
+                      limite: { etiqueta: "TRd,max", valor: resultado.torsion.tRdMaxKNm },
                       unidad: "kN·m", exige: "≤",
                     }}
                   />
@@ -284,7 +284,7 @@ export default function VigasTorsionPage() {
                     etiqueta="Interacción torsión + cortante"
                     verifica={resultado.verificaInteraccionBielas}
                     comparacion={{
-                      real: { etiqueta: "Td/Tu1 + Vd/VRd,max", valor: resultado.interaccionBielas },
+                      real: { etiqueta: "Td/TRd,max + Vd/VRd,max", valor: resultado.interaccionBielas },
                       limite: { etiqueta: "límite", valor: 1 },
                       unidad: "", exige: "≤", decimales: 3,
                     }}
@@ -292,7 +292,24 @@ export default function VigasTorsionPage() {
                   <p className="text-xs text-muted-foreground">
                     Las bielas son las mismas para los dos esfuerzos, así que no alcanza con que cada
                     uno verifique por separado: el articulado exige que la suma de los dos
-                    aprovechamientos no pase de 1.
+                    aprovechamientos no pase de 1 (Anejo 19, art. 6.3.2 (4), ec. (6.29)).
+                  </p>
+                  <p className="text-sm">
+                    {resultado.soloArmaduraMinima ? (
+                      <>
+                        <span className="font-medium">Basta con la armadura mínima</span>
+                        <span className="text-muted-foreground">
+                          {" "}— Td/TRd,c + Vd/VRd,c = {fmt(resultado.interaccionFisuracion, 3)} ≤ 1 (art. 6.3.2 (5), ec. (6.31)).
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">Hace falta armadura de torsión</span>
+                        <span className="text-muted-foreground">
+                          {" "}— Td/TRd,c + Vd/VRd,c = {fmt(resultado.interaccionFisuracion, 3)} &gt; 1 (art. 6.3.2 (5), ec. (6.31)).
+                        </span>
+                      </>
+                    )}
                   </p>
                   <Separator />
                   <div className="rounded-md border p-3 text-sm">
@@ -303,12 +320,16 @@ export default function VigasTorsionPage() {
                     </p>
                   </div>
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo de la torsión"
                     filas={[
-                      { etiqueta: "Espesor eficaz t = A/u", valor: `${fmt(resultado.torsion.tM, 4)} m` },
+                      { etiqueta: "A/u", valor: `${fmt(resultado.torsion.tAreaPerimetroM, 4)} m` },
+                      { etiqueta: "Mínimo 2·c (borde → eje de barra)", valor: `${fmt(resultado.torsion.tMinimoM, 4)} m` },
+                      { etiqueta: "Espesor eficaz tef", valor: `${fmt(resultado.torsion.tM, 4)} m` },
                       { etiqueta: "Perímetro medio ue", valor: `${fmt(resultado.torsion.ueM, 4)} m` },
                       { etiqueta: "Área encerrada Ae", valor: `${fmt(resultado.torsion.aeM2, 4)} m²` },
-                      { etiqueta: "f1cd", valor: `${fmt(resultado.torsion.f1cdMPa)} MPa` },
+                      { etiqueta: "ν = 0,6·(1 − fck/250)", valor: fmt(resultado.torsion.nu, 3) },
+                      { etiqueta: "TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m` },
+                      { etiqueta: "TRd,c = 2·Ak·tef·fctd", valor: `${fmt(resultado.torsion.tRdCKNm)} kN·m` },
                     ]}
                   />
                 </CardContent>

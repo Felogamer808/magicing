@@ -2,13 +2,18 @@
 
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { FranjaLosaDiagrama } from "@/components/verificaciones/hormigon/FranjaLosaDiagrama";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
+import { EditorCapas } from "@/components/verificaciones/comun/EditorCapas";
+import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
+import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
+import { ConclusionResultados } from "@/components/verificaciones/comun/ConclusionResultados";
+import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { calcularFranjaLosa } from "@/lib/calc/hormigon/losas/losa-fundacion";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -19,6 +24,14 @@ import {
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-fundacion")!;
+
+const ETAPAS = [
+  { id: "geometria", titulo: "Franja y suelo" },
+  { id: "cargas", titulo: "Pilares" },
+  { id: "armadura", titulo: "Armadura" },
+  { id: "revision", titulo: "Revisión" },
+  { id: "resultados", titulo: "Resultados" },
+] as const;
 
 export default function LosaFundacionPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -112,11 +125,27 @@ export default function LosaFundacionPage() {
     return { longitudM: v.longitud, HM: v.H, posicionesColumnasM: [v.pos1, v.pos2, v.pos3] };
   }, [longitud, H, pos1, pos2, pos3]);
 
+  const avisos: AvisoRevision[] = [];
+  if (!resultado) {
+    avisos.push({
+      tipo: "error",
+      texto: "Hay datos vacíos o no válidos: no se puede calcular. Las posiciones de los pilares deben ser crecientes (1 < 2 < 3) y no superar la longitud.",
+    });
+  } else if (!resultado.franja.dentroDelNucleo) {
+    avisos.push({ tipo: "aviso", texto: "La resultante de los pilares sale del núcleo central (±longitud/6)." });
+  }
+
+  const elevacion = diagrama ? (
+    <FranjaLosaDiagrama {...diagrama} />
+  ) : (
+    <CroquisPosicionPilares cantidad={3} />
+  );
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Cimentaciones</p>
+          <p className="spec-label">Cimentaciones · método de franjas</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />
@@ -124,132 +153,157 @@ export default function LosaFundacionPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <Card className="border-primary/30">
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          Método de franjas: se verifica una línea de pilares como si fuera una viga sobre el terreno,
-          usando el ancho tributario de esa franja (la distancia a las líneas de pilares vecinas). Para
-          verificar toda la losa, repetí esto por cada línea de pilares, en las dos direcciones.
-        </CardContent>
-      </Card>
+      <IndiceEtapas etapas={ETAPAS} />
 
-      {diagrama && (
-        <Card className="drafting-marks">
-          <CardHeader>
-            <CardTitle className="text-base">Franja (elevación)</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center py-2">
-            <FranjaLosaDiagrama {...diagrama} />
-          </CardContent>
-        </Card>
-      )}
+      <p className="text-sm text-muted-foreground">
+        Se verifica una línea de pilares como viga sobre el terreno, con el ancho tributario de esa
+        franja. Para verificar toda la losa, repetí esto por cada línea de pilares, en las dos
+        direcciones.
+      </p>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Materiales y suelo</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
-              <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-              <CampoNumerico id="sigmaAdmisible" etiqueta="σ suelo adm." sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-12">
+        <Etapa id="geometria" numero={1} titulo="Geometría, materiales y suelo" descripcion="La franja que se verifica y su ancho tributario.">
+          <DatosConDibujo
+            datos={
+              <>
+                <Subgrupo titulo="Materiales y suelo">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
+                    <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
+                    <CampoNumerico id="sigmaAdmisible" etiqueta="σ adm. suelo" sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Franja">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="longitud" etiqueta="Longitud" sufijo="m" valor={longitud} onChange={setLongitud} />
+                    <CampoNumerico id="anchoTributario" etiqueta="Ancho tributario" sufijo="m" valor={anchoTributario} onChange={setAnchoTributario} />
+                    <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                  </div>
+                </Subgrupo>
+              </>
+            }
+            dibujo={elevacion}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Geometría de la franja</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="col-span-full">
-                <CroquisPosicionPilares cantidad={3} />
+        <Etapa id="cargas" numero={2} titulo="Pilares y cargas" descripcion="Posición desde el extremo izquierdo y carga característica de cada pilar.">
+          <DatosConDibujo
+            datos={
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="pos1" etiqueta="Pilar 1 · posición" sufijo="m" valor={pos1} onChange={setPos1} />
+                <CampoNumerico id="Nk1" etiqueta="Pilar 1 · Nk" sufijo="kN" valor={Nk1} onChange={setNk1} />
+                <CampoNumerico id="pos2" etiqueta="Pilar 2 · posición" sufijo="m" valor={pos2} onChange={setPos2} />
+                <CampoNumerico id="Nk2" etiqueta="Pilar 2 · Nk" sufijo="kN" valor={Nk2} onChange={setNk2} />
+                <CampoNumerico id="pos3" etiqueta="Pilar 3 · posición" sufijo="m" valor={pos3} onChange={setPos3} />
+                <CampoNumerico id="Nk3" etiqueta="Pilar 3 · Nk" sufijo="kN" valor={Nk3} onChange={setNk3} />
               </div>
-              <CampoNumerico id="longitud" etiqueta="Longitud" sufijo="m" valor={longitud} onChange={setLongitud} />
-              <CampoNumerico id="anchoTributario" etiqueta="Ancho tributario" sufijo="m" valor={anchoTributario} onChange={setAnchoTributario} />
-              <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-              <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
-            </CardContent>
-          </Card>
+            }
+            dibujo={elevacion}
+          />
+        </Etapa>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Pilar 1</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-3">
-                <CampoNumerico id="pos1" etiqueta="Posición" sufijo="m" valor={pos1} onChange={setPos1} />
-                <CampoNumerico id="Nk1" etiqueta="Nk" sufijo="kN" valor={Nk1} onChange={setNk1} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Pilar 2</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-3">
-                <CampoNumerico id="pos2" etiqueta="Posición" sufijo="m" valor={pos2} onChange={setPos2} />
-                <CampoNumerico id="Nk2" etiqueta="Nk" sufijo="kN" valor={Nk2} onChange={setNk2} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Pilar 3</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-3">
-                <CampoNumerico id="pos3" etiqueta="Posición" sufijo="m" valor={pos3} onChange={setPos3} />
-                <CampoNumerico id="Nk3" etiqueta="Nk" sufijo="kN" valor={Nk3} onChange={setNk3} />
-              </CardContent>
-            </Card>
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Inferior para el momento positivo, superior para el negativo y reparto transversal.">
+          <div className="space-y-5">
+            <Subgrupo titulo="Longitudinal">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <CampoDiametro id="diametroInferior" etiqueta="Inferior · Ø" valor={diametroInferior} onChange={setDiametroInferior} />
+                <CampoNumerico id="separacionInferior" etiqueta="Inferior · separación" sufijo="m" valor={separacionInferior} onChange={setSeparacionInferior} />
+                <CampoDiametro id="diametroSuperior" etiqueta="Superior · Ø" valor={diametroSuperior} onChange={setDiametroSuperior} />
+                <CampoNumerico id="separacionSuperior" etiqueta="Superior · separación" sufijo="m" valor={separacionSuperior} onChange={setSeparacionSuperior} />
+              </div>
+            </Subgrupo>
+            <Subgrupo titulo="Reparto">
+              <div className="max-w-xl">
+                <EditorCapas
+                  filas={[
+                    {
+                      posicion: "Reparto, por metro",
+                      numero: { id: "numeroSecundario", valor: numeroSecundario, onChange: setNumeroSecundario },
+                      diametro: { id: "diametroSecundario", valor: diametroSecundario, onChange: setDiametroSecundario },
+                    },
+                  ]}
+                />
+              </div>
+            </Subgrupo>
           </div>
+        </Etapa>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armado inferior</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoDiametro id="diametroInferior" etiqueta="Ø" valor={diametroInferior} onChange={setDiametroInferior} />
-                <CampoNumerico id="separacionInferior" etiqueta="Separación" sufijo="m" valor={separacionInferior} onChange={setSeparacionInferior} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Armado superior</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <CampoDiametro id="diametroSuperior" etiqueta="Ø" valor={diametroSuperior} onChange={setDiametroSuperior} />
-                <CampoNumerico id="separacionSuperior" etiqueta="Separación" sufijo="m" valor={separacionSuperior} onChange={setSeparacionSuperior} />
-              </CardContent>
-            </Card>
-          </div>
+        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+          <RevisionDatos
+            norma={norma}
+            datos={[
+              { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
+              { etiqueta: "Longitud × ancho × H", valor: `${longitud} × ${anchoTributario} × ${H} m` },
+              { etiqueta: "σ adm. suelo", valor: `${sigmaAdmisible} kN/m²` },
+              ...(resultado
+                ? [
+                    { etiqueta: "Peso propio", valor: `${fmt(resultado.franja.geotecnico.pesoPropioKN)} kN`, derivado: true },
+                    { etiqueta: "Excentricidad", valor: `${fmt(resultado.franja.excentricidadM, 3)} m`, derivado: true },
+                  ]
+                : []),
+            ]}
+            hipotesis={[
+              "No viene de la planilla: método preliminar de franjas, cada una tratada como viga sobre el terreno; no es un análisis de placa.",
+              "No incluye punzonamiento. Revisar antes de usar en obra.",
+              "Cuantías mínimas heredadas de la planilla (EHE‑08).",
+            ]}
+            avisos={avisos}
+          />
+        </Etapa>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Armadura de reparto</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="numeroSecundario" etiqueta="Nº barras/m" valor={numeroSecundario} onChange={setNumeroSecundario} />
-              <CampoDiametro id="diametroSecundario" etiqueta="Ø" valor={diametroSecundario} onChange={setDiametroSecundario} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
+        <Etapa id="resultados" numero={5} titulo="Resultados">
           {!resultado ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Completá los datos con valores numéricos válidos. Las posiciones de los pilares deben ser
-                crecientes (pilar 1 &lt; pilar 2 &lt; pilar 3) y no superar la longitud.
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
+              <EstadoVerificacionChip estado="datos-insuficientes" />
+              <span className="text-muted-foreground">Completá los datos marcados en la revisión.</span>
+            </div>
           ) : (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Verificación geotécnica</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <div className="space-y-10">
+              <ConclusionResultados
+                comprobaciones={[
+                  {
+                    etiqueta: "tensión del terreno",
+                    estado: resultado.franja.geotecnico.verificaTension ? "cumple" : "no-cumple",
+                    utilizacion: resultado.franja.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
+                  },
+                  {
+                    etiqueta: "armadura inferior",
+                    estado: resultado.franja.inferior.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.franja.inferior.asNecCm2PorM / resultado.franja.inferior.asRealCm2PorM,
+                  },
+                  {
+                    etiqueta: "armadura superior",
+                    estado: resultado.franja.superior.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.franja.superior.asNecCm2PorM / resultado.franja.superior.asRealCm2PorM,
+                  },
+                  {
+                    etiqueta: "cortante",
+                    estado: resultado.franja.cortante.verificaCorte ? "cumple" : "no-cumple",
+                    utilizacion: resultado.franja.cortante.vEdKN / resultado.franja.cortante.vRdCKN,
+                  },
+                  {
+                    etiqueta: "armadura de reparto",
+                    estado: resultado.franja.secundario.verificaAs ? "cumple" : "no-cumple",
+                    utilizacion: resultado.franja.secundario.asNecCm2 / resultado.franja.secundario.asRealCm2,
+                  },
+                ]}
+              />
+
+              <PanelMetricas
+                horizontal
+                metricas={[
+                  { etiqueta: "σ terreno", valor: `${fmt(resultado.franja.geotecnico.sigmaKPa)} kN/m²`, nota: `admisible ${fmt(aNumero(sigmaAdmisible))}` },
+                  { etiqueta: "M+ máximo", valor: `${fmt(resultado.franja.inferior.mKNm)} kN·m`, nota: `en x = ${fmt(resultado.franja.inferior.posicionM, 2)} m` },
+                  { etiqueta: "M− máximo", valor: `${fmt(resultado.franja.superior.mKNm)} kN·m`, nota: `en x = ${fmt(resultado.franja.superior.posicionM, 2)} m` },
+                  { etiqueta: "Vd", valor: `${fmt(resultado.franja.cortante.vEdKN)} kN`, nota: `VRd,c ${fmt(resultado.franja.cortante.vRdCKN)} kN` },
+                ]}
+              />
+
+              <Subgrupo titulo="Geotecnia">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Tensión admisible del suelo"
+                    etiqueta="Tensión admisible del terreno"
                     verifica={resultado.franja.geotecnico.verificaTension}
                     comparacion={{
                       real: { etiqueta: "σ", valor: resultado.franja.geotecnico.sigmaKPa },
@@ -258,63 +312,40 @@ export default function LosaFundacionPage() {
                     }}
                   />
                   <PanelFormulas
-                    titulo="Ver cálculo"
+                    titulo="Ver desarrollo geotécnico"
                     filas={[
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.franja.geotecnico.pesoPropioKN)} kN` },
                       { etiqueta: "Excentricidad", valor: `${fmt(resultado.franja.excentricidadM, 3)} m` },
                       { etiqueta: "Núcleo central (±longitud/6)", valor: resultado.franja.dentroDelNucleo ? "Dentro" : "Fuera" },
                     ]}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </Subgrupo>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Armado inferior (momento positivo)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <Subgrupo titulo="Comprobaciones estructurales">
+                <div>
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Momento positivo · armadura inferior suficiente"
                     verifica={resultado.franja.inferior.verificaAs}
+                    detalle={`M = ${fmt(resultado.franja.inferior.mKNm)} kN·m en x = ${fmt(resultado.franja.inferior.posicionM, 2)} m`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.franja.inferior.asRealCm2PorM },
                       limite: { etiqueta: "As nec", valor: resultado.franja.inferior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    M = {fmt(resultado.franja.inferior.mKNm)} kN·m, en x = {fmt(resultado.franja.inferior.posicionM, 2)} m
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Armado superior (momento negativo)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Armadura suficiente"
+                    etiqueta="Momento negativo · armadura superior suficiente"
                     verifica={resultado.franja.superior.verificaAs}
+                    detalle={`M = ${fmt(resultado.franja.superior.mKNm)} kN·m en x = ${fmt(resultado.franja.superior.posicionM, 2)} m`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.franja.superior.asRealCm2PorM },
                       limite: { etiqueta: "As nec", valor: resultado.franja.superior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    M = {fmt(resultado.franja.superior.mKNm)} kN·m, en x = {fmt(resultado.franja.superior.posicionM, 2)} m
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Cortante y armadura de reparto</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Cortante (EC2 6.2.2)"
+                    etiqueta="Cortante sin armadura transversal"
                     verifica={resultado.franja.cortante.verificaCorte}
                     comparacion={{
                       real: { etiqueta: "Vd", valor: resultado.franja.cortante.vEdKN },
@@ -323,7 +354,7 @@ export default function LosaFundacionPage() {
                     }}
                   />
                   <ResultadoCheck
-                    etiqueta="Armadura de reparto"
+                    etiqueta="Armadura de reparto suficiente"
                     verifica={resultado.franja.secundario.verificaAs}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.franja.secundario.asRealCm2 },
@@ -331,17 +362,11 @@ export default function LosaFundacionPage() {
                       unidad: "cm²", exige: "≥",
                     }}
                   />
-                </CardContent>
-              </Card>
-
-              <p className="text-xs text-muted-foreground">
-                Este tipo no viene de tu planilla — es un método preliminar de mano (franjas tratadas
-                como viga sobre el terreno), no un análisis de placa. No incluye punzonamiento. Revisar
-                antes de usar en obra.
-              </p>
-            </>
+                </div>
+              </Subgrupo>
+            </div>
           )}
-        </div>
+        </Etapa>
       </div>
     </main>
   );

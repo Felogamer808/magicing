@@ -136,7 +136,8 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
         ...(hay2aCapa ? { numeroAs2: numero2, phiAs2: d.diametroPos2 ?? "0" } : {}),
         // La necesaria en ELU sigue siendo un área: es una demanda, no un
         // despiece, y casi nunca cae en un número entero de barras.
-        asReq: txt(d.asNecPosCm2, 2),
+        // Sobrearmada no hay área necesaria: no se manda un "NaN" al destino.
+        ...(Number.isFinite(d.asNecPosCm2) ? { asReq: txt(d.asNecPosCm2, 2) } : {}),
         // d' es geometría de la cara comprimida: viaja por si se decide contar
         // la armadura superior como de compresión. Las barras comprimidas se
         // dejan en cero a propósito —que la negativa comprima en centro de vano

@@ -322,6 +322,7 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.flexionPositiva.verificaAs}
+                    detalle={resultado.flexionPositiva.sobrearmada ? `μ = ${fmt(resultado.flexionPositiva.mu, 3)} > μlim = ${fmt(resultado.flexionPositiva.muLim, 3)}: el acero no fluye; hace falta armadura de compresión o más canto.` : undefined}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionPositiva.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.flexionPositiva.asNecCm2 },
@@ -338,6 +339,7 @@ export default function VigasTorsionPage() {
                     filas={[
                       { etiqueta: "d", valor: `${fmt(resultado.d, 4)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
+                      { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionPositiva.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
                       { etiqueta: "As por momento", valor: `${fmt(resultado.flexionPositiva.asCalculadoCm2)} cm²` },
                       { etiqueta: "+ Al/4 por torsión", valor: `${fmt(resultado.torsion.alPorCaraCm2)} cm²` },
@@ -361,6 +363,7 @@ export default function VigasTorsionPage() {
                   <ResultadoCheck
                     etiqueta="Armadura suficiente"
                     verifica={resultado.flexionNegativa.verificaAs}
+                    detalle={resultado.flexionNegativa.sobrearmada ? `μ = ${fmt(resultado.flexionNegativa.mu, 3)} > μlim = ${fmt(resultado.flexionNegativa.muLim, 3)}: el acero no fluye; hace falta armadura de compresión o más canto.` : undefined}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionNegativa.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.flexionNegativa.asNecCm2 },

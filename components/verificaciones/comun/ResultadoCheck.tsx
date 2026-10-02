@@ -75,6 +75,12 @@ function laBarraExplicaElVeredicto(verifica: boolean, c: ComparacionCheck): bool
 export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacion }: ResultadoCheckProps) {
   const estadoFinal: EstadoVerificacion = estado ?? (verifica ? "cumple" : "no-cumple");
   const evaluada = estadoFinal === "cumple" || estadoFinal === "no-cumple";
+  // Sin números finitos no hay desigualdad que mostrar: "NaN < 8,74" no
+  // explica nada. Queda el estado y el detalle, que dice por qué.
+  const comparable =
+    comparacion !== undefined &&
+    Number.isFinite(comparacion.real.valor) &&
+    Number.isFinite(comparacion.limite.valor);
 
   /*
    * Fila, no tarjeta: las comprobaciones se leen una debajo de otra con la
@@ -90,7 +96,7 @@ export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacio
         <EstadoVerificacionChip estado={estadoFinal} />
       </div>
 
-      {comparacion && evaluada && (
+      {comparacion && comparable && evaluada && (
         <>
           {/*
             La desigualdad completa en una línea: los símbolos en gris para que

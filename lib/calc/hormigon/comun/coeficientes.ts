@@ -41,6 +41,22 @@ export const GAMMA_S = 1.15;
 export const BETA_1_EMPOTRAMIENTO_PARCIAL = 0.15;
 
 /**
+ * εcu3 — deformación última del hormigón para el diagrama bilineal y el
+ * bloque rectangular, fck ≤ 50 MPa. Anejo 19, tabla 3.1, pág. 24.
+ * (Por encima de C50 baja hasta 2,6 ‰; el motor todavía no lo contempla.)
+ */
+export const EPSILON_CU3 = 0.0035;
+
+/**
+ * λ — fracción de x que ocupa el bloque rectangular de compresiones,
+ * fck ≤ 50 MPa. Anejo 19, art. 3.1.7 (3), ec. (3.19), pág. 30.
+ */
+export const LAMBDA_BLOQUE = 0.8;
+
+/** Es — módulo de elasticidad de cálculo del acero pasivo. Anejo 19, art. 3.2.7 (4), pág. 35. */
+export const ES_MPA = 200000;
+
+/**
  * γF — coeficiente único con el que zapatas y pilotes mayoran su carga vertical.
  * Esas verificaciones reciben cargas características: el terreno se comprueba
  * con Nk sin mayorar, pero el armado y el punzonamiento necesitan Nd.

@@ -59,6 +59,18 @@ const ELEMENTO_DE_CAMPO: Record<string, ElementoSeccionViga | "positivo" | "nega
 
 type Campo = [id: string, valor: string, onChange: (v: string) => void];
 
+/** Motivo, para el detalle de la comprobación, cuando la sección queda sobrearmada. */
+function motivoSobrearmada(f: { sobrearmada: boolean; mu: number; muLim: number }): string | undefined {
+  return f.sobrearmada
+    ? `μ = ${fmt(f.mu, 3)} > μlim = ${fmt(f.muLim, 3)}: el acero no llega a fluir. Hace falta armadura de compresión o más canto.`
+    : undefined;
+}
+
+/** As necesaria, o el motivo por el que no hay una. */
+function asNecesaria(f: { asNecCm2: number }): string {
+  return Number.isFinite(f.asNecCm2) ? `${fmt(f.asNecCm2)} cm²` : "sobrearmada";
+}
+
 function capa(cara: "Inferior" | "Superior", n: number, numero: Campo, diametro: Campo, onQuitar?: () => void): FilaCapa {
   return {
     posicion: `${cara} · capa ${n}`,
@@ -206,12 +218,16 @@ export default function VigasFlexionCortantePage() {
   if (!resultado) {
     avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
   } else {
+    if (resultado.flexionPositiva.sobrearmada)
+      avisos.push({ tipo: "aviso", texto: `Con el momento positivo la sección queda sobrearmada: el acero no fluye y hace falta armadura de compresión o más canto.` });
     if (noEntra.inferior) avisos.push({ tipo: "aviso", texto: "La armadura inferior no entra en el ancho disponible." });
     if (resultado.gobiernaMinimoApoyo)
       avisos.push({
         tipo: "aviso",
         texto: `La armadura superior se dimensiona para el mínimo de apoyo, ${fmt(resultado.momentoNegativoCalculo, 1)} kN·m, mayor que el M− cargado.`,
       });
+    if (resultado.flexionNegativa.sobrearmada)
+      avisos.push({ tipo: "aviso", texto: `Con el momento negativo la sección queda sobrearmada: el acero no fluye y hace falta armadura de compresión o más canto.` });
     if (noEntra.superior) avisos.push({ tipo: "aviso", texto: "La armadura superior no entra en el ancho disponible." });
   }
 
@@ -461,12 +477,12 @@ export default function VigasFlexionCortantePage() {
                   { etiqueta: "Canto útil d", valor: `${fmt(resultado.d, 3)} m` },
                   {
                     etiqueta: "As nec. inferior",
-                    valor: `${fmt(resultado.flexionPositiva.asNecCm2)} cm²`,
+                    valor: asNecesaria(resultado.flexionPositiva),
                     nota: `colocada ${fmt(resultado.flexionPositiva.asRealCm2)} cm²`,
                   },
                   {
                     etiqueta: "As nec. superior",
-                    valor: `${fmt(resultado.flexionNegativa.asNecCm2)} cm²`,
+                    valor: asNecesaria(resultado.flexionNegativa),
                     nota: `colocada ${fmt(resultado.flexionNegativa.asRealCm2)} cm²`,
                   },
                   {
@@ -481,6 +497,7 @@ export default function VigasFlexionCortantePage() {
                 <div>
                   <ResultadoCheck
                     etiqueta="Flexión positiva · armadura inferior suficiente"
+                    detalle={motivoSobrearmada(resultado.flexionPositiva)}
                     verifica={resultado.flexionPositiva.verificaAs}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionPositiva.asRealCm2 },
@@ -493,6 +510,7 @@ export default function VigasFlexionCortantePage() {
                     filas={[
                       { etiqueta: "d", valor: `${fmt(resultado.d, 3)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionPositiva.mu, 5) },
+                      { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionPositiva.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionPositiva.asCalculadoCm2)} cm²` },
                       { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionPositiva.fctmFlMPa, 2)} MPa` },
@@ -506,6 +524,7 @@ export default function VigasFlexionCortantePage() {
                   />
                   <ResultadoCheck
                     etiqueta="Flexión negativa · armadura superior suficiente"
+                    detalle={motivoSobrearmada(resultado.flexionNegativa)}
                     verifica={resultado.flexionNegativa.verificaAs}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.flexionNegativa.asRealCm2 },
@@ -522,6 +541,7 @@ export default function VigasFlexionCortantePage() {
                       },
                       { etiqueta: "d", valor: `${fmt(resultado.d, 3)} m` },
                       { etiqueta: "μ", valor: fmt(resultado.flexionNegativa.mu, 5) },
+                      { etiqueta: "μlim (el acero fluye)", valor: fmt(resultado.flexionNegativa.muLim, 5) },
                       { etiqueta: "ω", valor: fmt(resultado.flexionNegativa.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionNegativa.asCalculadoCm2)} cm²` },
                       { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionNegativa.fctmFlMPa, 2)} MPa` },
@@ -598,6 +618,7 @@ export default function VigasFlexionCortantePage() {
                 />
               </Subgrupo>
 
+              {!resultado.flexionPositiva.sobrearmada && (
               <Subgrupo titulo="Estado de rotura con el momento positivo">
                 <div className="mx-auto w-full max-w-xl">
                   <DiagramaRotura
@@ -615,6 +636,7 @@ export default function VigasFlexionCortantePage() {
                   producirse.
                 </p>
               </Subgrupo>
+              )}
 
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}

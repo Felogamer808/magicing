@@ -12,6 +12,13 @@ import type { CapituloCalculo, RegistroPresentadores } from "@/components/memori
  * aviso es un elemento que parece no haberse calculado.
  */
 
+/** Detalle de "armadura suficiente": la desigualdad, o por qué no la hay. */
+function detalleArmadura(f: { sobrearmada: boolean; mu: number; muLim: number; asRealCm2: number; asNecCm2: number }): string {
+  return f.sobrearmada
+    ? `Sección sobrearmada: μ = ${fmt(f.mu, 3)} > μlim = ${fmt(f.muLim, 3)}, el acero no fluye`
+    : `As real ${fmt(f.asRealCm2)} cm² ≥ As nec ${fmt(f.asNecCm2)} cm²`;
+}
+
 function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | null {
   const r = resolverVigaFlexionCortante(campos);
   if (!r) return null;
@@ -78,7 +85,7 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
       {
         etiqueta: "Flexión positiva — armadura suficiente",
         verifica: pos.verificaAs,
-        detalle: `As real ${fmt(pos.asRealCm2)} cm² ≥ As nec ${fmt(pos.asNecCm2)} cm²`,
+        detalle: detalleArmadura(pos),
       },
       {
         etiqueta: "Flexión positiva — la armadura entra en el ancho",
@@ -88,7 +95,7 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
       {
         etiqueta: "Flexión negativa — armadura suficiente",
         verifica: neg.verificaAs,
-        detalle: `As real ${fmt(neg.asRealCm2)} cm² ≥ As nec ${fmt(neg.asNecCm2)} cm²`,
+        detalle: detalleArmadura(neg),
       },
       {
         etiqueta: "Flexión negativa — la armadura entra en el ancho",
@@ -110,8 +117,8 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
       { etiqueta: "d", formula: "h − distancia al centroide de la armadura", valor: `${fmt(d, 3)} m` },
       { etiqueta: "fcd", formula: "fck / γc", sustitucion: `${fmt(v.fck, 0)} / 1,5`, valor: `${fmt(r.materiales.fcd, 2)} MPa` },
       { etiqueta: "fyd", formula: "fyk / γs", sustitucion: `${fmt(v.fyk, 0)} / 1,15`, valor: `${fmt(r.materiales.fyd, 2)} MPa` },
-      { etiqueta: "As nec +", valor: `${fmt(pos.asNecCm2)} cm²` },
-      { etiqueta: "As nec −", valor: `${fmt(neg.asNecCm2)} cm²` },
+      { etiqueta: "As nec +", valor: pos.sobrearmada ? "sobrearmada" : `${fmt(pos.asNecCm2)} cm²` },
+      { etiqueta: "As nec −", valor: neg.sobrearmada ? "sobrearmada" : `${fmt(neg.asNecCm2)} cm²` },
       { etiqueta: "A90 necesaria", valor: `${fmt(cortante.a90NecCm2PorM)} cm²/m` },
       { etiqueta: "A90 mínima", valor: `${fmt(cortante.a90MinCm2PorM)} cm²/m` },
       { etiqueta: "Separación adoptada", valor: `${fmt(cortante.separacionAdoptadaM * 100, 1)} cm` },

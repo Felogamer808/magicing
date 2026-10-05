@@ -112,9 +112,54 @@ export function distribucionPresiones(
   };
 }
 
+/**
+ * Presión a una distancia `sM` del borde menos cargado. Con despegue, el tramo
+ * levantado no empuja: devolver ahí el valor negativo del trapecio sería suponer
+ * que el terreno tracciona.
+ */
+export function presionEn(dist: DistribucionPresiones, lM: number, sM: number): number {
+  if (!dist.hayDespegue) {
+    return dist.sigmaMinKPa + ((dist.sigmaMaxKPa - dist.sigmaMinKPa) * sM) / lM;
+  }
+  const inicioContactoM = lM - dist.longitudContactoM;
+  if (sM <= inicioContactoM) return 0;
+  return (dist.sigmaMaxKPa * (sM - inicioContactoM)) / dist.longitudContactoM;
+}
+
+/**
+ * Resultante de las presiones entre una sección (a `sM` del borde menos cargado)
+ * y el borde más cargado, y su momento respecto de esa sección. Es lo que
+ * flecta y corta el vuelo de ese lado.
+ */
+export function cargaEntreSeccionYBorde(
+  dist: DistribucionPresiones,
+  lM: number,
+  anchoPerpM: number,
+  sM: number
+): { fuerzaKN: number; momentoKNm: number } {
+  // Resultante fuera de la base: no hay equilibrio posible, y un cero acá
+  // dejaría pasar la zapata.
+  if (!Number.isFinite(dist.sigmaMaxKPa)) return { fuerzaKN: Infinity, momentoKNm: Infinity };
+
+  const desdeM = Math.max(sM, lM - dist.longitudContactoM);
+  const tramoM = lM - desdeM;
+  if (tramoM <= 0) return { fuerzaKN: 0, momentoKNm: 0 };
+
+  const sigmaDesde = presionEn(dist, lM, desdeM);
+  const brazoInicioM = desdeM - sM;
+  const rectangulo = sigmaDesde * anchoPerpM * tramoM;
+  const triangulo = ((dist.sigmaMaxKPa - sigmaDesde) * anchoPerpM * tramoM) / 2;
+  return {
+    fuerzaKN: rectangulo + triangulo,
+    momentoKNm: rectangulo * (brazoInicioM + tramoM / 2) + triangulo * (brazoInicioM + (2 * tramoM) / 3),
+  };
+}
+
 export interface ResultadoArmadoDireccion {
   sigmaMaxKPa: number;
   sigmaMinKPa: number;
+  /** Longitud de base que apoya con las presiones de cálculo (m). Menor que la base si hay despegue. */
+  longitudContactoM?: number;
   /** Presión en la sección crítica de flexión (kN/m²) */
   sigmaCriticaKPa: number;
   /** Vuelo desde la sección crítica (cara del pilar reducida 1/4 de su ancho) hasta el borde (m) */
@@ -186,8 +231,19 @@ export function calcularCorteUnidireccional(
   if (vueloCorteM <= 0) {
     return { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
   }
-  const { fck } = materiales;
   const vEdKN = ((sigmaSeccionKPa + sigmaBordeKPa) / 2) * dimPerpendicular * vueloCorteM;
+  return corteDesdeCarga(materiales, dimPerpendicular, d, vEdKN, asRealCm2);
+}
+
+/** Compara un cortante de cálculo ya integrado con la VRd,c de la sección (EC2 6.2.2). */
+function corteDesdeCarga(
+  materiales: MaterialesDerivados,
+  dimPerpendicular: number,
+  d: number,
+  vEdKN: number,
+  asRealCm2: number
+): ResultadoCorteUnidireccional {
+  const { fck } = materiales;
   const k = factorEscalaK(d);
   const rhoL = asRealCm2 / (100 ** 2 * dimPerpendicular * d);
   const vRdCKN = tensionCortanteResistente(k, rhoL, fck) * dimPerpendicular * d * 1000;
@@ -210,12 +266,27 @@ export function calcularArmadoDesdePresion(
   lM: number,
   armadura: ArmadoDireccion
 ): ResultadoArmadoDireccion {
+  const momentoKNm =
+    sigmaCriticaKPa * dimPerpendicular * lM * (lM / 2) +
+    (sigmaMaxKPa - sigmaCriticaKPa) * dimPerpendicular * (lM / 2) * ((2 * lM) / 3);
+  return armadoDesdeMomento(materiales, dimPerpendicular, H, d, momentoKNm, sigmaMaxKPa, sigmaCriticaKPa, lM, armadura);
+}
+
+/** Arma una dirección con el momento ya integrado en la sección crítica de flexión. */
+function armadoDesdeMomento(
+  materiales: MaterialesDerivados,
+  dimPerpendicular: number,
+  H: number,
+  d: number,
+  momentoKNm: number,
+  sigmaMaxKPa: number,
+  sigmaCriticaKPa: number,
+  lM: number,
+  armadura: ArmadoDireccion
+): ResultadoArmadoDireccion {
   const { fcd, fyd, fydEstribos } = materiales;
 
-  const tdKN =
-    (sigmaCriticaKPa * dimPerpendicular * lM * (lM / 2) +
-      (sigmaMaxKPa - sigmaCriticaKPa) * dimPerpendicular * (lM / 2) * ((2 * lM) / 3)) /
-    (0.85 * d);
+  const tdKN = momentoKNm / (0.85 * d);
 
   // La planilla usa el fyd limitado ("fyd ByT", el mismo criterio que los estribos de vigas)
   // para pasar de tracción de cálculo a área de acero, no el fyd pleno.
@@ -267,21 +338,41 @@ export function calcularArmadoDireccion(
 ): ResultadoArmadoDireccion {
   const { Nk } = cargas;
 
-  const w = (dimPerpendicular * dim ** 2) / 6;
-  const sigmaMaxKPa = (GAMMA_F * Nk) / (dim * dimPerpendicular) + (GAMMA_F * mk) / w;
-  const sigmaMinKPa = (GAMMA_F * Nk) / (dim * dimPerpendicular) - (GAMMA_F * mk) / w;
+  // Presiones de cálculo sin el peso propio, que equilibra su propia reacción y
+  // no flecta. Se reparten como en el terreno: si la resultante sale del núcleo
+  // central, el borde opuesto se despega. El trapecio N/A ± M/W daría ahí
+  // presiones negativas, que restan momento y cortante del lado inseguro.
+  const excentricidadM = Nk !== 0 ? mk / Nk : 0;
+  const dist = distribucionPresiones(GAMMA_F * Nk, dim, dimPerpendicular, excentricidadM);
 
   const lM = dim / 2 - anchoPilar / 4;
-  const sigmaCriticaKPa = ((sigmaMaxKPa - sigmaMinKPa) / dim) * (dim / 2 + anchoPilar / 4) + sigmaMinKPa;
-
-  const flexion = calcularArmadoDesdePresion(materiales, dimPerpendicular, H, d, sigmaMaxKPa, sigmaCriticaKPa, lM, armadura);
+  const seccionFlexionM = dim - lM;
+  const flexion = armadoDesdeMomento(
+    materiales,
+    dimPerpendicular,
+    H,
+    d,
+    cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, seccionFlexionM).momentoKNm,
+    dist.sigmaMaxKPa,
+    presionEn(dist, dim, seccionFlexionM),
+    lM,
+    armadura
+  );
 
   // Cortante unidireccional (EC2 6.2.2), sección crítica a d de la cara del pilar.
   const vueloCorteM = dim / 2 - anchoPilar / 2 - d;
-  const sigmaCorteKPa = ((sigmaMaxKPa - sigmaMinKPa) / dim) * (dim / 2 + anchoPilar / 2 + d) + sigmaMinKPa;
-  const corte = calcularCorteUnidireccional(materiales, dimPerpendicular, d, sigmaCorteKPa, sigmaMaxKPa, vueloCorteM, flexion.asRealCm2);
+  const corte =
+    vueloCorteM > 0
+      ? corteDesdeCarga(
+          materiales,
+          dimPerpendicular,
+          d,
+          cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - vueloCorteM).fuerzaKN,
+          flexion.asRealCm2
+        )
+      : { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
 
-  return { ...flexion, sigmaMinKPa, ...corte };
+  return { ...flexion, sigmaMinKPa: dist.sigmaMinKPa, longitudContactoM: dist.longitudContactoM, ...corte };
 }
 
 export function calcularZapataAislada(
@@ -298,10 +389,19 @@ export function calcularZapataAislada(
   // el método simplificado (rígido) que usa este cálculo deja de ser válido.
   const vueloMaxM = Math.max((A - anchoPilarA) / 2, (B - anchoPilarB) / 2);
 
+  // La excentricidad es la de la resultante que llega al terreno, peso propio
+  // incluido: dividir el momento sólo por Nk la exagera, y más cuanto más liviano
+  // es el pilar respecto de la zapata.
   const pesoPropioKN = 25 * A * B * H;
-  const excA = Nk !== 0 ? MkA / Nk : 0;
-  const excB = Nk !== 0 ? MkB / Nk : 0;
-  const sigmaKPa = (Nk + pesoPropioKN) / ((A - 2 * excA) * (B - 2 * excB));
+  const cargaTotalKN = Nk + pesoPropioKN;
+  const excA = cargaTotalKN !== 0 ? MkA / cargaTotalKN : 0;
+  const excB = cargaTotalKN !== 0 ? MkB / cargaTotalKN : 0;
+  // Con la resultante fuera de la base no hay área eficaz: los dos anchos
+  // negativos multiplicados darían un área positiva y una tensión ínfima.
+  const anchoEficazAM = A - 2 * Math.abs(excA);
+  const anchoEficazBM = B - 2 * Math.abs(excB);
+  const sigmaKPa =
+    anchoEficazAM > 0 && anchoEficazBM > 0 ? cargaTotalKN / (anchoEficazAM * anchoEficazBM) : Infinity;
   const verificaTension = sigmaKPa <= sigmaAdmisibleKPa;
 
   const dA = H - recubrimiento - armadoA.diametroMm / 2000;
@@ -319,8 +419,8 @@ export function calcularZapataAislada(
       pesoPropioKN,
       sigmaKPa,
       verificaTension,
-      distribucionA: distribucionPresiones(Nk + pesoPropioKN, A, B, excA),
-      distribucionB: distribucionPresiones(Nk + pesoPropioKN, B, A, excB),
+      distribucionA: distribucionPresiones(cargaTotalKN, A, B, excA),
+      distribucionB: distribucionPresiones(cargaTotalKN, B, A, excB),
     },
     direccionA,
     direccionB,

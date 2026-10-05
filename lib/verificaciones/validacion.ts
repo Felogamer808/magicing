@@ -97,6 +97,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
 
   punzonamiento: { nivel: "probada" },
   "vigas-apeo-bielas": { nivel: "probada" },
+  "vigas-apeo-voladizo": {
+    nivel: "probada",
+    nota: "Sólo Anejo 19, sin planilla de referencia: tests contra la estática del modelo y las ecuaciones del articulado. No comprueba la tracción transversal de las bielas.",
+  },
   "carga-colgada": { nivel: "probada" },
   "mensula-corta": { nivel: "probada" },
   muros: { nivel: "probada" },

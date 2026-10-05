@@ -71,10 +71,11 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nota: "Repasada completa, incluida la interacción torsión + cortante, que antes no se comprobaba.",
   },
   zapatas: {
-    // Bajó de "auditada": la auditoría cubría cortante y punzonamiento, no la
-    // flexión, que sigue siendo EHE-08 (AUDITORIA.md, hallazgo 6).
+    // Bajó de "auditada": la auditoría cubría sólo cortante y punzonamiento.
+    // Ahora todo el módulo sigue el Anejo 19, pero se programó y revisó en la
+    // misma sesión, sin repaso independiente (AUDITORIA.md, hallazgo 6).
     nivel: "probada",
-    nota: "Terreno, cortante y punzonamiento con momento repasados contra el Anejo 19. La flexión, las cuantías mínimas y el anclaje todavía siguen la EHE-08.",
+    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Falta contrastar un caso propio. Vuelco y deslizamiento no se comprueban.",
   },
   fisuracion: {
     nivel: "auditada",

@@ -24,14 +24,14 @@ Auditado a fondo:
 - `materiales.ts`, `cortante.ts`
 - `vigas-flexion-cortante.ts` — flexión y cortante completos
 - `vigas-torsion.ts`
-- `zapata-aislada.ts` — cortante, punzonamiento y terreno (la flexión sigue
-  pendiente, ver hallazgo 6)
+- `zapata-aislada.ts` — completo (hallazgo 6)
+- `zapata-medianeria.ts` — completo salvo punzonamiento (hallazgo 7)
 - `fisuracion.ts`
 - `losa.ts` — mínimos y separaciones
 - `cabezal-pilotes.ts` — modelo de bielas y tirantes
 
 **No auditado todavía**, y conviene hacerlo: `zapata-corrida.ts`,
-`zapata-medianeria.ts`, `zapata-combinada.ts`, `losa-fundacion.ts`, `pilote.ts`,
+`zapata-combinada.ts`, `losa-fundacion.ts`, `pilote.ts`,
 y las armaduras complementarias de `vigas-complementos.ts` (anclaje, piel,
 deformaciones).
 
@@ -218,6 +218,24 @@ La primera pasada auditó sólo el cortante y el punzonamiento, pero el sello de
 El módulo queda en "probada" y no en "auditada": todo lo de arriba se programó
 y se revisó en la misma sesión, sin un repaso independiente. Sube cuando alguien
 contraste un caso propio.
+
+## Hallazgo 7 — Zapata de medianería: los mismos errores que la aislada (2026-10-05) ✅ CORREGIDO
+
+- Excentricidad del terreno sin peso propio: `e0 + Mk/Nk`. Pasa a
+  `(Nk·e0 + Mk)/(Nk + PP)`.
+- `MkB` no entraba en la tensión del terreno. Ahora entra por área eficaz en B.
+- `Math.max(A − 2e, 0,01)` escondía la resultante fuera de la base. Ahora la
+  tensión sale infinita y no verifica.
+- Armado con el trapecio N/A ± M/W aunque el borde interior se despegara.
+  Ahora se integra la cuña real a cada lado.
+- Flexión, cuantías y anclaje de la EHE-08. Pasa a la formulación de la aislada
+  (art. 9.8.2.2, ec. (9.1), art. 8.4), con cada vuelo armado por separado.
+
+Criterio nuevo, común a las dos (decidido por el usuario): si la sección de
+cálculo queda a menos de h/2 del borde, no hay tirante que anclar de ese lado.
+
+Sigue sin punzonamiento: es un pilar de borde, con perímetro recortado
+(art. 6.4.2), y no se implementó.
 
 ## Conformes ✅
 

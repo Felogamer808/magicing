@@ -122,12 +122,45 @@ export function distribucionPresiones(
  * que el terreno tracciona.
  */
 export function presionEn(dist: DistribucionPresiones, lM: number, sM: number): number {
+  // Resultante fuera de la base: todo el peso en el borde, nada en el resto.
+  if (!Number.isFinite(dist.sigmaMaxKPa)) return sM >= lM ? Infinity : 0;
   if (!dist.hayDespegue) {
     return dist.sigmaMinKPa + ((dist.sigmaMaxKPa - dist.sigmaMinKPa) * sM) / lM;
   }
   const inicioContactoM = lM - dist.longitudContactoM;
   if (sM <= inicioContactoM) return 0;
   return (dist.sigmaMaxKPa * (sM - inicioContactoM)) / dist.longitudContactoM;
+}
+
+/**
+ * Resultante de las presiones en el tramo [desdeM, hastaM] (medido desde el
+ * borde menos cargado) y su momento respecto de un punto fuera del tramo. La
+ * presión es lineal sobre la parte que apoya, así que el tramo se recorta al
+ * contacto y se integra como trapecio.
+ */
+export function cargaEnTramo(
+  dist: DistribucionPresiones,
+  lM: number,
+  anchoPerpM: number,
+  desdeM: number,
+  hastaM: number,
+  puntoM: number
+): { fuerzaKN: number; momentoKNm: number } {
+  // Resultante fuera de la base: no hay equilibrio posible, y un cero acá
+  // dejaría pasar la zapata.
+  if (!Number.isFinite(dist.sigmaMaxKPa)) return { fuerzaKN: Infinity, momentoKNm: Infinity };
+
+  const inicioM = Math.max(desdeM, lM - dist.longitudContactoM, 0);
+  const finM = Math.min(hastaM, lM);
+  const tramoM = finM - inicioM;
+  if (tramoM <= 0) return { fuerzaKN: 0, momentoKNm: 0 };
+
+  const sigmaInicio = presionEn(dist, lM, inicioM);
+  const sigmaFin = presionEn(dist, lM, finM);
+  const fuerzaKN = ((sigmaInicio + sigmaFin) / 2) * anchoPerpM * tramoM;
+  if (fuerzaKN === 0) return { fuerzaKN: 0, momentoKNm: 0 };
+  const centroideM = inicioM + (tramoM * (sigmaInicio + 2 * sigmaFin)) / (3 * (sigmaInicio + sigmaFin));
+  return { fuerzaKN, momentoKNm: fuerzaKN * Math.abs(centroideM - puntoM) };
 }
 
 /**
@@ -141,49 +174,7 @@ export function cargaEntreSeccionYBorde(
   anchoPerpM: number,
   sM: number
 ): { fuerzaKN: number; momentoKNm: number } {
-  // Resultante fuera de la base: no hay equilibrio posible, y un cero acá
-  // dejaría pasar la zapata.
-  if (!Number.isFinite(dist.sigmaMaxKPa)) return { fuerzaKN: Infinity, momentoKNm: Infinity };
-
-  const desdeM = Math.max(sM, lM - dist.longitudContactoM);
-  const tramoM = lM - desdeM;
-  if (tramoM <= 0) return { fuerzaKN: 0, momentoKNm: 0 };
-
-  const sigmaDesde = presionEn(dist, lM, desdeM);
-  const brazoInicioM = desdeM - sM;
-  const rectangulo = sigmaDesde * anchoPerpM * tramoM;
-  const triangulo = ((dist.sigmaMaxKPa - sigmaDesde) * anchoPerpM * tramoM) / 2;
-  return {
-    fuerzaKN: rectangulo + triangulo,
-    momentoKNm: rectangulo * (brazoInicioM + tramoM / 2) + triangulo * (brazoInicioM + (2 * tramoM) / 3),
-  };
-}
-
-export interface ResultadoArmadoDireccion {
-  sigmaMaxKPa: number;
-  sigmaMinKPa: number;
-  /** Longitud de base que apoya con las presiones de cálculo (m). Menor que la base si hay despegue. */
-  longitudContactoM?: number;
-  /** Presión en la sección crítica de flexión (kN/m²) */
-  sigmaCriticaKPa: number;
-  /** Vuelo desde la sección crítica (cara del pilar reducida 1/4 de su ancho) hasta el borde (m) */
-  lM: number;
-  dM: number;
-  /** Tracción de cálculo Td = M/(0.85d) (kN) */
-  tdKN: number;
-  asCalculadoCm2: number;
-  asMinMecanicoCm2: number;
-  asMinGeometricoCm2: number;
-  asNecCm2: number;
-  asRealCm2: number;
-  verificaAs: boolean;
-  lbIMm: number;
-  dmMm: number;
-  /** Cortante de cálculo a d de la cara del pilar, EC2 6.2.2 (kN). 0 si la sección crítica cae dentro del pilar. */
-  vEdKN: number;
-  /** Resistencia a cortante sin armadura transversal, EC2 6.2.2 (kN) */
-  vRdCKN: number;
-  verificaCorte: boolean;
+  return cargaEnTramo(dist, lM, anchoPerpM, sM, lM, sM);
 }
 
 export interface ResultadoPunzonamiento {
@@ -248,6 +239,8 @@ export interface ResultadoAnclajeZapata {
   /** Longitud disponible: x menos el recubrimiento del extremo (mm). */
   disponibleMm: number;
   verifica: boolean;
+  /** Falso si el vuelo no llega a h/2: no hay tirante que anclar y no se comprueba. */
+  comprobado: boolean;
 }
 
 /**
@@ -293,30 +286,8 @@ export interface ResultadoCorteUnidireccional {
   verificaCorte: boolean;
 }
 
-/**
- * Cortante unidireccional (EC2 6.2.2) en una sección genérica: se le pasan ya
- * calculadas la presión en la sección crítica y en el borde traccionado, y el
- * vuelo entre ambas. Independiente de si la distribución de presiones es
- * centrada (zapata aislada) o no (zapata de medianería).
- */
-export function calcularCorteUnidireccional(
-  materiales: MaterialesDerivados,
-  dimPerpendicular: number,
-  d: number,
-  sigmaSeccionKPa: number,
-  sigmaBordeKPa: number,
-  vueloCorteM: number,
-  asRealCm2: number
-): ResultadoCorteUnidireccional {
-  if (vueloCorteM <= 0) {
-    return { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
-  }
-  const vEdKN = ((sigmaSeccionKPa + sigmaBordeKPa) / 2) * dimPerpendicular * vueloCorteM;
-  return corteDesdeCarga(materiales, dimPerpendicular, d, vEdKN, asRealCm2);
-}
-
-/** Compara un cortante de cálculo ya integrado con la VRd,c de la sección (EC2 6.2.2). */
-function corteDesdeCarga(
+/** Compara un cortante de cálculo ya integrado con la VRd,c de la sección (art. 6.2.2). */
+export function corteDesdeCarga(
   materiales: MaterialesDerivados,
   dimPerpendicular: number,
   d: number,
@@ -330,134 +301,23 @@ function corteDesdeCarga(
   return { vEdKN, vRdCKN, verificaCorte: vEdKN <= vRdCKN };
 }
 
-/**
- * Arma una dirección de flexión a partir de una distribución de presiones ya
- * calculada (sección crítica y vuelo hasta el borde traccionado). Se separa de
- * {@link calcularArmadoDireccion} para poder reutilizarla con distribuciones no
- * centradas (p. ej. zapata de medianería).
- */
-export function calcularArmadoDesdePresion(
-  materiales: MaterialesDerivados,
-  dimPerpendicular: number,
-  H: number,
-  d: number,
-  sigmaMaxKPa: number,
-  sigmaCriticaKPa: number,
-  lM: number,
-  armadura: ArmadoDireccion
-): ResultadoArmadoDireccion {
-  const momentoKNm =
-    sigmaCriticaKPa * dimPerpendicular * lM * (lM / 2) +
-    (sigmaMaxKPa - sigmaCriticaKPa) * dimPerpendicular * (lM / 2) * ((2 * lM) / 3);
-  return armadoDesdeMomento(materiales, dimPerpendicular, H, d, momentoKNm, sigmaMaxKPa, sigmaCriticaKPa, lM, armadura);
-}
-
-/** Arma una dirección con el momento ya integrado en la sección crítica de flexión. */
-function armadoDesdeMomento(
-  materiales: MaterialesDerivados,
-  dimPerpendicular: number,
-  H: number,
-  d: number,
-  momentoKNm: number,
-  sigmaMaxKPa: number,
-  sigmaCriticaKPa: number,
-  lM: number,
-  armadura: ArmadoDireccion
-): ResultadoArmadoDireccion {
-  const { fcd, fyd, fydEstribos } = materiales;
-
-  const tdKN = momentoKNm / (0.85 * d);
-
-  // La planilla usa el fyd limitado ("fyd ByT", el mismo criterio que los estribos de vigas)
-  // para pasar de tracción de cálculo a área de acero, no el fyd pleno.
-  const asCalculadoCm2 = (tdKN / (fydEstribos * 1000)) * 100 ** 2;
-  const asMinMecanicoCm2 = (100 ** 2 * 0.04 * dimPerpendicular * H * fcd) / fyd;
-  const asMinGeometricoCm2 = (100 ** 2 * 0.9 * dimPerpendicular * H) / 1000;
-  const asNecCm2 = Math.max(asCalculadoCm2, asMinMecanicoCm2, asMinGeometricoCm2);
-
-  const asRealCm2 = (armadura.numero * Math.PI * (armadura.diametroMm / 10) ** 2) / 4;
-  const verificaAs = asRealCm2 >= asNecCm2;
-
-  const lbIMm = Math.max(1.3 * armadura.diametroMm ** 2, (materiales.fyk * armadura.diametroMm) / 20);
-  const dmMm = 12 * armadura.diametroMm;
-
-  return {
-    sigmaMaxKPa,
-    sigmaMinKPa: sigmaCriticaKPa,
-    sigmaCriticaKPa,
-    lM,
-    dM: d,
-    tdKN,
-    asCalculadoCm2,
-    asMinMecanicoCm2,
-    asMinGeometricoCm2,
-    asNecCm2,
-    asRealCm2,
-    verificaAs,
-    lbIMm,
-    dmMm,
-    vEdKN: 0,
-    vRdCKN: 0,
-    verificaCorte: true,
-  };
-}
-
-/** Arma una dirección de flexión asumiendo el pilar centrado en `dim` (caso general, zapata aislada). */
-export function calcularArmadoDireccion(
-  materiales: MaterialesDerivados,
-  /** Dimensión propia de esta dirección (a lo largo de la cual varía la presión) */
-  dim: number,
-  /** Dimensión perpendicular (ancho que recibe la flexión) */
-  dimPerpendicular: number,
-  H: number,
-  anchoPilar: number,
-  d: number,
-  cargas: CargasZapata,
-  mk: number,
-  armadura: ArmadoDireccion
-): ResultadoArmadoDireccion {
-  const { Nk } = cargas;
-
-  // Presiones de cálculo sin el peso propio, que equilibra su propia reacción y
-  // no flecta. Se reparten como en el terreno: si la resultante sale del núcleo
-  // central, el borde opuesto se despega. El trapecio N/A ± M/W daría ahí
-  // presiones negativas, que restan momento y cortante del lado inseguro.
-  const excentricidadM = Nk !== 0 ? mk / Nk : 0;
-  const dist = distribucionPresiones(GAMMA_F * Nk, dim, dimPerpendicular, excentricidadM);
-
-  const lM = dim / 2 - anchoPilar / 4;
-  const seccionFlexionM = dim - lM;
-  const flexion = armadoDesdeMomento(
-    materiales,
-    dimPerpendicular,
-    H,
-    d,
-    cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, seccionFlexionM).momentoKNm,
-    dist.sigmaMaxKPa,
-    presionEn(dist, dim, seccionFlexionM),
-    lM,
-    armadura
-  );
-
-  // Cortante unidireccional (EC2 6.2.2), sección crítica a d de la cara del pilar.
-  const vueloCorteM = dim / 2 - anchoPilar / 2 - d;
-  const corte =
-    vueloCorteM > 0
-      ? corteDesdeCarga(
-          materiales,
-          dimPerpendicular,
-          d,
-          cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - vueloCorteM).fuerzaKN,
-          flexion.asRealCm2
-        )
-      : { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
-
-  return { ...flexion, sigmaMinKPa: dist.sigmaMinKPa, longitudContactoM: dist.longitudContactoM, ...corte };
-}
+/** Lo que resulta de armar un vuelo: flexión, cuantía mínima y anclaje. */
+export type ResultadoVueloZapata = Pick<
+  ResultadoDireccionZapata,
+  | "ziM"
+  | "momentoKNm"
+  | "fsKN"
+  | "asCalculadoCm2"
+  | "asMinCm2"
+  | "asNecCm2"
+  | "asRealCm2"
+  | "verificaAs"
+  | "verificaDiametroMinimo"
+  | "anclaje"
+>;
 
 /**
- * Una dirección de la parrilla de una zapata con el pilar centrado, según el
- * Anejo 19.
+ * Arma un vuelo de zapata según el Anejo 19.
  *
  * Flexión por el modelo de la fig. A19.9.13 (art. 9.8.2.2, págs. 153-154):
  * F_s = R·z_e/z_i, con z_e medido hasta una sección a e = 0,15·c dentro de la
@@ -468,6 +328,92 @@ export function calcularArmadoDireccion(
  * El anclaje se comprueba barriendo x desde h/2 —el x_min del apartado (5)—
  * hasta la sección de cálculo: F_s(x) tiene que anclarse en la distancia x
  * desde el borde. Con α3 = α5 = 1, como en `anclaje.ts`.
+ *
+ * `cargaHasta(x)` devuelve las presiones entre el borde libre y la sección a x
+ * de ese borde, con su momento tomado en la sección de cálculo (a `lM` del
+ * borde). Así la misma función sirve con el pilar centrado o excéntrico.
+ */
+export function armarVueloZapata(
+  materiales: MaterialesDerivados,
+  /** Ancho que arma esta parrilla (m). */
+  anchoM: number,
+  H: number,
+  d: number,
+  recubrimiento: number,
+  armadura: ArmadoDireccion,
+  formaAnclaje: FormaAnclaje,
+  /** Distancia del borde libre a la sección de cálculo (m). */
+  lM: number,
+  cargaHasta: (xM: number) => { fuerzaKN: number; momentoKNm: number }
+): ResultadoVueloZapata {
+  const { fck, fyk, fyd, fctm } = materiales;
+
+  const ziM = 0.9 * d;
+  const momentoKNm = lM > 0 ? cargaHasta(lM).momentoKNm : 0;
+  const fsKN = momentoKNm / ziM;
+
+  const asCalculadoCm2 = (fsKN / (fyd * 1000)) * 100 ** 2;
+  const asMinCm2 = armaduraMinimaTraccionCm2(anchoM, H, resistenciaFlexotraccionMPa(fctm, H), fyd);
+  const asNecCm2 = Math.max(asCalculadoCm2, asMinCm2);
+  const asRealCm2 = (armadura.numero * Math.PI * (armadura.diametroMm / 10) ** 2) / 4;
+
+  // cd para α2 (fig. A19.8.3): el menor entre el recubrimiento lateral y la
+  // mitad de la luz libre entre barras.
+  const separacionM =
+    armadura.numero > 1 ? (anchoM - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity;
+  const cdMm = Math.min(recubrimiento * 1000, (separacionM * 1000 - armadura.diametroMm) / 2);
+
+  const anclajeEn = (xM: number): ResultadoAnclajeZapata => {
+    const carga = cargaHasta(xM);
+    const disponibleMm = (xM - recubrimiento) * 1000;
+    if (!Number.isFinite(carga.momentoKNm)) {
+      return { xM, fsKN: Infinity, sigmaSdMPa: fyd, lbdMm: Infinity, disponibleMm, verifica: false, comprobado: true };
+    }
+    const fsXKN = carga.momentoKNm / ziM;
+    const sigmaSdMPa = Math.min((fsXKN * 10) / asRealCm2, fyd);
+    const { lbdMm } = calcularAnclaje(
+      { fckMPa: fck, fykMPa: fyk },
+      { diametroMm: armadura.diametroMm, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
+    );
+    return { xM, fsKN: fsXKN, sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm, comprobado: true };
+  };
+
+  // Con la sección de cálculo a menos de h/2 del borde —el x_min del art.
+  // 9.8.2.2 (5)— la fisura inclinada no cae dentro del vuelo y no hay tirante
+  // que anclar de ese lado (criterio decidido por el usuario). Pasa en el lado
+  // del límite de una zapata de medianería.
+  let anclaje: ResultadoAnclajeZapata = {
+    xM: 0, fsKN: 0, sigmaSdMPa: 0, lbdMm: 0, disponibleMm: 0, verifica: true, comprobado: false,
+  };
+  if (lM > H / 2) {
+    const xMinM = H / 2;
+    const PASOS = 50;
+    const exceso = (a: ResultadoAnclajeZapata) => a.lbdMm - a.disponibleMm;
+    anclaje = anclajeEn(xMinM);
+    for (let i = 1; i <= PASOS; i++) {
+      const candidato = anclajeEn(xMinM + ((lM - xMinM) * i) / PASOS);
+      if (exceso(candidato) > exceso(anclaje)) anclaje = candidato;
+    }
+  }
+
+  return {
+    ziM,
+    momentoKNm,
+    fsKN,
+    asCalculadoCm2,
+    asMinCm2,
+    asNecCm2,
+    asRealCm2,
+    verificaAs: asRealCm2 >= asNecCm2,
+    verificaDiametroMinimo: armadura.diametroMm >= 12,
+    anclaje,
+  };
+}
+
+/**
+ * Una dirección de la parrilla de una zapata con el pilar centrado: presiones
+ * de cálculo, el vuelo armado con {@link armarVueloZapata} y el cortante a d
+ * de la cara del pilar (art. 6.2.2).
  */
 export function calcularDireccionZapata(
   materiales: MaterialesDerivados,
@@ -484,60 +430,17 @@ export function calcularDireccionZapata(
   armadura: ArmadoDireccion,
   formaAnclaje: FormaAnclaje
 ): ResultadoDireccionZapata {
-  const { fck, fyk, fyd, fctm } = materiales;
-
   // Presiones de cálculo sin el peso propio, repartidas como en el terreno.
   const dist = distribucionPresiones(GAMMA_F * nk, dim, dimPerpendicular, nk !== 0 ? mk / nk : 0);
 
+  // El vuelo que se arma es el del borde más cargado; por simetría del pilar
+  // centrado, el otro pide menos.
   const lM = (dim - anchoPilar) / 2 + 0.15 * anchoPilar;
   const seccionM = dim - lM;
-  const ziM = 0.9 * d;
-  const momentoKNm = cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, seccionM).momentoKNm;
-  const fsKN = momentoKNm / ziM;
+  const vuelo = armarVueloZapata(materiales, dimPerpendicular, H, d, recubrimiento, armadura, formaAnclaje, lM, (xM) =>
+    cargaEnTramo(dist, dim, dimPerpendicular, dim - xM, dim, seccionM)
+  );
 
-  const asCalculadoCm2 = (fsKN / (fyd * 1000)) * 100 ** 2;
-  const asMinCm2 = armaduraMinimaTraccionCm2(dimPerpendicular, H, resistenciaFlexotraccionMPa(fctm, H), fyd);
-  const asNecCm2 = Math.max(asCalculadoCm2, asMinCm2);
-  const asRealCm2 = (armadura.numero * Math.PI * (armadura.diametroMm / 10) ** 2) / 4;
-
-  // cd para α2 (fig. A19.8.3): el menor entre el recubrimiento lateral y la
-  // mitad de la luz libre entre barras.
-  const separacionM =
-    armadura.numero > 1 ? (dimPerpendicular - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity;
-  const cdMm = Math.min(recubrimiento * 1000, (separacionM * 1000 - armadura.diametroMm) / 2);
-
-  /** F_s en x: momento de lo que hay entre el borde y x, tomado en la sección de cálculo. */
-  const anclajeEn = (xM: number): ResultadoAnclajeZapata => {
-    const carga = cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - xM);
-    const disponibleMm = (xM - recubrimiento) * 1000;
-    if (!Number.isFinite(carga.fuerzaKN)) {
-      return { xM, fsKN: Infinity, sigmaSdMPa: fyd, lbdMm: Infinity, disponibleMm, verifica: false };
-    }
-    const fsXKN = (carga.momentoKNm + carga.fuerzaKN * (lM - xM)) / ziM;
-    const sigmaSdMPa = Math.min((fsXKN * 10) / asRealCm2, fyd);
-    const { lbdMm } = calcularAnclaje(
-      { fckMPa: fck, fykMPa: fyk },
-      { diametroMm: armadura.diametroMm, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
-    );
-    return { xM, fsKN: fsXKN, sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm };
-  };
-
-  // Sin vuelo más allá de la sección de cálculo no hay tracción que anclar.
-  let anclaje: ResultadoAnclajeZapata = {
-    xM: 0, fsKN: 0, sigmaSdMPa: 0, lbdMm: 0, disponibleMm: 0, verifica: true,
-  };
-  if (lM > 0) {
-    const xMinM = Math.min(H / 2, lM);
-    const PASOS = 50;
-    const exceso = (a: ResultadoAnclajeZapata) => a.lbdMm - a.disponibleMm;
-    anclaje = anclajeEn(xMinM);
-    for (let i = 1; i <= PASOS; i++) {
-      const candidato = anclajeEn(xMinM + ((lM - xMinM) * i) / PASOS);
-      if (exceso(candidato) > exceso(anclaje)) anclaje = candidato;
-    }
-  }
-
-  // Cortante unidireccional, art. 6.2.2, sección a d de la cara del pilar.
   const vueloCorteM = (dim - anchoPilar) / 2 - d;
   const corte =
     vueloCorteM > 0
@@ -546,7 +449,7 @@ export function calcularDireccionZapata(
           dimPerpendicular,
           d,
           cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - vueloCorteM).fuerzaKN,
-          asRealCm2
+          vuelo.asRealCm2
         )
       : { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
 
@@ -557,16 +460,7 @@ export function calcularDireccionZapata(
     sigmaCriticaKPa: presionEn(dist, dim, seccionM),
     lM,
     dM: d,
-    ziM,
-    momentoKNm,
-    fsKN,
-    asCalculadoCm2,
-    asMinCm2,
-    asNecCm2,
-    asRealCm2,
-    verificaAs: asRealCm2 >= asNecCm2,
-    verificaDiametroMinimo: armadura.diametroMm >= 12,
-    anclaje,
+    ...vuelo,
     ...corte,
   };
 }

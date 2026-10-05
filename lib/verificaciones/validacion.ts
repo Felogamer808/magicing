@@ -91,7 +91,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
 
   "zapata-corrida": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
-  "zapata-medianeria": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
+  "zapata-medianeria": {
+    nivel: "probada",
+    nota: "Misma formulación del Anejo 19 que la zapata aislada (AUDITORIA.md, hallazgo 7). No incluye punzonamiento de pilar de borde ni vuelco y deslizamiento.",
+  },
   "zapata-combinada": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   "losa-fundacion": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   pilotes: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },

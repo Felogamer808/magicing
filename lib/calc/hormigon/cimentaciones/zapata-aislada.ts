@@ -188,12 +188,37 @@ export interface ResultadoPunzonamiento {
   aCriticaM: number;
   /** Perímetro de control en la distancia crítica (m) */
   u1M: number;
-  /** Cortante de punzonamiento neto (descontando la reacción del suelo dentro del perímetro), art. 6.4.4(2) (kN) */
+  /** Cortante neto VEd,red (descontando la reacción del suelo dentro del perímetro), ec. (6.48) (kN) */
+  vEdRedKN: number;
+  /**
+   * Cortante equivalente con el efecto del momento: v_Ed·u·d según la ec. (6.51),
+   * con los dos ejes sumados (kN). Con carga centrada coincide con VEd,red.
+   */
   vEdKN: number;
+  /** Factor que el momento aplica sobre VEd,red en el perímetro crítico. 1 sin momento. */
+  beta: number;
   vRdCKN: number;
   verificaPunzonamiento: boolean;
   /** Aprovechamiento en el perímetro crítico, vEd/vRd */
   aprovechamiento: number;
+  /**
+   * Falso cuando la zapata no vuela respecto del pilar y no hay perímetro que
+   * comprobar. Con vuelo menor que 2d se barre sólo hasta el vuelo: los
+   * perímetros que caen fuera de la zapata no existen.
+   */
+  hayPerimetroDentro: boolean;
+  /** Comprobación de bielas en la cara del pilar, art. 6.4.5 (3), ec. (6.53). */
+  caraPilar: {
+    /** Perímetro del pilar u0 (m) */
+    u0M: number;
+    /** β en el perímetro básico u1 a 2d, ec. (6.39) con los dos ejes sumados */
+    beta: number;
+    /** v_Ed = β·VEd/(u0·d) (MPa) */
+    vEdMPa: number;
+    /** v_Rd,max = 0,4·ν·fcd (MPa) */
+    vRdMaxMPa: number;
+    verifica: boolean;
+  };
 }
 
 export interface ResultadoZapataAislada {
@@ -429,13 +454,50 @@ export function calcularZapataAislada(
 }
 
 /**
- * Punzonamiento (EC2 6.4). Perímetro de control básico u1 a 2d de la cara del pilar,
- * con esquinas redondeadas. β=1.15 es el valor recomendado por EC2 6.4.3(3) para
- * columnas donde la estabilidad lateral no depende de la acción de pórtico y la
- * excentricidad de carga es aproximadamente simétrica.
+ * k de la tabla A19.6.1 (Anejo 19, art. 6.4.3 (3), pág. 91), interpolado
+ * linealmente entre los valores tabulados. c1 es el lado del pilar paralelo a
+ * la excentricidad.
+ */
+export function coeficienteKMomento(c1M: number, c2M: number): number {
+  const tabla: [number, number][] = [[0.5, 0.45], [1, 0.6], [2, 0.7], [3, 0.8]];
+  const r = c1M / c2M;
+  if (r <= tabla[0][0]) return tabla[0][1];
+  for (let i = 1; i < tabla.length; i++) {
+    const [r1, k1] = tabla[i];
+    if (r <= r1) {
+      const [r0, k0] = tabla[i - 1];
+      return k0 + ((k1 - k0) * (r - r0)) / (r1 - r0);
+    }
+  }
+  return tabla[tabla.length - 1][1];
+}
+
+/**
+ * W del perímetro a distancia `a` de la cara de un pilar rectangular, para un
+ * momento cuya excentricidad es paralela a c1. Es la ec. (6.41) (art. 6.4.3 (3),
+ * pág. 92) con 2d reemplazado por a, que es lo que pide la (6.51): "W es similar
+ * a W1, pero considerando el perímetro u". Con a = 2d devuelve la (6.41) exacta.
+ */
+export function moduloPerimetroM2(c1M: number, c2M: number, aM: number): number {
+  return c1M ** 2 / 2 + c1M * c2M + 2 * c2M * aM + 4 * aM ** 2 + Math.PI * aM * c1M;
+}
+
+/**
+ * Punzonamiento en la base de un pilar, Anejo 19, art. 6.4.4 (2), pág. 94-95.
  *
- * Simplificación: no se recorta el perímetro si se sale del borde de la zapata
- * (caso de zapatas muy delgadas en relación a su vuelo); en ese caso, revisar a mano.
+ * Se barren los perímetros situados dentro de 2d de la cara del pilar, con
+ * esquinas redondeadas, y se informa el que peor verifica. En cada uno:
+ *
+ *   v_Ed = [VEd,red + kA·MEd,A·u/W_A + kB·MEd,B·u/W_B] / (u·d)
+ *
+ * que es la ec. (6.51) extendida a los dos ejes sumando sus términos. La norma
+ * la da para un eje; sumar es superposición y queda del lado seguro. MEd es el
+ * momento del pilar, 1,5·Mk, sin descontar el contramomento de las presiones
+ * dentro del perímetro (también del lado seguro). Las dos cosas las decidió el
+ * usuario.
+ *
+ * Sin momento, el corchete vale 1: el β = 1,15 que se usaba antes es la
+ * simplificación del art. 6.4.3 (6) para pilares de losa, no la de una base.
  */
 function calcularPunzonamiento(
   materiales: MaterialesDerivados,
@@ -447,11 +509,20 @@ function calcularPunzonamiento(
   asRealBCm2: number
 ): ResultadoPunzonamiento {
   const { A, B, anchoPilarA, anchoPilarB } = geometria;
-  const { fck } = materiales;
-  const { Nk } = cargas;
-  const BETA_COLUMNA_INTERIOR = 1.15;
+  const { fck, fcd } = materiales;
+  const { Nk, MkA, MkB } = cargas;
 
   const dPromedioM = (dA + dB) / 2;
+  const vEdPilarKN = GAMMA_F * Nk;
+  const mEdAKNm = GAMMA_F * Math.abs(MkA);
+  const mEdBKNm = GAMMA_F * Math.abs(MkB);
+  const kA = coeficienteKMomento(anchoPilarA, anchoPilarB);
+  const kB = coeficienteKMomento(anchoPilarB, anchoPilarA);
+
+  /** Cortante que suma el momento en un perímetro de longitud u a distancia a (kN). */
+  const cortanteMomento = (uM: number, aM: number) =>
+    (kA * mEdAKNm * uM) / moduloPerimetroM2(anchoPilarA, anchoPilarB, aM) +
+    (kB * mEdBKNm * uM) / moduloPerimetroM2(anchoPilarB, anchoPilarA, aM);
 
   const sigmaDesignKPa = (GAMMA_F * Nk) / (A * B);
 
@@ -466,10 +537,8 @@ function calcularPunzonamiento(
     const areaDentroM2 =
       anchoPilarA * anchoPilarB + 2 * (anchoPilarA + anchoPilarB) * aM + Math.PI * aM ** 2;
 
-    const vEdKN = Math.max(
-      BETA_COLUMNA_INTERIOR * (GAMMA_F * Nk - sigmaDesignKPa * areaDentroM2),
-      0
-    );
+    const vEdRedKN = Math.max(vEdPilarKN - sigmaDesignKPa * areaDentroM2, 0);
+    const vEdKN = vEdRedKN + cortanteMomento(uM, aM);
     // El factor 2d/a de la ec. (6.50) premia a los perímetros más cercanos al
     // pilar, donde la biela es más tendida: sin él, el perímetro a 2d parecería
     // siempre el peor.
@@ -477,7 +546,29 @@ function calcularPunzonamiento(
     const vRdCKN =
       tensionCortanteResistente(k, rhoL, fck) * factorProximidad * uM * dPromedioM * 1000;
 
-    return { aM, u1M: uM, vEdKN, vRdCKN, aprovechamiento: vRdCKN > 0 ? vEdKN / vRdCKN : Infinity };
+    return { aM, u1M: uM, vEdRedKN, vEdKN, vRdCKN, aprovechamiento: vRdCKN > 0 ? vEdKN / vRdCKN : Infinity };
+  }
+
+  // Bielas en la cara del pilar, art. 6.4.5 (3), ec. (6.53), pág. 96. β es el
+  // del perímetro básico a 2d, ec. (6.39), con los dos ejes sumados; VEd es la
+  // carga entera del pilar (decidido por el usuario).
+  const u0M = 2 * (anchoPilarA + anchoPilarB);
+  const u1BasicoM = u0M + 2 * Math.PI * 2 * dPromedioM;
+  const betaCara = vEdPilarKN > 0 ? 1 + cortanteMomento(u1BasicoM, 2 * dPromedioM) / vEdPilarKN : 1;
+  const vEdCaraMPa = (betaCara * vEdPilarKN) / (u0M * dPromedioM) / 1000;
+  const nu = 0.6 * (1 - fck / 250); // ec. (6.6), pág. 77
+  const vRdMaxMPa = 0.4 * nu * fcd;
+  const caraPilar = { u0M, beta: betaCara, vEdMPa: vEdCaraMPa, vRdMaxMPa, verifica: vEdCaraMPa <= vRdMaxMPa };
+
+  // Un perímetro que se sale de la zapata no existe: la carga ya salió por el
+  // borde. Se barre hasta el menor de 2d y el vuelo más corto.
+  const vueloMinM = Math.min((A - anchoPilarA) / 2, (B - anchoPilarB) / 2);
+  const aMaxM = Math.min(2 * dPromedioM, vueloMinM);
+  if (!(aMaxM > 0)) {
+    return {
+      dPromedioM, aCriticaM: 0, u1M: 0, vEdRedKN: 0, vEdKN: 0, beta: 1, vRdCKN: 0,
+      verificaPunzonamiento: true, aprovechamiento: 0, hayPerimetroDentro: false, caraPilar,
+    };
   }
 
   // El articulado pide comprobar los perímetros situados *dentro* de 2d, no sólo
@@ -485,14 +576,15 @@ function calcularPunzonamiento(
   // corto respecto del canto, que es el caso habitual— el crítico cae más cerca
   // del pilar: comprobar sólo el de 2d deja pasar zapatas que no verifican.
   //
-  // No hay forma cerrada de dónde está el mínimo, así que se barre. El paso de
-  // d/50 da el mismo perímetro crítico que uno diez veces más fino en los casos
-  // ensayados, y el barrido arranca en d/50 porque en a → 0 el factor 2d/a se
-  // dispara y ningún perímetro tan cercano puede gobernar.
+  // No hay forma cerrada de dónde está el mínimo, así que se barre en cien
+  // pasos hasta aMax (d/50 cuando aMax = 2d, que da el mismo perímetro crítico
+  // que uno diez veces más fino en los casos ensayados). El barrido no arranca
+  // en a = 0 porque ahí el factor 2d/a se dispara y ningún perímetro tan
+  // cercano puede gobernar.
   const PASOS = 100;
-  let critico = enPerimetro((2 * dPromedioM) / PASOS);
+  let critico = enPerimetro(aMaxM / PASOS);
   for (let i = 2; i <= PASOS; i++) {
-    const candidato = enPerimetro((2 * dPromedioM * i) / PASOS);
+    const candidato = enPerimetro((aMaxM * i) / PASOS);
     if (candidato.aprovechamiento > critico.aprovechamiento) critico = candidato;
   }
 
@@ -500,7 +592,11 @@ function calcularPunzonamiento(
     dPromedioM,
     aCriticaM: critico.aM,
     u1M: critico.u1M,
+    vEdRedKN: critico.vEdRedKN,
     vEdKN: critico.vEdKN,
+    beta: critico.vEdRedKN > 0 ? critico.vEdKN / critico.vEdRedKN : Infinity,
+    hayPerimetroDentro: true,
+    caraPilar,
     vRdCKN: critico.vRdCKN,
     aprovechamiento: critico.aprovechamiento,
     verificaPunzonamiento: critico.vEdKN <= critico.vRdCKN,

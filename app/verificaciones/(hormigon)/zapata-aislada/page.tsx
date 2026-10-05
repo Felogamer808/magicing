@@ -273,7 +273,7 @@ export default function ZapataAisladaPage() {
             hipotesis={[
               "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = Mk / (Nk + PP).",
               "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz, y el armado y el cortante se calculan con la cuña de presiones, no con el trapecio.",
-              "Punzonamiento por el método general del EC2: se barren los perímetros hasta 2d y se informa el que peor verifica.",
+              "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
               "Cuantías mínimas mecánica y geométrica heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
             ]}
             avisos={avisos}
@@ -319,6 +319,12 @@ export default function ZapataAisladaPage() {
                     etiqueta: "punzonamiento",
                     estado: resultado.zapata.punzonamiento.verificaPunzonamiento ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.punzonamiento.aprovechamiento,
+                  },
+                  {
+                    etiqueta: "bielas en la cara del pilar",
+                    estado: resultado.zapata.punzonamiento.caraPilar.verifica ? "cumple" : "no-cumple",
+                    utilizacion:
+                      resultado.zapata.punzonamiento.caraPilar.vEdMPa / resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa,
                   },
                 ]}
               />
@@ -417,17 +423,30 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Punzonamiento"
                     verifica={resultado.zapata.punzonamiento.verificaPunzonamiento}
-                    detalle="No viene de la planilla: método general del EC2. Revisar antes de usar en obra."
+                    detalle="Anejo 19, art. 6.4.4 (2), ec. (6.51) con los momentos de los dos ejes sumados. No viene de la planilla."
                     comparacion={{
                       real: { etiqueta: "Vd", valor: resultado.zapata.punzonamiento.vEdKN },
                       limite: { etiqueta: "VRd,c", valor: resultado.zapata.punzonamiento.vRdCKN },
                       unidad: "kN", exige: "≤",
                     }}
                   />
+                  <ResultadoCheck
+                    etiqueta="Bielas en la cara del pilar"
+                    verifica={resultado.zapata.punzonamiento.caraPilar.verifica}
+                    detalle="Anejo 19, art. 6.4.5 (3), ec. (6.53): β·VEd/(u0·d) ≤ 0,4·ν·fcd."
+                    comparacion={{
+                      real: { etiqueta: "vEd", valor: resultado.zapata.punzonamiento.caraPilar.vEdMPa },
+                      limite: { etiqueta: "vRd,max", valor: resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
+                  />
                   <PanelFormulas
                     titulo="Ver desarrollo del punzonamiento"
                     filas={[
                       { etiqueta: "d promedio", valor: `${fmt(resultado.zapata.punzonamiento.dPromedioM, 3)} m` },
+                      { etiqueta: "VEd,red (sin momento)", valor: `${fmt(resultado.zapata.punzonamiento.vEdRedKN)} kN` },
+                      { etiqueta: "β por momento en el perímetro crítico", valor: fmt(resultado.zapata.punzonamiento.beta, 3) },
+                      { etiqueta: "β en la cara del pilar (u1 a 2d)", valor: fmt(resultado.zapata.punzonamiento.caraPilar.beta, 3) },
                       {
                         etiqueta: "Perímetro crítico, a",
                         valor: `${fmt(resultado.zapata.punzonamiento.aCriticaM, 3)} m = ${fmt(resultado.zapata.punzonamiento.aCriticaM / resultado.zapata.punzonamiento.dPromedioM, 2)} d`,

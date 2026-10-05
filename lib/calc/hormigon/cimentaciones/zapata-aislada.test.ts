@@ -66,6 +66,8 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   calcularZapataAislada,
   cargaEntreSeccionYBorde,
+  coeficienteKMomento,
+  moduloPerimetroM2,
   presionEn,
 } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 
@@ -279,21 +281,81 @@ describe("cortante y punzonamiento (EC2, sin equivalente en la planilla)", () =>
   it("reproduce el punzonamiento en el perímetro crítico", () => {
     expect(r.punzonamiento.dPromedioM).toBeCloseTo(0.534, 3);
     expect(r.punzonamiento.u1M).toBeCloseTo(4.754, 2);
-    expect(r.punzonamiento.vEdKN).toBeCloseTo(1111, 0);
+    // Sin momento la (6.51) da β = 1. Antes se aplicaba el 1,15 del art.
+    // 6.4.3 (6), pensado para losas: 1111 / 1,15 = 966.
+    expect(r.punzonamiento.beta).toBeCloseTo(1, 9);
+    expect(r.punzonamiento.vEdKN).toBeCloseTo(966, 0);
     expect(r.punzonamiento.vRdCKN).toBeCloseTo(1935, 0);
     expect(r.punzonamiento.verificaPunzonamiento).toBe(true);
   });
 
   it("el perímetro crítico cae dentro de 2d, no en 2d", () => {
-    // Antes se comprobaba sólo el perímetro de 2d y daba un aprovechamiento de
-    // 0,34. Barriendo los perímetros interiores como pide el art. 6.4.4(2), el
-    // que gobierna está a 0,94·d y el aprovechamiento real es 0,57: un 68 % más
-    // alto. Esta zapata sigue verificando, pero una que antes diera 0,62 en
-    // realidad estaría por encima de 1.
+    // Comprobando sólo el perímetro de 2d el aprovechamiento sería un 68 % más
+    // bajo. Barriendo los perímetros interiores como pide el art. 6.4.4(2), el
+    // que gobierna está a 0,94·d. (0,499 = 0,574 / 1,15, sin el β de losas.)
     expect(r.punzonamiento.aCriticaM).toBeLessThan(2 * r.punzonamiento.dPromedioM);
     expect(r.punzonamiento.aCriticaM / r.punzonamiento.dPromedioM).toBeCloseTo(0.94, 2);
-    expect(r.punzonamiento.aprovechamiento).toBeCloseTo(0.574, 3);
+    expect(r.punzonamiento.aprovechamiento).toBeCloseTo(0.4994, 3);
   });
+
+  it("en la cara del pilar compara con 0,4·ν·fcd (ec. 6.53)", () => {
+    const c = r.punzonamiento.caraPilar;
+    // u0 = 1,6 m; v = 1200 kN / (1,6 · 0,534) = 1,404 MPa.
+    expect(c.u0M).toBeCloseTo(1.6, 9);
+    expect(c.vEdMPa).toBeCloseTo(1200 / (1.6 * 0.534) / 1000, 6);
+    // ν = 0,6·(1 − 25/250) = 0,54; 0,4 · 0,54 · 16,67 = 3,6 MPa.
+    expect(c.vRdMaxMPa).toBeCloseTo(3.6, 6);
+    expect(c.verifica).toBe(true);
+  });
+
+  it("con momento suma kA·MEd·u/W a VEd,red en el perímetro crítico (ec. 6.51)", () => {
+    const rM = calcularZapataAislada(materiales, geometria, 1000, {
+      cargas: { Nk: 800, MkA: 100, MkB: 0 },
+      armadoA: armado,
+      armadoB: armado,
+    });
+    const p = rM.punzonamiento;
+    const a = p.aCriticaM;
+    // Pilar cuadrado: k = 0,60. W = c²/2 + c² + 2ca + 4a² + πac.
+    const w = 0.4 ** 2 / 2 + 0.4 ** 2 + 2 * 0.4 * a + 4 * a ** 2 + Math.PI * a * 0.4;
+    expect(p.vEdKN).toBeCloseTo(p.vEdRedKN + (0.6 * 150 * p.u1M) / w, 6);
+    expect(p.beta).toBeGreaterThan(1);
+    expect(p.aprovechamiento).toBeGreaterThan(r.punzonamiento.aprovechamiento);
+    expect(rM.punzonamiento.caraPilar.beta).toBeGreaterThan(1);
+  });
+
+  it("con vuelo menor que 2d no barre perímetros fuera de la zapata", () => {
+    const rCorta = calcularZapataAislada(
+      materiales,
+      { A: 0.9, B: 0.9, H: 0.6, anchoPilarA: 0.4, anchoPilarB: 0.4, recubrimiento: 0.05 },
+      1000,
+      { cargas: { Nk: 800, MkA: 0, MkB: 0 }, armadoA: armado, armadoB: armado }
+    );
+    expect(rCorta.punzonamiento.hayPerimetroDentro).toBe(true);
+    expect(rCorta.punzonamiento.aCriticaM).toBeLessThanOrEqual(0.25 + 1e-9);
+  });
+});
+
+describe("coeficientes de la ec. (6.51)", () => {
+  it("k sigue la tabla A19.6.1 e interpola entre sus valores", () => {
+    expect(coeficienteKMomento(0.2, 1)).toBeCloseTo(0.45, 9);
+    expect(coeficienteKMomento(1, 1)).toBeCloseTo(0.6, 9);
+    expect(coeficienteKMomento(1.5, 1)).toBeCloseTo(0.65, 9);
+    expect(coeficienteKMomento(3, 1)).toBeCloseTo(0.8, 9);
+    expect(coeficienteKMomento(5, 1)).toBeCloseTo(0.8, 9);
+  });
+
+  it("W a distancia 2d es la ec. (6.41)", () => {
+    const c1 = 0.5, c2 = 0.3, d = 0.45;
+    const w641 = c1 ** 2 / 2 + c1 * c2 + 4 * c2 * d + 16 * d ** 2 + 2 * Math.PI * d * c1;
+    expect(moduloPerimetroM2(c1, c2, 2 * d)).toBeCloseTo(w641, 9);
+  });
+});
+
+describe("cortante y punzonamiento (continuación)", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+  const geometria = { A: 3, B: 3, H: 0.6, anchoPilarA: 0.4, anchoPilarB: 0.4, recubrimiento: 0.05 };
+  const armado = { numero: 10, diametroMm: 16 };
 
   it("el punzonamiento deja de verificar con una carga mucho mayor (misma armadura)", () => {
     const rSobrecargada = calcularZapataAislada(materiales, geometria, 1000, {

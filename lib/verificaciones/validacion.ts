@@ -71,8 +71,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nota: "Repasada completa, incluida la interacción torsión + cortante, que antes no se comprobaba.",
   },
   zapatas: {
-    nivel: "auditada",
-    nota: "Cortante y punzonamiento repasados. El punzonamiento se corrigió para recorrer los perímetros dentro de 2d y no sólo el de 2d.",
+    // Bajó de "auditada": la auditoría cubría cortante y punzonamiento, no la
+    // flexión, que sigue siendo EHE-08 (AUDITORIA.md, hallazgo 6).
+    nivel: "probada",
+    nota: "Terreno, cortante y punzonamiento con momento repasados contra el Anejo 19. La flexión, las cuantías mínimas y el anclaje todavía siguen la EHE-08.",
   },
   fisuracion: {
     nivel: "auditada",

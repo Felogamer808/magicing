@@ -17,6 +17,9 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
 import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
+import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
+import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
+import { verificarArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import { DiagramaPresionSuelo } from "@/components/verificaciones/hormigon/DiagramaPresionSuelo";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
@@ -63,6 +66,13 @@ export default function ZapataCorridaPage() {
   const [equilibrio, setEquilibrio] = useCampo("equilibrio", EQUILIBRIOS[0]);
   const [brazoTirante, setBrazoTirante] = useCampo("brazoTirante", "3");
   const [phiTerreno, setPhiTerreno] = useCampo("phiTerreno", "30");
+  // Barras del tirante, en la losa.
+  const [diametroTirante, setDiametroTirante] = useCampo("diametroTirante", "12");
+  const [separacionTirante, setSeparacionTirante] = useCampo("separacionTirante", "0.2");
+  const [recubrimientoTirante, setRecubrimientoTirante] = useCampo("recubrimientoTirante", "0.03");
+  const [extremoTirante, setExtremoTirante] = useCampo("extremoTirante", EXTREMOS_TIRANTE[0]);
+  const [pataTirante, setPataTirante] = useCampo("pataTirante", "150");
+  const [adherenciaTirante, setAdherenciaTirante] = useCampo("adherenciaTirante", "Buena");
   const conTirante = descentrado && equilibrio === EQUILIBRIOS[1];
 
   const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
@@ -123,11 +133,34 @@ export default function ZapataCorridaPage() {
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
     });
 
-    return { zapata };
+    // Armadura del tirante: sólo si hay tirante y las barras son válidas.
+    const t = {
+      f: aNumero(diametroTirante), s: aNumero(separacionTirante),
+      rec: aNumero(recubrimientoTirante), pata: aNumero(pataTirante),
+    };
+    const patillaTirante = extremoTirante === EXTREMOS_TIRANTE[1];
+    const barrasValidas = t.f > 0 && t.s > 0 && t.rec >= 0 && (!patillaTirante || t.pata >= 0);
+    const armaduraTirante =
+      zapata.tirante && barrasValidas
+        ? verificarArmaduraTirante(materiales, {
+            tdKN: zapata.tirante.tdKN,
+            diametroMm: t.f,
+            asRealCm2: (Math.PI * (t.f / 10) ** 2) / 4 / t.s,
+            anchoApoyoM: v.anchoPilar,
+            recubrimientoM: t.rec,
+            separacionM: t.s,
+            forma: patillaTirante ? "gancho" : "recta",
+            pataMm: patillaTirante ? t.pata : 0,
+            situacion: adherenciaTirante === "Mala" ? "mala" : "buena",
+          })
+        : undefined;
+
+    return { zapata, armaduraTirante };
   }, [
     fck, fyk, A, H, recubrimiento, anchoPilar, descentrado, distanciaBorde, conTirante, brazoTirante, phiTerreno,
     sigmaAdmisible, Nk, MkA,
     diametroPrincipal, separacionPrincipal, numeroSecundario, diametroSecundario, formaAnclaje,
+    diametroTirante, separacionTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
   ]);
 
   const diagrama = useMemo(() => {
@@ -352,6 +385,17 @@ export default function ZapataCorridaPage() {
                     ]}
                   />
                 </Subgrupo>
+                {conTirante && (
+                  <CamposArmaduraTirante
+                    modo="separacion"
+                    diametro={{ valor: diametroTirante, onChange: setDiametroTirante }}
+                    cantidadOSeparacion={{ valor: separacionTirante, onChange: setSeparacionTirante }}
+                    recubrimiento={{ valor: recubrimientoTirante, onChange: setRecubrimientoTirante }}
+                    extremo={{ valor: extremoTirante, onChange: setExtremoTirante }}
+                    pata={{ valor: pataTirante, onChange: setPataTirante }}
+                    adherencia={{ valor: adherenciaTirante, onChange: setAdherenciaTirante }}
+                  />
+                )}
               </>
             }
             dibujo={armado}
@@ -426,6 +470,20 @@ export default function ZapataCorridaPage() {
                     estado: resultado.zapata.secundario.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.secundario.asNecCm2 / resultado.zapata.secundario.asRealCm2,
                   },
+                  ...(resultado.armaduraTirante
+                    ? [
+                        {
+                          etiqueta: "armadura del tirante",
+                          estado: resultado.armaduraTirante.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
+                          utilizacion: resultado.armaduraTirante.asNecCm2 / resultado.armaduraTirante.asRealCm2,
+                        },
+                        {
+                          etiqueta: "anclaje del tirante",
+                          estado: resultado.armaduraTirante.verificaAnclaje ? ("cumple" as const) : ("no-cumple" as const),
+                          utilizacion: resultado.armaduraTirante.lbdMm / resultado.armaduraTirante.disponibleMm,
+                        },
+                      ]
+                    : []),
                   ...(resultado.zapata.tirante
                     ? [
                         {
@@ -506,6 +564,19 @@ export default function ZapataCorridaPage() {
                       y anclarse en el muro. El muro queda en flexión con M y V: se verifica aparte. La
                       zapata se arma con la presión uniforme.
                     </p>
+                    {resultado.armaduraTirante && (
+                      <VerificacionArmaduraTirante
+                        elemento="muro"
+                        resultado={resultado.armaduraTirante}
+                        descripcionBarras={`Ø${diametroTirante} c/${separacionTirante} m`}
+                        unidadAs="cm²/m"
+                        anchoApoyoM={aNumero(anchoPilar)}
+                        recubrimientoM={aNumero(recubrimientoTirante)}
+                        patilla={extremoTirante === EXTREMOS_TIRANTE[1]}
+                        pataMm={aNumero(pataTirante)}
+                        adherencia={adherenciaTirante}
+                      />
+                    )}
                   </div>
                 </Subgrupo>
               )}

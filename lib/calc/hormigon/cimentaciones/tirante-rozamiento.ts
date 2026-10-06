@@ -1,3 +1,4 @@
+import { calcularAnclaje, type FormaAnclaje, type SituacionAdherencia } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
@@ -97,5 +98,80 @@ export function calcularTiranteRozamiento(
     // tirante tiene brazo h − H sobre el arranque.
     mPilarArranqueKNm: mkPilarKNm + tkKN * (brazoM - cantoZapataM),
     geometriaValida,
+  };
+}
+
+export interface DatosArmaduraTirante {
+  /** Tracción de cálculo del tirante, Td (kN, o kN/m en la corrida). */
+  tdKN: number;
+  diametroMm: number;
+  /** Área real de las barras del tirante (cm², o cm²/m en la corrida). */
+  asRealCm2: number;
+  /** Ancho del pilar o espesor del muro en la dirección del tirante (m). */
+  anchoApoyoM: number;
+  /** Recubrimiento de las barras del tirante (m). */
+  recubrimientoM: number;
+  /** Separación entre barras (m), si se conoce: entra en el cd del α2. */
+  separacionM?: number;
+  forma: FormaAnclaje;
+  /** Largo de la pata que baja dentro del pilar o muro, sólo con patilla (mm). */
+  pataMm: number;
+  situacion: SituacionAdherencia;
+}
+
+export interface ResultadoArmaduraTirante {
+  asNecCm2: number;
+  asRealCm2: number;
+  verificaAs: boolean;
+  /** σsd en la cara interior del pilar: Td/As real, sin pasar de fyd (MPa). */
+  sigmaSdMPa: number;
+  lbdMm: number;
+  /**
+   * Largo para anclar desde la cara interior del pilar o muro, sobre el eje
+   * de la barra: ancho − recubrimiento y, con patilla, la pata (mm).
+   */
+  disponibleMm: number;
+  verificaAnclaje: boolean;
+}
+
+/**
+ * Armadura del tirante: área (Td/fyd) y anclaje en el pilar o muro de
+ * medianera (art. 8.4). La tracción tiene que estar anclada al llegar a la
+ * cara interior del pilar, la del lado del edificio; del otro lado la losa
+ * sigue continua y no se comprueba. Criterio del usuario, 2026-10-06.
+ */
+export function verificarArmaduraTirante(
+  materiales: MaterialesDerivados,
+  datos: DatosArmaduraTirante
+): ResultadoArmaduraTirante {
+  const { tdKN, diametroMm, asRealCm2, anchoApoyoM, recubrimientoM, separacionM, forma, pataMm, situacion } = datos;
+  const { fck, fyk, fyd } = materiales;
+
+  const asNecCm2 = (tdKN * 1000) / fyd / 100;
+  const sigmaSdMPa = asRealCm2 > 0 ? Math.min((tdKN * 10) / asRealCm2, fyd) : fyd;
+
+  // cd (fig. A19.8.3): el menor entre el recubrimiento y la mitad de la luz
+  // libre entre barras, cuando se conoce la separación.
+  const cdMm =
+    separacionM !== undefined
+      ? Math.min(recubrimientoM * 1000, (separacionM * 1000 - diametroMm) / 2)
+      : recubrimientoM * 1000;
+  const { lbdMm } = calcularAnclaje(
+    { fckMPa: fck, fykMPa: fyk },
+    { diametroMm, situacion, forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
+  );
+
+  // Sobre el eje de la barra (art. 8.4.3 (3)): el tramo dentro del pilar y,
+  // con patilla, la pata que baja.
+  const disponibleMm = (anchoApoyoM - recubrimientoM) * 1000 + (forma === "gancho" ? pataMm : 0);
+
+  return {
+    asNecCm2,
+    asRealCm2,
+    verificaAs: asRealCm2 >= asNecCm2,
+    sigmaSdMPa,
+    lbdMm,
+    disponibleMm,
+    verificaAnclaje: lbdMm <= disponibleMm,
   };
 }

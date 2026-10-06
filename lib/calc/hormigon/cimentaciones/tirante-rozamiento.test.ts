@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularTiranteRozamiento } from "./tirante-rozamiento";
+import { calcularAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularTiranteRozamiento, verificarArmaduraTirante } from "./tirante-rozamiento";
 import { calcularZapataAislada } from "./zapata-aislada";
 
 const materiales = derivarMateriales({ fck: 25, fyk: 500 });
@@ -84,5 +85,45 @@ describe("zapata aislada de medianería con tirante", () => {
 
   it("la dirección B no cambia", () => {
     expect(con.vuelosB.fin.momentoKNm).toBeCloseTo(sin.vuelosB.fin.momentoKNm, 9);
+  });
+});
+
+describe("armadura del tirante", () => {
+  const td = (1.5 * 150) / 3.5;
+  const as4phi12 = 4 * (Math.PI * 1.2 ** 2) / 4;
+  const base = {
+    tdKN: td, diametroMm: 12, asRealCm2: as4phi12, anchoApoyoM: 0.4, recubrimientoM: 0.03,
+    forma: "recta" as const, pataMm: 150, situacion: "buena" as const,
+  };
+  const r = verificarArmaduraTirante(materiales, base);
+
+  it("As necesaria = Td/fyd y se compara con la real", () => {
+    expect(r.asNecCm2).toBeCloseTo((td * 1000) / (500 / 1.15) / 100, 9);
+    expect(r.verificaAs).toBe(true);
+  });
+
+  it("ancla Td/As real (no fyd) con el anclaje del art. 8.4", () => {
+    const sigma = (td * 10) / as4phi12;
+    expect(r.sigmaSdMPa).toBeCloseTo(sigma, 9);
+    const esperado = calcularAnclaje(
+      { fckMPa: 25, fykMPa: 500 },
+      { diametroMm: 12, situacion: "buena", forma: "recta", esfuerzo: "traccion", recubrimientoMm: 30, sigmaSdMPa: sigma }
+    ).lbdMm;
+    expect(r.lbdMm).toBeCloseTo(esperado, 9);
+  });
+
+  it("disponible desde la cara interior: ancho − rec; con patilla suma la pata cargada", () => {
+    expect(r.disponibleMm).toBeCloseTo(370, 9);
+    const g = verificarArmaduraTirante(materiales, { ...base, forma: "gancho" });
+    expect(g.disponibleMm).toBeCloseTo(520, 9);
+  });
+
+  it("con la separación, cd es el menor entre el recubrimiento y la mitad de la luz libre", () => {
+    const conSep = verificarArmaduraTirante(materiales, { ...base, separacionM: 0.05 });
+    const esperado = calcularAnclaje(
+      { fckMPa: 25, fykMPa: 500 },
+      { diametroMm: 12, situacion: "buena", forma: "recta", esfuerzo: "traccion", recubrimientoMm: 19, sigmaSdMPa: conSep.sigmaSdMPa }
+    ).lbdMm;
+    expect(conSep.lbdMm).toBeCloseTo(esperado, 9);
   });
 });

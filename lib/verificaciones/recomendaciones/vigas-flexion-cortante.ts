@@ -27,26 +27,26 @@ type Cara = "Pos" | "Neg";
 const NOMBRE_CARA: Record<Cara, string> = { Pos: "Inferior", Neg: "Superior" };
 const leer = (e: Campos, nombre: string) => campo(nombre).leer(e);
 
-const CANTO = palancaValor(campo("h"), {
+export const CANTO = palancaValor(campo("h"), {
   paso: 0.05,
   tope: (h) => h + 0.6,
   rotulo: "h = ",
   texto: m,
   efectoColateral: "Más canto: más peso propio y menos altura libre.",
 });
-const ANCHO = palancaValor(campo("b"), {
+export const ANCHO = palancaValor(campo("b"), {
   paso: 0.05,
   tope: (b) => b + 0.5,
   rotulo: "b = ",
   texto: m,
   efectoColateral: "Más ancho: más peso propio; entran más barras por fila.",
 });
-const FCK = palancaFck(campo("fck"));
+export const FCK = palancaFck(campo("fck"));
 
 const textoCapa = (n: number, d: number) => `${n} Ø${d}`;
 
 /** Más barras en la primera capa, con su diámetro. */
-const masBarras = (c: Cara) =>
+export const masBarras = (c: Cara) =>
   palancaValor(campo(`numero${c}`), {
     paso: 1,
     tope: (n) => n + 12,
@@ -57,7 +57,7 @@ const masBarras = (c: Cara) =>
   });
 
 /** El diámetro siguiente con las mismas barras. */
-const diametroMayor = (c: Cara) =>
+export const diametroMayor = (c: Cara) =>
   palancaDiametro(campo(`diametro${c}`), "mayor", (e, d) => textoCapa(leer(e, `numero${c}`), d), {
     rotulo: `${NOMBRE_CARA[c]} capa 1: `,
     efectoColateral: "Diámetro mayor: más longitud de anclaje y de solape.",
@@ -79,7 +79,7 @@ const segundaCapa = (c: Cara): Palanca<Campos> => ({
 });
 
 /** Barras más finas con al menos la misma área: entran donde no entraba una gruesa. */
-const masBarrasFinas = (c: Cara): Palanca<Campos> => ({
+export const masBarrasFinas = (c: Cara): Palanca<Campos> => ({
   efectoColateral: "Más barras, más finas.",
   *candidatos(e) {
     const n0 = leer(e, `numero${c}`);

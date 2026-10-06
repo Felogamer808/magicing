@@ -22,12 +22,12 @@ import { EstriboLongitudinal, EstriboTransversal } from "@/components/verificaci
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
-import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverVigaTorsion } from "@/lib/calc/hormigon/vigas/resolver-torsion";
+import { recomendarVigaTorsion } from "@/lib/verificaciones/recomendaciones/vigas-torsion";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
 
@@ -87,52 +87,13 @@ export default function VigasTorsionPage() {
 
   const [foco, setFoco] = useState<string | null>(null);
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck),
-      fyk: aNumero(fyk),
-      b: aNumero(b),
-      h: aNumero(h),
-      recubrimiento: aNumero(recubrimiento),
-      momentoPos: aNumero(momentoPos),
-      numeroPos: aNumero(numeroPos),
-      diametroPos: aNumero(diametroPos),
-      momentoNeg: aNumero(momentoNeg),
-      numeroNeg: aNumero(numeroNeg),
-      diametroNeg: aNumero(diametroNeg),
-      vd: aNumero(vd),
-      diametroEstribo: aNumero(diametroEstribo),
-      numeroRamas: aNumero(numeroRamas),
-      td: aNumero(td),
-    };
-
-    const todosValidos = Object.values(v).every((n) => Number.isFinite(n) && n >= 0);
-    const geometriaValida = v.b > 0 && v.h > 0;
-    const materialesValidos = v.fck > 0 && v.fyk > 0;
-    const armadurasValidas = v.numeroPos > 0 && v.diametroPos > 0 && v.numeroNeg > 0 && v.diametroNeg > 0;
-    const cortanteValido = v.numeroRamas > 0 && v.diametroEstribo > 0;
-
-    if (!todosValidos || !geometriaValida || !materialesValidos || !armadurasValidas || !cortanteValido) {
-      return null;
-    }
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
-
-    return calcularVigaConTorsion(materiales, geometria, {
-      torsion: { td: v.td },
-      momentoPositivo: v.momentoPos,
-      momentoNegativo: v.momentoNeg,
-      armaduraPositiva: { numero: v.numeroPos, diametroMm: v.diametroPos },
-      armaduraNegativa: { numero: v.numeroNeg, diametroMm: v.diametroNeg },
-      cortante: { vd: v.vd, diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas },
-    });
-  }, [
-    fck, fyk, b, h, recubrimiento,
-    momentoPos, numeroPos, diametroPos,
-    momentoNeg, numeroNeg, diametroNeg,
-    vd, diametroEstribo, numeroRamas, td,
-  ]);
+  const campos = useMemo(
+    () => ({ fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td }),
+    [fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td]
+  );
+  const resultado = useMemo(() => resolverVigaTorsion(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarVigaTorsion(campos), [campos]);
 
   const diagrama = useMemo(() => {
     const v = {
@@ -367,34 +328,41 @@ export default function VigasTorsionPage() {
                     etiqueta: "bielas de torsión",
                     estado: resultado.torsion.verificaBielas ? "cumple" : "no-cumple",
                     utilizacion: aNumero(td) / resultado.torsion.tRdMaxKNm,
+                    conPropuestas: !!rec.bielasTorsion,
                   },
                   {
                     etiqueta: "interacción torsión + cortante",
                     estado: resultado.verificaInteraccionBielas ? "cumple" : "no-cumple",
                     utilizacion: resultado.interaccionBielas,
+                    conPropuestas: !!rec.interaccion,
                   },
                   {
                     etiqueta: "flexión positiva",
                     estado: resultado.flexionPositiva.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.flexionPositiva.asNecCm2 / resultado.flexionPositiva.asRealCm2,
+                    conPropuestas: !!rec.positiva,
                   },
                   {
                     etiqueta: "flexión negativa",
                     estado: resultado.flexionNegativa.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.flexionNegativa.asNecCm2 / resultado.flexionNegativa.asRealCm2,
+                    conPropuestas: !!rec.negativa,
                   },
                   {
                     etiqueta: "compresión oblicua del alma",
                     estado: resultado.cortante.verificaVRdMax ? "cumple" : "no-cumple",
                     utilizacion: aNumero(vd) / resultado.cortante.vRdMax,
+                    conPropuestas: !!rec.bielas,
                   },
                   {
                     etiqueta: "armadura inferior en el ancho",
                     estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.anchoInferior,
                   },
                   {
                     etiqueta: "armadura superior en el ancho",
                     estado: resultado.flexionNegativa.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.anchoSuperior,
                   },
                 ]}
               />
@@ -419,6 +387,7 @@ export default function VigasTorsionPage() {
                       limite: { etiqueta: "TRd,max", valor: resultado.torsion.tRdMaxKNm },
                       unidad: "kN·m", exige: "≤",
                     }}
+                    recomendaciones={rec.bielasTorsion}
                   />
                   <ResultadoCheck
                     etiqueta="Interacción torsión + cortante en las bielas"
@@ -429,6 +398,7 @@ export default function VigasTorsionPage() {
                       limite: { etiqueta: "límite", valor: 1 },
                       unidad: "", exige: "≤", decimales: 3,
                     }}
+                    recomendaciones={rec.interaccion}
                   />
                   <p className="pt-3 text-sm">
                     <span className="font-medium">
@@ -468,6 +438,7 @@ export default function VigasTorsionPage() {
                       limite: { etiqueta: "As nec", valor: resultado.flexionPositiva.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.positiva}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión positiva"
@@ -496,6 +467,7 @@ export default function VigasTorsionPage() {
                       limite: { etiqueta: "As nec", valor: resultado.flexionNegativa.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.negativa}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión negativa"
@@ -514,6 +486,7 @@ export default function VigasTorsionPage() {
                       limite: { etiqueta: "VRd,max", valor: resultado.cortante.vRdMax },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.bielas}
                   />
                 </div>
               </Subgrupo>
@@ -524,11 +497,13 @@ export default function VigasTorsionPage() {
                     etiqueta="La armadura inferior entra en el ancho"
                     verifica={resultado.flexionPositiva.verificaEntraEnAncho}
                     detalle={describirCapas(resultado.flexionPositiva.capas)}
+                    recomendaciones={rec.anchoInferior}
                   />
                   <ResultadoCheck
                     etiqueta="La armadura superior entra en el ancho"
                     verifica={resultado.flexionNegativa.verificaEntraEnAncho}
                     detalle={describirCapas(resultado.flexionNegativa.capas)}
+                    recomendaciones={rec.anchoSuperior}
                   />
                 </div>
               </Subgrupo>

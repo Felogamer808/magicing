@@ -54,6 +54,7 @@ export type IdVerificacion =
   | "vigas-flexion-cortante"
   | "vigas-torsion"
   | "vigas-apeo-bielas"
+  | "vigas-apeo-voladizo"
   | "carga-colgada"
   | "mensula-corta"
   | "losas"
@@ -62,6 +63,7 @@ export type IdVerificacion =
   | "zapatas"
   | "zapata-corrida"
   | "zapata-medianeria"
+  | "zapata-viga-centradora"
   | "zapata-combinada"
   | "losa-fundacion"
   | "pilotes"
@@ -244,6 +246,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
+    id: "vigas-apeo-voladizo",
+    nombre: "Viga con carga en voladizo — bielas y tirantes",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Pilar apeado fuera de los dos apoyos, sólo con el Anejo 19: tirante superior, levantamiento del apoyo lejano, nudos y anclaje del tirante en los dos extremos.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/vigas-apeo-voladizo",
+    disponible: true,
+  },
+  {
     id: "carga-colgada",
     nombre: "Armadura de cuelgue",
     seccion: "hormigon-armado",
@@ -343,6 +356,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Zapata excéntrica junto a un límite de propiedad, sin poder volar hacia ese lado.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zapata-medianeria",
+    disponible: true,
+  },
+  {
+    id: "zapata-viga-centradora",
+    nombre: "Zapata de medianería con viga centradora",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion:
+      "Cuando la medianería no da: viga que une la zapata con la interior, toma el momento y deja la zapata con presión centrada.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/zapata-viga-centradora",
     disponible: true,
   },
   {

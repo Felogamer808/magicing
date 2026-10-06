@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
@@ -172,7 +173,7 @@ export default function MemoriaPage() {
                       {meta?.nombre ?? calculo.verificacion}
                       {meta && (
                         <span className="ml-2 font-mono text-xs text-muted-foreground">
-                          {meta.normasDisponibles.join(" · ")}
+                          {meta.normasDisponibles.map(nombreNorma).join(" · ")}
                         </span>
                       )}
                     </h3>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 
 interface SelectorNormaProps {
   normas: string[];
@@ -12,12 +13,12 @@ export function SelectorNorma({ normas, valor, onChange }: SelectorNormaProps) {
   return (
     <Select value={valor} onValueChange={(v) => v && onChange(v)} disabled={normas.length <= 1}>
       <SelectTrigger className="w-36">
-        <SelectValue />
+        <SelectValue>{(valor: string) => nombreNorma(valor)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {normas.map((norma) => (
           <SelectItem key={norma} value={norma}>
-            {norma}
+            {nombreNorma(norma)}
           </SelectItem>
         ))}
       </SelectContent>

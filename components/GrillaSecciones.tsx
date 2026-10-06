@@ -1,3 +1,4 @@
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,7 @@ export function GrillaSecciones({ secciones }: { secciones: SeccionMeta[] }) {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {seccion.normasDisponibles.map((norma) => (
                         <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
-                          {norma}
+                          {nombreNorma(norma)}
                         </Badge>
                       ))}
                       {seccion.disponible && (

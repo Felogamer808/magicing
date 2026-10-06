@@ -1,5 +1,5 @@
 import { DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
-import { fmt } from "@/lib/verificaciones/formato";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { CLASES_FCK, pasos, type Palanca } from "./motor";
 
 /**
@@ -8,7 +8,7 @@ import { CLASES_FCK, pasos, type Palanca } from "./motor";
  * palanca arma los pasos y el texto "valor nuevo (hoy valor actual)".
  */
 
-interface Dato<E> {
+export interface Dato<E> {
   leer: (e: E) => number;
   escribir: (e: E, v: number) => E;
 }
@@ -41,6 +41,15 @@ export function palancaValor<E>(
     },
   };
 }
+
+/** Los campos de una página tal como se cargaron, para los resolvers que los toman así. */
+export type Campos = Record<string, string>;
+
+/** Un campo numérico de la página. */
+export const campo = (nombre: string): Dato<Campos> => ({
+  leer: (e) => aNumero(e[nombre] ?? ""),
+  escribir: (e, v) => ({ ...e, [nombre]: String(v) }),
+});
 
 /** Metros con dos decimales. */
 export const m = (v: number) => `${fmt(v, 2)} m`;

@@ -25,6 +25,7 @@ import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { armarGrupos, resolverVigaFlexionCortante } from "@/lib/calc/hormigon/vigas/resolver";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
+import { recomendarVigaFlexionCortante } from "@/lib/verificaciones/recomendaciones/vigas-flexion-cortante";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -114,14 +115,13 @@ export default function VigasFlexionCortantePage() {
   // tiene que volver a correr un cálculo guardado meses después, y con la
   // conversión duplicada tarde o temprano el documento firmado mostraría un
   // número distinto del que muestra esta pantalla.
-  const resultado = useMemo(
-    () =>
-      resolverVigaFlexionCortante({
-        fck, fyk, b, h, recubrimiento,
-        momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
-        momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
-        vd, diametroEstribo, numeroRamas, monolitica,
-      }),
+  const campos = useMemo(
+    () => ({
+      fck, fyk, b, h, recubrimiento,
+      momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
+      momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
+      vd, diametroEstribo, numeroRamas, monolitica,
+    }),
     [
     fck, fyk, b, h, recubrimiento,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
@@ -129,6 +129,9 @@ export default function VigasFlexionCortantePage() {
     vd, diametroEstribo, numeroRamas, monolitica,
     ]
   );
+  const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarVigaFlexionCortante(campos), [campos]);
 
   // La sección se dibuja con los datos de geometría y armadura, aunque el
   // resto del formulario (cortante) todavía no sea válido.
@@ -452,24 +455,29 @@ export default function VigasFlexionCortantePage() {
                     etiqueta: "flexión positiva",
                     estado: resultado.flexionPositiva.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.flexionPositiva.asNecCm2 / resultado.flexionPositiva.asRealCm2,
+                    conPropuestas: !!rec.positiva,
                   },
                   {
                     etiqueta: "flexión negativa",
                     estado: resultado.flexionNegativa.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.flexionNegativa.asNecCm2 / resultado.flexionNegativa.asRealCm2,
+                    conPropuestas: !!rec.negativa,
                   },
                   {
                     etiqueta: "compresión oblicua del alma",
                     estado: resultado.cortante.verificaVRdMax ? "cumple" : "no-cumple",
                     utilizacion: aNumero(vd) / resultado.cortante.vRdMax,
+                    conPropuestas: !!rec.bielas,
                   },
                   {
                     etiqueta: "armadura inferior en el ancho",
                     estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.anchoInferior,
                   },
                   {
                     etiqueta: "armadura superior en el ancho",
                     estado: resultado.flexionNegativa.verificaEntraEnAncho ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.anchoSuperior,
                   },
                 ]}
               />
@@ -507,6 +515,7 @@ export default function VigasFlexionCortantePage() {
                       limite: { etiqueta: "As nec", valor: resultado.flexionPositiva.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.positiva}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión positiva"
@@ -534,6 +543,7 @@ export default function VigasFlexionCortantePage() {
                       limite: { etiqueta: "As nec", valor: resultado.flexionNegativa.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.negativa}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de flexión negativa"
@@ -564,6 +574,7 @@ export default function VigasFlexionCortantePage() {
                       limite: { etiqueta: "VRd,max", valor: resultado.cortante.vRdMax },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.bielas}
                   />
                 </div>
               </Subgrupo>
@@ -574,11 +585,13 @@ export default function VigasFlexionCortantePage() {
                     etiqueta="La armadura inferior entra en el ancho"
                     verifica={resultado.flexionPositiva.verificaEntraEnAncho}
                     detalle={`${describirCapas(resultado.flexionPositiva.capas)} · máx. por fila ${resultado.flexionPositiva.capacidadPorGrupo.join(" + ")}`}
+                    recomendaciones={rec.anchoInferior}
                   />
                   <ResultadoCheck
                     etiqueta="La armadura superior entra en el ancho"
                     verifica={resultado.flexionNegativa.verificaEntraEnAncho}
                     detalle={`${describirCapas(resultado.flexionNegativa.capas)} · máx. por fila ${resultado.flexionNegativa.capacidadPorGrupo.join(" + ")}`}
+                    recomendaciones={rec.anchoSuperior}
                   />
                 </div>
               </Subgrupo>

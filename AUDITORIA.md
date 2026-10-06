@@ -209,10 +209,15 @@ La primera pasada auditó sólo el cortante y el punzonamiento, pero el sello de
   ec. (6.51) (art. 6.4.4 (2), pág. 95) con los dos ejes sumados y MEd = 1,5·Mk,
   más la comprobación en la cara del pilar, ec. (6.53) (art. 6.4.5 (3), pág. 96).
   El barrido de perímetros se corta en el vuelo si es menor que 2d.
-- **Flexión, cuantías y anclaje de la EHE-08** ⏳ PENDIENTE: `Td = M/(0,85d)`
-  con fyd ≤ 400, cuantías 0,04·fcd/fyd y 0,9 ‰, anclaje `m·φ²`. El Anejo 19 da
-  `F_s = R·z_e/z_i` (art. 9.8.2.2, págs. 153-154). Hasta resolverlo el módulo
-  baja a "probada".
+- **Flexión, cuantías y anclaje de la EHE-08** ✅ CORREGIDO: `Td = M/(0,85d)`
+  con fyd ≤ 400, sección a c/4, cuantías 0,04·fcd/fyd y 0,9 ‰, anclaje `m·φ²`.
+  Pasa a `F_s = M/(0,9·d)` en la sección a 0,15·c (art. 9.8.2.2 (3), págs.
+  153-154), fyd sin tope, mínima de la ec. (9.1), φ ≥ 12 (art. 9.8.2.1 (1)) y
+  anclaje de F_s(x) barriendo x desde h/2 (art. 9.8.2.2 (5) y 8.4).
+
+El módulo queda en "probada" y no en "auditada": todo lo de arriba se programó
+y se revisó en la misma sesión, sin un repaso independiente. Sube cuando alguien
+contraste un caso propio.
 
 ## Conformes ✅
 

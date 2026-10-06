@@ -169,23 +169,19 @@ describe("zapata aislada (caso original de la planilla, Mk=0)", () => {
     expect(r.esRigida).toBe(true);
   });
 
-  it("reproduce el armado en dirección A (sin excentricidad)", () => {
-    expect(r.direccionA.sigmaMaxKPa).toBeCloseTo(82.6530612244898, 6);
-    expect(r.direccionA.lM).toBeCloseTo(0, 9);
+  // El armado de la planilla era EHE-08 y ya no se compara: ver el caso
+  // siguiente, recalculado a mano con el Anejo 19. Acá el pilar es más ancho
+  // que la zapata, así que no hay vuelo y gobierna la mínima.
+  it("sin vuelo no hay tracción que anclar y gobierna la cuantía mínima", () => {
     expect(r.direccionA.dM).toBeCloseTo(0.254, 6);
-    expect(r.direccionA.tdKN).toBeCloseTo(0, 9);
-    expect(r.direccionA.asNecCm2).toBeCloseTo(3.864, 3);
-    expect(r.direccionA.asRealCm2).toBeCloseTo(4.5238934211693, 6);
-    expect(r.direccionA.verificaAs).toBe(true);
-    expect(r.direccionA.lbIMm).toBeCloseTo(300, 6);
-    expect(r.direccionA.dmMm).toBeCloseTo(144, 6);
-  });
-
-  it("reproduce el armado en dirección B (sin excentricidad)", () => {
     expect(r.direccionB.dM).toBeCloseTo(0.242, 6);
-    expect(r.direccionB.asNecCm2).toBeCloseTo(3.864, 3);
-    expect(r.direccionB.asRealCm2).toBeCloseTo(4.5238934211693, 6);
-    expect(r.direccionB.verificaAs).toBe(true);
+    expect(r.direccionA.fsKN).toBe(0);
+    expect(r.direccionA.anclaje.verifica).toBe(true);
+    // ec. (9.1): b·h²/6 / (0,8·h) · fctm,fl / fyd, con fctm,fl = 1,3·fctm.
+    const fctmFl = 1.3 * 0.3 * 30 ** (2 / 3);
+    expect(r.direccionA.asMinCm2).toBeCloseTo(1e4 * ((0.7 * 0.3 ** 2) / 6 / (0.8 * 0.3)) * (fctmFl / (500 / 1.15)), 6);
+    expect(r.direccionA.asNecCm2).toBeCloseTo(r.direccionA.asMinCm2, 9);
+    expect(r.direccionA.verificaAs).toBe(true);
   });
 });
 
@@ -214,36 +210,81 @@ describe("zapata aislada con excentricidad (Mk A ≠ Mk B, corregido)", () => {
     expect(r.geotecnico.verificaTension).toBe(true);
   });
 
-  it("reproduce el armado en dirección A", () => {
+  /*
+   * Recalculado a mano con el Anejo 19, art. 9.8.2.2: sección de cálculo a
+   * 0,15·c dentro de la cara del pilar, F_s = M/(0,9·d), As = F_s/fyd sin tope.
+   * La planilla (EHE-08) daba Td = M/(0,85·d) con la sección a c/4 y fyd ≤ 400.
+   */
+  const fyd = 500 / 1.15;
+  const fctmFl = 1.1 * 0.3 * 25 ** (2 / 3); // (1,6 − 0,5)·fctm
+  const momentoTrapecio = (b: number, l: number, sigmaSeccion: number, sigmaBorde: number) =>
+    sigmaSeccion * b * l * (l / 2) + (sigmaBorde - sigmaSeccion) * b * (l / 2) * ((2 * l) / 3);
+
+  it("dirección A: Fs = M/(0,9·d) en la sección a 0,15·c", () => {
+    const l = 0.8 + 0.15 * 0.4; // 0,86 m
+    const sigmaSeccion = 175 + (150 * (2 - l)) / 2; // 260,5 kPa
+    const m = momentoTrapecio(1.5, l, sigmaSeccion, 325);
     expect(r.direccionA.sigmaMaxKPa).toBeCloseTo(325, 6);
     expect(r.direccionA.sigmaMinKPa).toBeCloseTo(175, 6);
-    expect(r.direccionA.sigmaCriticaKPa).toBeCloseTo(257.5, 6);
-    expect(r.direccionA.lM).toBeCloseTo(0.9, 6);
-    expect(r.direccionA.dM).toBeCloseTo(0.442, 6);
-    expect(r.direccionA.tdKN).toBeCloseTo(489.136944370508, 3);
-    expect(r.direccionA.asMinMecanicoCm2).toBeCloseTo(11.5, 3);
-    expect(r.direccionA.asMinGeometricoCm2).toBeCloseTo(6.75, 3);
-    expect(r.direccionA.asNecCm2).toBeCloseTo(12.2284236092627, 3);
-    expect(r.direccionA.asRealCm2).toBeCloseTo(16.0849543863797, 3);
+    expect(r.direccionA.lM).toBeCloseTo(l, 9);
+    expect(r.direccionA.sigmaCriticaKPa).toBeCloseTo(sigmaSeccion, 6);
+    expect(r.direccionA.momentoKNm).toBeCloseTo(m, 6);
+    expect(r.direccionA.fsKN).toBeCloseTo(m / (0.9 * 0.442), 6);
+    expect(r.direccionA.asCalculadoCm2).toBeCloseTo((1e4 * m) / (0.9 * 0.442) / (fyd * 1000), 6);
+    // Mínima, ec. (9.1): 1,5·0,5²/6 / 0,4 · fctm,fl/fyd = 10,14 cm²; gobierna.
+    expect(r.direccionA.asMinCm2).toBeCloseTo(1e4 * ((1.5 * 0.25) / 6 / 0.4) * (fctmFl / fyd), 6);
+    expect(r.direccionA.asNecCm2).toBeCloseTo(r.direccionA.asMinCm2, 9);
     expect(r.direccionA.verificaAs).toBe(true);
-    expect(r.direccionA.lbIMm).toBeCloseTo(400, 6);
-    expect(r.direccionA.dmMm).toBeCloseTo(192, 6);
+    expect(r.direccionA.verificaDiametroMinimo).toBe(true);
   });
 
-  it("usa Mk B (no Mk A) para el armado en dirección B — corrige el bug de la planilla", () => {
+  it("dirección B usa Mk B y no llega a la mínima con 6φ16", () => {
+    const l = 0.6 + 0.15 * 0.3; // 0,645 m
+    const sigmaSeccion = 210 + (80 * (1.5 - l)) / 1.5;
+    const m = momentoTrapecio(2, l, sigmaSeccion, 290);
     expect(r.direccionB.sigmaMaxKPa).toBeCloseTo(290, 6);
     expect(r.direccionB.sigmaMinKPa).toBeCloseTo(210, 6);
-    expect(r.direccionB.sigmaCriticaKPa).toBeCloseTo(254, 6);
-    expect(r.direccionB.lM).toBeCloseTo(0.675, 6);
-    expect(r.direccionB.dM).toBeCloseTo(0.426, 6);
-    expect(r.direccionB.tdKN).toBeCloseTo(349.803231151616, 3);
-    expect(r.direccionB.asMinMecanicoCm2).toBeCloseTo(15.3333333333333, 3);
-    expect(r.direccionB.asMinGeometricoCm2).toBeCloseTo(9, 3);
-    expect(r.direccionB.asNecCm2).toBeCloseTo(15.3333333333333, 3);
-    expect(r.direccionB.asRealCm2).toBeCloseTo(12.0637157897848, 3);
+    expect(r.direccionB.momentoKNm).toBeCloseTo(m, 6);
+    expect(r.direccionB.fsKN).toBeCloseTo(m / (0.9 * 0.426), 6);
+    // Mínima: 2·0,5²/6 / 0,4 · fctm,fl/fyd = 13,52 cm² > 12,06 cm² reales.
+    expect(r.direccionB.asMinCm2).toBeCloseTo(1e4 * ((2 * 0.25) / 6 / 0.4) * (fctmFl / fyd), 6);
+    expect(r.direccionB.asRealCm2).toBeCloseTo(12.0637157897848, 6);
     expect(r.direccionB.verificaAs).toBe(false);
-    expect(r.direccionB.lbIMm).toBeCloseTo(400, 6);
-    expect(r.direccionB.dmMm).toBeCloseTo(192, 6);
+  });
+
+  it("el anclaje se comprueba desde x = h/2 y ancla F_s(x) en x − recubrimiento", () => {
+    const a = r.direccionA.anclaje;
+    expect(a.xM).toBeGreaterThanOrEqual(0.25 - 1e-9);
+    expect(a.xM).toBeLessThanOrEqual(r.direccionA.lM + 1e-9);
+    expect(a.disponibleMm).toBeCloseTo((a.xM - 0.05) * 1000, 6);
+    expect(a.fsKN).toBeLessThanOrEqual(r.direccionA.fsKN + 1e-9);
+    expect(a.verifica).toBe(a.lbdMm <= a.disponibleMm);
+  });
+});
+
+describe("anclaje y diámetro mínimo de la parrilla (art. 9.8.2)", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+  const geometria = { A: 2.4, B: 2.4, H: 0.4, anchoPilarA: 0.3, anchoPilarB: 0.3, recubrimiento: 0.05 };
+  const calcular = (diametroMm: number, formaAnclaje: "recta" | "gancho", Nk = 900) =>
+    calcularZapataAislada(materiales, geometria, 500, {
+      cargas: { Nk, MkA: 0, MkB: 0 },
+      armadoA: { numero: 14, diametroMm },
+      armadoB: { numero: 14, diametroMm },
+      formaAnclaje,
+    });
+
+  it("la patilla acorta la longitud necesaria respecto de la barra recta", () => {
+    // φ12 con 50 mm de recubrimiento: cd > 3φ, así que la patilla tiene α1 = 0,7
+    // (tabla A19.8.2). Con φ20 no, y las dos darían lo mismo.
+    const recta = calcular(12, "recta", 2500).direccionA.anclaje;
+    const patilla = calcular(12, "gancho", 2500).direccionA.anclaje;
+    expect(recta.lbdMm).toBeGreaterThan(120); // por encima de lb,min = 10φ
+    expect(patilla.lbdMm).toBeLessThan(recta.lbdMm);
+  });
+
+  it("exige φ ≥ 12 mm", () => {
+    expect(calcular(10, "recta").direccionA.verificaDiametroMinimo).toBe(false);
+    expect(calcular(12, "recta").direccionA.verificaDiametroMinimo).toBe(true);
   });
 });
 

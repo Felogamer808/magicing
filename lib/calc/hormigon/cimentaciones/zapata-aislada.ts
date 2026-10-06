@@ -1,4 +1,6 @@
+import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
+import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
@@ -35,6 +37,8 @@ export interface DatosZapataAislada {
   cargas: CargasZapata;
   armadoA: ArmadoDireccion;
   armadoB: ArmadoDireccion;
+  /** Extremo de las barras de la parrilla. Recta si falta. */
+  formaAnclaje?: FormaAnclaje;
 }
 
 /**
@@ -227,9 +231,60 @@ export interface ResultadoZapataAislada {
   /** Clasificación informativa: vuelo ≤ 2H (método simplificado válido para zapatas rígidas) */
   esRigida: boolean;
   geotecnico: ResultadoGeotecnico;
-  direccionA: ResultadoArmadoDireccion;
-  direccionB: ResultadoArmadoDireccion;
+  direccionA: ResultadoDireccionZapata;
+  direccionB: ResultadoDireccionZapata;
   punzonamiento: ResultadoPunzonamiento;
+}
+
+/** Anclaje de la parrilla en la sección x que peor verifica, art. 9.8.2.2. */
+export interface ResultadoAnclajeZapata {
+  /** Distancia desde el borde de la zapata a la sección que gobierna (m). */
+  xM: number;
+  /** Tracción a anclar en x, F_s = R·z_e/z_i, ec. (9.13) (kN). */
+  fsKN: number;
+  sigmaSdMPa: number;
+  /** Longitud neta de anclaje necesaria, ec. (8.4) (mm). */
+  lbdMm: number;
+  /** Longitud disponible: x menos el recubrimiento del extremo (mm). */
+  disponibleMm: number;
+  verifica: boolean;
+}
+
+/**
+ * Una dirección de la parrilla según el Anejo 19: flexión por el modelo del
+ * art. 9.8.2.2, cuantía mínima del art. 9.2.1.1, anclaje del art. 8.4 y
+ * cortante del art. 6.2.2.
+ */
+export interface ResultadoDireccionZapata {
+  /** Presiones de cálculo en los bordes, sin peso propio (kN/m²). */
+  sigmaMaxKPa: number;
+  sigmaMinKPa: number;
+  /** Largo que apoya con las presiones de cálculo (m). Menor que la base si hay despegue. */
+  longitudContactoM: number;
+  /** Presión en la sección de cálculo (kN/m²). */
+  sigmaCriticaKPa: number;
+  /** Distancia del borde a la sección de cálculo, 0,15·c dentro de la cara del pilar (m). */
+  lM: number;
+  dM: number;
+  /** Brazo interno z_i = 0,9·d (m). */
+  ziM: number;
+  /** Momento de las presiones respecto de la sección de cálculo (kN·m). */
+  momentoKNm: number;
+  /** Tracción máxima F_s,max = M/z_i (kN). */
+  fsKN: number;
+  asCalculadoCm2: number;
+  /** Mínima de tracción, art. 9.2.1.1 (1), ec. (9.1). */
+  asMinCm2: number;
+  asNecCm2: number;
+  asRealCm2: number;
+  verificaAs: boolean;
+  /** φ ≥ 12 mm, art. 9.8.2.1 (1). */
+  verificaDiametroMinimo: boolean;
+  anclaje: ResultadoAnclajeZapata;
+  /** Cortante de cálculo a d de la cara del pilar, art. 6.2.2 (kN). 0 si la sección cae dentro del pilar. */
+  vEdKN: number;
+  vRdCKN: number;
+  verificaCorte: boolean;
 }
 
 export interface ResultadoCorteUnidireccional {
@@ -400,6 +455,122 @@ export function calcularArmadoDireccion(
   return { ...flexion, sigmaMinKPa: dist.sigmaMinKPa, longitudContactoM: dist.longitudContactoM, ...corte };
 }
 
+/**
+ * Una dirección de la parrilla de una zapata con el pilar centrado, según el
+ * Anejo 19.
+ *
+ * Flexión por el modelo de la fig. A19.9.13 (art. 9.8.2.2, págs. 153-154):
+ * F_s = R·z_e/z_i, con z_e medido hasta una sección a e = 0,15·c dentro de la
+ * cara del pilar y z_i = 0,9·d (simplificaciones del apartado (3)). En la
+ * sección de cálculo R·z_e es el momento de las presiones, así que
+ * F_s,max = M/z_i, y As = F_s/fyd sin el tope de 400 MPa que traía la EHE-08.
+ *
+ * El anclaje se comprueba barriendo x desde h/2 —el x_min del apartado (5)—
+ * hasta la sección de cálculo: F_s(x) tiene que anclarse en la distancia x
+ * desde el borde. Con α3 = α5 = 1, como en `anclaje.ts`.
+ */
+export function calcularDireccionZapata(
+  materiales: MaterialesDerivados,
+  /** Dimensión de la zapata en esta dirección (m). */
+  dim: number,
+  /** Dimensión perpendicular, el ancho que arma esta parrilla (m). */
+  dimPerpendicular: number,
+  H: number,
+  anchoPilar: number,
+  d: number,
+  recubrimiento: number,
+  nk: number,
+  mk: number,
+  armadura: ArmadoDireccion,
+  formaAnclaje: FormaAnclaje
+): ResultadoDireccionZapata {
+  const { fck, fyk, fyd, fctm } = materiales;
+
+  // Presiones de cálculo sin el peso propio, repartidas como en el terreno.
+  const dist = distribucionPresiones(GAMMA_F * nk, dim, dimPerpendicular, nk !== 0 ? mk / nk : 0);
+
+  const lM = (dim - anchoPilar) / 2 + 0.15 * anchoPilar;
+  const seccionM = dim - lM;
+  const ziM = 0.9 * d;
+  const momentoKNm = cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, seccionM).momentoKNm;
+  const fsKN = momentoKNm / ziM;
+
+  const asCalculadoCm2 = (fsKN / (fyd * 1000)) * 100 ** 2;
+  const asMinCm2 = armaduraMinimaTraccionCm2(dimPerpendicular, H, resistenciaFlexotraccionMPa(fctm, H), fyd);
+  const asNecCm2 = Math.max(asCalculadoCm2, asMinCm2);
+  const asRealCm2 = (armadura.numero * Math.PI * (armadura.diametroMm / 10) ** 2) / 4;
+
+  // cd para α2 (fig. A19.8.3): el menor entre el recubrimiento lateral y la
+  // mitad de la luz libre entre barras.
+  const separacionM =
+    armadura.numero > 1 ? (dimPerpendicular - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity;
+  const cdMm = Math.min(recubrimiento * 1000, (separacionM * 1000 - armadura.diametroMm) / 2);
+
+  /** F_s en x: momento de lo que hay entre el borde y x, tomado en la sección de cálculo. */
+  const anclajeEn = (xM: number): ResultadoAnclajeZapata => {
+    const carga = cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - xM);
+    const disponibleMm = (xM - recubrimiento) * 1000;
+    if (!Number.isFinite(carga.fuerzaKN)) {
+      return { xM, fsKN: Infinity, sigmaSdMPa: fyd, lbdMm: Infinity, disponibleMm, verifica: false };
+    }
+    const fsXKN = (carga.momentoKNm + carga.fuerzaKN * (lM - xM)) / ziM;
+    const sigmaSdMPa = Math.min((fsXKN * 10) / asRealCm2, fyd);
+    const { lbdMm } = calcularAnclaje(
+      { fckMPa: fck, fykMPa: fyk },
+      { diametroMm: armadura.diametroMm, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
+    );
+    return { xM, fsKN: fsXKN, sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm };
+  };
+
+  // Sin vuelo más allá de la sección de cálculo no hay tracción que anclar.
+  let anclaje: ResultadoAnclajeZapata = {
+    xM: 0, fsKN: 0, sigmaSdMPa: 0, lbdMm: 0, disponibleMm: 0, verifica: true,
+  };
+  if (lM > 0) {
+    const xMinM = Math.min(H / 2, lM);
+    const PASOS = 50;
+    const exceso = (a: ResultadoAnclajeZapata) => a.lbdMm - a.disponibleMm;
+    anclaje = anclajeEn(xMinM);
+    for (let i = 1; i <= PASOS; i++) {
+      const candidato = anclajeEn(xMinM + ((lM - xMinM) * i) / PASOS);
+      if (exceso(candidato) > exceso(anclaje)) anclaje = candidato;
+    }
+  }
+
+  // Cortante unidireccional, art. 6.2.2, sección a d de la cara del pilar.
+  const vueloCorteM = (dim - anchoPilar) / 2 - d;
+  const corte =
+    vueloCorteM > 0
+      ? corteDesdeCarga(
+          materiales,
+          dimPerpendicular,
+          d,
+          cargaEntreSeccionYBorde(dist, dim, dimPerpendicular, dim - vueloCorteM).fuerzaKN,
+          asRealCm2
+        )
+      : { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
+
+  return {
+    sigmaMaxKPa: dist.sigmaMaxKPa,
+    sigmaMinKPa: dist.sigmaMinKPa,
+    longitudContactoM: dist.longitudContactoM,
+    sigmaCriticaKPa: presionEn(dist, dim, seccionM),
+    lM,
+    dM: d,
+    ziM,
+    momentoKNm,
+    fsKN,
+    asCalculadoCm2,
+    asMinCm2,
+    asNecCm2,
+    asRealCm2,
+    verificaAs: asRealCm2 >= asNecCm2,
+    verificaDiametroMinimo: armadura.diametroMm >= 12,
+    anclaje,
+    ...corte,
+  };
+}
+
 export function calcularZapataAislada(
   materiales: MaterialesDerivados,
   geometria: GeometriaZapataAislada,
@@ -432,8 +603,9 @@ export function calcularZapataAislada(
   const dA = H - recubrimiento - armadoA.diametroMm / 2000;
   const dB = H - recubrimiento - armadoB.diametroMm / 2000 - armadoA.diametroMm / 1000;
 
-  const direccionA = calcularArmadoDireccion(materiales, A, B, H, anchoPilarA, dA, cargas, MkA, armadoA);
-  const direccionB = calcularArmadoDireccion(materiales, B, A, H, anchoPilarB, dB, cargas, MkB, armadoB);
+  const forma = datos.formaAnclaje ?? "recta";
+  const direccionA = calcularDireccionZapata(materiales, A, B, H, anchoPilarA, dA, recubrimiento, Nk, MkA, armadoA, forma);
+  const direccionB = calcularDireccionZapata(materiales, B, A, H, anchoPilarB, dB, recubrimiento, Nk, MkB, armadoB, forma);
 
   const punzonamiento = calcularPunzonamiento(materiales, geometria, cargas, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2);
 

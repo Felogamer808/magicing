@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Zapata de medianería con viga centradora",
+  title: "Viga centradora",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

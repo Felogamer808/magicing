@@ -72,7 +72,6 @@ se fueron con coeficientes distintos.
 |---|---|
 | `calcularZapataAislada(materiales, geometria, sigmaAdm, datos)` | `zapata-aislada.ts` |
 | `calcularZapataCorrida(materiales, geometria, sigmaAdm, datos)` | `zapata-corrida.ts` |
-| `calcularZapataMedianeria(materiales, geometria, sigmaAdm, datos)` | `zapata-medianeria.ts` |
 | `calcularZapataCombinada(materiales, geometria, sigmaAdm, datos)` | `zapata-combinada.ts` |
 | `calcularFranjaLosa(materiales, geometria, sigmaAdm, datos)` | `losa-fundacion.ts` |
 | `calcularPilote(materiales, geometria, geotecnia, armadura, carga)` | `pilote.ts` |

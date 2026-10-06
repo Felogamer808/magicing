@@ -62,7 +62,6 @@ export type IdVerificacion =
   | "secciones-mixtas"
   | "zapatas"
   | "zapata-corrida"
-  | "zapata-medianeria"
   | "zapata-viga-centradora"
   | "zapata-combinada"
   | "losa-fundacion"
@@ -333,7 +332,8 @@ export const registroVerificaciones: VerificacionMeta[] = [
     nombre: "Zapata aislada",
     seccion: "hormigon-armado",
     categoria: "Cimentaciones",
-    descripcion: "Verificación geotécnica y armado a flexión de una zapata aislada con momento biaxial.",
+    descripcion:
+      "Verificación geotécnica y armado de una zapata con momento biaxial y el pilar en cualquier posición: centrado o descentrado, como la zapata de medianería.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zapata-aislada",
     disponible: true,
@@ -349,22 +349,12 @@ export const registroVerificaciones: VerificacionMeta[] = [
     disponible: true,
   },
   {
-    id: "zapata-medianeria",
-    nombre: "Zapata de medianería",
-    seccion: "hormigon-armado",
-    categoria: "Cimentaciones",
-    descripcion: "Zapata excéntrica junto a un límite de propiedad, sin poder volar hacia ese lado.",
-    normasDisponibles: ["EC2"],
-    ruta: "/verificaciones/zapata-medianeria",
-    disponible: true,
-  },
-  {
     id: "zapata-viga-centradora",
-    nombre: "Zapata de medianería con viga centradora",
+    nombre: "Viga centradora",
     seccion: "hormigon-armado",
     categoria: "Cimentaciones",
     descripcion:
-      "Cuando la medianería no da: viga que une la zapata con la interior, toma el momento y deja la zapata con presión centrada.",
+      "Viga que une una zapata con el pilar descentrado (de medianería) con la interior: toma el momento y deja la zapata con presión centrada. Se llega con los datos desde la zapata aislada.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zapata-viga-centradora",
     disponible: true,

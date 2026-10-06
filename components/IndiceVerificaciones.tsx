@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Search } from "lucide-react";
@@ -40,7 +41,7 @@ export function IndiceVerificaciones({ seccion }: { seccion?: string }) {
             coincide(v.nombre) ||
             coincide(v.categoria) ||
             coincide(v.descripcion) ||
-            v.normasDisponibles.some(coincide)
+            v.normasDisponibles.some((n) => coincide(n) || coincide(nombreNorma(n)))
         )
       : deLaSeccion;
 
@@ -98,7 +99,7 @@ export function IndiceVerificaciones({ seccion }: { seccion?: string }) {
                         <div className="flex flex-wrap items-center gap-1.5">
                           {item.normasDisponibles.map((norma) => (
                             <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
-                              {norma}
+                              {nombreNorma(norma)}
                             </Badge>
                           ))}
                           {/*

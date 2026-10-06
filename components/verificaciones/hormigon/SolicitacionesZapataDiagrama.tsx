@@ -16,6 +16,8 @@ interface SolicitacionesZapataDiagramaProps {
   /** Presiones de cálculo bajo la zapata (kN/m²) */
   sigmaMaxKPa: number;
   sigmaMinKPa: number;
+  /** Largo que apoya, medido desde el borde más cargado (m). Si falta, apoya toda la base. */
+  longitudContactoM?: number;
 }
 
 const fmt = (n: number, d = 0) =>
@@ -39,9 +41,11 @@ export function SolicitacionesZapataDiagrama({
   mkKNm,
   sigmaMaxKPa,
   sigmaMinKPa,
+  longitudContactoM,
 }: SolicitacionesZapataDiagramaProps) {
   const flecha = useId();
-  if (!(anchoM > 0) || !(cantoM > 0)) return null;
+  // Con la resultante fuera de la base σmáx es infinita y el trapecio no tiene escala.
+  if (!(anchoM > 0) || !(cantoM > 0) || !Number.isFinite(sigmaMaxKPa)) return null;
 
   const W = 420;
   const x0 = 60;
@@ -63,6 +67,10 @@ export function SolicitacionesZapataDiagrama({
   const hMin = (sigmaMinKPa / pico) * MAX_PRESION_PX;
 
   const alto = yBase + MAX_PRESION_PX + 52;
+
+  // Con despegue la cuña arranca donde empieza el contacto, no en el borde.
+  const xContacto =
+    longitudContactoM !== undefined && longitudContactoM < anchoM ? x1 - longitudContactoM * escala : x0;
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
@@ -101,14 +109,14 @@ export function SolicitacionesZapataDiagrama({
 
         {/* Trapecio de presiones del terreno */}
         <path
-          d={`M${x0} ${yBase} L${x1} ${yBase} L${x1} ${yBase + hMax} L${x0} ${yBase + hMin} Z`}
+          d={`M${xContacto} ${yBase} L${x1} ${yBase} L${x1} ${yBase + hMax} L${xContacto} ${yBase + hMin} Z`}
           fill="currentColor"
           fillOpacity="0.2"
           stroke="currentColor"
           strokeWidth="1.2"
         />
         {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-          const x = x0 + (x1 - x0) * t;
+          const x = xContacto + (x1 - xContacto) * t;
           const h = hMin + (hMax - hMin) * t;
           return <path key={t} d={`M${x} ${yBase + h} L${x} ${yBase + 2}`} stroke="currentColor" strokeWidth="1" markerEnd={`url(#${flecha})`} opacity="0.75" />;
         })}

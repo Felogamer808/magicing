@@ -63,7 +63,84 @@ describe("distribución de presiones bajo la base", () => {
   });
 });
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import {
+  calcularZapataAislada,
+  cargaEntreSeccionYBorde,
+  coeficienteKMomento,
+  moduloPerimetroM2,
+  presionEn,
+} from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+
+describe("carga del terreno entre una sección y el borde", () => {
+  it("sobre toda la base devuelve la carga aplicada, con o sin despegue", () => {
+    for (const e of [0, 0.2, 0.5, 0.9]) {
+      const d = distribucionPresiones(600, 2, 1.5, e);
+      expect(cargaEntreSeccionYBorde(d, 2, 1.5, 0).fuerzaKN).toBeCloseTo(600, 6);
+    }
+  });
+
+  it("sin despegue coincide con el trapecio integrado a mano", () => {
+    const d = distribucionPresiones(600, 2, 1.5, 0.2);
+    const s = 1.2;
+    const sigmaS = presionEn(d, 2, s);
+    const l = 2 - s;
+    const momento = sigmaS * 1.5 * l * (l / 2) + (d.sigmaMaxKPa - sigmaS) * 1.5 * (l / 2) * ((2 * l) / 3);
+    expect(cargaEntreSeccionYBorde(d, 2, 1.5, s).momentoKNm).toBeCloseTo(momento, 9);
+  });
+
+  it("con despegue el tramo levantado no aporta presión", () => {
+    const d = distribucionPresiones(600, 2, 2, 0.5);
+    // La cuña mide 1,5 m: el primer medio metro está levantado.
+    expect(presionEn(d, 2, 0.3)).toBe(0);
+    expect(presionEn(d, 2, 2)).toBeCloseTo(d.sigmaMaxKPa, 9);
+  });
+
+  it("con la resultante fuera de la base no devuelve cero", () => {
+    const d = distribucionPresiones(600, 2, 2, 1.2);
+    expect(cargaEntreSeccionYBorde(d, 2, 2, 1).momentoKNm).toBe(Infinity);
+  });
+});
+
+/**
+ * Los datos con que se encontraron los tres errores: pilar liviano sobre una
+ * zapata cuyo peso propio pesa en la resultante, con momento suficiente para
+ * despegar un borde.
+ */
+describe("zapata liviana con despegue", () => {
+  const materiales = derivarMateriales({ fck: 30, fyk: 500 });
+  const geometria = { A: 0.8, B: 0.8, H: 0.3, anchoPilarA: 0.1, anchoPilarB: 0.1, recubrimiento: 0.04 };
+  const armado = { numero: 6, diametroMm: 10 };
+  const calcular = (Nk: number) =>
+    calcularZapataAislada(materiales, geometria, 150, {
+      cargas: { Nk, MkA: 5, MkB: 5 },
+      armadoA: armado,
+      armadoB: armado,
+    });
+
+  it("la excentricidad del terreno incluye el peso propio", () => {
+    const r = calcular(14);
+    // PP = 4,8 kN; e = 5 / 18,8. Con e = 5/14, como antes, daba 2.559 kPa.
+    const anchoEficaz = 0.8 - (2 * 5) / 18.8;
+    expect(r.geotecnico.sigmaKPa).toBeCloseTo(18.8 / anchoEficaz ** 2, 6);
+    expect(r.geotecnico.verificaTension).toBe(false);
+  });
+
+  it("el armado usa la cuña de presiones, no un trapecio con tracciones", () => {
+    const r = calcular(14);
+    // e de cálculo = 5/14 > 0,8/6: la cuña mide 3·(0,4 − e) y σmáx = 2·Nd/(c·B).
+    const cuna = 3 * (0.4 - 5 / 14);
+    expect(r.direccionA.sigmaMaxKPa).toBeCloseTo((2 * 1.5 * 14) / (cuna * 0.8), 6);
+    expect(r.direccionA.sigmaMinKPa).toBe(0);
+  });
+
+  it("con la resultante fuera de la base no verifica", () => {
+    // Nk = 1: e = 5 / 5,8 = 0,86 m, más que media base. Antes daba 0,07 kPa y "cumple".
+    const r = calcular(1);
+    expect(r.geotecnico.sigmaKPa).toBe(Infinity);
+    expect(r.geotecnico.verificaTension).toBe(false);
+    expect(r.direccionA.verificaAs).toBe(false);
+  });
+});
 
 // Casos extraídos/verificados con Excel COM sobre "CALCULOS TODO.xlsx", hoja "Zapatas",
 // bloque "ZAPATA AISLADA CON MOMENTO".
@@ -92,23 +169,20 @@ describe("zapata aislada (caso original de la planilla, Mk=0)", () => {
     expect(r.esRigida).toBe(true);
   });
 
-  it("reproduce el armado en dirección A (sin excentricidad)", () => {
-    expect(r.direccionA.sigmaMaxKPa).toBeCloseTo(82.6530612244898, 6);
-    expect(r.direccionA.lM).toBeCloseTo(0, 9);
+  // El armado de la planilla era EHE-08 y ya no se compara: ver el caso
+  // siguiente, recalculado a mano con el Anejo 19. Acá el pilar es más ancho
+  // que la zapata, así que no hay vuelo y gobierna la mínima.
+  it("sin vuelo no hay tracción que anclar y gobierna la cuantía mínima", () => {
     expect(r.direccionA.dM).toBeCloseTo(0.254, 6);
-    expect(r.direccionA.tdKN).toBeCloseTo(0, 9);
-    expect(r.direccionA.asNecCm2).toBeCloseTo(3.864, 3);
-    expect(r.direccionA.asRealCm2).toBeCloseTo(4.5238934211693, 6);
-    expect(r.direccionA.verificaAs).toBe(true);
-    expect(r.direccionA.lbIMm).toBeCloseTo(300, 6);
-    expect(r.direccionA.dmMm).toBeCloseTo(144, 6);
-  });
-
-  it("reproduce el armado en dirección B (sin excentricidad)", () => {
     expect(r.direccionB.dM).toBeCloseTo(0.242, 6);
-    expect(r.direccionB.asNecCm2).toBeCloseTo(3.864, 3);
-    expect(r.direccionB.asRealCm2).toBeCloseTo(4.5238934211693, 6);
-    expect(r.direccionB.verificaAs).toBe(true);
+    expect(r.direccionA.fsKN).toBe(0);
+    expect(r.direccionA.anclaje.verifica).toBe(true);
+    expect(r.direccionA.anclaje.comprobado).toBe(false);
+    // ec. (9.1): b·h²/6 / (0,8·h) · fctm,fl / fyd, con fctm,fl = 1,3·fctm.
+    const fctmFl = 1.3 * 0.3 * 30 ** (2 / 3);
+    expect(r.direccionA.asMinCm2).toBeCloseTo(1e4 * ((0.7 * 0.3 ** 2) / 6 / (0.8 * 0.3)) * (fctmFl / (500 / 1.15)), 6);
+    expect(r.direccionA.asNecCm2).toBeCloseTo(r.direccionA.asMinCm2, 9);
+    expect(r.direccionA.verificaAs).toBe(true);
   });
 });
 
@@ -131,40 +205,87 @@ describe("zapata aislada con excentricidad (Mk A ≠ Mk B, corregido)", () => {
 
   it("reproduce el peso propio y la presión por el método del área efectiva", () => {
     expect(r.geotecnico.pesoPropioKN).toBeCloseTo(37.5, 6);
-    expect(r.geotecnico.sigmaKPa).toBeCloseTo(210.28951486698, 5);
+    // La planilla daba 210,29: tomaba e = Mk/Nk sin el peso propio. Con la
+    // resultante real, e = Mk/(Nk+PP): 537,5 / (1,8140 × 1,4256) = 207,85.
+    expect(r.geotecnico.sigmaKPa).toBeCloseTo(207.854916969925, 5);
     expect(r.geotecnico.verificaTension).toBe(true);
   });
 
-  it("reproduce el armado en dirección A", () => {
+  /*
+   * Recalculado a mano con el Anejo 19, art. 9.8.2.2: sección de cálculo a
+   * 0,15·c dentro de la cara del pilar, F_s = M/(0,9·d), As = F_s/fyd sin tope.
+   * La planilla (EHE-08) daba Td = M/(0,85·d) con la sección a c/4 y fyd ≤ 400.
+   */
+  const fyd = 500 / 1.15;
+  const fctmFl = 1.1 * 0.3 * 25 ** (2 / 3); // (1,6 − 0,5)·fctm
+  const momentoTrapecio = (b: number, l: number, sigmaSeccion: number, sigmaBorde: number) =>
+    sigmaSeccion * b * l * (l / 2) + (sigmaBorde - sigmaSeccion) * b * (l / 2) * ((2 * l) / 3);
+
+  it("dirección A: Fs = M/(0,9·d) en la sección a 0,15·c", () => {
+    const l = 0.8 + 0.15 * 0.4; // 0,86 m
+    const sigmaSeccion = 175 + (150 * (2 - l)) / 2; // 260,5 kPa
+    const m = momentoTrapecio(1.5, l, sigmaSeccion, 325);
     expect(r.direccionA.sigmaMaxKPa).toBeCloseTo(325, 6);
     expect(r.direccionA.sigmaMinKPa).toBeCloseTo(175, 6);
-    expect(r.direccionA.sigmaCriticaKPa).toBeCloseTo(257.5, 6);
-    expect(r.direccionA.lM).toBeCloseTo(0.9, 6);
-    expect(r.direccionA.dM).toBeCloseTo(0.442, 6);
-    expect(r.direccionA.tdKN).toBeCloseTo(489.136944370508, 3);
-    expect(r.direccionA.asMinMecanicoCm2).toBeCloseTo(11.5, 3);
-    expect(r.direccionA.asMinGeometricoCm2).toBeCloseTo(6.75, 3);
-    expect(r.direccionA.asNecCm2).toBeCloseTo(12.2284236092627, 3);
-    expect(r.direccionA.asRealCm2).toBeCloseTo(16.0849543863797, 3);
+    expect(r.direccionA.lM).toBeCloseTo(l, 9);
+    expect(r.direccionA.sigmaCriticaKPa).toBeCloseTo(sigmaSeccion, 6);
+    expect(r.direccionA.momentoKNm).toBeCloseTo(m, 6);
+    expect(r.direccionA.fsKN).toBeCloseTo(m / (0.9 * 0.442), 6);
+    expect(r.direccionA.asCalculadoCm2).toBeCloseTo((1e4 * m) / (0.9 * 0.442) / (fyd * 1000), 6);
+    // Mínima, ec. (9.1): 1,5·0,5²/6 / 0,4 · fctm,fl/fyd = 10,14 cm²; gobierna.
+    expect(r.direccionA.asMinCm2).toBeCloseTo(1e4 * ((1.5 * 0.25) / 6 / 0.4) * (fctmFl / fyd), 6);
+    expect(r.direccionA.asNecCm2).toBeCloseTo(r.direccionA.asMinCm2, 9);
     expect(r.direccionA.verificaAs).toBe(true);
-    expect(r.direccionA.lbIMm).toBeCloseTo(400, 6);
-    expect(r.direccionA.dmMm).toBeCloseTo(192, 6);
+    expect(r.direccionA.verificaDiametroMinimo).toBe(true);
   });
 
-  it("usa Mk B (no Mk A) para el armado en dirección B — corrige el bug de la planilla", () => {
+  it("dirección B usa Mk B y no llega a la mínima con 6φ16", () => {
+    const l = 0.6 + 0.15 * 0.3; // 0,645 m
+    const sigmaSeccion = 210 + (80 * (1.5 - l)) / 1.5;
+    const m = momentoTrapecio(2, l, sigmaSeccion, 290);
     expect(r.direccionB.sigmaMaxKPa).toBeCloseTo(290, 6);
     expect(r.direccionB.sigmaMinKPa).toBeCloseTo(210, 6);
-    expect(r.direccionB.sigmaCriticaKPa).toBeCloseTo(254, 6);
-    expect(r.direccionB.lM).toBeCloseTo(0.675, 6);
-    expect(r.direccionB.dM).toBeCloseTo(0.426, 6);
-    expect(r.direccionB.tdKN).toBeCloseTo(349.803231151616, 3);
-    expect(r.direccionB.asMinMecanicoCm2).toBeCloseTo(15.3333333333333, 3);
-    expect(r.direccionB.asMinGeometricoCm2).toBeCloseTo(9, 3);
-    expect(r.direccionB.asNecCm2).toBeCloseTo(15.3333333333333, 3);
-    expect(r.direccionB.asRealCm2).toBeCloseTo(12.0637157897848, 3);
+    expect(r.direccionB.momentoKNm).toBeCloseTo(m, 6);
+    expect(r.direccionB.fsKN).toBeCloseTo(m / (0.9 * 0.426), 6);
+    // Mínima: 2·0,5²/6 / 0,4 · fctm,fl/fyd = 13,52 cm² > 12,06 cm² reales.
+    expect(r.direccionB.asMinCm2).toBeCloseTo(1e4 * ((2 * 0.25) / 6 / 0.4) * (fctmFl / fyd), 6);
+    expect(r.direccionB.asRealCm2).toBeCloseTo(12.0637157897848, 6);
     expect(r.direccionB.verificaAs).toBe(false);
-    expect(r.direccionB.lbIMm).toBeCloseTo(400, 6);
-    expect(r.direccionB.dmMm).toBeCloseTo(192, 6);
+  });
+
+  it("el anclaje se comprueba desde x = h/2 y ancla F_s(x) en x − recubrimiento", () => {
+    const a = r.direccionA.anclaje;
+    expect(a.xM).toBeGreaterThanOrEqual(0.25 - 1e-9);
+    expect(a.xM).toBeLessThanOrEqual(r.direccionA.lM + 1e-9);
+    expect(a.disponibleMm).toBeCloseTo((a.xM - 0.05) * 1000, 6);
+    expect(a.fsKN).toBeLessThanOrEqual(r.direccionA.fsKN + 1e-9);
+    expect(a.verifica).toBe(a.lbdMm <= a.disponibleMm);
+  });
+});
+
+describe("anclaje y diámetro mínimo de la parrilla (art. 9.8.2)", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+  const geometria = { A: 2.4, B: 2.4, H: 0.4, anchoPilarA: 0.3, anchoPilarB: 0.3, recubrimiento: 0.05 };
+  const calcular = (diametroMm: number, formaAnclaje: "recta" | "gancho", Nk = 900) =>
+    calcularZapataAislada(materiales, geometria, 500, {
+      cargas: { Nk, MkA: 0, MkB: 0 },
+      armadoA: { numero: 14, diametroMm },
+      armadoB: { numero: 14, diametroMm },
+      formaAnclaje,
+    });
+
+  it("la patilla acorta la longitud necesaria respecto de la barra recta", () => {
+    // φ12 con 50 mm de recubrimiento: cd > 3φ, así que la patilla tiene α1 = 0,7
+    // (tabla A19.8.2). Con φ20 no, y las dos darían lo mismo.
+    const recta = calcular(12, "recta", 2500).direccionA.anclaje;
+    const patilla = calcular(12, "gancho", 2500).direccionA.anclaje;
+    expect(recta.lbdMm).toBeGreaterThan(120); // por encima de lb,min = 10φ
+    expect(patilla.lbdMm).toBeLessThan(recta.lbdMm);
+  });
+
+  it("exige φ ≥ 12 mm", () => {
+    expect(calcular(10, "recta").direccionA.verificaDiametroMinimo).toBe(false);
+    expect(calcular(12, "recta").direccionA.verificaDiametroMinimo).toBe(true);
   });
 });
 
@@ -202,21 +323,81 @@ describe("cortante y punzonamiento (EC2, sin equivalente en la planilla)", () =>
   it("reproduce el punzonamiento en el perímetro crítico", () => {
     expect(r.punzonamiento.dPromedioM).toBeCloseTo(0.534, 3);
     expect(r.punzonamiento.u1M).toBeCloseTo(4.754, 2);
-    expect(r.punzonamiento.vEdKN).toBeCloseTo(1111, 0);
+    // Sin momento la (6.51) da β = 1. Antes se aplicaba el 1,15 del art.
+    // 6.4.3 (6), pensado para losas: 1111 / 1,15 = 966.
+    expect(r.punzonamiento.beta).toBeCloseTo(1, 9);
+    expect(r.punzonamiento.vEdKN).toBeCloseTo(966, 0);
     expect(r.punzonamiento.vRdCKN).toBeCloseTo(1935, 0);
     expect(r.punzonamiento.verificaPunzonamiento).toBe(true);
   });
 
   it("el perímetro crítico cae dentro de 2d, no en 2d", () => {
-    // Antes se comprobaba sólo el perímetro de 2d y daba un aprovechamiento de
-    // 0,34. Barriendo los perímetros interiores como pide el art. 6.4.4(2), el
-    // que gobierna está a 0,94·d y el aprovechamiento real es 0,57: un 68 % más
-    // alto. Esta zapata sigue verificando, pero una que antes diera 0,62 en
-    // realidad estaría por encima de 1.
+    // Comprobando sólo el perímetro de 2d el aprovechamiento sería un 68 % más
+    // bajo. Barriendo los perímetros interiores como pide el art. 6.4.4(2), el
+    // que gobierna está a 0,94·d. (0,499 = 0,574 / 1,15, sin el β de losas.)
     expect(r.punzonamiento.aCriticaM).toBeLessThan(2 * r.punzonamiento.dPromedioM);
     expect(r.punzonamiento.aCriticaM / r.punzonamiento.dPromedioM).toBeCloseTo(0.94, 2);
-    expect(r.punzonamiento.aprovechamiento).toBeCloseTo(0.574, 3);
+    expect(r.punzonamiento.aprovechamiento).toBeCloseTo(0.4994, 3);
   });
+
+  it("en la cara del pilar compara con 0,4·ν·fcd (ec. 6.53)", () => {
+    const c = r.punzonamiento.caraPilar;
+    // u0 = 1,6 m; v = 1200 kN / (1,6 · 0,534) = 1,404 MPa.
+    expect(c.u0M).toBeCloseTo(1.6, 9);
+    expect(c.vEdMPa).toBeCloseTo(1200 / (1.6 * 0.534) / 1000, 6);
+    // ν = 0,6·(1 − 25/250) = 0,54; 0,4 · 0,54 · 16,67 = 3,6 MPa.
+    expect(c.vRdMaxMPa).toBeCloseTo(3.6, 6);
+    expect(c.verifica).toBe(true);
+  });
+
+  it("con momento suma kA·MEd·u/W a VEd,red en el perímetro crítico (ec. 6.51)", () => {
+    const rM = calcularZapataAislada(materiales, geometria, 1000, {
+      cargas: { Nk: 800, MkA: 100, MkB: 0 },
+      armadoA: armado,
+      armadoB: armado,
+    });
+    const p = rM.punzonamiento;
+    const a = p.aCriticaM;
+    // Pilar cuadrado: k = 0,60. W = c²/2 + c² + 2ca + 4a² + πac.
+    const w = 0.4 ** 2 / 2 + 0.4 ** 2 + 2 * 0.4 * a + 4 * a ** 2 + Math.PI * a * 0.4;
+    expect(p.vEdKN).toBeCloseTo(p.vEdRedKN + (0.6 * 150 * p.u1M) / w, 6);
+    expect(p.beta).toBeGreaterThan(1);
+    expect(p.aprovechamiento).toBeGreaterThan(r.punzonamiento.aprovechamiento);
+    expect(rM.punzonamiento.caraPilar.beta).toBeGreaterThan(1);
+  });
+
+  it("con vuelo menor que 2d no barre perímetros fuera de la zapata", () => {
+    const rCorta = calcularZapataAislada(
+      materiales,
+      { A: 0.9, B: 0.9, H: 0.6, anchoPilarA: 0.4, anchoPilarB: 0.4, recubrimiento: 0.05 },
+      1000,
+      { cargas: { Nk: 800, MkA: 0, MkB: 0 }, armadoA: armado, armadoB: armado }
+    );
+    expect(rCorta.punzonamiento.hayPerimetroDentro).toBe(true);
+    expect(rCorta.punzonamiento.aCriticaM).toBeLessThanOrEqual(0.25 + 1e-9);
+  });
+});
+
+describe("coeficientes de la ec. (6.51)", () => {
+  it("k sigue la tabla A19.6.1 e interpola entre sus valores", () => {
+    expect(coeficienteKMomento(0.2, 1)).toBeCloseTo(0.45, 9);
+    expect(coeficienteKMomento(1, 1)).toBeCloseTo(0.6, 9);
+    expect(coeficienteKMomento(1.5, 1)).toBeCloseTo(0.65, 9);
+    expect(coeficienteKMomento(3, 1)).toBeCloseTo(0.8, 9);
+    expect(coeficienteKMomento(5, 1)).toBeCloseTo(0.8, 9);
+  });
+
+  it("W a distancia 2d es la ec. (6.41)", () => {
+    const c1 = 0.5, c2 = 0.3, d = 0.45;
+    const w641 = c1 ** 2 / 2 + c1 * c2 + 4 * c2 * d + 16 * d ** 2 + 2 * Math.PI * d * c1;
+    expect(moduloPerimetroM2(c1, c2, 2 * d)).toBeCloseTo(w641, 9);
+  });
+});
+
+describe("cortante y punzonamiento (continuación)", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+  const geometria = { A: 3, B: 3, H: 0.6, anchoPilarA: 0.4, anchoPilarB: 0.4, recubrimiento: 0.05 };
+  const armado = { numero: 10, diametroMm: 16 };
 
   it("el punzonamiento deja de verificar con una carga mucho mayor (misma armadura)", () => {
     const rSobrecargada = calcularZapataAislada(materiales, geometria, 1000, {

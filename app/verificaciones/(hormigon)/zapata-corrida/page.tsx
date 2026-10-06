@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
@@ -15,7 +16,10 @@ import { ConclusionResultados } from "@/components/verificaciones/comun/Conclusi
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
+import { DiagramaPresionSuelo } from "@/components/verificaciones/hormigon/DiagramaPresionSuelo";
+import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
@@ -33,6 +37,11 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
+const POSICIONES = ["Centrado", "Ubicación libre", "Contra la medianera"] as const;
+const EQUILIBRIOS = ["Lo toma el terreno", "Par tirante–terreno"] as const;
+const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
+const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
+
 export default function ZapataCorridaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
 
@@ -44,6 +53,16 @@ export default function ZapataCorridaPage() {
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
   const [anchoPilar, setAnchoPilar] = useCampo("anchoPilar", "0.3");
 
+  // Dónde cae el muro. "Contra la medianera" es un atajo: deja la distancia
+  // en 0 y pasa a ubicación libre.
+  const [posicionMuro, setPosicionMuro] = useCampo("posicionMuro", POSICIONES[0]);
+  const [distanciaBorde, setDistanciaBorde] = useCampo("distanciaBorde", "0");
+  const descentrado = posicionMuro === POSICIONES[1];
+  const [equilibrio, setEquilibrio] = useCampo("equilibrio", EQUILIBRIOS[0]);
+  const [brazoTirante, setBrazoTirante] = useCampo("brazoTirante", "3");
+  const [phiTerreno, setPhiTerreno] = useCampo("phiTerreno", "30");
+  const conTirante = descentrado && equilibrio === EQUILIBRIOS[1];
+
   const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
   const [Nk, setNk] = useCampo("Nk", "100");
   const [MkA, setMkA] = useCampo("MkA", "15");
@@ -52,6 +71,7 @@ export default function ZapataCorridaPage() {
   const [separacionPrincipal, setSeparacionPrincipal] = useCampo("separacionPrincipal", "0.15");
   const [numeroSecundario, setNumeroSecundario] = useCampo("numeroSecundario", "4");
   const [diametroSecundario, setDiametroSecundario] = useCampo("diametroSecundario", "10");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
 
   const resultado = useMemo(() => {
     const v = {
@@ -71,7 +91,7 @@ export default function ZapataCorridaPage() {
     };
 
     const todosValidos = Object.values(v).every((n) => Number.isFinite(n));
-    const geometriaValida = v.A > 0 && v.H > 0 && v.anchoPilar > 0;
+    const geometriaValida = v.A > 0 && v.H > 0 && v.anchoPilar > 0 && v.anchoPilar <= v.A;
     const materialesValidos = v.fck > 0 && v.fyk > 0 && v.sigmaAdmisible > 0;
     const armadurasValidas =
       v.diametroPrincipal > 0 && v.separacionPrincipal > 0 && v.numeroSecundario > 0 && v.diametroSecundario > 0;
@@ -81,20 +101,31 @@ export default function ZapataCorridaPage() {
       return null;
     }
 
+    const borde = aNumero(distanciaBorde);
+    if (descentrado && !(borde >= 0 && borde + v.anchoPilar <= v.A + 1e-9)) return null;
+    const brazo = aNumero(brazoTirante);
+    const phi = aNumero(phiTerreno);
+    if (conTirante && !(brazo > 0 && phi > 0 && phi < 90)) return null;
+
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { A: v.A, H: v.H, anchoPilar: v.anchoPilar, recubrimiento: v.recubrimiento };
+    const geometria = {
+      A: v.A, H: v.H, anchoPilar: v.anchoPilar, recubrimiento: v.recubrimiento,
+      ...(descentrado ? { distanciaBorde: borde } : {}),
+    };
 
     const zapata = calcularZapataCorrida(materiales, geometria, v.sigmaAdmisible, {
       carga: { Nk: v.Nk, MkA: v.MkA },
       armadoPrincipal: { diametroMm: v.diametroPrincipal, separacionM: v.separacionPrincipal },
       armadoSecundario: { numero: v.numeroSecundario, diametroMm: v.diametroSecundario },
+      formaAnclaje,
+      ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
     });
 
     return { zapata };
   }, [
-    fck, fyk, A, H, recubrimiento, anchoPilar,
+    fck, fyk, A, H, recubrimiento, anchoPilar, descentrado, distanciaBorde, conTirante, brazoTirante, phiTerreno,
     sigmaAdmisible, Nk, MkA,
-    diametroPrincipal, separacionPrincipal, numeroSecundario, diametroSecundario,
+    diametroPrincipal, separacionPrincipal, numeroSecundario, diametroSecundario, formaAnclaje,
   ]);
 
   const diagrama = useMemo(() => {
@@ -107,6 +138,7 @@ export default function ZapataCorridaPage() {
       separacionPrincipal: aNumero(separacionPrincipal),
     };
     if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) return null;
+    const borde = aNumero(distanciaBorde);
     return {
       AM: v.A,
       HM: v.H,
@@ -114,11 +146,58 @@ export default function ZapataCorridaPage() {
       dM: v.H - v.recubrimiento - v.diametroPrincipal / 2000,
       diametroPrincipalMm: v.diametroPrincipal,
       separacionPrincipalM: v.separacionPrincipal,
+      ...(descentrado && Number.isFinite(borde) ? { distanciaBordeM: borde } : {}),
     };
-  }, [A, H, anchoPilar, recubrimiento, diametroPrincipal, separacionPrincipal]);
+  }, [A, H, anchoPilar, recubrimiento, diametroPrincipal, separacionPrincipal, descentrado, distanciaBorde]);
+
+  const cambiarPosicion = (valor: string) => {
+    if (valor === POSICIONES[2]) {
+      setDistanciaBorde("0");
+      setPosicionMuro(POSICIONES[1]);
+      return;
+    }
+    if (valor === POSICIONES[1] && !descentrado) {
+      // Al pasar a ubicación libre se arranca de la posición centrada.
+      const a = aNumero(A);
+      const c = aNumero(anchoPilar);
+      if (Number.isFinite(a) && Number.isFinite(c)) setDistanciaBorde(String(Math.max((a - c) / 2, 0)));
+    }
+    setPosicionMuro(valor);
+  };
 
   const avisos: AvisoRevision[] = [];
-  if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+  if (!resultado) {
+    avisos.push({
+      tipo: "error",
+      texto: descentrado
+        ? "Hay datos vacíos o no válidos, o el muro queda fuera de la zapata: la distancia de su cara al borde más su espesor no puede superar A."
+        : "Hay datos vacíos o no válidos: no se puede calcular.",
+    });
+  } else if (resultado.zapata.tirante && !resultado.zapata.tirante.geometriaValida) {
+    avisos.push({
+      tipo: "error",
+      texto: "El brazo del tirante tiene que ser mayor que el canto de la zapata: se mide del eje del tirante a la base.",
+    });
+  } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
+    avisos.push({
+      tipo: "error",
+      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible.",
+    });
+  } else if (!resultado.zapata.geotecnico.dentroDelNucleo) {
+    avisos.push({
+      tipo: "error",
+      texto: "La resultante sale del núcleo central y la zapata se despega: no verifica el terreno. Con el muro contra la medianera, la salida habitual es el par tirante–terreno.",
+    });
+  }
+
+  const vuelos = resultado
+    ? resultado.zapata.muroCentrado
+      ? [{ nombre: "Vuelo", r: resultado.zapata.principal }]
+      : [
+          { nombre: "Vuelo izquierdo", r: resultado.zapata.vuelos.inicio },
+          { nombre: "Vuelo derecho", r: resultado.zapata.vuelos.fin },
+        ]
+    : [];
 
   const corte = diagrama ? (
     <ZapataCorridaDiagrama {...diagrama} />
@@ -157,7 +236,45 @@ export default function ZapataCorridaPage() {
                     <CampoNumerico id="A" etiqueta="A (ancho)" sufijo="m" valor={A} onChange={setA} />
                     <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
                     <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
-                    <CampoNumerico id="anchoPilar" etiqueta="Ancho muro/pilar" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                    <CampoNumerico id="anchoPilar" etiqueta="Espesor del muro" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                    <div className="col-span-2">
+                      <CampoSeleccion
+                        id="posicionMuro"
+                        etiqueta="Dónde cae el muro"
+                        valor={posicionMuro}
+                        opciones={POSICIONES}
+                        onChange={cambiarPosicion}
+                      />
+                    </div>
+                    {descentrado && (
+                      <>
+                        <CampoNumerico id="distanciaBorde" etiqueta="Cara al borde izquierdo" sufijo="m" valor={distanciaBorde} onChange={setDistanciaBorde} />
+                        <p className="col-span-2 text-xs text-muted-foreground">
+                          0 es el muro contra la medianera. El momento del descentramiento, Nk·e, sale
+                          solo: no hace falta cargarlo en Mk.
+                        </p>
+                        <div className="col-span-2">
+                          <CampoSeleccion
+                            id="equilibrio"
+                            etiqueta="Quién toma el momento"
+                            valor={equilibrio}
+                            opciones={EQUILIBRIOS}
+                            onChange={setEquilibrio}
+                          />
+                        </div>
+                        {conTirante && (
+                          <>
+                            <CampoNumerico id="brazoTirante" etiqueta="h: tirante → base" sufijo="m" valor={brazoTirante} onChange={setBrazoTirante} />
+                            <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
+                            <p className="col-span-2 text-xs text-muted-foreground">
+                              La losa tira del muro arriba y el rozamiento lo frena en la base: ese par
+                              toma el momento y la presión queda uniforme. h va del eje del tirante a la
+                              base de la zapata.
+                            </p>
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
                 </Subgrupo>
               </>
@@ -170,6 +287,9 @@ export default function ZapataCorridaPage() {
           <div className="grid max-w-md grid-cols-2 gap-4">
             <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN/m" valor={Nk} onChange={setNk} />
             <CampoNumerico id="MkA" etiqueta="Mk" sufijo="kN·m/m" valor={MkA} onChange={setMkA} />
+            <p className="col-span-2 text-xs text-muted-foreground">
+              Mk es el momento que baja por el muro, positivo hacia el borde derecho.
+            </p>
           </div>
         </Etapa>
 
@@ -181,13 +301,22 @@ export default function ZapataCorridaPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <CampoDiametro id="diametroPrincipal" etiqueta="Ø" valor={diametroPrincipal} onChange={setDiametroPrincipal} />
                     <CampoNumerico id="separacionPrincipal" etiqueta="Separación" sufijo="m" valor={separacionPrincipal} onChange={setSeparacionPrincipal} />
+                    <div className="col-span-2 max-w-xs">
+                      <CampoSeleccion
+                        id="formaAnclaje"
+                        etiqueta="Extremo de las barras"
+                        valor={FORMAS[formaAnclaje]}
+                        opciones={Object.values(FORMAS)}
+                        onChange={(v) => setFormaAnclaje(formaPorNombre(v))}
+                      />
+                    </div>
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Reparto">
                   <EditorCapas
                     filas={[
                       {
-                        posicion: "Reparto, por metro",
+                        posicion: "Reparto, en todo el ancho A",
                         numero: { id: "numeroSecundario", valor: numeroSecundario, onChange: setNumeroSecundario },
                         diametro: { id: "diametroSecundario", valor: diametroSecundario, onChange: setDiametroSecundario },
                       },
@@ -207,18 +336,25 @@ export default function ZapataCorridaPage() {
               { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
               { etiqueta: "A × H", valor: `${A} × ${H} m` },
               { etiqueta: "σ adm. suelo", valor: `${sigmaAdmisible} kN/m²` },
+              {
+                etiqueta: "Muro",
+                valor: descentrado ? `${anchoPilar} m, cara a ${distanciaBorde} m del borde` : `${anchoPilar} m, centrado`,
+              },
               ...(resultado
                 ? [
                     { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN/m`, derivado: true },
+                    { etiqueta: "e terreno", valor: `${fmt(resultado.zapata.geotecnico.excentricidadM, 3)} m`, derivado: true },
                     { etiqueta: "Vuelo máximo", valor: `${fmt(resultado.zapata.vueloMaxM, 3)} m`, derivado: true },
-                    { etiqueta: "Tipo", valor: resultado.zapata.esRigida ? "rígida (vuelo ≤ 2H)" : "flexible (vuelo > 2H)", derivado: true },
                   ]
                 : []),
             ]}
             hipotesis={[
-              "Cálculo por metro corrido de zapata.",
-              "La tensión sobre el terreno incluye el peso propio de la zapata.",
-              "Cuantías mínimas mecánica y geométrica heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
+              "Cálculo por metro corrido: es la rebanada de 1 m de una zapata aislada, con el mismo modelo del Anejo 19 (art. 9.8.2, zapatas de pilares y muros).",
+              "La tensión sobre el terreno incluye el peso propio, también en la excentricidad, y la resultante tiene que caer dentro del núcleo central (e ≤ A/6). Se comprueba sobre el ancho eficaz A − 2e.",
+              "Flexión por el art. 9.8.2.2: sección de cálculo a 0,15·b dentro de la cara del muro, Fs = M/(0,9·d) y As = Fs/fyd. Con el muro descentrado cada vuelo se arma por separado.",
+              "Cuantía mínima del art. 9.2.1.1 (1), ec. (9.1); φ ≥ 12 mm (art. 9.8.2.1 (1)); anclaje (art. 8.4) desde x = h/2; cortante sin armadura a d de la cara (art. 6.2.2).",
+              "Reparto a lo largo del muro: 20 % de la principal en todo el ancho (art. 9.3.1.1 (2)).",
+              "Con par tirante–terreno: Tk = (Nk·e + Mk)/h, presión uniforme (DB SE-C, art. 4.3.1.3 (6)), deslizamiento Tk ≤ (N + P)·tan(3/4·φ')/1,5 (DB SE-C, art. 4.2.3.1 (4) y tabla 2.1) y armadura del tirante 1,5·Tk/fyd. Al muro le queda Mk + Tk·(h − H) en el arranque.",
             ]}
             avisos={avisos}
           />
@@ -239,16 +375,37 @@ export default function ZapataCorridaPage() {
                     estado: resultado.zapata.geotecnico.verificaTension ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
                   },
-                  {
-                    etiqueta: "armadura principal",
-                    estado: resultado.zapata.principal.verificaAs ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.principal.asNecCm2PorM / resultado.zapata.principal.asRealCm2PorM,
-                  },
+                  ...vuelos.flatMap((v) => [
+                    {
+                      etiqueta: `armadura · ${v.nombre.toLowerCase()}`,
+                      estado: v.r.verificaAs && v.r.verificaDiametroMinimo ? ("cumple" as const) : ("no-cumple" as const),
+                      utilizacion: v.r.asNecCm2 / v.r.asRealCm2,
+                    },
+                    {
+                      etiqueta: `anclaje · ${v.nombre.toLowerCase()}`,
+                      estado: v.r.anclaje.verifica ? ("cumple" as const) : ("no-cumple" as const),
+                      utilizacion: v.r.anclaje.disponibleMm > 0 ? v.r.anclaje.lbdMm / v.r.anclaje.disponibleMm : 0,
+                    },
+                    {
+                      etiqueta: `cortante · ${v.nombre.toLowerCase()}`,
+                      estado: v.r.verificaCorte ? ("cumple" as const) : ("no-cumple" as const),
+                      utilizacion: v.r.vRdCKN > 0 ? v.r.vEdKN / v.r.vRdCKN : 0,
+                    },
+                  ]),
                   {
                     etiqueta: "armadura de reparto",
                     estado: resultado.zapata.secundario.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.secundario.asNecCm2 / resultado.zapata.secundario.asRealCm2,
                   },
+                  ...(resultado.zapata.tirante
+                    ? [
+                        {
+                          etiqueta: "deslizamiento",
+                          estado: resultado.zapata.tirante.verificaDeslizamiento ? ("cumple" as const) : ("no-cumple" as const),
+                          utilizacion: Math.abs(resultado.zapata.tirante.tkKN) / resultado.zapata.tirante.rozamientoResistenteKN,
+                        },
+                      ]
+                    : []),
                 ]}
               />
 
@@ -257,7 +414,7 @@ export default function ZapataCorridaPage() {
                 metricas={[
                   { etiqueta: "σ terreno", valor: `${fmt(resultado.zapata.geotecnico.sigmaKPa)} kN/m²`, nota: `admisible ${fmt(aNumero(sigmaAdmisible))}` },
                   { etiqueta: "d", valor: `${fmt(resultado.zapata.principal.dM, 3)} m` },
-                  { etiqueta: "As nec. principal", valor: `${fmt(resultado.zapata.principal.asNecCm2PorM)} cm²/m` },
+                  { etiqueta: "As nec. principal", valor: `${fmt(resultado.zapata.principal.asNecCm2)} cm²/m` },
                   { etiqueta: "As nec. reparto", valor: `${fmt(resultado.zapata.secundario.asNecCm2)} cm²` },
                 ]}
               />
@@ -273,10 +430,19 @@ export default function ZapataCorridaPage() {
                       unidad: "kN/m²", exige: "≤",
                     }}
                   />
+                  <div className="max-w-md pt-4">
+                    <DiagramaPresionSuelo
+                      distribucion={resultado.zapata.geotecnico.distribucion}
+                      lM={aNumero(A)}
+                      sigmaAdmisibleKPa={aNumero(sigmaAdmisible)}
+                      etiqueta="Ancho A"
+                    />
+                  </div>
                   <PanelFormulas
                     titulo="Ver desarrollo geotécnico"
                     filas={[
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN/m` },
+                      { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.geotecnico.excentricidadM, 3)} m` },
                       { etiqueta: "Vuelo máximo", valor: `${fmt(resultado.zapata.vueloMaxM, 3)} m` },
                       { etiqueta: "Zapata rígida (vuelo ≤ 2H)", valor: resultado.zapata.esRigida ? "Sí" : "No" },
                     ]}
@@ -284,33 +450,46 @@ export default function ZapataCorridaPage() {
                 </div>
               </Subgrupo>
 
-              <Subgrupo titulo="Comprobaciones estructurales">
+              {resultado.zapata.tirante && (
+                <Subgrupo titulo="Par tirante–terreno">
+                  <div>
+                    <ResultadoCheck
+                      etiqueta="Deslizamiento de la zapata"
+                      verifica={resultado.zapata.tirante.verificaDeslizamiento}
+                      detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(resultado.zapata.tirante.deltaGrados, 1)}° (art. 4.2.3.1 (4)), cargas sin mayorar y γR = 1,5 (tabla 2.1). Por metro.`}
+                      comparacion={{
+                        real: { etiqueta: "Tk", valor: Math.abs(resultado.zapata.tirante.tkKN) },
+                        limite: { etiqueta: "(N+P)·tan δ/γR", valor: resultado.zapata.tirante.rozamientoResistenteKN },
+                        unidad: "kN/m", exige: "≤",
+                      }}
+                    />
+                    <PanelMetricas
+                      horizontal
+                      metricas={[
+                        { etiqueta: "Tirante Tk / Td", valor: `${fmt(Math.abs(resultado.zapata.tirante.tkKN))} / ${fmt(resultado.zapata.tirante.tdKN)} kN/m` },
+                        { etiqueta: "As tirante (losa)", valor: `${fmt(resultado.zapata.tirante.asTiranteCm2)} cm²/m`, nota: "Td/fyd, Anejo 19" },
+                        { etiqueta: "Muro: M arranque", valor: `${fmt(Math.abs(resultado.zapata.tirante.mPilarArranqueKNm))} kN·m/m`, nota: "característico" },
+                        { etiqueta: "Muro: V", valor: `${fmt(resultado.zapata.tirante.vPilarKN)} kN/m`, nota: "característico" },
+                      ]}
+                    />
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      La armadura de la losa tiene que poder tomar el tirante, además de su propia flexión,
+                      y anclarse en el muro. El muro queda en flexión con M y V: se verifica aparte. La
+                      zapata se arma con la presión uniforme.
+                    </p>
+                  </div>
+                </Subgrupo>
+              )}
+
+              <Subgrupo titulo="Comprobaciones estructurales (por metro)">
                 <div>
-                  <ResultadoCheck
-                    etiqueta="Armadura principal suficiente"
-                    verifica={resultado.zapata.principal.verificaAs}
-                    comparacion={{
-                      real: { etiqueta: "As real", valor: resultado.zapata.principal.asRealCm2PorM },
-                      limite: { etiqueta: "As nec", valor: resultado.zapata.principal.asNecCm2PorM },
-                      unidad: "cm²/m", exige: "≥",
-                    }}
-                  />
-                  <PanelFormulas
-                    titulo="Ver desarrollo de la armadura principal"
-                    filas={[
-                      { etiqueta: "d", valor: `${fmt(resultado.zapata.principal.dM, 3)} m` },
-                      { etiqueta: "σ máx / mín", valor: `${fmt(resultado.zapata.principal.sigmaMaxKPa)} / ${fmt(resultado.zapata.principal.sigmaMinKPa)} kN/m²` },
-                      { etiqueta: "σ crítica", valor: `${fmt(resultado.zapata.principal.sigmaCriticaKPa)} kN/m²` },
-                      { etiqueta: "Vuelo a sección crítica", valor: `${fmt(resultado.zapata.principal.lM, 3)} m` },
-                      { etiqueta: "Td", valor: `${fmt(resultado.zapata.principal.tdKN)} kN` },
-                      { etiqueta: "As mín. mecánico (planilla)", valor: `${fmt(resultado.zapata.principal.asMinMecanicoCm2PorM)} cm²/m` },
-                      { etiqueta: "As mín. geométrico (planilla)", valor: `${fmt(resultado.zapata.principal.asMinGeometricoCm2PorM)} cm²/m` },
-                      { etiqueta: "Longitud de anclaje", valor: `${fmt(resultado.zapata.principal.lbIMm, 0)} mm` },
-                    ]}
-                  />
+                  {vuelos.map((v) => (
+                    <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} />
+                  ))}
                   <ResultadoCheck
                     etiqueta="Armadura de reparto suficiente"
                     verifica={resultado.zapata.secundario.verificaAs}
+                    detalle="Anejo 19, art. 9.3.1.1 (2): 20 % de la principal, en todo el ancho A."
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.zapata.secundario.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.zapata.secundario.asNecCm2 },

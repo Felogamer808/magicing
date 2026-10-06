@@ -45,6 +45,11 @@ export interface CargasZapata {
 export interface ArmadoDireccion {
   numero: number;
   diametroMm: number;
+  /**
+   * Separación entre barras (m). Si falta, se deduce del número en el ancho.
+   * La zapata corrida la da directa: en su rebanada de 1 m, `numero` es 1/s.
+   */
+  separacionM?: number;
 }
 
 export interface DatosZapataAislada {
@@ -421,7 +426,8 @@ export function armarVueloZapata(
   // cd para α2 (fig. A19.8.3): el menor entre el recubrimiento lateral y la
   // mitad de la luz libre entre barras.
   const separacionM =
-    armadura.numero > 1 ? (anchoM - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity;
+    armadura.separacionM ??
+    (armadura.numero > 1 ? (anchoM - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity);
   const cdMm = Math.min(recubrimiento * 1000, (separacionM * 1000 - armadura.diametroMm) / 2);
 
   const anclajeEn = (xM: number): ResultadoAnclajeZapata => {

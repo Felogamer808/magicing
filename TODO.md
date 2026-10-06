@@ -48,12 +48,15 @@ Independientes, contra `main`:
   usuario: qué norma (CTE DB-SE-C o EC7) y sus coeficientes con la cita, carga
   horizontal Hk, rozamiento suelo-zapata, y si se cuentan empuje pasivo y
   tierras sobre la zapata.
-- **Punzonamiento de pilar de borde en la zapata de medianería.** No está.
 - **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
   el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
   mezclan normas. Hay una tarea preparada con el detalle.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
-  auditar; la corrida usa reparto de la EHE (0,9 ‰ y 20 %).
+  auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
+  2026-10-06), pero sin repaso independiente.
+- **Par tirante–terreno**: el pilar o muro queda con M y V en el arranque y
+  sólo se informan; no hay todavía verificación de pilar de hormigón que los
+  tome. La losa tampoco se verifica con la tracción del tirante sumada.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

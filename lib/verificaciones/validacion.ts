@@ -90,7 +90,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nota: "Modelo de bielas y tirantes repasado; se agregaron las comprobaciones de biela y nudo que faltaban.",
   },
 
-  "zapata-corrida": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
+  "zapata-corrida": {
+    nivel: "probada",
+    nota: "Anejo 19 con el modelo de la zapata aislada, por metro: los resultados cambiaron respecto de la planilla (EHE-08). Muro en cualquier posición y par tirante–terreno por el DB SE-C. Sin auditoría independiente.",
+  },
   "zapata-viga-centradora": {
     nivel: "probada",
     nota: "Sin planilla de referencia: la palanca se contrasta a mano en los tests. La zapata usa el modelo del Anejo 19 de la aislada y la viga el de flexión y cortante. La zapata interior se calcula aparte, con su carga completa.",

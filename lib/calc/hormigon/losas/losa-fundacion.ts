@@ -5,7 +5,7 @@ import {
   type ArmadoSecundarioCombinada,
   type ColumnaCombinada,
   type ResultadoVigaSobreTerreno,
-} from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
+} from "@/lib/calc/hormigon/losas/franja-sobre-terreno";
 
 export type { ArmadoPrincipalCombinada, ArmadoSecundarioCombinada, ColumnaCombinada };
 

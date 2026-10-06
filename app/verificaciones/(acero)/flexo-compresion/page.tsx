@@ -16,9 +16,10 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { DiagramaInteraccion } from "@/components/verificaciones/acero/DiagramaInteraccion";
-import { calcularFlexoCompresion } from "@/lib/calc/acero/flexo-compresion";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverFlexoCompresion } from "@/lib/calc/acero/resolver-flexo-compresion";
+import { recomendarFlexoCompresion } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexo-compresion")!;
 
@@ -45,37 +46,13 @@ export default function FlexoCompresionPage() {
   const [mrx, setMrx] = useCampo("mrx", "40");
   const [mry, setMry] = useCampo("mry", "10");
 
-  const resultado = useMemo(() => {
-    const n = {
-      lcx: aNumero(lcx), lcy: aNumero(lcy), lb: aNumero(lb), cb: aNumero(cb),
-      fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida),
-      mrx: aNumero(mrx), mry: aNumero(mry),
-    };
-    const positivos = [n.lcx, n.lcy, n.lb, n.cb, n.fy, n.e];
-    if (!seccion.completos || !positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    // La compresión puede ser cero: con Pr = 0 la H1-1b se reduce a la
-    // interacción de flexión biaxial pura, sin término axial. Es el caso de
-    // una viga con momento en los dos ejes y ninguna carga axial.
-    if (![n.p, n.mrx, n.mry].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    try {
-      return calcularFlexoCompresion({
-        familia: seccion.familia,
-        params: seccion.params,
-        lcxM: n.lcx,
-        lcyM: n.lcy,
-        lbM: n.lb,
-        cb: n.cb,
-        fyPa: n.fy * 1e6,
-        ePa: n.e * 1e6,
-        pRequeridaKN: n.p,
-        mrxKNm: n.mrx,
-        mryKNm: n.mry,
-      });
-    } catch {
-      return null;
-    }
-  }, [seccion.familia, seccion.params, seccion.completos, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]);
+  const campos = useMemo(
+    () => ({ familia: seccion.familia, params: seccion.crudo, lcxFC: lcx, lcyFC: lcy, lbFC: lb, cbFC: cb, fyFC: fy, eFC: e, pFC: pRequerida, mrx, mry }),
+    [seccion.familia, seccion.crudo, lcx, lcy, lb, cb, fy, e, pRequerida, mrx, mry]
+  );
+  const resultado = useMemo(() => resolverFlexoCompresion(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarFlexoCompresion(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, las longitudes y el material con valores positivos. La compresión y los momentos pueden ser cero." });
@@ -206,6 +183,7 @@ export default function FlexoCompresionPage() {
                       unidad: "", exige: "≤", decimales: 3,
                     }}
                     detalle={`Axial ${fmt(resultado.terminos.axial, 3)} · flexión x ${fmt(resultado.terminos.flexionX, 3)} · flexión y ${fmt(resultado.terminos.flexionY, 3)}`}
+                    recomendaciones={rec.interaccion}
                   />
                   <div className="flex flex-col items-center gap-2">
                     <DiagramaInteraccion

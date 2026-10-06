@@ -16,11 +16,12 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import {
-  calcularCorteSegunSeccion,
   type ResultadoCorteCualquiera,
 } from "@/lib/calc/acero/seleccion-articulo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverCorteAcero } from "@/lib/calc/acero/resolver-corte";
+import { recomendarCorteAcero } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "corte-acero")!;
 
@@ -77,33 +78,13 @@ export default function CorteAceroPage() {
   const [e, setE] = useCampo("eCorte", "200000");
   const [vRequerido, setVRequerido] = useCampo("vRequerido", "80");
 
-  const resultado = useMemo(() => {
-    const n = {
-      a: aNumero(aRigidizadores),
-      lv: aNumero(lv),
-      fy: aNumero(fy),
-      e: aNumero(e),
-      v: aNumero(vRequerido),
-    };
-    const usaRigidizadores = conRigidizadores === "Sí";
-    if (!seccion.completos || ![n.fy, n.e, n.v].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (usaRigidizadores && (!Number.isFinite(n.a) || n.a <= 0)) return null;
-    if (seccion.familia === "tubo-redondo" && (!Number.isFinite(n.lv) || n.lv <= 0)) return null;
-
-    try {
-      return calcularCorteSegunSeccion({
-        familia: seccion.familia,
-        params: seccion.params,
-        fyPa: n.fy * 1e6,
-        ePa: n.e * 1e6,
-        separacionRigidizadoresM: usaRigidizadores ? n.a : undefined,
-        lvM: n.lv,
-        vRequeridoKN: n.v,
-      });
-    } catch {
-      return null;
-    }
-  }, [seccion.familia, seccion.params, seccion.completos, conRigidizadores, aRigidizadores, lv, fy, e, vRequerido]);
+  const campos = useMemo(
+    () => ({ familia: seccion.familia, params: seccion.crudo, conRigidizadores, aRigidizadores, lv, fyCorte: fy, eCorte: e, vRequerido }),
+    [seccion.familia, seccion.crudo, conRigidizadores, aRigidizadores, lv, fy, e, vRequerido]
+  );
+  const resultado = useMemo(() => resolverCorteAcero(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarCorteAcero(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, el material y el corte con valores positivos." });
@@ -221,6 +202,7 @@ export default function CorteAceroPage() {
                       limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
                       unidad: "kN", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.corte}
                   />
                   <p className="text-xs text-muted-foreground">
                     {resultado.articulo === "G2" &&

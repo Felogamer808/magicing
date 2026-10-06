@@ -4,6 +4,7 @@ import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/ca
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 import { calcularPunzonamientoDescentrado } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
+import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 
 export interface GeometriaZapataAislada {
   /** Dimensión de la zapata en dirección A (m) */
@@ -44,6 +45,11 @@ export interface CargasZapata {
 export interface ArmadoDireccion {
   numero: number;
   diametroMm: number;
+  /**
+   * Separación entre barras (m). Si falta, se deduce del número en el ancho.
+   * La zapata corrida la da directa: en su rebanada de 1 m, `numero` es 1/s.
+   */
+  separacionM?: number;
 }
 
 export interface DatosZapataAislada {
@@ -52,6 +58,17 @@ export interface DatosZapataAislada {
   armadoB: ArmadoDireccion;
   /** Extremo de las barras de la parrilla. Recta si falta. */
   formaAnclaje?: FormaAnclaje;
+  /**
+   * Par tirante–terreno en la dirección A: un tirante a la altura de la losa y
+   * el rozamiento en la base toman el momento, y la presión queda uniforme en A.
+   * Si falta, el momento lo toma el terreno.
+   */
+  tirante?: {
+    /** Distancia del eje del tirante a la base de la zapata (m). */
+    brazoM: number;
+    /** Ángulo de rozamiento interno efectivo del terreno (grados). */
+    phiGrados: number;
+  };
 }
 
 /**
@@ -272,6 +289,8 @@ export interface ResultadoZapataAislada {
   vuelosA: VuelosDireccion;
   vuelosB: VuelosDireccion;
   punzonamiento: ResultadoPunzonamiento;
+  /** Sólo con tirante: su tracción, el deslizamiento y lo que le queda al pilar. */
+  tirante?: ResultadoTiranteRozamiento;
 }
 
 /** Anclaje de la parrilla en la sección x que peor verifica, art. 9.8.2.2. */
@@ -283,7 +302,11 @@ export interface ResultadoAnclajeZapata {
   sigmaSdMPa: number;
   /** Longitud neta de anclaje necesaria, ec. (8.4) (mm). */
   lbdMm: number;
-  /** Longitud disponible: x menos el recubrimiento del extremo (mm). */
+  /**
+   * Longitud disponible, medida a lo largo del eje de la barra (art. 8.4.3 (3)):
+   * x menos el recubrimiento del extremo y, con patilla, la pata que sube hasta
+   * H − 2·rec (mm). Sólo los tramos rectos, sin el desarrollo del doblez.
+   */
   disponibleMm: number;
   verifica: boolean;
   /** Falso si el vuelo no llega a h/2: no hay tirante que anclar y no se comprueba. */
@@ -407,12 +430,17 @@ export function armarVueloZapata(
   // cd para α2 (fig. A19.8.3): el menor entre el recubrimiento lateral y la
   // mitad de la luz libre entre barras.
   const separacionM =
-    armadura.numero > 1 ? (anchoM - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity;
+    armadura.separacionM ??
+    (armadura.numero > 1 ? (anchoM - 2 * recubrimiento - armadura.diametroMm / 1000) / (armadura.numero - 1) : Infinity);
   const cdMm = Math.min(recubrimiento * 1000, (separacionM * 1000 - armadura.diametroMm) / 2);
 
   const anclajeEn = (xM: number): ResultadoAnclajeZapata => {
     const carga = cargaHasta(xM);
-    const disponibleMm = (xM - recubrimiento) * 1000;
+    // A lo largo del eje de la barra (art. 8.4.3 (3), pág. 124): con patilla
+    // suma la pata vertical, hasta H − 2·rec. Sin el doblez, del lado seguro
+    // (criterio decidido por el usuario el 2026-10-06).
+    const pataMm = formaAnclaje === "gancho" ? Math.max(H - 2 * recubrimiento, 0) * 1000 : 0;
+    const disponibleMm = (xM - recubrimiento) * 1000 + pataMm;
     if (!Number.isFinite(carga.momentoKNm)) {
       return { xM, fsKN: Infinity, sigmaSdMPa: fyd, lbdMm: Infinity, disponibleMm, verifica: false, comprobado: true };
     }
@@ -642,7 +670,15 @@ export function calcularZapataAislada(
   // pilar descentrado más el que baja por el pilar.
   const pesoPropioKN = 25 * A * B * H;
   const cargaTotalKN = Nk + pesoPropioKN;
-  const excA = cargaTotalKN !== 0 ? (Nk * e0A + MkA) / cargaTotalKN : 0;
+  // Con tirante, el par tirante–rozamiento toma todo el momento en A: la
+  // resultante vertical queda centrada y el pilar recibe Mk + Tk·(h − H).
+  const tirante = datos.tirante
+    ? calcularTiranteRozamiento(materiales, {
+        nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0A + MkA, mkPilarKNm: MkA,
+        brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
+      })
+    : undefined;
+  const excA = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0A + MkA) / cargaTotalKN : 0;
   const excB = cargaTotalKN !== 0 ? (Nk * e0B + MkB) / cargaTotalKN : 0;
   const dentroDelNucleo = Math.abs(excA) <= A / 6 && Math.abs(excB) <= B / 6;
   // Con la resultante fuera de la base no hay área eficaz: los dos anchos
@@ -660,19 +696,25 @@ export function calcularZapataAislada(
   const dB = H - recubrimiento - armadoB.diametroMm / 2000 - armadoA.diametroMm / 1000;
 
   const forma = datos.formaAnclaje ?? "recta";
-  const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, MkA, armadoA, forma);
+  // Con tirante, el momento que llega al terreno en A es nulo: se le pasa a los
+  // vuelos el que anula el de la excentricidad, y la presión sale uniforme.
+  const mkVuelosA = tirante ? -Nk * e0A : MkA;
+  const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, mkVuelosA, armadoA, forma);
   const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, MkB, armadoB, forma);
   const direccionA = vueloGobernante(vuelosA);
   const direccionB = vueloGobernante(vuelosB);
 
   // Centrado, el cálculo auditado de siempre; descentrado, con la presión real
   // y el perímetro recortado por el borde.
+  // El momento que punzona es el que el pilar le pasa a la zapata: con tirante,
+  // el del arranque del pilar.
+  const mkPunzonA = tirante ? tirante.mPilarArranqueKNm : MkA;
   const punzonamiento: ResultadoPunzonamiento = pilarCentrado
-    ? calcularPunzonamiento(materiales, geometria, cargas, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2)
+    ? calcularPunzonamiento(materiales, geometria, { ...cargas, MkA: mkPunzonA }, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2)
     : calcularPunzonamientoDescentrado(materiales, {
         A, B, anchoPilarA, anchoPilarB, bordeA, bordeB, dA, dB,
-        nk: Nk, mkA: MkA, mkB: MkB,
-        excCalculoA: vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + MkA),
+        nk: Nk, mkA: mkPunzonA, mkB: MkB,
+        excCalculoA: tirante ? 0 : vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + MkA),
         excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + MkB),
         asRealACm2: direccionA.asRealCm2,
         asRealBCm2: direccionB.asRealCm2,
@@ -697,6 +739,7 @@ export function calcularZapataAislada(
     vuelosA,
     vuelosB,
     punzonamiento,
+    tirante,
   };
 }
 

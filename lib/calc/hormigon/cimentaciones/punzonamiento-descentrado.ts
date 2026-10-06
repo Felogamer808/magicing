@@ -58,6 +58,8 @@ export interface ResultadoPunzonamientoDescentrado {
   /** Cómo trata la norma al pilar en el perímetro crítico. */
   situacion: "interior" | "borde" | "esquina" | "entre bordes";
   caraPilar: { u0M: number; beta: number; vEdMPa: number; vRdMaxMPa: number; verifica: boolean };
+  /** Presente cuando ningún perímetro rodea al pilar. */
+  motivoNoEvaluado?: string;
 }
 
 interface Tramo {
@@ -215,6 +217,11 @@ export function calcularPunzonamientoDescentrado(
       const rec = { izq: !!(m & 1), der: !!(m & 2), sup: !!(m & 4), inf: !!(m & 8) };
       if (LADOS.some((l) => s[l] < a - 1e-9 && !rec[l])) continue;
       if (LADOS.some((l) => rec[l] && s[l] >= 2 * d)) continue;
+      // Recortar dos lados opuestos deja una recta de borde a borde, con W = 0
+      // en la otra dirección: sólo vale si los dos recortes son obligatorios.
+      const obligatorio = (l: Lado) => s[l] < a - 1e-9;
+      if (rec.izq && rec.der && !(obligatorio("izq") && obligatorio("der"))) continue;
+      if (rec.sup && rec.inf && !(obligatorio("sup") && obligatorio("inf"))) continue;
       const tramos = contorno(e, a, rec);
       const p = propiedadesContorno(tramos);
       if (p.u <= 0) continue;
@@ -272,9 +279,16 @@ export function calcularPunzonamientoDescentrado(
     return general(); // ec. (6.39)
   };
 
+  let cruzaDeBordeABorde = false;
   const enPerimetro = (a: number) => {
     const elegido = elegirRecorte(a);
     if (!elegido) return null;
+    // El perímetro cruza la zapata de borde a borde: ya no rodea al pilar y lo
+    // que queda es cortante de viga, que se comprueba en los vuelos.
+    if (situacionDe(elegido.rec) === "entre bordes") {
+      cruzaDeBordeABorde = true;
+      return null;
+    }
     const vEdRedKN = Math.max(vEdPilarKN - reaccionDentro(a, elegido.rec), 0);
     const beta = betaEn(elegido.rec, elegido.p, vEdRedKN);
     const vEdKN = vEdRedKN * beta;
@@ -320,6 +334,12 @@ export function calcularPunzonamientoDescentrado(
     return {
       dPromedioM: d, aCriticaM: 0, u1M: 0, vEdRedKN: 0, vEdKN: 0, beta: 1, vRdCKN: 0, aprovechamiento: 0,
       verificaPunzonamiento: true, hayPerimetroDentro: false, situacion: sit2d, caraPilar,
+      ...(cruzaDeBordeABorde
+        ? {
+            motivoNoEvaluado:
+              "El perímetro crítico cruza la zapata de borde a borde: no rodea al pilar, así que no hay punzonamiento. Lo que queda es cortante de viga, que se comprueba en los vuelos.",
+          }
+        : {}),
     };
   }
   return {

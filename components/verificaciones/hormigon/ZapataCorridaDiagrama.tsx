@@ -9,6 +9,8 @@ interface ZapataCorridaDiagramaProps {
   dM: number;
   diametroPrincipalMm: number;
   separacionPrincipalM: number;
+  /** Distancia de la cara del muro al borde izquierdo (m). Sin dato, centrado. */
+  distanciaBordeM?: number;
 }
 
 const fmtM = (n: number) => `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
@@ -20,6 +22,7 @@ export function ZapataCorridaDiagrama({
   dM,
   diametroPrincipalMm,
   separacionPrincipalM,
+  distanciaBordeM,
 }: ZapataCorridaDiagramaProps) {
   const arrowId = useId();
 
@@ -52,7 +55,7 @@ export function ZapataCorridaDiagrama({
   const xsBarras = Array.from({ length: nBarras }, (_, i) => x0 + margen + radio + (i * (w - 2 * margen - 2 * radio)) / (nBarras - 1));
 
   const pilarW = Math.min(anchoPilarM * escala, w * 0.9);
-  const pilarX0 = x0 + (w - pilarW) / 2;
+  const pilarX0 = distanciaBordeM === undefined ? x0 + (w - pilarW) / 2 : x0 + Math.min(distanciaBordeM * escala, w - pilarW);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -91,7 +94,7 @@ export function ZapataCorridaDiagrama({
         </text>
 
         {/* muro / pilar de referencia (se extiende hacia arriba, fuera de la zapata) */}
-        <path d={`M${pilarX0} ${y0} L${pilarX0} ${y0 - 20} M${pilarX0 + pilarW} ${y0} L${pilarX0 + pilarW} ${y0 - 20}`} strokeDasharray="3 2" stroke="currentColor" strokeWidth="1.5" />
+        <rect x={pilarX0} y={y0 - 20} width={pilarW} height={20} stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.8" />
 
         {/* zapata en corte */}
         <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />

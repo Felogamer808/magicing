@@ -15,14 +15,14 @@ import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/c
 import { ConclusionResultados } from "@/components/verificaciones/comun/ConclusionResultados";
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularPilote } from "@/lib/calc/hormigon/cimentaciones/pilote";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisArmaduraPilote,
   CroquisGeotecniaPilote,
 } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-pilote";
+import { recomendarPilote } from "@/lib/verificaciones/recomendaciones/pilotes";
 
 const meta = registroVerificaciones.find((v) => v.id === "pilotes")!;
 
@@ -53,42 +53,13 @@ export default function PilotesPage() {
 
   const [Nk, setNk] = useCampo("Nk", "300");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck),
-      fyk: aNumero(fyk),
-      diametro: aNumero(diametro),
-      longitud: aNumero(longitud),
-      friccion: aNumero(friccion),
-      punta: aNumero(punta),
-      factorSeguridad: aNumero(factorSeguridad),
-      numero: aNumero(numero),
-      diametroBarra: aNumero(diametroBarra),
-      diametroEstribo: aNumero(diametroEstribo),
-      Nk: aNumero(Nk),
-    };
-
-    const todosValidos = Object.values(v).every((n) => Number.isFinite(n));
-    const geometriaValida = v.diametro > 0 && v.longitud > 0;
-    const geotecniaValida = v.friccion >= 0 && v.punta >= 0 && v.factorSeguridad > 0;
-    const armaduraValida = v.numero > 0 && v.diametroBarra > 0 && v.diametroEstribo > 0;
-
-    if (!todosValidos || !geometriaValida || !geotecniaValida || !armaduraValida || v.Nk <= 0) {
-      return null;
-    }
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-
-    const pilote = calcularPilote(
-      materiales,
-      { diametroM: v.diametro, longitudM: v.longitud },
-      { friccionKPa: v.friccion, puntaKPa: v.punta, factorSeguridad: v.factorSeguridad },
-      { numero: v.numero, diametroMm: v.diametroBarra, diametroEstriboMm: v.diametroEstribo },
-      { Nk: v.Nk }
-    );
-
-    return { pilote };
-  }, [fck, fyk, diametro, longitud, friccion, punta, factorSeguridad, numero, diametroBarra, diametroEstribo, Nk]);
+  const campos = useMemo(
+    () => ({ fck, fyk, diametro, longitud, friccion, punta, factorSeguridad, numero, diametroBarra, diametroEstribo, Nk }),
+    [fck, fyk, diametro, longitud, friccion, punta, factorSeguridad, numero, diametroBarra, diametroEstribo, Nk]
+  );
+  const resultado = useMemo(() => resolverPilote(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarPilote(campos), [campos]);
 
   const diagrama = useMemo(() => {
     const v = { diametro: aNumero(diametro), longitud: aNumero(longitud), numero: aNumero(numero), diametroBarra: aNumero(diametroBarra) };
@@ -212,15 +183,18 @@ export default function PilotesPage() {
                     etiqueta: "capacidad geotécnica",
                     estado: resultado.pilote.geotecnico.verificaCapacidad ? "cumple" : "no-cumple",
                     utilizacion: aNumero(Nk) / resultado.pilote.geotecnico.qAdmisibleKN,
+                    conPropuestas: !!rec.capacidad,
                   },
                   {
                     etiqueta: "compresión del fuste",
                     estado: resultado.pilote.estructural.verificaEstructural ? "cumple" : "no-cumple",
                     utilizacion: resultado.pilote.estructural.ndKN / resultado.pilote.estructural.nRdKN,
+                    conPropuestas: !!rec.fuste,
                   },
                   {
                     etiqueta: "armadura mínima",
                     estado: resultado.pilote.estructural.verificaAsMin ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.asMin,
                   },
                 ]}
               />
@@ -245,6 +219,7 @@ export default function PilotesPage() {
                       limite: { etiqueta: "Q adm", valor: resultado.pilote.geotecnico.qAdmisibleKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.capacidad}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la capacidad"
@@ -269,6 +244,7 @@ export default function PilotesPage() {
                       limite: { etiqueta: "NRd", valor: resultado.pilote.estructural.nRdKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.fuste}
                   />
                 </div>
               </Subgrupo>
@@ -283,6 +259,7 @@ export default function PilotesPage() {
                       limite: { etiqueta: "As mín", valor: resultado.pilote.estructural.asMinCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.asMin}
                   />
                 </div>
               </Subgrupo>

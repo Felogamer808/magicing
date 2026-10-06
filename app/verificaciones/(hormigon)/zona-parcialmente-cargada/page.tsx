@@ -13,10 +13,11 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisZonaCargada } from "@/components/verificaciones/croquis/CroquisZonaCargada";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularZonaCargada, type TraccionTransversal } from "@/lib/calc/hormigon/zona-parcialmente-cargada";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { type TraccionTransversal } from "@/lib/calc/hormigon/zona-parcialmente-cargada";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverZonaParcialmenteCargada } from "@/lib/calc/hormigon/resolver-zona-parcialmente-cargada";
+import { recomendarZonaParcialmenteCargada } from "@/lib/verificaciones/recomendaciones/zona-parcialmente-cargada";
 
 const meta = registroVerificaciones.find((v) => v.id === "zona-parcialmente-cargada")!;
 
@@ -73,29 +74,13 @@ export default function ZonaParcialmenteCargadaPage() {
   const [bordeD, setBordeD] = useCampo("bordeD", "0.5");
   const [altura, setAltura] = useCampo("altura", "0.8");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck), fyk: aNumero(fyk), nEd: aNumero(nEd),
-      b1: aNumero(b1), d1: aNumero(d1),
-      anchoB: aNumero(anchoB), anchoD: aNumero(anchoD),
-      bordeB: aNumero(bordeB), bordeD: aNumero(bordeD),
-      altura: aNumero(altura),
-    };
-    if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) return null;
-    // El área cargada tiene que quedar dentro de la pieza, y el borde más
-    // cercano no puede estar más lejos que la mitad del ancho.
-    if (v.bordeB < v.b1 / 2 || v.bordeD < v.d1 / 2) return null;
-    if (v.bordeB > v.anchoB / 2 + 1e-9 || v.bordeD > v.anchoD / 2 + 1e-9) return null;
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const r = calcularZonaCargada(materiales, {
-      nEdKN: v.nEd,
-      direccionB: { cargadaM: v.b1, anchoPiezaM: v.anchoB, distanciaBordeM: v.bordeB },
-      direccionD: { cargadaM: v.d1, anchoPiezaM: v.anchoD, distanciaBordeM: v.bordeD },
-      alturaM: v.altura,
-    });
-    return { v, materiales, r };
-  }, [fck, fyk, nEd, b1, d1, anchoB, anchoD, bordeB, bordeD, altura]);
+  const campos = useMemo(
+    () => ({ fck, fyk, nEd, b1, d1, anchoB, anchoD, bordeB, bordeD, altura }),
+    [fck, fyk, nEd, b1, d1, anchoB, anchoD, bordeB, bordeD, altura]
+  );
+  const resultado = useMemo(() => resolverZonaParcialmenteCargada(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarZonaParcialmenteCargada(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -222,6 +207,7 @@ export default function ZonaParcialmenteCargadaPage() {
                       limite: { etiqueta: "FRdu", valor: resultado.r.fRduKN },
                       unidad: "kN", exige: "≤", decimales: 0,
                     }}
+                    recomendaciones={rec.aplastamiento}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del aplastamiento"

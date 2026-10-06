@@ -18,14 +18,15 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaVigaApeoModelo } from "@/components/verificaciones/hormigon/DiagramaVigaApeoModelo";
 import { DiagramaVigaApeoArmado } from "@/components/verificaciones/hormigon/DiagramaVigaApeoArmado";
-import {
-  calcularVigaApeoBielas,
-  type CondicionAdherencia,
-  type TransmisionCarga,
-} from "@/lib/calc/hormigon/vigas/apeo-bielas";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import {
+  ADHERENCIAS,
+  TIPO_POR_ETIQUETA,
+  TRANSMISIONES,
+  resolverApeoBielas,
+} from "@/lib/calc/hormigon/vigas/resolver-apeo-bielas";
+import { recomendarApeoBielas } from "@/lib/verificaciones/recomendaciones/vigas-apeo-bielas";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-apeo-bielas")!;
 
@@ -37,27 +38,6 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const TRANSMISIONES = [
-  "Directa (carga sobre la cara superior)",
-  "Indirecta (pilar arranca del alma)",
-  "Colgada (carga entrando por la cara inferior)",
-] as const;
-
-// Art. 8.4.2(2) y figura A19.8.2: la barra del tirante va al fondo del
-// encofrado, así que salvo hormigonado desde abajo o pieza muy alta la
-// condición es buena. Se deja elegible porque cambia el anclaje un 43 %.
-const ADHERENCIAS = ["Buena (fondo del encofrado)", "Mala"] as const;
-
-const ADHERENCIA_POR_ETIQUETA: Record<string, CondicionAdherencia> = {
-  [ADHERENCIAS[0]]: "buena",
-  [ADHERENCIAS[1]]: "mala",
-};
-
-const TIPO_POR_ETIQUETA: Record<string, TransmisionCarga> = {
-  [TRANSMISIONES[0]]: "directa",
-  [TRANSMISIONES[1]]: "indirecta",
-  [TRANSMISIONES[2]]: "colgada",
-};
 
 export default function VigaApeoBielasPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -99,82 +79,14 @@ export default function VigaApeoBielasPage() {
   const [cantoColgado, setCantoColgado] = useCampo("cantoColgado", "0.6");
 
   const tipo = TIPO_POR_ETIQUETA[transmision] ?? "directa";
-  const adh = ADHERENCIA_POR_ETIQUETA[adherencia] ?? "buena";
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk), rg: aNumero(rg),
-      luz: aNumero(luz), h: aNumero(h), b: aNumero(b), posCarga: aNumero(posCarga),
-      anchoPilar: aNumero(anchoPilar),
-      anchoApoyoIzq: aNumero(anchoApoyoIzq), anchoApoyoDer: aNumero(anchoApoyoDer),
-      voladizoIzq: aNumero(voladizoIzq), voladizoDer: aNumero(voladizoDer),
-      nd: aNumero(nd), qd: aNumero(qd),
-      nTirante: aNumero(nTirante), phiTirante: aNumero(phiTirante), phiEstribo: aNumero(phiEstribo),
-      nTirante2: aNumero(nTirante2), phiTirante2: aNumero(phiTirante2), dg: aNumero(dg),
-      phiMallaH: aNumero(phiMallaH), sepMallaH: aNumero(sepMallaH),
-      phiMallaV: aNumero(phiMallaV), sepMallaV: aNumero(sepMallaV),
-      phiCuelgue: aNumero(phiCuelgue), sepCuelgue: aNumero(sepCuelgue),
-      ramasCuelgue: aNumero(ramasCuelgue), cantoColgado: aNumero(cantoColgado),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if ([n.fck, n.fyk, n.luz, n.h, n.b, n.anchoPilar, n.anchoApoyoIzq, n.anchoApoyoDer, n.nd].some((x) => x <= 0)) return null;
-    if ([n.nTirante, n.phiTirante, n.phiEstribo, n.phiMallaH, n.sepMallaH, n.phiMallaV, n.sepMallaV].some((x) => x <= 0)) return null;
-    if (n.nTirante < 2) return null;
-    if (n.dg <= 0) return null;
-    // Segunda capa: se activa con 0 barras apagada, y si se activa pide dos
-    // barras como mínimo igual que la primera.
-    if (n.nTirante2 > 0 && (n.nTirante2 < 2 || n.phiTirante2 <= 0)) return null;
-    // El pilar tiene que caer dentro de la luz, con su ancho completo apoyado.
-    if (n.posCarga <= n.anchoPilar / 2 || n.posCarga >= n.luz - n.anchoPilar / 2) return null;
-    // El canto útil tiene que quedar positivo, contando las dos capas.
-    const ocupaM =
-      n.rg +
-      n.phiEstribo / 1000 +
-      n.phiTirante / 1000 +
-      (n.nTirante2 > 0 ? Math.max(n.phiTirante, n.phiTirante2, n.dg * 1000 + 5, 20) / 1000 + n.phiTirante2 / 1000 : 0);
-    if (ocupaM >= n.h) return null;
-    if (tipo !== "directa" && [n.phiCuelgue, n.sepCuelgue, n.ramasCuelgue].some((x) => x <= 0)) return null;
-
-    const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    const r = calcularVigaApeoBielas(
-      materiales,
-      {
-        luzM: n.luz, hM: n.h, bM: n.b, recubrimientoM: n.rg,
-        posicionCargaM: n.posCarga, anchoPilarApeadoM: n.anchoPilar,
-        anchoApoyoIzqM: n.anchoApoyoIzq, anchoApoyoDerM: n.anchoApoyoDer,
-        voladizoIzqM: n.voladizoIzq, voladizoDerM: n.voladizoDer,
-      },
-      {
-        ndPilarKN: n.nd,
-        qdKNPorM: n.qd,
-        transmision: tipo,
-        tirante: { numero: n.nTirante, diametroMm: n.phiTirante },
-        tiranteSegundaCapa:
-          n.nTirante2 > 0 ? { numero: n.nTirante2, diametroMm: n.phiTirante2 } : undefined,
-        diametroEstriboMm: n.phiEstribo,
-        tamanoMaximoAridoM: n.dg,
-        condicionAdherencia: adh,
-        mallaHorizontal: { diametroMm: n.phiMallaH, separacionM: n.sepMallaH },
-        mallaVertical: { diametroMm: n.phiMallaV, separacionM: n.sepMallaV },
-        cuelgue:
-          tipo === "directa"
-            ? undefined
-            : {
-                diametroMm: n.phiCuelgue,
-                separacionM: n.sepCuelgue,
-                numeroRamas: n.ramasCuelgue,
-                cantoElementoColgadoM: n.cantoColgado,
-              },
-      }
-    );
-    return { n, r, materiales };
-  }, [
-    fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer,
-    voladizoIzq, voladizoDer, nd, qd, tipo, nTirante, phiTirante, phiEstribo,
-    nTirante2, phiTirante2, dg, adh,
-    phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue,
-    ramasCuelgue, cantoColgado,
-  ]);
+  const campos = useMemo(
+    () => ({ fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia }),
+    [fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia]
+  );
+  const resultado = useMemo(() => resolverApeoBielas(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarApeoBielas(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -424,6 +336,7 @@ export default function VigaApeoBielasPage() {
                     verifica={resultado.r.tirante.verificaAs}
                     detalle={resultado.r.tirante.topeAplicado ? "Viga pared: se aplica el tope fyd ≯ 400 MPa de Montoya." : "No es viga pared: fyd pleno."}
                     comparacion={{ real: { etiqueta: "As real", valor: resultado.r.tirante.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                    recomendaciones={propuestas.tirante}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del tirante"
@@ -449,21 +362,25 @@ export default function VigaApeoBielasPage() {
                     etiqueta="Biela izquierda"
                     verifica={resultado.r.bielas.bielaIzq.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.bielaIzq.sigmaMPa }, limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.bielaIzq.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.bielaIzq}
                   />
                   <ResultadoCheck
                     etiqueta="Biela derecha"
                     verifica={resultado.r.bielas.bielaDer.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.bielaDer.sigmaMPa }, limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.bielaDer.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.bielaDer}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo bajo el pilar apeado (CCC, k1 = 1,0)"
                     verifica={resultado.r.bielas.nudoSuperior.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoSuperior.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoSuperior.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoSuperior}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo de apoyo izquierdo · Anejo 19 (CCT, k2 = 0,85)"
                     verifica={resultado.r.bielas.nudoApoyoIzq.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoApoyoIzq}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo de apoyo izquierdo · Montoya (0,7·fcd)"
@@ -479,6 +396,7 @@ export default function VigaApeoBielasPage() {
                       limite: { etiqueta: "σ máx", valor: Math.min(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa, resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa) },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={propuestas.nudoApoyoDer}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de bielas y nudos"
@@ -495,6 +413,7 @@ export default function VigaApeoBielasPage() {
                     verifica={resultado.r.traccionTransversal.verificaAs}
                     detalle={`T = ${fmt(resultado.r.traccionTransversal.traccionKN, 0)} kN, discontinuidad ${resultado.r.traccionTransversal.discontinuidadParcial ? "parcial, ec. (6.58)" : "total, ec. (6.59)"}; a = ${fmt(resultado.r.traccionTransversal.aM)} m, b de reparto = ${fmt(resultado.r.traccionTransversal.bRepartoM)} m.`}
                     comparacion={{ real: { etiqueta: "As real", valor: resultado.r.traccionTransversal.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.traccionTransversal.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                    recomendaciones={propuestas.traccionTransversal}
                   />
                   {resultado.r.cuelgue && (
                     <>
@@ -503,6 +422,7 @@ export default function VigaApeoBielasPage() {
                         verifica={resultado.r.cuelgue.verificaAs}
                         detalle={`Se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
                         comparacion={{ real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                        recomendaciones={propuestas.cuelgue}
                       />
                     </>
                   )}
@@ -521,6 +441,7 @@ export default function VigaApeoBielasPage() {
                     verifica={resultado.r.tirante.verificaBNec}
                     detalle={`separación libre ${fmt(resultado.r.tirante.separacionMm, 0)} mm`}
                     comparacion={{ real: { etiqueta: "b nec", valor: resultado.r.tirante.bNecM }, limite: { etiqueta: "b", valor: resultado.n.b }, unidad: "m", exige: "≤", decimales: 3 }}
+                    recomendaciones={propuestas.anchoTirante}
                   />
                   {resultado.r.tirante.capas.capas.length > 1 && (
                     <>
@@ -541,12 +462,14 @@ export default function VigaApeoBielasPage() {
                     verifica={resultado.r.anclaje.recto.verificaIzq && resultado.r.anclaje.recto.verificaIzqMontoya}
                     detalle={`${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
                     comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleIzqM, resultado.r.anclaje.disponibleMontoyaIzqM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
+                    recomendaciones={propuestas.anclajeIzq}
                   />
                   <ResultadoCheck
                     etiqueta="Anclaje recto · apoyo derecho"
                     verifica={resultado.r.anclaje.recto.verificaDer && resultado.r.anclaje.recto.verificaDerMontoya}
                     detalle={`${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
                     comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleDerM, resultado.r.anclaje.disponibleMontoyaDerM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
+                    recomendaciones={propuestas.anclajeDer}
                   />
                   {!resultado.r.anclaje.verificaRecto && (
                     <>
@@ -615,11 +538,13 @@ export default function VigaApeoBielasPage() {
                     etiqueta="Malla horizontal ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaHorizontal}
                     comparacion={{ real: { etiqueta: "dispuesta", valor: resultado.r.malla.horizontalCm2PorM }, limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM }, unidad: "cm²/m por cara", exige: "≥" }}
+                    recomendaciones={propuestas.mallaH}
                   />
                   <ResultadoCheck
                     etiqueta="Malla vertical ≥ mínimo del art. 9.7(1)"
                     verifica={resultado.r.malla.verificaVertical}
                     comparacion={{ real: { etiqueta: "dispuesta", valor: resultado.r.malla.verticalCm2PorM }, limite: { etiqueta: "mínima", valor: resultado.r.malla.asMinCm2PorM }, unidad: "cm²/m por cara", exige: "≥" }}
+                    recomendaciones={propuestas.mallaV}
                   />
                   <ResultadoCheck
                     etiqueta="Separaciones de la malla ≤ mín(300 mm; 2·b), art. 9.7(2)"
@@ -631,6 +556,7 @@ export default function VigaApeoBielasPage() {
                       etiqueta="Canto suficiente para que se formen las bielas de cuelgue (h ≥ 1,2·a)"
                       verifica={resultado.r.cuelgue.verificaCantoMinimo}
                       comparacion={{ real: { etiqueta: "h", valor: resultado.n.h }, limite: { etiqueta: "1,2·a", valor: resultado.r.cuelgue.cantoMinimoM }, unidad: "m", exige: "≥" }}
+                      recomendaciones={propuestas.cantoCuelgue}
                     />
                   )}
                 </div>

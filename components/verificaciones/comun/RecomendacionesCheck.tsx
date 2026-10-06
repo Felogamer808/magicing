@@ -29,8 +29,14 @@ export function RecomendacionesCheck({ recomendaciones, noCumple }: Recomendacio
             <p className="flex flex-wrap items-baseline justify-between gap-x-3">
               <span className="font-medium">{r.accion}</span>
               <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                queda en{" "}
-                <span className="font-semibold text-foreground">{fmt(r.utilizacion * 100, 0)} %</span>
+                {r.utilizacion === undefined ? (
+                  <span className="font-semibold text-foreground">cumple</span>
+                ) : (
+                  <>
+                    queda en{" "}
+                    <span className="font-semibold text-foreground">{fmt(r.utilizacion * 100, 0)} %</span>
+                  </>
+                )}
               </span>
             </p>
             {r.fallanOtras.length > 0 && (

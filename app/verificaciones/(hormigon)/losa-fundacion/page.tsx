@@ -15,13 +15,13 @@ import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/c
 import { ConclusionResultados } from "@/components/verificaciones/comun/ConclusionResultados";
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularFranjaLosa } from "@/lib/calc/hormigon/losas/losa-fundacion";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisPosicionPilares,
 } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverLosaFundacion } from "@/lib/calc/hormigon/losas/resolver-losa-fundacion";
+import { recomendarLosaFundacion } from "@/lib/verificaciones/recomendaciones/losa-fundacion";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-fundacion")!;
 
@@ -59,65 +59,13 @@ export default function LosaFundacionPage() {
   const [numeroSecundario, setNumeroSecundario] = useCampo("numeroSecundario", "8");
   const [diametroSecundario, setDiametroSecundario] = useCampo("diametroSecundario", "10");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck),
-      fyk: aNumero(fyk),
-      longitud: aNumero(longitud),
-      anchoTributario: aNumero(anchoTributario),
-      H: aNumero(H),
-      recubrimiento: aNumero(recubrimiento),
-      sigmaAdmisible: aNumero(sigmaAdmisible),
-      pos1: aNumero(pos1),
-      Nk1: aNumero(Nk1),
-      pos2: aNumero(pos2),
-      Nk2: aNumero(Nk2),
-      pos3: aNumero(pos3),
-      Nk3: aNumero(Nk3),
-      diametroInferior: aNumero(diametroInferior),
-      separacionInferior: aNumero(separacionInferior),
-      diametroSuperior: aNumero(diametroSuperior),
-      separacionSuperior: aNumero(separacionSuperior),
-      numeroSecundario: aNumero(numeroSecundario),
-      diametroSecundario: aNumero(diametroSecundario),
-    };
-
-    const todosValidos = Object.values(v).every((n) => Number.isFinite(n));
-    const geometriaValida = v.longitud > 0 && v.anchoTributario > 0 && v.H > 0;
-    const posicionesValidas = v.pos1 >= 0 && v.pos2 > v.pos1 && v.pos3 > v.pos2 && v.pos3 <= v.longitud;
-    const cargasValidas = v.Nk1 > 0 && v.Nk2 > 0 && v.Nk3 > 0;
-    const armadurasValidas =
-      v.diametroInferior > 0 && v.separacionInferior > 0 && v.diametroSuperior > 0 && v.separacionSuperior > 0 &&
-      v.numeroSecundario > 0 && v.diametroSecundario > 0;
-
-    if (!todosValidos || !geometriaValida || !posicionesValidas || !cargasValidas || !armadurasValidas || v.sigmaAdmisible <= 0) {
-      return null;
-    }
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-
-    const franja = calcularFranjaLosa(
-      materiales,
-      { longitudM: v.longitud, anchoTributarioM: v.anchoTributario, H: v.H, recubrimiento: v.recubrimiento },
-      v.sigmaAdmisible,
-      {
-        columnas: [
-          { posicionM: v.pos1, Nk: v.Nk1 },
-          { posicionM: v.pos2, Nk: v.Nk2 },
-          { posicionM: v.pos3, Nk: v.Nk3 },
-        ],
-        armadoInferior: { diametroMm: v.diametroInferior, separacionM: v.separacionInferior },
-        armadoSuperior: { diametroMm: v.diametroSuperior, separacionM: v.separacionSuperior },
-        armadoSecundario: { numero: v.numeroSecundario, diametroMm: v.diametroSecundario },
-      }
-    );
-
-    return { franja };
-  }, [
-    fck, fyk, longitud, anchoTributario, H, recubrimiento, sigmaAdmisible,
-    pos1, Nk1, pos2, Nk2, pos3, Nk3,
-    diametroInferior, separacionInferior, diametroSuperior, separacionSuperior, numeroSecundario, diametroSecundario,
-  ]);
+  const campos = useMemo(
+    () => ({ fck, fyk, longitud, anchoTributario, H, recubrimiento, sigmaAdmisible, pos1, Nk1, pos2, Nk2, pos3, Nk3, diametroInferior, separacionInferior, diametroSuperior, separacionSuperior, numeroSecundario, diametroSecundario }),
+    [fck, fyk, longitud, anchoTributario, H, recubrimiento, sigmaAdmisible, pos1, Nk1, pos2, Nk2, pos3, Nk3, diametroInferior, separacionInferior, diametroSuperior, separacionSuperior, numeroSecundario, diametroSecundario]
+  );
+  const resultado = useMemo(() => resolverLosaFundacion(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarLosaFundacion(campos), [campos]);
 
   const diagrama = useMemo(() => {
     const v = { longitud: aNumero(longitud), H: aNumero(H), pos1: aNumero(pos1), pos2: aNumero(pos2), pos3: aNumero(pos3) };
@@ -271,21 +219,25 @@ export default function LosaFundacionPage() {
                     etiqueta: "armadura inferior",
                     estado: resultado.franja.inferior.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.franja.inferior.asNecCm2PorM / resultado.franja.inferior.asRealCm2PorM,
+                    conPropuestas: !!rec.inferior,
                   },
                   {
                     etiqueta: "armadura superior",
                     estado: resultado.franja.superior.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.franja.superior.asNecCm2PorM / resultado.franja.superior.asRealCm2PorM,
+                    conPropuestas: !!rec.superior,
                   },
                   {
                     etiqueta: "cortante",
                     estado: resultado.franja.cortante.verificaCorte ? "cumple" : "no-cumple",
                     utilizacion: resultado.franja.cortante.vEdKN / resultado.franja.cortante.vRdCKN,
+                    conPropuestas: !!rec.cortante,
                   },
                   {
                     etiqueta: "armadura de reparto",
                     estado: resultado.franja.secundario.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.franja.secundario.asNecCm2 / resultado.franja.secundario.asRealCm2,
+                    conPropuestas: !!rec.reparto,
                   },
                 ]}
               />
@@ -333,6 +285,7 @@ export default function LosaFundacionPage() {
                       limite: { etiqueta: "As nec", valor: resultado.franja.inferior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
+                    recomendaciones={rec.inferior}
                   />
                   <ResultadoCheck
                     etiqueta="Momento negativo · armadura superior suficiente"
@@ -343,6 +296,7 @@ export default function LosaFundacionPage() {
                       limite: { etiqueta: "As nec", valor: resultado.franja.superior.asNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
+                    recomendaciones={rec.superior}
                   />
                   <ResultadoCheck
                     etiqueta="Cortante sin armadura transversal"
@@ -352,6 +306,7 @@ export default function LosaFundacionPage() {
                       limite: { etiqueta: "VRd,c", valor: resultado.franja.cortante.vRdCKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.cortante}
                   />
                   <ResultadoCheck
                     etiqueta="Armadura de reparto suficiente"
@@ -361,6 +316,7 @@ export default function LosaFundacionPage() {
                       limite: { etiqueta: "As nec", valor: resultado.franja.secundario.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.reparto}
                   />
                 </div>
               </Subgrupo>

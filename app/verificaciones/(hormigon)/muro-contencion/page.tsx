@@ -29,16 +29,13 @@ import {
   FS_DESLIZAMIENTO_MINIMO,
   FS_VUELCO_MINIMO,
   KA_MINIMO,
-  areaPorMetroCm2,
-  armarPieza,
-  calcularMuroContencion,
-  separacionParaAs,
 } from "@/lib/calc/hormigon/muros/contencion";
 import type { ArmaduraPieza, ResultadoMuroContencion } from "@/lib/calc/hormigon/muros/contencion";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { GAMMA_G, GAMMA_Q } from "@/lib/calc/hormigon/comun/coeficientes";
 import { ArmadoMuroDiagrama } from "@/components/verificaciones/hormigon/ArmadoMuroDiagrama";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { resolverMuroContencion, type NumerosMuro } from "@/lib/calc/hormigon/muros/resolver-muro-contencion";
+import { recomendarMuroContencion } from "@/lib/verificaciones/recomendaciones/muro-contencion";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "muros-contencion")!;
@@ -51,14 +48,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-/** Los datos del formulario ya convertidos a número. */
-interface NumerosMuro {
-  gamma: number; phi: number; c: number; sigmaAdm: number;
-  anchoZap: number; cantoZap: number; altMuro: number; espMuro: number;
-  hAct: number; hPas: number; sobrecargaG: number; sobrecargaQ: number; puntera: number;
-  l1Caso2: number; l1Caso3: number; l2Caso3: number;
-}
 
 /**
  * Desarrollo del caso 1, con los números metidos dentro de la fórmula.
@@ -426,84 +415,14 @@ export default function MuroContencionPage() {
   const [l1Caso3, setL1Caso3] = useCampo("l1Caso3", "0.95");
   const [l2Caso3, setL2Caso3] = useCampo("l2Caso3", "2.45");
 
-  const resultado = useMemo(() => {
-    const n: NumerosMuro = {
-      gamma: aNumero(gamma), phi: aNumero(phi), c: aNumero(c), sigmaAdm: aNumero(sigmaAdm),
-      anchoZap: aNumero(anchoZap), cantoZap: aNumero(cantoZap), altMuro: aNumero(altMuro),
-      espMuro: aNumero(espMuro), hAct: aNumero(hAct), hPas: aNumero(hPas),
-      sobrecargaG: aNumero(sobrecargaG), sobrecargaQ: aNumero(sobrecargaQ),
-      puntera: aNumero(puntera),
-      l1Caso2: aNumero(l1Caso2), l1Caso3: aNumero(l1Caso3), l2Caso3: aNumero(l2Caso3),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.gamma <= 0 || n.phi <= 0 || n.phi >= 90 || n.sigmaAdm <= 0) return null;
-    if (n.anchoZap <= 0 || n.cantoZap <= 0 || n.altMuro <= 0 || n.espMuro <= 0 || n.hAct <= 0) return null;
-    if (n.espMuro >= n.anchoZap) return null;
-    // La puntera y el hastial tienen que caber en la zapata y dejar talon.
-    if (n.puntera + n.espMuro >= n.anchoZap) return null;
-    if (n.l1Caso2 <= 0 || n.l2Caso3 <= 0) return null;
-
-    return {
-      n,
-      r: calcularMuroContencion(
-        { gammaKNm3: n.gamma, phiGrados: n.phi, cKPa: n.c, sigmaAdmisibleKPa: n.sigmaAdm },
-        {
-          anchoZapataM: n.anchoZap, cantoZapataM: n.cantoZap, alturaMuroM: n.altMuro,
-          espesorMuroM: n.espMuro, alturaSueloActivoM: n.hAct, alturaSueloPasivoM: n.hPas,
-          sobrecargaPermanenteKPa: n.sobrecargaG, sobrecargaUsoKPa: n.sobrecargaQ,
-          punteraM: n.puntera,
-        },
-        { l1Caso2M: n.l1Caso2, l1Caso3M: n.l1Caso3, l2Caso3M: n.l2Caso3 }
-      ),
-    };
-  }, [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecargaG, sobrecargaQ, puntera, l1Caso2, l1Caso3, l2Caso3]);
-
-  /**
-   * Armado de las tres piezas. Va aparte del resultado de estabilidad porque
-   * depende de los materiales y de las barras elegidas, que no intervienen en
-   * vuelco ni deslizamiento.
-   */
-  const armado = useMemo(() => {
-    if (!resultado) return null;
-    const m = resultado.r.momentos;
-    const materiales = derivarMateriales({ fck: aNumero(fck), fyk: aNumero(fyk) });
-    const rec = aNumero(recArm);
-    if (!Number.isFinite(rec) || rec <= 0) return null;
-
-    const pieza = (
-      nombre: string,
-      cara: "interior" | "superior" | "inferior",
-      momento: number,
-      h: number,
-      diam: string,
-      sep: string
-    ) => {
-      const calculo = armarPieza(nombre, cara, momento, h, rec, materiales.fcd, materiales.fyd);
-      const asRealCm2 = areaPorMetroCm2(aNumero(diam), aNumero(sep));
-      return {
-        calculo,
-        asRealCm2,
-        diametroMm: aNumero(diam),
-        separacionMm: aNumero(sep),
-        // Separación máxima que todavía cubre el área necesaria.
-        separacionMaxMm: separacionParaAs(aNumero(diam), calculo.asNecesarioCm2),
-        verifica: asRealCm2 >= calculo.asNecesarioCm2,
-      };
-    };
-
-    return {
-      fcd: materiales.fcd,
-      fyd: materiales.fyd,
-      recubrimientoM: rec,
-      hastial: pieza("Hastial", "interior", m.hastialKNm, aNumero(espMuro), phiHastial, sepHastial),
-      talon: pieza("Talón", "superior", m.talonKNm, aNumero(cantoZap), phiTalon, sepTalon),
-      puntera:
-        m.punteraM > 0
-          ? pieza("Puntera", "inferior", m.punteraKNm, aNumero(cantoZap), phiPuntera, sepPuntera)
-          : null,
-    };
-  }, [resultado, fck, fyk, recArm, espMuro, cantoZap,
-      phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera]);
+  const campos = useMemo(
+    () => ({ gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecargaG, sobrecargaQ, puntera, fck, fyk, recArm, phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera, l1Caso2, l1Caso3, l2Caso3 }),
+    [gamma, phi, c, sigmaAdm, anchoZap, cantoZap, altMuro, espMuro, hAct, hPas, sobrecargaG, sobrecargaQ, puntera, fck, fyk, recArm, phiHastial, sepHastial, phiTalon, sepTalon, phiPuntera, sepPuntera, l1Caso2, l1Caso3, l2Caso3]
+  );
+  const resultado = useMemo(() => resolverMuroContencion(campos), [campos]);
+  const armado = resultado?.armado ?? null;
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarMuroContencion(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -786,6 +705,7 @@ export default function MuroContencionPage() {
                       limite: { etiqueta: "FS mín", valor: FS_VUELCO_MINIMO },
                       exige: "≥",
                     }}
+                    recomendaciones={propuestas.vuelco}
                   />
                   <ResultadoCheck
                     etiqueta="Deslizamiento"
@@ -796,6 +716,7 @@ export default function MuroContencionPage() {
                       limite: { etiqueta: "FS mín", valor: FS_DESLIZAMIENTO_MINIMO },
                       exige: "≥",
                     }}
+                    recomendaciones={propuestas.deslizamiento}
                   />
                   <ResultadoCheck
                     etiqueta="Tensión del suelo"
@@ -805,6 +726,7 @@ export default function MuroContencionPage() {
                       limite: { etiqueta: "σ adm", valor: resultado.n.sigmaAdm },
                       unidad: "kN/m²", exige: "≤",
                     }}
+                    recomendaciones={propuestas.tension}
                   />
                   <PanelFormulas titulo="Ver desarrollo de la estabilidad" filas={desarrolloCaso1(resultado.n, resultado.r)} />
                 </div>
@@ -827,6 +749,7 @@ export default function MuroContencionPage() {
                               limite: { etiqueta: "As nec", valor: p.calculo.asNecesarioCm2 },
                               unidad: "cm²/m", exige: "≥",
                             }}
+                            recomendaciones={p.calculo.nombre === "Hastial" ? propuestas.armadoHastial : p.calculo.nombre === "Talón" ? propuestas.armadoTalon : propuestas.armadoPuntera}
                           />
                         ))}
                       <PanelFormulas titulo="Ver desarrollo de los momentos de armado" filas={desarrolloMomentos(resultado.n, resultado.r)} />

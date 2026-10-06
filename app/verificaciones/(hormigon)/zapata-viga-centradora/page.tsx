@@ -19,11 +19,11 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { DiagramaVigaCentradora } from "@/components/verificaciones/hormigon/DiagramaVigaCentradora";
 import { DiagramaVuelosViga } from "@/components/verificaciones/hormigon/DiagramaVuelosViga";
-import { calcularVigaCentradora } from "@/lib/calc/hormigon/cimentaciones/viga-centradora";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverVigaCentradora } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora";
+import { recomendarVigaCentradora } from "@/lib/verificaciones/recomendaciones/zapata-viga-centradora";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-viga-centradora")!;
 
@@ -72,53 +72,13 @@ export default function ZapataVigaCentradoraPage() {
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "2");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck), fyk: aNumero(fyk), sigmaAdmisible: aNumero(sigmaAdmisible),
-      A: aNumero(A), B: aNumero(B), H: aNumero(H), recubrimiento: aNumero(recubrimiento),
-      distanciaColumnaLimite: aNumero(distanciaColumnaLimite),
-      anchoPilarA: aNumero(anchoPilarA), anchoPilarB: aNumero(anchoPilarB),
-      luz: aNumero(luz), bViga: aNumero(bViga), hViga: aNumero(hViga),
-      Nk: aNumero(Nk), MkA: aNumero(MkA), MkB: aNumero(MkB),
-      numeroB: aNumero(numeroB), diametroB: aNumero(diametroB),
-      numeroA: aNumero(numeroA), diametroA: aNumero(diametroA),
-      numeroViga: aNumero(numeroViga), diametroViga: aNumero(diametroViga),
-      diametroEstribo: aNumero(diametroEstribo), numeroRamas: aNumero(numeroRamas),
-    };
-    if (!Object.values(v).every((x) => Number.isFinite(x))) return null;
-    const positivos = [
-      v.fck, v.fyk, v.sigmaAdmisible, v.A, v.B, v.H, v.anchoPilarA, v.anchoPilarB, v.luz, v.bViga, v.hViga,
-      v.Nk, v.numeroB, v.diametroB, v.numeroA, v.diametroA, v.numeroViga, v.diametroViga,
-      v.diametroEstribo, v.numeroRamas,
-    ];
-    if (positivos.some((x) => x <= 0) || v.distanciaColumnaLimite < 0 || v.recubrimiento < 0) return null;
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const r = calcularVigaCentradora(
-      materiales,
-      {
-        A: v.A, B: v.B, H: v.H, recubrimiento: v.recubrimiento,
-        distanciaColumnaLimite: v.distanciaColumnaLimite,
-        anchoPilarA: v.anchoPilarA, anchoPilarB: v.anchoPilarB,
-        luzM: v.luz, bViga: v.bViga, hViga: v.hViga,
-      },
-      v.sigmaAdmisible,
-      {
-        Nk: v.Nk, MkA: v.MkA, MkB: v.MkB,
-        armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
-        armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
-        formaAnclaje,
-        vigaSuperior: { numero: v.numeroViga, diametroMm: v.diametroViga },
-        diametroEstriboMm: v.diametroEstribo,
-        numeroRamas: v.numeroRamas,
-      }
-    );
-    return { v, r };
-  }, [
-    fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, distanciaColumnaLimite, anchoPilarA, anchoPilarB,
-    luz, bViga, hViga, Nk, MkA, MkB, numeroB, diametroB, numeroA, diametroA, formaAnclaje,
-    numeroViga, diametroViga, diametroEstribo, numeroRamas,
-  ]);
+  const campos = useMemo(
+    () => ({ fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, distanciaColumnaLimite, anchoPilarA, anchoPilarB, luz, bViga, hViga, Nk, MkA, MkB, numeroB, diametroB, numeroA, diametroA, formaAnclaje, numeroViga, diametroViga, diametroEstribo, numeroRamas }),
+    [fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, distanciaColumnaLimite, anchoPilarA, anchoPilarB, luz, bViga, hViga, Nk, MkA, MkB, numeroB, diametroB, numeroA, diametroA, formaAnclaje, numeroViga, diametroViga, diametroEstribo, numeroRamas]
+  );
+  const resultado = useMemo(() => resolverVigaCentradora(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarVigaCentradora(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -308,6 +268,7 @@ export default function ZapataVigaCentradoraPage() {
                       limite: { etiqueta: "σ adm", valor: resultado.v.sigmaAdmisible },
                       unidad: "kN/m²", exige: "≤",
                     }}
+                    recomendaciones={rec.tension}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la palanca"
@@ -343,7 +304,7 @@ export default function ZapataVigaCentradoraPage() {
                       cortante lo toma sólo el hormigón.
                     </p>
                   </div>
-                  <TarjetaLadoZapata titulo="Vuelos a los lados de la viga (B)" resultado={resultado.r.zapataDireccionB} />
+                  <TarjetaLadoZapata titulo="Vuelos a los lados de la viga (B)" resultado={resultado.r.zapataDireccionB} recomendaciones={{ as: rec.vueloAs, anclaje: rec.vueloAnclaje, corte: rec.vueloCorte }} />
                   <ResultadoCheck
                     etiqueta="Reparto en la dirección de la viga (20 %)"
                     verifica={resultado.r.verificaReparto}
@@ -353,6 +314,7 @@ export default function ZapataVigaCentradoraPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.asRepartoNecCm2PorM },
                       unidad: "cm²/m", exige: "≥",
                     }}
+                    recomendaciones={rec.reparto}
                   />
                 </div>
               </Subgrupo>
@@ -368,6 +330,7 @@ export default function ZapataVigaCentradoraPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.vigaFlexion.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.vigaFlexion}
                   />
                   <ResultadoCheck
                     etiqueta="Viga · compresión oblicua del alma"
@@ -377,6 +340,7 @@ export default function ZapataVigaCentradoraPage() {
                       limite: { etiqueta: "VRd,max", valor: resultado.r.vigaCortante.vRdMax },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.vigaBielas}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la viga"

@@ -15,15 +15,15 @@ import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { LosaDiagrama } from "@/components/verificaciones/hormigon/LosaDiagrama";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaDireccionLosa } from "@/components/verificaciones/hormigon/TarjetaDireccionLosa";
-import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/hormigon/losas/losa";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisCapasLosa,
   CroquisGeometriaLosa,
   CroquisMomentosLosa,
 } from "@/components/verificaciones/croquis/CroquisLosa";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverLosa } from "@/lib/calc/hormigon/losas/resolver-losa";
+import { recomendarLosa } from "@/lib/verificaciones/recomendaciones/losas";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
 
@@ -60,49 +60,23 @@ export default function LosasPage() {
   const [phiNegY, setPhiNegY] = useCampo("phiNegY", "10");
   const [sNegY, setSNegY] = useCampo("sNegY", "0.15");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck), fyk: aNumero(fyk),
-      e: aNumero(e), rgPos: aNumero(rgPos), rgNeg: aNumero(rgNeg),
-      mxPos: aNumero(mxPos), myPos: aNumero(myPos), mxNeg: aNumero(mxNeg), myNeg: aNumero(myNeg),
-      phiPosX: aNumero(phiPosX), sPosX: aNumero(sPosX),
-      phiPosY: aNumero(phiPosY), sPosY: aNumero(sPosY),
-      phiNegX: aNumero(phiNegX), sNegX: aNumero(sNegX),
-      phiNegY: aNumero(phiNegY), sNegY: aNumero(sNegY),
-    };
-    if (!Object.values(v).every((n) => Number.isFinite(n) && n >= 0)) return null;
-    if (v.e <= 0 || v.fck <= 0 || v.fyk <= 0) return null;
-    if ([v.phiPosX, v.sPosX, v.phiPosY, v.sPosY, v.phiNegX, v.sNegX, v.phiNegY, v.sNegY].some((n) => n <= 0)) return null;
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { e: v.e, recubrimientoPositivo: v.rgPos, recubrimientoNegativo: v.rgNeg };
-
-    const losa = calcularLosa(materiales, geometria, {
-      momentoPositivoX: v.mxPos, momentoPositivoY: v.myPos,
-      momentoNegativoX: v.mxNeg, momentoNegativoY: v.myNeg,
-      armadoPositivoX: { diametroMm: v.phiPosX, separacionM: v.sPosX },
-      armadoPositivoY: { diametroMm: v.phiPosY, separacionM: v.sPosY },
-      armadoNegativoX: { diametroMm: v.phiNegX, separacionM: v.sNegX },
-      armadoNegativoY: { diametroMm: v.phiNegY, separacionM: v.sNegY },
-      formaAnclaje: formaAnclaje === "Patilla o gancho" ? "gancho" : "recta",
-    });
-
-    const resistente = calcularMomentoResistenteLosa(materiales, v.e, v.rgPos, {
-      diametroMm: v.phiPosX, separacionM: v.sPosX,
-    });
-
-    return { losa, resistente, v };
-  }, [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje]);
+  const campos = useMemo(
+    () => ({ fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje }),
+    [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje]
+  );
+  const resultado = useMemo(() => resolverLosa(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarLosa(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: el espesor, los materiales, los diámetros y las separaciones tienen que ser positivos." });
 
   const direcciones = resultado
     ? [
-        { etiqueta: "positivo X", r: resultado.losa.positivo.x, separacionM: resultado.v.sPosX },
-        { etiqueta: "positivo Y", r: resultado.losa.positivo.y, separacionM: resultado.v.sPosY },
-        { etiqueta: "negativo X", r: resultado.losa.negativo.x, separacionM: resultado.v.sNegX },
-        { etiqueta: "negativo Y", r: resultado.losa.negativo.y, separacionM: resultado.v.sNegY },
+        { etiqueta: "positivo X", r: resultado.losa.positivo.x, separacionM: resultado.v.sPosX, malla: "PosX" as const },
+        { etiqueta: "positivo Y", r: resultado.losa.positivo.y, separacionM: resultado.v.sPosY, malla: "PosY" as const },
+        { etiqueta: "negativo X", r: resultado.losa.negativo.x, separacionM: resultado.v.sNegX, malla: "NegX" as const },
+        { etiqueta: "negativo Y", r: resultado.losa.negativo.y, separacionM: resultado.v.sNegY, malla: "NegY" as const },
       ]
     : [];
 
@@ -233,10 +207,12 @@ export default function LosasPage() {
                     etiqueta: `armado ${d.etiqueta}`,
                     estado: d.r.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
                     utilizacion: d.r.aprovechamiento,
+                    conPropuestas: !!rec[`as${d.malla}`],
                   })),
                   ...direcciones.map((d) => ({
                     etiqueta: `separación ${d.etiqueta}`,
                     estado: d.separacionM <= separacionMaxConstructivaM + 1e-9 ? ("cumple" as const) : ("no-cumple" as const),
+                    conPropuestas: !!rec[`sep${d.malla}`],
                   })),
                 ]}
               />
@@ -273,6 +249,7 @@ export default function LosasPage() {
                   r={resultado.losa.positivo.x}
                   diametroMm={resultado.v.phiPosX}
                   separacionM={resultado.v.sPosX}
+                  recomendaciones={rec.asPosX}
                   nota="Como en la planilla, el armado en X computa la malla general de Y más el refuerzo propio en X."
                 />
                 <TarjetaDireccionLosa
@@ -280,18 +257,21 @@ export default function LosasPage() {
                   r={resultado.losa.positivo.y}
                   diametroMm={resultado.v.phiPosY}
                   separacionM={resultado.v.sPosY}
+                  recomendaciones={rec.asPosY}
                 />
                 <TarjetaDireccionLosa
                   titulo="Negativo — dirección X"
                   r={resultado.losa.negativo.x}
                   diametroMm={resultado.v.phiNegX}
                   separacionM={resultado.v.sNegX}
+                  recomendaciones={rec.asNegX}
                 />
                 <TarjetaDireccionLosa
                   titulo="Negativo — dirección Y"
                   r={resultado.losa.negativo.y}
                   diametroMm={resultado.v.phiNegY}
                   separacionM={resultado.v.sNegY}
+                  recomendaciones={rec.asNegY}
                 />
               </div>
 
@@ -309,6 +289,7 @@ export default function LosasPage() {
                         exige: "≤",
                         decimales: 0,
                       }}
+                      recomendaciones={rec[`sep${d.malla}`]}
                     />
                   ))}
                 </div>

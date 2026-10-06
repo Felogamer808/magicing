@@ -233,3 +233,13 @@ export function calcularRetraccion(datos: DatosRetraccion): ResultadoRetraccion 
 
   return { betaHR, epsilonCd0, kh, epsilonCd, epsilonCa, epsilonCs: epsilonCd + epsilonCa };
 }
+
+const CLASES_CEMENTO = Object.keys(NOMBRE_CEMENTO) as ClaseCemento[];
+/** La clase de cemento a partir de como se rotula en las páginas. */
+export const cementoDesdeNombre = (nombre: string): ClaseCemento =>
+  CLASES_CEMENTO.find((c) => NOMBRE_CEMENTO[c] === nombre) ?? "N";
+
+const EXPOSICIONES_SECCION = Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion[];
+/** Las caras expuestas a partir de como se rotulan en las páginas. */
+export const exposicionDesdeNombre = (nombre: string, porDefecto: ExposicionSeccion = "tres-caras"): ExposicionSeccion =>
+  EXPOSICIONES_SECCION.find((e) => NOMBRE_EXPOSICION[e] === nombre) ?? porDefecto;

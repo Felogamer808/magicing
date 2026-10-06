@@ -17,33 +17,23 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { CroquisNervioSteelDeck } from "@/components/verificaciones/croquis/CroquisSteelDeck";
 import {
-  calcularSteelDeckFlexion,
   type ResistenciaFuego,
 } from "@/lib/calc/hormigon/losas/steel-deck-flexion";
-import { calcularSteelDeckRasante } from "@/lib/calc/hormigon/losas/steel-deck-rasante";
 import {
-  apDerivadaMm2PorM,
   BMIN_NERVIO_M,
   CATALOGO_DECKPANEL_ARMCO,
   ESPESOR_DECKPANEL_ESTANDAR_MM,
-  FY_ACERO_DECKPANEL_MPA,
   PERFIL_DECKPANEL,
-  yInfChapaM,
 } from "@/lib/calc/hormigon/losas/deckpanel-armco";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
+import { ESPESOR_OPCIONES, ETIQUETA_ESPESOR, resolverSteelDeck } from "@/lib/calc/hormigon/losas/resolver-steel-deck";
+import { recomendarSteelDeck } from "@/lib/verificaciones/recomendaciones/losa-steel-deck";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "losa-steel-deck")!;
 
 const RESISTENCIAS_FUEGO: readonly ResistenciaFuego[] = ["R30", "R60", "R90", "R120", "R180", "R240"];
 const SI_NO = ["No", "Sí"] as const;
-
-const ESPESORES_DECKPANEL = Object.keys(CATALOGO_DECKPANEL_ARMCO).map(Number).sort((a, b) => a - b);
-const ETIQUETA_ESPESOR = (mm: number) =>
-  mm === ESPESOR_DECKPANEL_ESTANDAR_MM ? `${fmt(mm, 3)} mm — estándar` : `${fmt(mm, 3)} mm — a consultar`;
-const ESPESOR_OPCIONES = ESPESORES_DECKPANEL.map(ETIQUETA_ESPESOR);
-const espesorDesdeEtiqueta = (etiqueta: string): number =>
-  ESPESORES_DECKPANEL[ESPESOR_OPCIONES.indexOf(etiqueta)] ?? ESPESOR_DECKPANEL_ESTANDAR_MM;
 
 const ETAPAS = [
   { id: "geometria", titulo: "Perfil y armadura" },
@@ -84,12 +74,6 @@ export default function LosaSteelDeckPage() {
     "espesorDeckpanel",
     ETIQUETA_ESPESOR(ESPESOR_DECKPANEL_ESTANDAR_MM)
   );
-  const espesorDeckpanel = espesorDesdeEtiqueta(espesorDeckpanelTxt);
-
-  const alturaNervio = PERFIL_DECKPANEL.alturaNervioM;
-  const fyp = FY_ACERO_DECKPANEL_MPA;
-  const ap = apDerivadaMm2PorM(espesorDeckpanel);
-  const dp = aNumero(espesorTotal) - yInfChapaM(espesorDeckpanel);
 
   const [fykBarras, setFykBarras] = useCampo("fykBarras", "500");
   const [phiBarra, setPhiBarra] = useCampo("phiBarra", "10");
@@ -100,10 +84,6 @@ export default function LosaSteelDeckPage() {
   // deriva sola, no se carga en mm a mano.
   const [numeroBarrasPorNervio, setNumeroBarrasPorNervio] = useCampo("numeroBarrasPorNervio", "1");
   const [recBarra, setRecBarra] = useCampo("recBarra", "0.025");
-  const sepBarra =
-    aNumero(numeroBarrasPorNervio) > 0
-      ? (PERFIL_DECKPANEL.pasoNervioM * 1000) / aNumero(numeroBarrasPorNervio)
-      : Infinity;
 
   // --- FLEXIÓN: hormigón, solicitación y fuego -----------------------------
   const [fck, setFck] = useCampo("fck", "25");
@@ -131,43 +111,19 @@ export default function LosaSteelDeckPage() {
   // ya se eligió arriba: antes se cargaba a mano y se podía terminar con dos
   // espesores distintos para la misma chapa. Se toma el acero base y no el
   // espesor del panel porque el galvanizado no aporta al aplastamiento.
-  const espesorChapaMm = CATALOGO_DECKPANEL_ARMCO[espesorDeckpanel].espesorAceroBaseMm;
   const [diametroPerno, setDiametroPerno] = useCampo("diametroPerno", "25.4");
   const [numeroPernos, setNumeroPernos] = useCampo("numeroPernos", "1");
   const [sepPernos, setSepPernos] = useCampo("sepPernos", "0.3");
 
-  const resultadoFlexion = useMemo(() => {
-    const n = {
-      fyp, fck: aNumero(fck), fykBarras: aNumero(fykBarras),
-      espesorTotal: aNumero(espesorTotal), alturaNervio,
-      ap, dp, anchoNervio: BMIN_NERVIO_M,
-      phiBarra: aNumero(phiBarra), sepBarra, recBarra: aNumero(recBarra),
-      mEd: aNumero(mEd), etaFi: aNumero(etaFi),
-    };
-    const positivos = [n.fyp, n.fck, n.fykBarras, n.espesorTotal, n.alturaNervio, n.ap, n.dp,
-                        n.anchoNervio, n.sepBarra, n.recBarra, n.etaFi];
-    if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (!Number.isFinite(n.phiBarra) || n.phiBarra < 0) return null;
-    if (!Number.isFinite(n.mEd) || n.mEd < 0) return null;
-    if (n.alturaNervio >= n.espesorTotal) return null;
-    if (n.dp >= n.espesorTotal) return null;
-    if (n.recBarra >= n.espesorTotal) return null;
-
-    return {
-      n,
-      r: calcularSteelDeckFlexion(
-        { fypkMPa: n.fyp, fckMPa: n.fck, fykBarrasMPa: n.fykBarras },
-        {
-          espesorTotalM: n.espesorTotal, alturaNervioM: n.alturaNervio, apMm2PorM: n.ap, dpM: n.dp,
-          diametroBarraMm: n.phiBarra, separacionBarraMm: n.sepBarra, recubrimientoBarraM: n.recBarra,
-          anchoNervioM: n.anchoNervio,
-        },
-        n.mEd,
-        { resistenciaFuego, etaFi: n.etaFi }
-      ),
-    };
-  }, [fyp, fck, fykBarras, espesorTotal, alturaNervio, ap, dp,
-      phiBarra, sepBarra, recBarra, mEd, resistenciaFuego, etaFi]);
+  const campos = useMemo(
+    () => ({ espesorTotal, espesorDeckpanel: espesorDeckpanelTxt, fykBarras, phiBarra, numeroBarrasPorNervio, recBarra, fck, mEd, resistenciaFuego, etaFi, luz, anchoTrib, m, k, gammaVs, lsSobreL, gPp, gAdd, q, gammaG, gammaQ, anclajePresente, diametroPerno, numeroPernos, sepPernos }),
+    [espesorTotal, espesorDeckpanelTxt, fykBarras, phiBarra, numeroBarrasPorNervio, recBarra, fck, mEd, resistenciaFuego, etaFi, luz, anchoTrib, m, k, gammaVs, lsSobreL, gPp, gAdd, q, gammaG, gammaQ, anclajePresente, diametroPerno, numeroPernos, sepPernos]
+  );
+  const resuelto = useMemo(() => resolverSteelDeck(campos), [campos]);
+  const { espesorDeckpanel, alturaNervio, fyp, ap, dp, sepBarra, espesorChapaMm } = resuelto.derivados;
+  const resultadoFlexion = resuelto.flexion;
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarSteelDeck(campos), [campos]);
 
   /**
    * La posición de la barra dentro del nervio es la palanca más fuerte del
@@ -181,41 +137,7 @@ export default function LosaSteelDeckPage() {
     resultadoFlexion.r.fuego.aMinTabMm !== null &&
     resultadoFlexion.r.fuego.aRealMm < resultadoFlexion.r.fuego.aMinTabMm;
 
-  const resultadoRasante = useMemo(() => {
-    const n = {
-      luz: aNumero(luz), anchoTrib: aNumero(anchoTrib), dp, ap, fyp,
-      m: aNumero(m), k: aNumero(k), gammaVs: aNumero(gammaVs), lsSobreL: aNumero(lsSobreL),
-      phiBarra: aNumero(phiBarra), sepBarra, fykBarras: aNumero(fykBarras),
-      gPp: aNumero(gPp), gAdd: aNumero(gAdd), q: aNumero(q), gammaG: aNumero(gammaG), gammaQ: aNumero(gammaQ),
-      espesorChapa: espesorChapaMm, diametroPerno: aNumero(diametroPerno),
-      numeroPernos: aNumero(numeroPernos), sepPernos: aNumero(sepPernos),
-    };
-    const positivos = [n.luz, n.anchoTrib, n.dp, n.ap, n.fyp, n.gammaVs, n.lsSobreL, n.sepBarra, n.fykBarras];
-    if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![n.k, n.gPp, n.gAdd, n.q, n.gammaG, n.gammaQ, n.m].every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (!Number.isFinite(n.phiBarra) || n.phiBarra < 0) return null;
-
-    const anclaje = anclajePresente === "Sí";
-    if (anclaje) {
-      const positivosAnclaje = [n.espesorChapa, n.diametroPerno, n.numeroPernos, n.sepPernos];
-      if (!positivosAnclaje.every((x) => Number.isFinite(x) && x > 0)) return null;
-    }
-
-    return {
-      n,
-      r: calcularSteelDeckRasante(
-        { fypMPa: n.fyp, fykBarrasMPa: n.fykBarras },
-        { luzM: n.luz, anchoM: n.anchoTrib, dpM: n.dp, apMm2PorM: n.ap, diametroBarraMm: n.phiBarra, separacionBarraMm: n.sepBarra },
-        { mMPa: n.m, kMPa: n.k, gammaVs: n.gammaVs, lsSobreL: n.lsSobreL },
-        { gPpKNm2: n.gPp, gAddKNm2: n.gAdd, qKNm2: n.q, gammaG: n.gammaG, gammaQ: n.gammaQ },
-        {
-          presente: anclaje, espesorChapaMm: n.espesorChapa, diametroPernoMm: n.diametroPerno,
-          numeroPernos: n.numeroPernos, separacionPernosM: n.sepPernos,
-        }
-      ),
-    };
-  }, [luz, anchoTrib, dp, ap, fyp, m, k, gammaVs, lsSobreL, phiBarra, sepBarra, fykBarras,
-      gPp, gAdd, q, gammaG, gammaQ, anclajePresente, espesorChapaMm, diametroPerno, numeroPernos, sepPernos]);
+  const resultadoRasante = resuelto.rasante;
 
   const avisos: AvisoRevision[] = [];
   if (!resultadoFlexion)
@@ -470,6 +392,7 @@ export default function LosaSteelDeckPage() {
                         limite: { etiqueta: "Mpl,Rd", valor: resultadoFlexion.r.frio.mPlRdKNm },
                         unidad: "kN·m/m", exige: "≤",
                       }}
+                      recomendaciones={propuestas.frio}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo de la flexión en frío"
@@ -517,6 +440,7 @@ export default function LosaSteelDeckPage() {
                           limite: { etiqueta: "Mfi,Rd", valor: resultadoFlexion.r.fuego.mFiRdKNm },
                           unidad: "kN·m/m", exige: "≤",
                         }}
+                        recomendaciones={propuestas.fuego}
                       />
                     ) : (
                       <ResultadoCheck
@@ -558,6 +482,7 @@ export default function LosaSteelDeckPage() {
                         limite: { etiqueta: "Vl,Rd", valor: resultadoRasante.r.rasante.vlRdKNporM },
                         unidad: "kN/m", exige: "≤",
                       }}
+                      recomendaciones={propuestas.rasante}
                     />
                     <ResultadoCheck
                       etiqueta="Rasante · chequeo complementario con la chapa exclusiva"
@@ -567,6 +492,7 @@ export default function LosaSteelDeckPage() {
                         limite: { etiqueta: "Vl,Rd", valor: resultadoRasante.r.rasante.vlRdKNporM },
                         unidad: "kN/m", exige: "≤",
                       }}
+                      recomendaciones={propuestas.chapaExclusiva}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo del rasante"
@@ -609,6 +535,7 @@ export default function LosaSteelDeckPage() {
                         limite: { etiqueta: "mín. tabulado", valor: resultadoFlexion.r.fuego.espesorAlaMinMm },
                         unidad: "mm", exige: "≥", decimales: 0,
                       }}
+                      recomendaciones={propuestas.espesorAla}
                     />
                   </div>
                 </Subgrupo>

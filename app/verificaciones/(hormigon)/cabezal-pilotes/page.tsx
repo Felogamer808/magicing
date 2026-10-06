@@ -17,10 +17,10 @@ import { CroquisGeometriaCabezal } from "@/components/verificaciones/croquis/Cro
 import { DiagramaBielasTirante } from "@/components/verificaciones/hormigon/DiagramaBielasTirante";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezal } from "@/components/verificaciones/hormigon/DiagramaCabezal";
-import { calcularCabezalDosPilotes } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
+import { recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
 
 const meta = registroVerificaciones.find((v) => v.id === "cabezales")!;
 
@@ -55,35 +55,13 @@ export default function CabezalPilotesPage() {
   const [nEstH, setNEstH] = useCampo("nEstH", "5");
   const [phiEstH, setPhiEstH] = useCampo("phiEstH", "10");
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk), rg: aNumero(rg),
-      anchoPilar: aNumero(anchoPilar), ladoX: aNumero(ladoX), ladoY: aNumero(ladoY),
-      hCab: aNumero(hCab), dPilote: aNumero(dPilote), ndPilar: aNumero(ndPilar),
-      nPrinc: aNumero(nPrinc), phiPrinc: aNumero(phiPrinc),
-      nSec: aNumero(nSec), phiSec: aNumero(phiSec),
-      nEstV: aNumero(nEstV), phiEstV: aNumero(phiEstV), nCercos: aNumero(nCercos),
-      nEstH: aNumero(nEstH), phiEstH: aNumero(phiEstH),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.fck <= 0 || n.fyk <= 0 || n.anchoPilar <= 0 || n.ladoX <= 0 || n.ladoY <= 0 || n.hCab <= 0 || n.dPilote <= 0 || n.ndPilar <= 0) return null;
-    if ([n.nPrinc, n.phiPrinc, n.nSec, n.phiSec, n.nEstV, n.phiEstV, n.nCercos, n.nEstH, n.phiEstH].some((x) => x <= 0)) return null;
-    if (n.nPrinc < 2 || n.nSec < 2) return null;
-
-    const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    const r = calcularCabezalDosPilotes(
-      materiales,
-      { anchoPilarM: n.anchoPilar, ladoXM: n.ladoX, ladoYM: n.ladoY, hM: n.hCab, diametroPiloteM: n.dPilote, recubrimientoM: n.rg },
-      {
-        ndPilarKN: n.ndPilar,
-        armaduraPrincipal: { numero: n.nPrinc, diametroMm: n.phiPrinc },
-        armaduraSecundaria: { numero: n.nSec, diametroMm: n.phiSec },
-        estribosVerticales: { numero: n.nEstV, diametroMm: n.phiEstV, numeroCercos: n.nCercos },
-        estribosHorizontales: { numero: n.nEstH, diametroMm: n.phiEstH },
-      }
-    );
-    return { n, r };
-  }, [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH]);
+  const campos = useMemo(
+    () => ({ fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH }),
+    [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH]
+  );
+  const resultado = useMemo(() => resolverCabezal(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarCabezal(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -219,35 +197,42 @@ export default function CabezalPilotesPage() {
                     etiqueta: "tirante",
                     estado: resultado.r.principal.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.principal.asNecCm2 / resultado.r.principal.asRealCm2,
+                    conPropuestas: !!rec.tirante,
                   },
                   {
                     etiqueta: "biela",
                     estado: resultado.r.bielas.verificaBiela ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.bielas.sigmaBielaMPa / resultado.r.bielas.sigmaBielaMaxMPa,
+                    conPropuestas: !!rec.biela,
                   },
                   {
                     etiqueta: "nudo sobre el pilote",
                     estado: resultado.r.bielas.verificaNudo ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.bielas.sigmaNudoMPa / resultado.r.bielas.sigmaNudoMaxMPa,
+                    conPropuestas: !!rec.nudo,
                   },
                   {
                     etiqueta: "armadura secundaria",
                     estado: resultado.r.secundaria.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.secundaria.asNecCm2 / resultado.r.secundaria.asRealCm2,
+                    conPropuestas: !!rec.secundaria,
                   },
                   {
                     etiqueta: "estribos verticales",
                     estado: resultado.r.estribosVerticales.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.estribosVerticales.asNecCm2 / resultado.r.estribosVerticales.asRealCm2,
+                    conPropuestas: !!rec.estribosV,
                   },
                   {
                     etiqueta: "estribos horizontales",
                     estado: resultado.r.estribosHorizontales.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.estribosHorizontales.asNecCm2 / resultado.r.estribosHorizontales.asRealCm2,
+                    conPropuestas: !!rec.estribosH,
                   },
                   {
                     etiqueta: "barras en el ancho",
                     estado: resultado.r.principal.verificaBNec ? "cumple" : "no-cumple",
+                    conPropuestas: !!rec.ancho,
                   },
                 ]}
               />
@@ -272,6 +257,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.principal.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.tirante}
                   />
                   <div className="mx-auto w-full max-w-xl pt-4">
                     <DiagramaBielasTirante
@@ -315,6 +301,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "0,6·ν′·fcd", valor: resultado.r.bielas.sigmaBielaMaxMPa },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={rec.biela}
                   />
                   <ResultadoCheck
                     etiqueta="Compresión en el nudo sobre el pilote"
@@ -324,6 +311,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "0,85·ν′·fcd", valor: resultado.r.bielas.sigmaNudoMaxMPa },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={rec.nudo}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de bielas y nudos"
@@ -346,6 +334,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.secundaria.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.secundaria}
                   />
                   <ResultadoCheck
                     etiqueta="Estribos verticales"
@@ -356,6 +345,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosVerticales.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.estribosV}
                   />
                   <ResultadoCheck
                     etiqueta="Estribos horizontales"
@@ -366,6 +356,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosHorizontales.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.estribosH}
                   />
                 </div>
               </Subgrupo>
@@ -381,6 +372,7 @@ export default function CabezalPilotesPage() {
                       limite: { etiqueta: "lado y", valor: resultado.n.ladoY },
                       unidad: "m", exige: "≤", decimales: 3,
                     }}
+                    recomendaciones={rec.ancho}
                   />
                 </div>
               </Subgrupo>

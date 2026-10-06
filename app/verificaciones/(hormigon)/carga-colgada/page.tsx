@@ -14,9 +14,10 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisCargaColgada } from "@/components/verificaciones/croquis/CroquisVarios";
-import { calcularCuelgue } from "@/lib/calc/hormigon/vigas/cuelgue";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverCargaColgada } from "@/lib/calc/hormigon/vigas/resolver-carga-colgada";
+import { recomendarCargaColgada } from "@/lib/verificaciones/recomendaciones/carga-colgada";
 
 const meta = registroVerificaciones.find((v) => v.id === "carga-colgada")!;
 
@@ -37,24 +38,13 @@ export default function CargaColgadaPage() {
   const [h, setH] = useCampo("h", "0.5");
   const [a, setA] = useCampo("a", "0.3");
 
-  const resultado = useMemo(() => {
-    const v = {
-      reaccion: aNumero(reaccion),
-      fyk: aNumero(fyk),
-      diametroEstribo: aNumero(diametroEstribo),
-      numeroRamas: aNumero(numeroRamas),
-      h: aNumero(h),
-      a: aNumero(a),
-    };
-    if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) return null;
-
-    const r = calcularCuelgue(
-      { fykMPa: v.fyk },
-      { hM: v.h, aM: v.a },
-      { reaccionKN: v.reaccion, diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas }
-    );
-    return { v, r };
-  }, [reaccion, fyk, diametroEstribo, numeroRamas, h, a]);
+  const campos = useMemo(
+    () => ({ reaccion, fyk, diametroEstribo, numeroRamas, h, a }),
+    [reaccion, fyk, diametroEstribo, numeroRamas, h, a]
+  );
+  const resultado = useMemo(() => resolverCargaColgada(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarCargaColgada(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: todos tienen que ser positivos." });
@@ -157,6 +147,7 @@ export default function CargaColgadaPage() {
                     etiqueta="Canto suficiente para que se formen las bielas"
                     verifica={resultado.r.verificaCanto}
                     comparacion={{ real: { etiqueta: "h", valor: resultado.v.h }, limite: { etiqueta: "1,2·a", valor: resultado.r.cantoMinimoM }, unidad: "m", exige: "≥", decimales: 2 }}
+                    recomendaciones={rec.canto}
                   />
                 </div>
               </Subgrupo>

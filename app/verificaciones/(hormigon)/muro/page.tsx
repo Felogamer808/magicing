@@ -16,7 +16,6 @@ import { PanelAyuda } from "@/components/verificaciones/comun/PanelAyuda";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaInteraccionMuro } from "@/components/verificaciones/hormigon/DiagramaInteraccionMuro";
-import { calcularMuro } from "@/lib/calc/hormigon/muros/portante";
 import {
   NOMBRE_CEMENTO,
   NOMBRE_EXPOSICION,
@@ -26,9 +25,11 @@ import {
   type ClaseCemento,
   type ExposicionSeccion,
 } from "@/lib/calc/hormigon/comun/diferidas";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { BETA, COACCIONES, resolverMuro } from "@/lib/calc/hormigon/muros/resolver-muro";
+import { cementoDesdeNombre, exposicionDesdeNombre } from "@/lib/calc/hormigon/comun/diferidas";
+import { recomendarMuro } from "@/lib/verificaciones/recomendaciones/muro";
 
 const meta = registroVerificaciones.find((v) => v.id === "muros")!;
 
@@ -43,28 +44,9 @@ const ETAPAS = [
 
 const CEMENTOS = Object.keys(NOMBRE_CEMENTO) as ClaseCemento[];
 const OPCIONES_CEMENTO = CEMENTOS.map((c) => NOMBRE_CEMENTO[c]);
-const cementoDesdeNombre = (nombre: string): ClaseCemento =>
-  CEMENTOS.find((c) => NOMBRE_CEMENTO[c] === nombre) ?? "N";
 
 const EXPOSICIONES = Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion[];
 const OPCIONES_EXPOSICION = EXPOSICIONES.map((e) => NOMBRE_EXPOSICION[e]);
-const exposicionDesdeNombre = (nombre: string): ExposicionSeccion =>
-  EXPOSICIONES.find((e) => NOMBRE_EXPOSICION[e] === nombre) ?? "cuatro-caras";
-
-/** Casos de coacción de la figura A19.5.7, con su factor de longitud efectiva. */
-const COACCIONES = [
-  "Biarticulado (β = 1,0)",
-  "Un extremo empotrado (β = 0,7)",
-  "Biempotrado (β = 0,5)",
-  "En ménsula (β = 2,0)",
-] as const;
-
-const BETA: Record<string, number> = {
-  [COACCIONES[0]]: 1,
-  [COACCIONES[1]]: 0.7,
-  [COACCIONES[2]]: 0.5,
-  [COACCIONES[3]]: 2,
-};
 
 export default function MuroPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -97,7 +79,7 @@ export default function MuroPage() {
   const [sepH, setSepH] = useCampo("sepH", "200");
 
   const cemento = cementoDesdeNombre(cementoTxt);
-  const exposicion = exposicionDesdeNombre(exposicionTxt);
+  const exposicion = exposicionDesdeNombre(exposicionTxt, "cuatro-caras");
 
   // En un muro las dos caras grandes son las que secan, y el espesor es el que
   // manda: h0 = 2·(L·h)/u. Se arma acá para poder mostrarlo aunque el resto del
@@ -119,47 +101,13 @@ export default function MuroPage() {
   );
   const phiBasica = fluencia.phi;
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk),
-      espesor: aNumero(espesor), longitud: aNumero(longitud), altura: aNumero(altura),
-      rec: aNumero(rec), nEd: aNumero(nEd), m01: aNumero(m01), m02: aNumero(m02),
-      relacionMqp: aNumero(relacionMqp),
-      phiV: aNumero(phiV), sepV: aNumero(sepV), phiH: aNumero(phiH), sepH: aNumero(sepH),
-    };
-    const positivos = [n.fck, n.fyk, n.espesor, n.longitud, n.altura, n.rec, n.nEd,
-                       n.phiV, n.sepV, n.phiH, n.sepH];
-    if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![n.m01, n.m02, n.relacionMqp].every((x) => Number.isFinite(x) && x >= 0)) return null;
-    // La fracción cuasipermanente no puede pasar del momento total.
-    if (n.relacionMqp > 1) return null;
-    // El recubrimiento tiene que dejar canto útil de los dos lados.
-    if (2 * n.rec >= n.espesor) return null;
-    if (Math.abs(n.m01) > Math.abs(n.m02)) return null;
-
-    return {
-      n,
-      r: calcularMuro(
-        derivarMateriales({ fck: n.fck, fyk: n.fyk }),
-        {
-          espesorM: n.espesor, longitudM: n.longitud, alturaLibreM: n.altura,
-          beta: BETA[coaccion] ?? 1, recubrimientoMecanicoM: n.rec,
-        },
-        {
-          diametroVerticalMm: n.phiV, separacionVerticalMm: n.sepV,
-          diametroHorizontalMm: n.phiH, separacionHorizontalMm: n.sepH,
-          dosCaras: true,
-        },
-        {
-          nEdKN: n.nEd, m01KNm: n.m01, m02KNm: n.m02,
-          fluenciaBasica: phiBasica,
-          relacionMomentoCuasipermanente: n.relacionMqp,
-        },
-        n.fyk
-      ),
-    };
-  }, [fck, fyk, espesor, longitud, altura, coaccion, rec, nEd, m01, m02, relacionMqp,
-      phiBasica, phiV, sepV, phiH, sepH]);
+  const campos = useMemo(
+    () => ({ fck, fyk, espesor, longitud, altura, coaccion, rec, nEd, m01, m02, relacionMqp, phiV, sepV, phiH, sepH, hr, t0, cemento: cementoTxt, exposicion: exposicionTxt }),
+    [fck, fyk, espesor, longitud, altura, coaccion, rec, nEd, m01, m02, relacionMqp, phiV, sepV, phiH, sepH, hr, t0, cementoTxt, exposicionTxt]
+  );
+  const resultado = useMemo(() => resolverMuro(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarMuro(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -320,6 +268,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "MRd", valor: resultado.r.resistencia.mRdKNm },
                       unidad: "kN·m/m", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={propuestas.resistencia}
                   />
                   <div className="mx-auto w-full max-w-xl pt-4">
                     <DiagramaInteraccionMuro
@@ -381,6 +330,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "mínima", valor: resultado.r.armado.asVerticalMinimaCm2 },
                       unidad: "cm²/m", exige: "≥",
                     }}
+                    recomendaciones={propuestas.verticalMin}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía vertical máxima (0,04·Ac)"
@@ -390,6 +340,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "máxima", valor: resultado.r.armado.asVerticalMaximaCm2 },
                       unidad: "cm²/m", exige: "≤",
                     }}
+                    recomendaciones={propuestas.verticalMax}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía horizontal mínima (art. 9.6.3)"
@@ -399,6 +350,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "mínima", valor: resultado.r.armado.asHorizontalMinimaCm2 },
                       unidad: "cm²/m", exige: "≥",
                     }}
+                    recomendaciones={propuestas.horizontalMin}
                   />
                   <ResultadoCheck
                     etiqueta="Separación de la armadura vertical"
@@ -409,6 +361,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "máxima", valor: resultado.r.armado.separacionVerticalMaximaMm },
                       unidad: "mm", exige: "≤", decimales: 0,
                     }}
+                    recomendaciones={propuestas.sepV}
                   />
                   <ResultadoCheck
                     etiqueta="Separación de la armadura horizontal"
@@ -418,6 +371,7 @@ export default function MuroPage() {
                       limite: { etiqueta: "máxima", valor: 400 },
                       unidad: "mm", exige: "≤", decimales: 0,
                     }}
+                    recomendaciones={propuestas.sepH}
                   />
                 </div>
               </Subgrupo>

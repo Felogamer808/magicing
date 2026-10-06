@@ -23,8 +23,11 @@ export const AL_LIMITE = 0.9;
 export interface Recomendacion {
   /** El cambio, escrito con el valor nuevo y el de hoy: "H = 0,40 m (hoy 0,30 m)". */
   accion: string;
-  /** Utilización de la comprobación con el cambio aplicado. */
-  utilizacion: number;
+  /**
+   * Utilización de la comprobación con el cambio aplicado. Falta en las de sí o
+   * no, como "la armadura entra en el ancho", donde no hay cociente que dar.
+   */
+  utilizacion?: number;
   /**
    * Comprobaciones que hoy cumplen y con el cambio dejarían de cumplir. Las que
    * ya fallaban no cuentan: el cambio no las rompe, sólo no las arregla.
@@ -62,7 +65,15 @@ export interface Problema<D, R, K extends string> {
   utilizaciones: (resultado: R) => Partial<Record<K, number>>;
   /** Nombre de cada comprobación, para decir cuáles fallan con el cambio. */
   nombres: Record<K, string>;
+  /** Comprobaciones de sí o no: su "utilización" es la de `siNo`. */
+  binarias?: readonly K[];
 }
+
+/**
+ * Utilización de una comprobación de sí o no, para que el motor la trate
+ * como las demás: 0 si cumple, 2 si no.
+ */
+export const siNo = (cumple: boolean): number => (cumple ? 0 : 2);
 
 /** Cuántas propuestas se muestran por comprobación. */
 const MAXIMO = 3;
@@ -114,7 +125,7 @@ export function recomendar<D, R, K extends string>(
         .map((k) => problema.nombres[k]);
       propuestas.push({
         accion: candidato.accion,
-        utilizacion: u,
+        ...(problema.binarias?.includes(clave) ? {} : { utilizacion: u }),
         fallanOtras,
         ...(palanca.efectoColateral ? { efectoColateral: palanca.efectoColateral } : {}),
         ...(palanca.cita ? { cita: palanca.cita } : {}),
@@ -143,3 +154,21 @@ export function* pasos(desde: number, paso: number, hasta: number, decimales = 3
 
 /** Clases resistentes habituales del hormigón, en MPa (Anejo 19, tabla 3.1). */
 export const CLASES_FCK = [25, 30, 35, 40, 45, 50] as const;
+
+/**
+ * Propuestas para todas las comprobaciones que no cumplen o quedan justas,
+ * cada una con sus palancas. Las que cumplen con margen no aparecen.
+ */
+export function recomendarTodas<D, R, K extends string>(
+  problema: Problema<D, R, K>,
+  palancasPorClave: (clave: K) => readonly Palanca<D>[]
+): Partial<Record<K, Recomendacion[]>> {
+  const actual = calcularSeguro(problema.calcular, problema.datos);
+  if (!actual) return {};
+  const salida: Partial<Record<K, Recomendacion[]>> = {};
+  for (const clave of Object.keys(problema.utilizaciones(actual)) as K[]) {
+    const r = recomendar(problema, clave, palancasPorClave(clave), actual);
+    if (r.length) salida[clave] = r;
+  }
+  return salida;
+}

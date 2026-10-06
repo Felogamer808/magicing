@@ -23,8 +23,6 @@ import {
   COEF_FLECHA,
   K_SISTEMA,
   NOMBRE_SISTEMA,
-  calcularFlecha,
-  calcularLuzCanto,
   type SistemaEstructural,
 } from "@/lib/calc/hormigon/deformaciones";
 import {
@@ -37,9 +35,11 @@ import {
   type ClaseCemento,
   type ExposicionSeccion,
 } from "@/lib/calc/hormigon/comun/diferidas";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { CroquisArmaduraFlexion, CroquisMateriales } from "@/components/verificaciones/croquis/CroquisViga";
+import { areaBarrasCm2, resolverDeformaciones, sistemaDesdeNombre } from "@/lib/calc/hormigon/resolver-deformaciones";
+import { cementoDesdeNombre, exposicionDesdeNombre } from "@/lib/calc/hormigon/comun/diferidas";
+import { recomendarDeformaciones } from "@/lib/verificaciones/recomendaciones/deformaciones";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "deformaciones")!;
@@ -56,29 +56,15 @@ const ETAPAS = [
 
 const SISTEMAS = Object.keys(K_SISTEMA) as SistemaEstructural[];
 const OPCIONES_SISTEMA = SISTEMAS.map((s) => NOMBRE_SISTEMA[s]);
-const sistemaDesdeNombre = (nombre: string): SistemaEstructural =>
-  SISTEMAS.find((s) => NOMBRE_SISTEMA[s] === nombre) ?? "simplemente-apoyada";
 
 const OPCIONES_ESQUEMA = [...COEF_FLECHA.map((c) => c.nombre), "Otro (cargar k a mano)"];
 
 const CEMENTOS = Object.keys(NOMBRE_CEMENTO) as ClaseCemento[];
 const OPCIONES_CEMENTO = CEMENTOS.map((c) => NOMBRE_CEMENTO[c]);
-const cementoDesdeNombre = (nombre: string): ClaseCemento =>
-  CEMENTOS.find((c) => NOMBRE_CEMENTO[c] === nombre) ?? "N";
 
 const EXPOSICIONES = Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion[];
 const OPCIONES_EXPOSICION = EXPOSICIONES.map((e) => NOMBRE_EXPOSICION[e]);
-const exposicionDesdeNombre = (nombre: string): ExposicionSeccion =>
-  EXPOSICIONES.find((e) => NOMBRE_EXPOSICION[e] === nombre) ?? "tres-caras";
 
-/** Área de un grupo de barras, en cm². Devuelve 0 si los datos no sirven todavía. */
-function areaBarrasCm2(numeroTxt: string, diametroTxt: string): number {
-  const numero = aNumero(numeroTxt);
-  const diametroMm = aNumero(diametroTxt);
-  if (!Number.isFinite(numero) || !Number.isFinite(diametroMm)) return 0;
-  if (numero <= 0 || diametroMm <= 0) return 0;
-  return (numero * Math.PI * diametroMm ** 2) / 4 / 100;
-}
 
 export default function DeformacionesPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -159,9 +145,6 @@ export default function DeformacionesPage() {
       }),
     [fck, hr, cemento, h0Mm]
   );
-  const phiFluencia = fluencia.phi;
-  const epsilonCsCalculado = retraccion.epsilonCs;
-
   const sistema = sistemaDesdeNombre(sistemaTxt);
   const esquemaElegido = COEF_FLECHA.find((c) => c.nombre === esquemaTxt);
   const coefFlecha = esquemaElegido ? esquemaElegido.valor : aNumero(coefManual);
@@ -176,64 +159,16 @@ export default function DeformacionesPage() {
   const esquemaIncoherente =
     esquemaElegido !== undefined && sistemaEsVoladizo !== esquemaEsVoladizo;
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa),
-      b: aNumero(b), h: aNumero(h), d: aNumero(d), dComp: aNumero(dComp), luz: aNumero(luz),
-      asProv: asProvCm2, asComp: asCompCm2, asReq: aNumero(asReq),
-      mqp: aNumero(mqp), phi: phiFluencia, epsilonCs: epsilonCsCalculado,
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.fck <= 0 || n.fyk <= 0 || n.esGPa <= 0) return null;
-    if (n.b <= 0 || n.h <= 0 || n.d <= 0 || n.luz <= 0) return null;
-    if (n.d >= n.h) return null;
-    if (n.asProv <= 0 || n.mqp <= 0) return null;
-    if (!Number.isFinite(coefFlecha) || coefFlecha <= 0) return null;
-
-    const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    // ρ y ρ' del art. 7.4.2 son geométricas sobre b·d, con la armadura del
-    // centro de vano (en voladizo, la del arranque).
-    const rho = n.asProv / 1e4 / (n.b * n.d);
-    const rhoComp = n.asComp / 1e4 / (n.b * n.d);
-
-    return {
-      n,
-      rho,
-      rhoComp,
-      luzCanto: calcularLuzCanto({
-        sistema,
-        luzEfM: n.luz,
-        dM: n.d,
-        fckMPa: n.fck,
-        fykMPa: n.fyk,
-        rho,
-        rhoComp,
-        asReqCm2: n.asReq,
-        asProvCm2: n.asProv,
-        alaAnchaEnT: alaEnT === "Sí",
-        soportaTabiques: tabiques === "Sí",
-      }),
-      flecha: calcularFlecha({
-        bM: n.b,
-        hM: n.h,
-        dM: n.d,
-        dCompM: n.dComp,
-        asCm2: n.asProv,
-        asCompCm2: n.asComp,
-        fckMPa: n.fck,
-        fctmMPa: materiales.fctm,
-        esGPa: n.esGPa,
-        phiFluencia: n.phi,
-        epsilonCs: n.epsilonCs,
-        mqpKNm: n.mqp,
-        luzM: n.luz,
-        coefFlecha,
-      }),
-    };
-  }, [
-    fck, fyk, esGPa, b, h, d, dComp, luz, asProvCm2, asCompCm2, asReq,
-    mqp, phiFluencia, epsilonCsCalculado, sistema, alaEnT, tabiques, coefFlecha,
-  ]);
+  const campos = useMemo(
+    () => ({
+      fck, fyk, esGPa, b, h, d, dComp, luz, numeroAs, phiAs, capa2, numeroAs2, phiAs2, numeroAsComp, phiAsComp, asReq, alaEnT, tabiques, mqp, hr, t0,
+      sistema: sistemaTxt, cemento: cementoTxt, exposicion: exposicionTxt, esquema: esquemaTxt, coefManual,
+    }),
+    [fck, fyk, esGPa, b, h, d, dComp, luz, numeroAs, phiAs, capa2, numeroAs2, phiAs2, numeroAsComp, phiAsComp, asReq, alaEnT, tabiques, mqp, hr, t0, sistemaTxt, cementoTxt, exposicionTxt, esquemaTxt, coefManual]
+  );
+  const resultado = useMemo(() => resolverDeformaciones(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarDeformaciones(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -540,6 +475,7 @@ export default function DeformacionesPage() {
                       unidad: "mm",
                       exige: "≤",
                     }}
+                    recomendaciones={rec.apariencia}
                   />
                   <ResultadoCheck
                     etiqueta="Flecha diferida — daño a lo adyacente (art. 7.4.1(5))"
@@ -550,6 +486,7 @@ export default function DeformacionesPage() {
                       unidad: "mm",
                       exige: "≤",
                     }}
+                    recomendaciones={rec.danio}
                   />
                   <DiagramaFlecha
                     resultado={resultado.flecha}
@@ -615,6 +552,7 @@ export default function DeformacionesPage() {
                         limite: { etiqueta: "l/d adm", valor: resultado.luzCanto.ldAdm },
                         exige: "≤",
                       }}
+                      recomendaciones={rec.luzCanto}
                     />
                     <DiagramaLuzCanto resultado={resultado.luzCanto} />
                     {resultado.luzCanto.fueraDeCalibracion && (

@@ -16,14 +16,14 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaFisuracion } from "@/components/verificaciones/hormigon/DiagramaFisuracion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularFisuracion } from "@/lib/calc/hormigon/fisuracion";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisFamiliaFisuracion,
   CroquisSeccionFisuracion,
 } from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverFisuracion } from "@/lib/calc/hormigon/resolver-fisuracion";
+import { recomendarFisuracion } from "@/lib/verificaciones/recomendaciones/fisuracion";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
 
@@ -92,34 +92,13 @@ export default function FisuracionPage() {
 
   const hayFamilia2 = familia2 === "Sí";
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk), esGPa: aNumero(esGPa), rg: aNumero(rg),
-      k2: aNumero(k2), wAdm: aNumero(wAdm),
-      h: aNumero(h), b: aNumero(b), mqp: aNumero(mqp),
-      numero1: aNumero(numero1), phi1: aNumero(phi1),
-      numero2: aNumero(numero2), phi2: aNumero(phi2),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.fck <= 0 || n.fyk <= 0 || n.esGPa <= 0 || n.h <= 0 || n.b <= 0) return null;
-    if (n.numero1 <= 0 || n.phi1 <= 0 || n.wAdm <= 0) return null;
-    if (n.mqp <= 0) return null;
-
-    const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    const n1 = n.numero1;
-    const n2 = hayFamilia2 && n.numero2 > 0 && n.phi2 > 0 ? n.numero2 : 0;
-
-    return {
-      n,
-      n1,
-      n2,
-      r: calcularFisuracion(
-        materiales,
-        { recubrimientoM: n.rg, k2: n.k2, wAdmMm: n.wAdm, esGPa: n.esGPa },
-        { hM: n.h, bM: n.b, n1, diametro1Mm: n.phi1, n2, diametro2Mm: n.phi2, mqpKNm: n.mqp }
-      ),
-    };
-  }, [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, hayFamilia2]);
+  const campos = useMemo(
+    () => ({ fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2 }),
+    [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2]
+  );
+  const resultado = useMemo(() => resolverFisuracion(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarFisuracion(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -278,6 +257,7 @@ export default function FisuracionPage() {
                       limite: { etiqueta: "w adm", valor: resultado.n.wAdm },
                       unidad: "mm", exige: "≤", decimales: 3,
                     }}
+                    recomendaciones={rec.wk}
                   />
                   <DiagramaFisuracion
                     resultado={resultado.r}

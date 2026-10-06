@@ -24,7 +24,8 @@ Auditado a fondo:
 - `materiales.ts`, `cortante.ts`
 - `vigas-flexion-cortante.ts` — flexión y cortante completos
 - `vigas-torsion.ts`
-- `zapata-aislada.ts` — cortante y punzonamiento
+- `zapata-aislada.ts` — cortante, punzonamiento y terreno (la flexión sigue
+  pendiente, ver hallazgo 6)
 - `fisuracion.ts`
 - `losa.ts` — mínimos y separaciones
 - `cabezal-pilotes.ts` — modelo de bielas y tirantes
@@ -110,6 +111,8 @@ comprobando. Hay que iterar `a` y quedarse con el mínimo.
 
 Lo que sí está bien: `β = 1,15` para pilar interior es el valor simplificado del
 art. 6.4.3(6), y aplicarlo sobre una zapata de carga centrada es conservador.
+*(Revisado en el hallazgo 6: con momento no alcanza, y se reemplazó por la
+ec. (6.51).)*
 
 ## Hallazgo 4 — Fisuración implementaba el método de la EHE-08 ✅ CORREGIDO
 
@@ -190,6 +193,26 @@ la segunda dimensión del pilar y el formulario sólo carga el ancho. Además ra
 vez gobierna, porque el pilar ya está dimensionado para ese mismo axil con su
 propio `f_cd`. Si algún día se agrega la segunda dimensión, es la comprobación
 que falta.
+
+## Hallazgo 6 — Zapata aislada: auditoría completa (2026-10-05)
+
+La primera pasada auditó sólo el cortante y el punzonamiento, pero el sello de
+"auditada" se mostraba para todo el módulo. Al revisar el resto aparecieron:
+
+- **Resultante fuera de la base daba "cumple"** ✅ CORREGIDO (#73): los dos
+  anchos eficaces negativos daban un área positiva.
+- **Excentricidad sin peso propio** ✅ CORREGIDO (#73): `e = Mk/Nk` con la
+  carga `Nk + PP`. Pasa a `e = Mk/(Nk+PP)`.
+- **Armado con presiones negativas** ✅ CORREGIDO (#73): con despegue se usaba
+  el trapecio N/A ± M/W; ahora la cuña real.
+- **Punzonamiento sin momento** ✅ CORREGIDO: β = 1,15 fijo. Pasa a la
+  ec. (6.51) (art. 6.4.4 (2), pág. 95) con los dos ejes sumados y MEd = 1,5·Mk,
+  más la comprobación en la cara del pilar, ec. (6.53) (art. 6.4.5 (3), pág. 96).
+  El barrido de perímetros se corta en el vuelo si es menor que 2d.
+- **Flexión, cuantías y anclaje de la EHE-08** ⏳ PENDIENTE: `Td = M/(0,85d)`
+  con fyd ≤ 400, cuantías 0,04·fcd/fyd y 0,9 ‰, anclaje `m·φ²`. El Anejo 19 da
+  `F_s = R·z_e/z_i` (art. 9.8.2.2, págs. 153-154). Hasta resolverlo el módulo
+  baja a "probada".
 
 ## Conformes ✅
 

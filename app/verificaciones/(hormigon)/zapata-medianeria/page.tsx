@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
@@ -15,8 +16,10 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { CroquisCargasZapata, CroquisGeometriaZapata } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
+import { PropuestaVigaCentradora } from "@/components/verificaciones/hormigon/PropuestaVigaCentradora";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/hormigon/ZapataMedianeriaDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataMedianeria } from "@/lib/calc/hormigon/cimentaciones/zapata-medianeria";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -30,6 +33,9 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
+
+const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
+const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
 
 export default function ZapataMedianeriaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -55,6 +61,7 @@ export default function ZapataMedianeriaPage() {
   const [diametroA, setDiametroA] = useCampo("diametroA", "16");
   const [numeroB, setNumeroB] = useCampo("numeroB", "6");
   const [diametroB, setDiametroB] = useCampo("diametroB", "12");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
 
   const resultado = useMemo(() => {
     const v = {
@@ -102,12 +109,13 @@ export default function ZapataMedianeriaPage() {
       cargas: { Nk: v.Nk, MkA: v.MkA, MkB: v.MkB },
       armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
       armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
+      formaAnclaje,
     });
 
     return { zapata };
   }, [
     fck, fyk, A, B, H, recubrimiento, distanciaColumnaLimite, anchoPilarA, anchoPilarB,
-    sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB,
+    sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
   ]);
 
   const diagrama = useMemo(() => {
@@ -131,10 +139,15 @@ export default function ZapataMedianeriaPage() {
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
     avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+  } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
+    avisos.push({
+      tipo: "error",
+      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible. Hace falta una viga centradora o agrandarla.",
+    });
   } else if (!resultado.zapata.dentroDelNucleo) {
     avisos.push({
       tipo: "aviso",
-      texto: "Excentricidad fuera del núcleo central: la distribución lineal dejaría tracciones en el suelo. Con esta geometría hace falta una viga centradora que la conecte con una zapata interior.",
+      texto: "Excentricidad fuera del núcleo central: el borde interior se despega. Con esta geometría hace falta una viga centradora que la conecte con una zapata interior.",
     });
   }
 
@@ -222,6 +235,15 @@ export default function ZapataMedianeriaPage() {
                     },
                   ]}
                 />
+                <div className="max-w-xs">
+                  <CampoSeleccion
+                    id="formaAnclaje"
+                    etiqueta="Extremo de las barras"
+                    valor={FORMAS[formaAnclaje]}
+                    opciones={Object.values(FORMAS)}
+                    onChange={(v) => setFormaAnclaje(formaPorNombre(v))}
+                  />
+                </div>
               </Subgrupo>
             }
             dibujo={planta}
@@ -239,14 +261,15 @@ export default function ZapataMedianeriaPage() {
                 ? [
                     { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN`, derivado: true },
                     { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.excentricidadM, 3)} m`, derivado: true },
-                    { etiqueta: "Tipo", valor: resultado.zapata.esRigida ? "rígida (vuelo ≤ 2H)" : "flexible (vuelo > 2H)", derivado: true },
                   ]
                 : []),
             ]}
             hipotesis={[
-              "No viene de la planilla: distribución lineal de presiones con la excentricidad del pilar respecto del centro de la zapata.",
-              "No incluye punzonamiento. Revisar antes de usar en obra.",
-              "Cuantías mínimas heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
+              "No viene de la planilla. La excentricidad del terreno es la de la resultante con peso propio: e = (Nk·e0 + Mk)/(Nk + PP).",
+              "Las presiones de cálculo se integran sobre la parte que apoya: si la resultante sale del núcleo, el borde interior se despega y no aporta.",
+              "Cada vuelo se arma por separado con el modelo del Anejo 19, art. 9.8.2.2: sección a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d), As = Fs/fyd. Cuantía mínima de la ec. (9.1) y φ ≥ 12 mm.",
+              "Anclaje (art. 8.4) desde x = h/2; si el vuelo no llega a h/2, ese lado no tiene tirante que anclar.",
+              "No incluye punzonamiento (pilar de borde). Revisar antes de usar en obra.",
             ]}
             avisos={avisos}
           />
@@ -292,12 +315,40 @@ export default function ZapataMedianeriaPage() {
                     utilizacion: resultado.zapata.ladoInterior.vEdKN / resultado.zapata.ladoInterior.vRdCKN,
                   },
                   {
+                    etiqueta: "anclaje del lado interior",
+                    estado: resultado.zapata.ladoInterior.anclaje.verifica ? "cumple" : "no-cumple",
+                  },
+                  {
+                    etiqueta: "anclaje del lado límite",
+                    estado: resultado.zapata.ladoLimite.anclaje.verifica ? "cumple" : "no-cumple",
+                  },
+                  {
                     etiqueta: "armadura en B",
                     estado: resultado.zapata.direccionB.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.direccionB.asNecCm2 / resultado.zapata.direccionB.asRealCm2,
                   },
+                  {
+                    etiqueta: "anclaje en B",
+                    estado: resultado.zapata.direccionB.anclaje.verifica ? "cumple" : "no-cumple",
+                  },
+                  {
+                    etiqueta: "cortante en B",
+                    estado: resultado.zapata.direccionB.verificaCorte ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.direccionB.vEdKN / resultado.zapata.direccionB.vRdCKN,
+                  },
+                  {
+                    etiqueta: "diámetro mínimo φ12",
+                    estado:
+                      resultado.zapata.ladoLimite.verificaDiametroMinimo && resultado.zapata.direccionB.verificaDiametroMinimo
+                        ? "cumple"
+                        : "no-cumple",
+                  },
                 ]}
               />
+
+              {(!resultado.zapata.geotecnico.verificaTension || !resultado.zapata.dentroDelNucleo) && (
+                <PropuestaVigaCentradora />
+              )}
 
               <PanelMetricas
                 horizontal
@@ -330,7 +381,6 @@ export default function ZapataMedianeriaPage() {
                     filas={[
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN` },
                       { etiqueta: "Excentricidad", valor: `${fmt(resultado.zapata.excentricidadM, 3)} m` },
-                      { etiqueta: "Zapata rígida (vuelo ≤ 2H)", valor: resultado.zapata.esRigida ? "Sí" : "No" },
                     ]}
                   />
                 </div>
@@ -340,15 +390,7 @@ export default function ZapataMedianeriaPage() {
                 <div>
                   <TarjetaLadoZapata titulo="Lado límite (vuelo corto)" resultado={resultado.zapata.ladoLimite} />
                   <TarjetaLadoZapata titulo="Lado interior (vuelo largo)" resultado={resultado.zapata.ladoInterior} />
-                  <ResultadoCheck
-                    etiqueta="Dirección B · armadura suficiente"
-                    verifica={resultado.zapata.direccionB.verificaAs}
-                    comparacion={{
-                      real: { etiqueta: "As real", valor: resultado.zapata.direccionB.asRealCm2 },
-                      limite: { etiqueta: "As nec", valor: resultado.zapata.direccionB.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
-                    }}
-                  />
+                  <TarjetaLadoZapata titulo="Dirección B" resultado={resultado.zapata.direccionB} />
                 </div>
               </Subgrupo>
             </div>

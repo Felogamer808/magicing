@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { VINCULOS_SERVICIO, type DatosVigaCompartidos } from "./vinculos";
+import { VINCULOS_SERVICIO, camposVigaCentradoraDesdeMedianeria, type DatosVigaCompartidos } from "./vinculos";
+
+describe("de zapata de medianería a viga centradora", () => {
+  const medianeria = {
+    fck: "25", A: "1,5", B: "2", Nk: "500", MkA: "40", MkB: "10", numeroB: "10", diametroB: "16",
+    // No es de la zapata: no tiene que viajar.
+    norma: "EC2",
+  };
+
+  it("lleva la zapata, el pilar y las cargas tal como están escritos", () => {
+    const d = camposVigaCentradoraDesdeMedianeria(medianeria);
+    expect(d.A).toBe("1,5");
+    expect(d.Nk).toBe("500");
+    expect(d.MkB).toBe("10");
+    expect(d.numeroB).toBe("10");
+    expect(d.norma).toBeUndefined();
+  });
+
+  it("invierte el signo de MkA: en la medianería es + hacia adentro, en la viga + hacia el límite", () => {
+    expect(camposVigaCentradoraDesdeMedianeria(medianeria).MkA).toBe("-40");
+    expect(camposVigaCentradoraDesdeMedianeria({ ...medianeria, MkA: "-12,5" }).MkA).toBe("12.5");
+    expect(camposVigaCentradoraDesdeMedianeria({ ...medianeria, MkA: "0" }).MkA).toBe("0");
+  });
+
+  it("no inventa la luz de la viga", () => {
+    expect(camposVigaCentradoraDesdeMedianeria(medianeria).luz).toBeUndefined();
+  });
+});
 
 const viga: DatosVigaCompartidos = {
   fck: "30",

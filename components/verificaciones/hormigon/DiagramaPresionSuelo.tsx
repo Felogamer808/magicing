@@ -34,6 +34,15 @@ export function DiagramaPresionSuelo({ distribucion, lM, sigmaAdmisibleKPa, etiq
   const { sigmaMaxKPa, sigmaMinKPa, hayDespegue, longitudContactoM, excentricidadM, limiteNucleoM } =
     distribucion;
 
+  if (!Number.isFinite(sigmaMaxKPa)) {
+    return (
+      <p className="py-6 text-center text-sm text-destructive">
+        {etiqueta}: la resultante cae fuera de la base (e = {fmt(excentricidadM * 100, 1)} cm), no hay
+        reparto de presiones posible.
+      </p>
+    );
+  }
+
   const escalaX = (DER - IZQ) / lM;
   const x = (m: number) => IZQ + m * escalaX;
 

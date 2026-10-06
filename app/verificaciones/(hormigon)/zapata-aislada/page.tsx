@@ -131,6 +131,11 @@ export default function ZapataAisladaPage() {
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
     avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+  } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
+    avisos.push({
+      tipo: "error",
+      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible. Hay que agrandarla o reducir el momento.",
+    });
   } else if (
     resultado.zapata.geotecnico.distribucionA.hayDespegue ||
     resultado.zapata.geotecnico.distribucionB.hayDespegue
@@ -214,6 +219,7 @@ export default function ZapataAisladaPage() {
                   mkKNm={aNumero(MkA)}
                   sigmaMaxKPa={resultado.zapata.direccionA.sigmaMaxKPa}
                   sigmaMinKPa={resultado.zapata.direccionA.sigmaMinKPa}
+                  longitudContactoM={resultado.zapata.direccionA.longitudContactoM}
                 />
               ) : (
                 <CroquisCargasZapata />
@@ -265,8 +271,8 @@ export default function ZapataAisladaPage() {
                 : []),
             ]}
             hipotesis={[
-              "La tensión sobre el terreno incluye el peso propio de la zapata.",
-              "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz.",
+              "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = Mk / (Nk + PP).",
+              "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz, y el armado y el cortante se calculan con la cuña de presiones, no con el trapecio.",
               "Punzonamiento por el método general del EC2: se barren los perímetros hasta 2d y se informa el que peor verifica.",
               "Cuantías mínimas mecánica y geométrica heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
             ]}

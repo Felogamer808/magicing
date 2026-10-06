@@ -63,7 +63,82 @@ describe("distribución de presiones bajo la base", () => {
   });
 });
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import {
+  calcularZapataAislada,
+  cargaEntreSeccionYBorde,
+  presionEn,
+} from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+
+describe("carga del terreno entre una sección y el borde", () => {
+  it("sobre toda la base devuelve la carga aplicada, con o sin despegue", () => {
+    for (const e of [0, 0.2, 0.5, 0.9]) {
+      const d = distribucionPresiones(600, 2, 1.5, e);
+      expect(cargaEntreSeccionYBorde(d, 2, 1.5, 0).fuerzaKN).toBeCloseTo(600, 6);
+    }
+  });
+
+  it("sin despegue coincide con el trapecio integrado a mano", () => {
+    const d = distribucionPresiones(600, 2, 1.5, 0.2);
+    const s = 1.2;
+    const sigmaS = presionEn(d, 2, s);
+    const l = 2 - s;
+    const momento = sigmaS * 1.5 * l * (l / 2) + (d.sigmaMaxKPa - sigmaS) * 1.5 * (l / 2) * ((2 * l) / 3);
+    expect(cargaEntreSeccionYBorde(d, 2, 1.5, s).momentoKNm).toBeCloseTo(momento, 9);
+  });
+
+  it("con despegue el tramo levantado no aporta presión", () => {
+    const d = distribucionPresiones(600, 2, 2, 0.5);
+    // La cuña mide 1,5 m: el primer medio metro está levantado.
+    expect(presionEn(d, 2, 0.3)).toBe(0);
+    expect(presionEn(d, 2, 2)).toBeCloseTo(d.sigmaMaxKPa, 9);
+  });
+
+  it("con la resultante fuera de la base no devuelve cero", () => {
+    const d = distribucionPresiones(600, 2, 2, 1.2);
+    expect(cargaEntreSeccionYBorde(d, 2, 2, 1).momentoKNm).toBe(Infinity);
+  });
+});
+
+/**
+ * Los datos con que se encontraron los tres errores: pilar liviano sobre una
+ * zapata cuyo peso propio pesa en la resultante, con momento suficiente para
+ * despegar un borde.
+ */
+describe("zapata liviana con despegue", () => {
+  const materiales = derivarMateriales({ fck: 30, fyk: 500 });
+  const geometria = { A: 0.8, B: 0.8, H: 0.3, anchoPilarA: 0.1, anchoPilarB: 0.1, recubrimiento: 0.04 };
+  const armado = { numero: 6, diametroMm: 10 };
+  const calcular = (Nk: number) =>
+    calcularZapataAislada(materiales, geometria, 150, {
+      cargas: { Nk, MkA: 5, MkB: 5 },
+      armadoA: armado,
+      armadoB: armado,
+    });
+
+  it("la excentricidad del terreno incluye el peso propio", () => {
+    const r = calcular(14);
+    // PP = 4,8 kN; e = 5 / 18,8. Con e = 5/14, como antes, daba 2.559 kPa.
+    const anchoEficaz = 0.8 - (2 * 5) / 18.8;
+    expect(r.geotecnico.sigmaKPa).toBeCloseTo(18.8 / anchoEficaz ** 2, 6);
+    expect(r.geotecnico.verificaTension).toBe(false);
+  });
+
+  it("el armado usa la cuña de presiones, no un trapecio con tracciones", () => {
+    const r = calcular(14);
+    // e de cálculo = 5/14 > 0,8/6: la cuña mide 3·(0,4 − e) y σmáx = 2·Nd/(c·B).
+    const cuna = 3 * (0.4 - 5 / 14);
+    expect(r.direccionA.sigmaMaxKPa).toBeCloseTo((2 * 1.5 * 14) / (cuna * 0.8), 6);
+    expect(r.direccionA.sigmaMinKPa).toBe(0);
+  });
+
+  it("con la resultante fuera de la base no verifica", () => {
+    // Nk = 1: e = 5 / 5,8 = 0,86 m, más que media base. Antes daba 0,07 kPa y "cumple".
+    const r = calcular(1);
+    expect(r.geotecnico.sigmaKPa).toBe(Infinity);
+    expect(r.geotecnico.verificaTension).toBe(false);
+    expect(r.direccionA.verificaAs).toBe(false);
+  });
+});
 
 // Casos extraídos/verificados con Excel COM sobre "CALCULOS TODO.xlsx", hoja "Zapatas",
 // bloque "ZAPATA AISLADA CON MOMENTO".
@@ -131,7 +206,9 @@ describe("zapata aislada con excentricidad (Mk A ≠ Mk B, corregido)", () => {
 
   it("reproduce el peso propio y la presión por el método del área efectiva", () => {
     expect(r.geotecnico.pesoPropioKN).toBeCloseTo(37.5, 6);
-    expect(r.geotecnico.sigmaKPa).toBeCloseTo(210.28951486698, 5);
+    // La planilla daba 210,29: tomaba e = Mk/Nk sin el peso propio. Con la
+    // resultante real, e = Mk/(Nk+PP): 537,5 / (1,8140 × 1,4256) = 207,85.
+    expect(r.geotecnico.sigmaKPa).toBeCloseTo(207.854916969925, 5);
     expect(r.geotecnico.verificaTension).toBe(true);
   });
 

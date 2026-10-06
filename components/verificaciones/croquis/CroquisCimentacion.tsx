@@ -35,8 +35,8 @@ export function CroquisGeometriaZapata() {
       ancho="max-w-[17rem]"
       nota="A y B son los lados de la zapata en planta; H es el canto. El pilar se describe con su ancho medido en la misma dirección que cada lado."
     >
-      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
-      <rect x={cx - 16} y={cy - 12} width={32} height={24} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.75" />
+      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={cx - 16} y={cy - 12} width={32} height={24} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
 
       <CotaH x0={x0} x1={x1} y={y1 + 20} texto="A" />
       <CotaV x={x0 - 14} y0={y0} y1={y1} texto="B" />
@@ -74,7 +74,7 @@ export function CroquisPilarZapata() {
         B
       </text>
 
-      <rect x={cx - 24} y={cy - 15} width={48} height={30} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.7" />
+      <rect x={cx - 24} y={cy - 15} width={48} height={30} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <CotaH x0={cx - 24} x1={cx + 24} y={cy - 24} texto="ancho // A" />
       <CotaV x={cx + 42} y0={cy - 15} y1={cy + 15} texto="ancho // B" />
       <g stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" opacity="0.5">
@@ -100,8 +100,8 @@ export function CroquisCargasZapata() {
       nota="Los tres valores van característicos, sin mayorar. Mk A flecta alrededor del eje perpendicular a A, o sea que reparte la presión a lo largo de A."
     >
       {/* pilar y zapata de frente */}
-      <rect x={cx - 12} y={34} width={24} height={38} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
-      <rect x={cx - 58} y={72} width={116} height={16} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x={cx - 12} y={34} width={24} height={38} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+      <rect x={cx - 58} y={72} width={116} height={16} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <BaseTerreno x0={cx - 58} x1={cx + 58} y={88} />
 
       {/* axil */}
@@ -149,13 +149,13 @@ export function CroquisArmadoDireccion({ direccion }: CroquisArmadoDireccionProp
       ancho="max-w-[15rem]"
       nota={`Las barras de la dirección ${direccion} corren paralelas al lado ${direccion} y cubren el momento que flecta en ese sentido.`}
     >
-      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
       {esA
         ? [38, 48, 58, 68, 78].map((y) => (
-            <path key={y} d={`M${x0 + 6} ${y} L${x1 - 6} ${y}`} stroke="currentColor" strokeWidth="1.9" />
+            <path key={y} d={`M${x0 + 6} ${y} L${x1 - 6} ${y}`} stroke="var(--mat-armadura)" strokeWidth="1.9" />
           ))
         : [56, 76, 96, 116, 136, 152].map((x) => (
-            <path key={x} d={`M${x} ${y0 + 6} L${x} ${y1 - 6}`} stroke="currentColor" strokeWidth="1.9" />
+            <path key={x} d={`M${x} ${y0 + 6} L${x} ${y1 - 6}`} stroke="var(--mat-armadura)" strokeWidth="1.9" />
           ))}
       <CotaH x0={x0} x1={x1} y={y1 + 18} texto="A" />
       <CotaV x={x0 - 12} y0={y0} y1={y1} texto="B" />
@@ -174,8 +174,8 @@ export function CroquisZapataCorrida() {
       ancho="max-w-[16rem]"
       nota="Todo el cálculo va por metro corrido: las cargas se dan por metro y el armado principal sale también por metro."
     >
-      <rect x={cx - 10} y={26} width={20} height={40} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
-      <rect x={cx - 56} y={66} width={112} height={18} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x={cx - 10} y={26} width={20} height={40} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+      <rect x={cx - 56} y={66} width={112} height={18} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <BaseTerreno x0={cx - 56} x1={cx + 56} y={84} />
 
       <CotaH x0={cx - 56} x1={cx + 56} y={104} texto="A (ancho)" />
@@ -211,12 +211,12 @@ export function CroquisPosicionPilares({ cantidad = 2 }: { cantidad?: number }) 
       ancho="max-w-[16rem]"
       nota="La posición de cada pilar se mide desde el borde izquierdo de la zapata, no entre pilares. Las cargas van características."
     >
-      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <BaseTerreno x0={x0} x1={x1} y={yBot} />
 
       {xs.map((x, i) => (
         <g key={x}>
-          <rect x={x - 9} y={yTop - 26} width={18} height={26} stroke="currentColor" strokeWidth="1.3" fill="var(--color-muted)" fillOpacity="0.65" />
+          <rect x={x - 9} y={yTop - 26} width={18} height={26} stroke="var(--mat-hormigon-borde)" strokeWidth="1.3" fill="var(--mat-hormigon)" />
           <path d={`M${x} ${yTop - 44} L${x} ${yTop - 30}`} stroke="currentColor" strokeWidth="1.5" markerEnd="url(#croquis-flecha)" />
           <text x={x + 6} y={yTop - 36} className="fill-current font-mono" fontSize="9.5">
             Nk{i + 1}
@@ -249,7 +249,7 @@ export function CroquisGeotecniaPilote() {
       ancho="max-w-[15rem]"
       nota="fs actúa en toda la superficie lateral y qp sólo en el área de la punta. El FS se aplica sobre la suma de las dos, no sobre cada una."
     >
-      <rect x={cx - 14} y={yTop} width={28} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.45" />
+      <rect x={cx - 14} y={yTop} width={28} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* rozamiento por fuste, a los dos lados */}
       {[40, 56, 72, 88].map((y) => (
@@ -284,11 +284,11 @@ export function CroquisArmaduraPilote() {
       ancho="max-w-[15rem]"
       nota="Las barras van repartidas en el perímetro y el zuncho las abraza; Nk es la carga característica que baja por el pilote."
     >
-      <circle cx={cx} cy={cy} r={r} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
-      <circle cx={cx} cy={cy} r={r - 8} stroke="currentColor" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.8" />
+      <circle cx={cx} cy={cy} r={r} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <circle cx={cx} cy={cy} r={r - 8} stroke="var(--mat-armadura)" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.8" />
       {Array.from({ length: 8 }).map((_, i) => {
         const a = (2 * Math.PI * i) / 8 - Math.PI / 2;
-        return <circle key={i} cx={cx + (r - 8) * Math.cos(a)} cy={cy + (r - 8) * Math.sin(a)} r="3.4" fill="currentColor" />;
+        return <circle key={i} cx={cx + (r - 8) * Math.cos(a)} cy={cy + (r - 8) * Math.sin(a)} r="3.4" fill="var(--mat-armadura)" />;
       })}
       <Referencia x={112} y={40} hacia={[cx + 20, 42]} texto="Nº barras · φ" />
       <Referencia x={112} y={86} hacia={[cx + 24, 80]} texto="φ zuncho" />

@@ -68,18 +68,18 @@ export function DiagramaApeoVoladizo({
     <svg viewBox={`0 0 ${x0 + W + 60} ${alto}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       {/* elementos que bajan sobre la viga */}
       <rect x={xCarga - (anchoCargaM * escala) / 2} y={y0 - 36} width={anchoCargaM * escala} height={36}
-            stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+            stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <rect x={xLejos - (anchoElementoLejanoM * escala) / 2} y={y0 - 36} width={anchoElementoLejanoM * escala} height={36}
-            stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.35" />
+            stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <text x={xCarga} y={y0 - 44} textAnchor="middle" className="fill-current font-mono" fontSize="11">
         P = {fmt(pKN, 0)} kN
       </text>
 
       {/* apoyos */}
       <rect x={xCerca - (anchoApoyoCercanoM * escala) / 2} y={yBase} width={anchoApoyoCercanoM * escala} height={30}
-            stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+            stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <rect x={xLejos - (anchoApoyoLejanoM * escala) / 2} y={yBase} width={anchoApoyoLejanoM * escala} height={30}
-            stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+            stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* viga */}
       <rect x={x0} y={y0} width={xFin - x0} height={hPx} stroke="currentColor" strokeWidth="2.2" />

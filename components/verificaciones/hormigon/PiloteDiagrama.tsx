@@ -42,7 +42,7 @@ export function PiloteDiagrama({ diametroM, longitudM, numeroBarras, diametroBar
         ))}
 
         {/* fuste */}
-        <rect x={x0} y={y0} width={wPilote} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={wPilote} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         {/* flechas de fricción por fuste */}
         {Array.from({ length: 4 }).map((_, i) => {
@@ -60,8 +60,8 @@ export function PiloteDiagrama({ diametroM, longitudM, numeroBarras, diametroBar
           const y = y0 + 10 + (i * (h - 20)) / (nMax - 1 || 1);
           return (
             <g key={i}>
-              <circle cx={x0 + 6} cy={y} r={radioBarra} fill="currentColor" />
-              <circle cx={x1 - 6} cy={y} r={radioBarra} fill="currentColor" />
+              <circle cx={x0 + 6} cy={y} r={radioBarra} fill="var(--mat-armadura)" />
+              <circle cx={x1 - 6} cy={y} r={radioBarra} fill="var(--mat-armadura)" />
             </g>
           );
         })}

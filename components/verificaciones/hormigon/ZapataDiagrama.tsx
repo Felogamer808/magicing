@@ -113,16 +113,16 @@ export function ZapataDiagrama({
         </text>
 
         {/* zapata en planta */}
-        <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={w} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         {/* barras dirección A (horizontales) */}
         {ysA.map((y, i) => (
-          <path key={`a-${i}`} d={`M${x0 + margen / 2} ${y} L${x1 - margen / 2} ${y}`} stroke="currentColor" strokeWidth="1" opacity="0.55" />
+          <path key={`a-${i}`} d={`M${x0 + margen / 2} ${y} L${x1 - margen / 2} ${y}`} stroke="var(--mat-armadura)" strokeWidth="1" opacity="0.55" />
         ))}
 
         {/* barras dirección B (verticales) */}
         {xsB.map((x, i) => (
-          <path key={`b-${i}`} d={`M${x} ${y0 + margen / 2} L${x} ${y1 - margen / 2}`} stroke="currentColor" strokeWidth="1" opacity="0.85" />
+          <path key={`b-${i}`} d={`M${x} ${y0 + margen / 2} L${x} ${y1 - margen / 2}`} stroke="var(--mat-armadura)" strokeWidth="1" opacity="0.85" />
         ))}
 
         {/* pilar (referencia, línea punteada) */}

@@ -16,7 +16,7 @@ export function CroquisZonaCargada() {
       nota="La carga se abre desde b1 hasta b2 en la altura h. Lo mismo vale en la otra dirección con d1 y d2."
     >
       {/* Bloque */}
-      <rect x="40" y="40" width="160" height="100" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x="40" y="40" width="160" height="100" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
       {/* Placa cargada */}
       <rect x="100" y="34" width="40" height="6" fill="currentColor" />
       {/* Carga */}

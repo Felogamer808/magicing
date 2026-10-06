@@ -147,8 +147,8 @@ export function DiagramaMuro({
       </defs>
 
       {/* alzado y zapata */}
-      <rect x={xMuro} y={24} width={muroW} height={muroH} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.45" />
-      <rect x={x0} y={24 + muroH} width={zapW} height={zapH} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.45" />
+      <rect x={xMuro} y={24} width={muroW} height={muroH} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
+      <rect x={x0} y={24 + muroH} width={zapW} height={zapH} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
       {/* cota altura */}
       <g stroke="currentColor" strokeWidth="0.9" opacity="0.7">

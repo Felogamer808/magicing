@@ -37,9 +37,9 @@ export function CroquisNervioSteelDeck() {
       ancho="max-w-[19rem]"
       nota="El hormigón rellena el nervio hasta apoyarse en la chapa. dp es la profundidad del centroide de la chapa; la barra adicional va suspendida a su propio recubrimiento, no apoyada en la chapa."
     >
-      <path d={hormigonPath} fill="var(--color-muted)" fillOpacity="0.4" stroke="currentColor" strokeWidth="1" opacity="0.85" />
+      <path d={hormigonPath} fill="var(--mat-hormigon)" stroke="var(--mat-hormigon-borde)" strokeWidth="1" opacity="0.85" />
       <path d={chapaPath} fill="none" stroke="currentColor" strokeWidth="2.4" />
-      <circle cx={xBarra} cy={yBarra} r="4.5" fill="currentColor" />
+      <circle cx={xBarra} cy={yBarra} r="4.5" fill="var(--mat-armadura)" />
 
       <CotaV x={xLeft - 14} y0={yTop} y1={yValle} texto="h" />
       <CotaV x={xRight + 14} y0={yTop} y1={yCresta} texto="hc" />

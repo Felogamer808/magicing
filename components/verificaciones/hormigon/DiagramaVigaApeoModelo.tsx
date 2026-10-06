@@ -107,10 +107,9 @@ export function DiagramaVigaApeoModelo({
         y={y0 - 40}
         width={anchoPilarPx}
         height={40}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.8"
-        fill="var(--color-muted)"
-        fillOpacity="0.55"
+        fill="var(--mat-hormigon)"
       />
       <path d={`M${xC} ${y0 - 62} L${xC} ${y0 - 44}`} stroke="currentColor" strokeWidth="1.6" />
       <path d={`M${xC - 4} ${y0 - 50} L${xC} ${y0 - 44} L${xC + 4} ${y0 - 50}`} stroke="currentColor" strokeWidth="1.6" />
@@ -149,8 +148,8 @@ export function DiagramaVigaApeoModelo({
       </text>
 
       {/* apoyos */}
-      <rect x={xIzq - apoyoIzqPx / 2} y={yBase} width={apoyoIzqPx} height={30} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.55" />
-      <rect x={xDer - apoyoDerPx / 2} y={yBase} width={apoyoDerPx} height={30} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.55" />
+      <rect x={xIzq - apoyoIzqPx / 2} y={yBase} width={apoyoIzqPx} height={30} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
+      <rect x={xDer - apoyoDerPx / 2} y={yBase} width={apoyoDerPx} height={30} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
       <text x={xIzq} y={yBase + 44} textAnchor="middle" className="fill-current font-mono" fontSize="10">
         R = {fmt(reaccionIzqKN, 0)} kN
       </text>

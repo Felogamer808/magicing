@@ -123,14 +123,14 @@ export function DiagramaVigaApeoArmado({
       aria-hidden="true"
     >
       {/* pilar que descarga */}
-      <rect x={xC - anchoPilarPx / 2} y={y0 - 30} width={anchoPilarPx} height={30} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+      <rect x={xC - anchoPilarPx / 2} y={y0 - 30} width={anchoPilarPx} height={30} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* contorno de la viga */}
-      <rect x={x0} y={y0} width={W} height={hPx} stroke="currentColor" strokeWidth="2.2" fill="var(--color-muted)" fillOpacity="0.12" />
+      <rect x={x0} y={y0} width={W} height={hPx} stroke="var(--mat-hormigon-borde)" strokeWidth="2.2" fill="var(--mat-hormigon)" />
 
       {/* apoyos */}
-      <rect x={xIzq - apoyoIzqPx / 2} y={yBase} width={apoyoIzqPx} height={26} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
-      <rect x={xDer - apoyoDerPx / 2} y={yBase} width={apoyoDerPx} height={26} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+      <rect x={xIzq - apoyoIzqPx / 2} y={yBase} width={apoyoIzqPx} height={26} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={xDer - apoyoDerPx / 2} y={yBase} width={apoyoDerPx} height={26} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* malla ortogonal de piel */}
       <g stroke="currentColor" strokeWidth="0.8" opacity="0.3">

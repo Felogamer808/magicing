@@ -3,6 +3,7 @@ import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
 import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { calcularPunzonamientoDescentrado } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
 
 export interface GeometriaZapataAislada {
   /** Dimensión de la zapata en dirección A (m) */
@@ -17,14 +18,26 @@ export interface GeometriaZapataAislada {
   anchoPilarB: number;
   /** Recubrimiento de la armadura de fundación (m) */
   recubrimiento: number;
+  /**
+   * Distancia de la cara del pilar al borde de inicio de la zapata en A (m).
+   * Si falta, el pilar está centrado. 0 = pilar al ras del borde: es la zapata
+   * de medianería, que es este mismo cálculo con el pilar descentrado.
+   */
+  distanciaBordeA?: number;
+  /** Igual que `distanciaBordeA`, en la dirección B (m). */
+  distanciaBordeB?: number;
 }
 
 export interface CargasZapata {
   /** Carga vertical característica (kN) */
   Nk: number;
-  /** Momento característico según eje A (kN·m) */
+  /**
+   * Momento característico que baja por el pilar, en la dirección A (kN·m).
+   * Positivo si empuja la resultante hacia el borde final (el opuesto al de
+   * inicio desde el que se mide la posición del pilar).
+   */
   MkA: number;
-  /** Momento característico según eje B (kN·m) */
+  /** Igual que `MkA`, en la dirección B (kN·m). */
   MkB: number;
 }
 
@@ -202,6 +215,14 @@ export interface ResultadoPunzonamiento {
    * perímetros que caen fuera de la zapata no existen.
    */
   hayPerimetroDentro: boolean;
+  /**
+   * Presente cuando el punzonamiento no se evalúa con el pilar en esta
+   * posición: el perímetro recortado por el borde (art. 6.4.2 (4)) y el β de
+   * pilar de borde todavía no están implementados.
+   */
+  motivoNoEvaluado?: string;
+  /** Con el pilar descentrado: cómo trata la norma al pilar en el perímetro crítico. */
+  situacion?: "interior" | "borde" | "esquina" | "entre bordes";
   /** Comprobación de bielas en la cara del pilar, art. 6.4.5 (3), ec. (6.53). */
   caraPilar: {
     /** Perímetro del pilar u0 (m) */
@@ -216,14 +237,40 @@ export interface ResultadoPunzonamiento {
   };
 }
 
+/**
+ * Los dos vuelos de una dirección. Con el pilar centrado son iguales salvo por
+ * el momento; con el pilar descentrado cada uno tiene su largo y su presión, y
+ * se arman por separado con las mismas barras.
+ */
+export interface VuelosDireccion {
+  /** Vuelo del lado del borde de inicio (el de la medianera, si la hay). */
+  inicio: ResultadoDireccionZapata;
+  /** Vuelo del lado del borde final. */
+  fin: ResultadoDireccionZapata;
+  /** Presiones de cálculo en esta dirección, sin peso propio, para dibujar. */
+  distribucion: DistribucionPresiones;
+  /** Excentricidad del pilar respecto del centro de la zapata, positiva hacia el borde final (m). */
+  excentricidadPilarM: number;
+}
+
 export interface ResultadoZapataAislada {
   /** Mayor vuelo de la zapata respecto del pilar, en A o en B (m) */
   vueloMaxM: number;
   /** Clasificación informativa: vuelo ≤ 2H (método simplificado válido para zapatas rígidas) */
   esRigida: boolean;
   geotecnico: ResultadoGeotecnico;
+  /** Falso si el pilar está descentrado en alguna dirección. */
+  pilarCentrado: boolean;
+  /** Excentricidad de la resultante en el terreno, peso propio incluido, positiva hacia el borde final (m). */
+  excentricidadA: number;
+  excentricidadB: number;
+  /** e ≤ L/6 en las dos direcciones: la zapata apoya entera. */
+  dentroDelNucleo: boolean;
+  /** El vuelo que gobierna en A (el de mayor momento). */
   direccionA: ResultadoDireccionZapata;
   direccionB: ResultadoDireccionZapata;
+  vuelosA: VuelosDireccion;
+  vuelosB: VuelosDireccion;
   punzonamiento: ResultadoPunzonamiento;
 }
 
@@ -465,6 +512,109 @@ export function calcularDireccionZapata(
   };
 }
 
+/**
+ * Los dos vuelos de una dirección, con el pilar en cualquier posición.
+ *
+ * x se mide desde el borde de inicio. El momento respecto del centro de la
+ * zapata es el del pilar descentrado, Nk·e0, más el que baja por el pilar. Con
+ * presión no simétrica cada vuelo tiene su propio momento, así que se arman por
+ * separado: es lo que hacía la zapata de medianería, que pasa a ser el caso de
+ * esta función con el pilar contra el borde de inicio.
+ */
+export function calcularVuelosDireccion(
+  materiales: MaterialesDerivados,
+  /** Dimensión de la zapata en esta dirección (m). */
+  dim: number,
+  /** Dimensión perpendicular, el ancho que arma esta parrilla (m). */
+  dimPerpendicular: number,
+  H: number,
+  anchoPilar: number,
+  /** Distancia de la cara del pilar al borde de inicio (m). */
+  distanciaBorde: number,
+  d: number,
+  recubrimiento: number,
+  nk: number,
+  /** Momento que baja por el pilar en esta dirección, positivo hacia el borde final (kN·m). */
+  mk: number,
+  armadura: ArmadoDireccion,
+  forma: FormaAnclaje
+): VuelosDireccion {
+  const xPilarM = distanciaBorde + anchoPilar / 2;
+  const excentricidadPilarM = xPilarM - dim / 2;
+  const momentoCentroKNm = nk * excentricidadPilarM + mk;
+
+  // Presiones de cálculo sin el peso propio. `distribucionPresiones` deja el
+  // máximo en el borde final (s = dim); si la resultante cae hacia el borde de
+  // inicio, las coordenadas se espejan.
+  const excentricidadCalculoM = nk !== 0 ? momentoCentroKNm / nk : 0;
+  const dist = distribucionPresiones(GAMMA_F * nk, dim, dimPerpendicular, excentricidadCalculoM);
+  const haciaFin = excentricidadCalculoM >= 0;
+  const aS = (xM: number) => (haciaFin ? xM : dim - xM);
+  const cargaEntre = (x1M: number, x2M: number, puntoM: number) => {
+    const [s1, s2] = [aS(x1M), aS(x2M)].sort((a, b) => a - b);
+    return cargaEnTramo(dist, dim, dimPerpendicular, s1, s2, aS(puntoM));
+  };
+
+  const armarLado = (
+    /** Borde libre de este vuelo: 0 (inicio) o dim (fin). */
+    bordeXM: number,
+    lM: number,
+    seccionXM: number,
+    cargaHasta: (xM: number) => { fuerzaKN: number; momentoKNm: number },
+    vueloCorteM: number,
+    tramoCorte: () => number
+  ): ResultadoDireccionZapata => {
+    const vuelo = armarVueloZapata(materiales, dimPerpendicular, H, d, recubrimiento, armadura, forma, lM, cargaHasta);
+    // Cortante a d de la cara del pilar (art. 6.2.2): si esa sección cae fuera
+    // de la zapata, no hay vuelo que corte.
+    const corte =
+      vueloCorteM > 0
+        ? corteDesdeCarga(materiales, dimPerpendicular, d, tramoCorte(), vuelo.asRealCm2)
+        : { vEdKN: 0, vRdCKN: 0, verificaCorte: true };
+    return {
+      sigmaMaxKPa: presionEn(dist, dim, aS(bordeXM)),
+      sigmaMinKPa: presionEn(dist, dim, aS(dim - bordeXM)),
+      longitudContactoM: dist.longitudContactoM,
+      sigmaCriticaKPa: presionEn(dist, dim, aS(seccionXM)),
+      lM,
+      dM: d,
+      ...vuelo,
+      ...corte,
+    };
+  };
+
+  // Sección de cálculo a 0,15·c dentro de la cara del pilar (art. 9.8.2.2).
+  const lInicioM = distanciaBorde + 0.15 * anchoPilar;
+  const vueloCorteInicioM = distanciaBorde - d;
+  const inicio = armarLado(
+    0,
+    lInicioM,
+    lInicioM,
+    (xM) => cargaEntre(0, xM, lInicioM),
+    vueloCorteInicioM,
+    () => cargaEntre(0, vueloCorteInicioM, 0).fuerzaKN
+  );
+
+  const vueloFinCaraM = dim - xPilarM - anchoPilar / 2;
+  const lFinM = vueloFinCaraM + 0.15 * anchoPilar;
+  const vueloCorteFinM = vueloFinCaraM - d;
+  const fin = armarLado(
+    dim,
+    lFinM,
+    dim - lFinM,
+    (xM) => cargaEntre(dim - xM, dim, dim - lFinM),
+    vueloCorteFinM,
+    () => cargaEntre(dim - vueloCorteFinM, dim, dim).fuerzaKN
+  );
+
+  return { inicio, fin, distribucion: dist, excentricidadPilarM };
+}
+
+/** El vuelo que gobierna: el de mayor momento en la sección de cálculo. */
+function vueloGobernante(v: VuelosDireccion): ResultadoDireccionZapata {
+  return v.fin.momentoKNm >= v.inicio.momentoKNm ? v.fin : v.inicio;
+}
+
 export function calcularZapataAislada(
   materiales: MaterialesDerivados,
   geometria: GeometriaZapataAislada,
@@ -475,33 +625,58 @@ export function calcularZapataAislada(
   const { cargas, armadoA, armadoB } = datos;
   const { Nk, MkA, MkB } = cargas;
 
-  // Vuelo de la zapata respecto del pilar en cada dirección: si es mayor que 2H,
-  // el método simplificado (rígido) que usa este cálculo deja de ser válido.
-  const vueloMaxM = Math.max((A - anchoPilarA) / 2, (B - anchoPilarB) / 2);
+  // Posición del pilar: sin dato, centrado.
+  const bordeA = geometria.distanciaBordeA ?? (A - anchoPilarA) / 2;
+  const bordeB = geometria.distanciaBordeB ?? (B - anchoPilarB) / 2;
+  const e0A = bordeA + anchoPilarA / 2 - A / 2;
+  const e0B = bordeB + anchoPilarB / 2 - B / 2;
+  const pilarCentrado = Math.abs(e0A) < 1e-9 && Math.abs(e0B) < 1e-9;
+
+  // Vuelo de la zapata respecto de la cara del pilar, el mayor de los cuatro: si
+  // supera 2H, el método simplificado (rígido) deja de ser válido.
+  const vueloMaxM = Math.max(bordeA, A - bordeA - anchoPilarA, bordeB, B - bordeB - anchoPilarB);
 
   // La excentricidad es la de la resultante que llega al terreno, peso propio
   // incluido: dividir el momento sólo por Nk la exagera, y más cuanto más liviano
-  // es el pilar respecto de la zapata.
+  // es el pilar respecto de la zapata. El momento es respecto del centro: el del
+  // pilar descentrado más el que baja por el pilar.
   const pesoPropioKN = 25 * A * B * H;
   const cargaTotalKN = Nk + pesoPropioKN;
-  const excA = cargaTotalKN !== 0 ? MkA / cargaTotalKN : 0;
-  const excB = cargaTotalKN !== 0 ? MkB / cargaTotalKN : 0;
+  const excA = cargaTotalKN !== 0 ? (Nk * e0A + MkA) / cargaTotalKN : 0;
+  const excB = cargaTotalKN !== 0 ? (Nk * e0B + MkB) / cargaTotalKN : 0;
+  const dentroDelNucleo = Math.abs(excA) <= A / 6 && Math.abs(excB) <= B / 6;
   // Con la resultante fuera de la base no hay área eficaz: los dos anchos
   // negativos multiplicados darían un área positiva y una tensión ínfima.
   const anchoEficazAM = A - 2 * Math.abs(excA);
   const anchoEficazBM = B - 2 * Math.abs(excB);
   const sigmaKPa =
     anchoEficazAM > 0 && anchoEficazBM > 0 ? cargaTotalKN / (anchoEficazAM * anchoEficazBM) : Infinity;
-  const verificaTension = sigmaKPa <= sigmaAdmisibleKPa;
+  // La resultante tiene que caer dentro del núcleo central en las dos
+  // direcciones: sin despegue (decidido por el usuario, el 2026-10-06, al
+  // unificar la zapata aislada con la de medianería).
+  const verificaTension = sigmaKPa <= sigmaAdmisibleKPa && dentroDelNucleo;
 
   const dA = H - recubrimiento - armadoA.diametroMm / 2000;
   const dB = H - recubrimiento - armadoB.diametroMm / 2000 - armadoA.diametroMm / 1000;
 
   const forma = datos.formaAnclaje ?? "recta";
-  const direccionA = calcularDireccionZapata(materiales, A, B, H, anchoPilarA, dA, recubrimiento, Nk, MkA, armadoA, forma);
-  const direccionB = calcularDireccionZapata(materiales, B, A, H, anchoPilarB, dB, recubrimiento, Nk, MkB, armadoB, forma);
+  const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, MkA, armadoA, forma);
+  const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, MkB, armadoB, forma);
+  const direccionA = vueloGobernante(vuelosA);
+  const direccionB = vueloGobernante(vuelosB);
 
-  const punzonamiento = calcularPunzonamiento(materiales, geometria, cargas, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2);
+  // Centrado, el cálculo auditado de siempre; descentrado, con la presión real
+  // y el perímetro recortado por el borde.
+  const punzonamiento: ResultadoPunzonamiento = pilarCentrado
+    ? calcularPunzonamiento(materiales, geometria, cargas, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2)
+    : calcularPunzonamientoDescentrado(materiales, {
+        A, B, anchoPilarA, anchoPilarB, bordeA, bordeB, dA, dB,
+        nk: Nk, mkA: MkA, mkB: MkB,
+        excCalculoA: vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + MkA),
+        excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + MkB),
+        asRealACm2: direccionA.asRealCm2,
+        asRealBCm2: direccionB.asRealCm2,
+      });
 
   return {
     vueloMaxM,
@@ -513,8 +688,14 @@ export function calcularZapataAislada(
       distribucionA: distribucionPresiones(cargaTotalKN, A, B, excA),
       distribucionB: distribucionPresiones(cargaTotalKN, B, A, excB),
     },
+    pilarCentrado,
+    excentricidadA: excA,
+    excentricidadB: excB,
+    dentroDelNucleo,
     direccionA,
     direccionB,
+    vuelosA,
+    vuelosB,
     punzonamiento,
   };
 }

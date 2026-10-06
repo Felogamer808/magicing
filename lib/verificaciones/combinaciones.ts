@@ -230,7 +230,6 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   punzonamiento: ELU_MAYORADAS,
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
-  "zapata-medianeria": ZAPATAS,
   "zapata-viga-centradora": ZAPATAS,
   "zapata-combinada": ZAPATAS,
   "losa-fundacion": ZAPATAS,

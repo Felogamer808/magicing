@@ -21,7 +21,11 @@ import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaL
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import {
+  calcularZapataAislada,
+  type ResultadoDireccionZapata,
+} from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import { PropuestaVigaCentradora } from "@/components/verificaciones/hormigon/PropuestaVigaCentradora";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -34,6 +38,8 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
+
+const POSICIONES = ["Centrado", "Ubicación libre", "Contra la medianera (borde en A)"] as const;
 
 const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
 const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
@@ -51,6 +57,14 @@ export default function ZapataAisladaPage() {
 
   const [anchoPilarA, setAnchoPilarA] = useCampo("anchoPilarA", "0.4");
   const [anchoPilarB, setAnchoPilarB] = useCampo("anchoPilarB", "0.3");
+  // Dónde cae el pilar. La zapata de medianería es el caso con el pilar
+  // contra el borde de inicio en A.
+  const [posicionPilar, setPosicionPilar] = useCampo("posicionPilar", POSICIONES[0]);
+  const [distanciaBordeA, setDistanciaBordeA] = useCampo("distanciaBordeA", "0");
+  const [distanciaBordeB, setDistanciaBordeB] = useCampo("distanciaBordeB", "0.6");
+  // "Contra la medianera" es un atajo: deja el pilar en ubicación libre con la
+  // cara al ras del borde de inicio en A y centrado en B.
+  const descentrado = posicionPilar === POSICIONES[1];
 
   const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
   const [Nk, setNk] = useCampo("Nk", "500");
@@ -93,6 +107,14 @@ export default function ZapataAisladaPage() {
       return null;
     }
 
+    // Con ubicación libre, el pilar tiene que quedar dentro de la zapata.
+    const bordeA = aNumero(distanciaBordeA);
+    const bordeB = aNumero(distanciaBordeB);
+    if (descentrado) {
+      if (!(bordeA >= 0 && bordeA + v.anchoPilarA <= v.A + 1e-9)) return null;
+      if (!(bordeB >= 0 && bordeB + v.anchoPilarB <= v.B + 1e-9)) return null;
+    }
+
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = {
       A: v.A,
@@ -101,6 +123,7 @@ export default function ZapataAisladaPage() {
       anchoPilarA: v.anchoPilarA,
       anchoPilarB: v.anchoPilarB,
       recubrimiento: v.recubrimiento,
+      ...(descentrado ? { distanciaBordeA: bordeA, distanciaBordeB: bordeB } : {}),
     };
 
     const zapata = calcularZapataAislada(materiales, geometria, v.sigmaAdmisible, {
@@ -112,7 +135,7 @@ export default function ZapataAisladaPage() {
 
     return { zapata };
   }, [
-    fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB,
+    fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB, descentrado, distanciaBordeA, distanciaBordeB,
     sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
   ]);
 
@@ -133,26 +156,101 @@ export default function ZapataAisladaPage() {
       anchoPilarBM: v.anchoPilarB,
       numeroA: v.numeroA,
       numeroB: v.numeroB,
+      ...(descentrado
+        ? { distanciaBordeAM: aNumero(distanciaBordeA), distanciaBordeBM: aNumero(distanciaBordeB) }
+        : {}),
     };
-  }, [A, B, anchoPilarA, anchoPilarB, numeroA, numeroB]);
+  }, [A, B, anchoPilarA, anchoPilarB, numeroA, numeroB, descentrado, distanciaBordeA, distanciaBordeB]);
+
+  /** Al pasar a ubicación libre, el pilar arranca centrado: así nada salta. */
+  const cambiarPosicion = (valor: string) => {
+    const centro = (lado: string, pilar: string) => {
+      const c = (aNumero(lado) - aNumero(pilar)) / 2;
+      return Number.isFinite(c) && c >= 0 ? String(Math.round(c * 1000) / 1000) : "0";
+    };
+    if (valor === POSICIONES[2]) {
+      setDistanciaBordeA("0");
+      setDistanciaBordeB(centro(B, anchoPilarB));
+      setPosicionPilar(POSICIONES[1]);
+      return;
+    }
+    if (valor === POSICIONES[1] && !descentrado) {
+      setDistanciaBordeA(centro(A, anchoPilarA));
+      setDistanciaBordeB(centro(B, anchoPilarB));
+    }
+    setPosicionPilar(valor);
+  };
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
-    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+    avisos.push({
+      tipo: "error",
+      texto: descentrado
+        ? "Hay datos vacíos o no válidos, o el pilar queda fuera de la zapata: la distancia de su cara al borde más su ancho no puede superar el lado."
+        : "Hay datos vacíos o no válidos: no se puede calcular.",
+    });
   } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
     avisos.push({
       tipo: "error",
-      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible. Hay que agrandarla o reducir el momento.",
+      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible. Hay que agrandarla, centrar el pilar o reducir el momento.",
     });
-  } else if (
-    resultado.zapata.geotecnico.distribucionA.hayDespegue ||
-    resultado.zapata.geotecnico.distribucionB.hayDespegue
-  ) {
+  } else if (!resultado.zapata.dentroDelNucleo) {
     avisos.push({
-      tipo: "aviso",
-      texto: "La resultante sale del núcleo central: hay despegue. La comprobación por área eficaz sigue valiendo, pero conviene revisar la geometría.",
+      tipo: "error",
+      texto: "La resultante sale del núcleo central y la zapata se despega: no verifica el terreno. Con el pilar descentrado, agrandar la zapata casi no ayuda; la salida habitual es una viga centradora.",
     });
   }
+  if (resultado?.zapata.punzonamiento.situacion && resultado.zapata.punzonamiento.situacion !== "interior") {
+    avisos.push({
+      tipo: "aviso",
+      texto: `Punzonamiento con el pilar como pilar de ${resultado.zapata.punzonamiento.situacion === "esquina" ? "esquina" : "borde"}: perímetro recortado y β de los art. 6.4.2 (4) y 6.4.3 (4)-(5), que son reglas de losas extendidas a zapatas.`,
+    });
+  }
+
+  const punzonamientoEvaluado = !resultado?.zapata.punzonamiento.motivoNoEvaluado;
+
+  /**
+   * Vuelos que se muestran y se comprueban en cada dirección: con el pilar
+   * centrado basta el que gobierna; descentrado, los dos, porque cada uno tiene
+   * su propio largo y su propia presión.
+   */
+  const vuelosAMostrar = (dir: "A" | "B"): { nombre: string; r: ResultadoDireccionZapata }[] => {
+    if (!resultado) return [];
+    const z = resultado.zapata;
+    if (!descentrado) return [{ nombre: `Dirección ${dir}`, r: dir === "A" ? z.direccionA : z.direccionB }];
+    const v = dir === "A" ? z.vuelosA : z.vuelosB;
+    const [inicio, fin] = dir === "A" ? ["izquierdo", "derecho"] : ["superior", "inferior"];
+    return [
+      { nombre: `Dirección ${dir} — vuelo ${inicio}`, r: v.inicio },
+      { nombre: `Dirección ${dir} — vuelo ${fin}`, r: v.fin },
+    ];
+  };
+
+  /** Armadura, anclaje y cortante de una dirección: el peor de sus vuelos. */
+  const comprobacionesDireccion = (dir: "A" | "B", vuelos: { nombre: string; r: ResultadoDireccionZapata }[]) => {
+    const todos = (f: (r: ResultadoDireccionZapata) => boolean) => vuelos.every((v) => f(v.r));
+    const maximo = (f: (r: ResultadoDireccionZapata) => number | undefined) => {
+      const valores = vuelos.map((v) => f(v.r)).filter((x): x is number => x !== undefined && Number.isFinite(x));
+      return valores.length ? Math.max(...valores) : undefined;
+    };
+    return [
+      {
+        etiqueta: `armadura en ${dir}`,
+        estado: todos((r) => r.verificaAs) ? ("cumple" as const) : ("no-cumple" as const),
+        utilizacion: maximo((r) => r.asNecCm2 / r.asRealCm2),
+      },
+      {
+        etiqueta: `anclaje en ${dir}`,
+        estado: todos((r) => r.anclaje.verifica) ? ("cumple" as const) : ("no-cumple" as const),
+        utilizacion: maximo((r) => (r.anclaje.comprobado ? r.anclaje.lbdMm / r.anclaje.disponibleMm : undefined)),
+      },
+      {
+        etiqueta: `cortante en ${dir}`,
+        estado: todos((r) => r.verificaCorte) ? ("cumple" as const) : ("no-cumple" as const),
+        utilizacion: maximo((r) => (r.vRdCKN > 0 ? r.vEdKN / r.vRdCKN : undefined)),
+      },
+    ];
+  };
 
   const planta = diagrama ? (
     <ZapataDiagrama {...diagrama} />
@@ -200,6 +298,26 @@ export default function ZapataAisladaPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="anchoPilarA" etiqueta="Ancho // A" sufijo="m" valor={anchoPilarA} onChange={setAnchoPilarA} />
                     <CampoNumerico id="anchoPilarB" etiqueta="Ancho // B" sufijo="m" valor={anchoPilarB} onChange={setAnchoPilarB} />
+                    <div className="col-span-2">
+                      <CampoSeleccion
+                        id="posicionPilar"
+                        etiqueta="Dónde cae el pilar"
+                        valor={posicionPilar}
+                        opciones={POSICIONES}
+                        onChange={cambiarPosicion}
+                      />
+                    </div>
+                    {descentrado && (
+                      <>
+                        <CampoNumerico id="distanciaBordeA" etiqueta="Cara al borde, A" sufijo="m" valor={distanciaBordeA} onChange={setDistanciaBordeA} />
+                        <CampoNumerico id="distanciaBordeB" etiqueta="Cara al borde, B" sufijo="m" valor={distanciaBordeB} onChange={setDistanciaBordeB} />
+                        <p className="col-span-2 text-xs text-muted-foreground">
+                          Distancia de la cara del pilar al borde izquierdo (A) y al superior (B) de la
+                          planta. 0 en A es el pilar contra la medianera. El momento del descentramiento,
+                          Nk·e, sale solo: no hace falta cargarlo en Mk.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </Subgrupo>
               </>
@@ -215,6 +333,10 @@ export default function ZapataAisladaPage() {
                 <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN" valor={Nk} onChange={setNk} />
                 <CampoNumerico id="MkA" etiqueta="Mk A" sufijo="kN·m" valor={MkA} onChange={setMkA} />
                 <CampoNumerico id="MkB" etiqueta="Mk B" sufijo="kN·m" valor={MkB} onChange={setMkB} />
+                <p className="col-span-3 text-xs text-muted-foreground">
+                  Mk es el momento que baja por el pilar, positivo hacia el borde derecho (A) o
+                  inferior (B).{descentrado ? " El del descentramiento se suma solo." : ""}
+                </p>
               </div>
             }
             dibujo={
@@ -280,17 +402,31 @@ export default function ZapataAisladaPage() {
               { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
               { etiqueta: "A × B × H", valor: `${A} × ${B} × ${H} m` },
               { etiqueta: "σ adm. suelo", valor: `${sigmaAdmisible} kN/m²` },
+              {
+                etiqueta: "Pilar",
+                valor: descentrado
+                  ? `${anchoPilarA} × ${anchoPilarB} m, cara a ${distanciaBordeA} m (A) y ${distanciaBordeB} m (B) del borde`
+                  : `${anchoPilarA} × ${anchoPilarB} m, centrado`,
+              },
+              { etiqueta: "Nk · Mk A · Mk B", valor: `${Nk} kN · ${MkA} · ${MkB} kN·m` },
               ...(resultado
                 ? [
                     { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN`, derivado: true },
+                    {
+                      etiqueta: "e terreno A · B",
+                      valor: `${fmt(resultado.zapata.excentricidadA, 3)} · ${fmt(resultado.zapata.excentricidadB, 3)} m`,
+                      derivado: true,
+                    },
                     { etiqueta: "Vuelo máximo", valor: `${fmt(resultado.zapata.vueloMaxM, 3)} m`, derivado: true },
                   ]
                 : []),
             ]}
             hipotesis={[
-              "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = Mk / (Nk + PP).",
-              "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz, y el armado y el cortante se calculan con la cuña de presiones, no con el trapecio.",
+              "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = (Nk·e0 + Mk) / (Nk + PP), con e0 el descentramiento del pilar.",
+              "La resultante tiene que caer dentro del núcleo central en las dos direcciones (e ≤ L/6): sin despegue. La tensión se comprueba por el área eficaz.",
+              "Con el pilar descentrado cada vuelo tiene su propio momento y se arma por separado con las mismas barras; la zapata de medianería es el caso con el pilar contra el borde.",
               "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
+              "Con el pilar descentrado, el punzonamiento descuenta la presión real bajo el perímetro (lineal en las dos direcciones) y el β usa sólo el momento propio del pilar. Cerca de un borde (a menos de 2d), el perímetro se recorta como en la fig. A19.6.15 y el β es el de pilar de borde o esquina (ecs. (6.44)-(6.46)).",
               "Flexión por el modelo del Anejo 19, art. 9.8.2.2: sección de cálculo a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d) y As = Fs/fyd.",
               "Cuantía mínima de tracción del art. 9.2.1.1 (1), ec. (9.1), la misma que en vigas y losas. φ ≥ 12 mm (art. 9.8.2.1 (1)).",
               "Anclaje (art. 8.4) comprobado desde x = h/2 hasta la sección de cálculo: Fs(x) tiene que anclarse en x menos el recubrimiento. Buena adherencia, α3 = α5 = 1.",
@@ -314,35 +450,7 @@ export default function ZapataAisladaPage() {
                     estado: resultado.zapata.geotecnico.verificaTension ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
                   },
-                  {
-                    etiqueta: "armadura en A",
-                    estado: resultado.zapata.direccionA.verificaAs ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionA.asNecCm2 / resultado.zapata.direccionA.asRealCm2,
-                  },
-                  {
-                    etiqueta: "anclaje en A",
-                    estado: resultado.zapata.direccionA.anclaje.verifica ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionA.anclaje.comprobado
-                      ? resultado.zapata.direccionA.anclaje.lbdMm / resultado.zapata.direccionA.anclaje.disponibleMm
-                      : undefined,
-                  },
-                  {
-                    etiqueta: "cortante en A",
-                    estado: resultado.zapata.direccionA.verificaCorte ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionA.vEdKN / resultado.zapata.direccionA.vRdCKN,
-                  },
-                  {
-                    etiqueta: "armadura en B",
-                    estado: resultado.zapata.direccionB.verificaAs ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionB.asNecCm2 / resultado.zapata.direccionB.asRealCm2,
-                  },
-                  {
-                    etiqueta: "anclaje en B",
-                    estado: resultado.zapata.direccionB.anclaje.verifica ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionB.anclaje.comprobado
-                      ? resultado.zapata.direccionB.anclaje.lbdMm / resultado.zapata.direccionB.anclaje.disponibleMm
-                      : undefined,
-                  },
+                  ...(["A", "B"] as const).flatMap((dir) => comprobacionesDireccion(dir, vuelosAMostrar(dir))),
                   {
                     etiqueta: "diámetro mínimo φ12",
                     estado:
@@ -351,23 +459,31 @@ export default function ZapataAisladaPage() {
                         : "no-cumple",
                   },
                   {
-                    etiqueta: "cortante en B",
-                    estado: resultado.zapata.direccionB.verificaCorte ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionB.vEdKN / resultado.zapata.direccionB.vRdCKN,
-                  },
-                  {
                     etiqueta: "punzonamiento",
-                    estado: resultado.zapata.punzonamiento.verificaPunzonamiento ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.punzonamiento.aprovechamiento,
+                    estado: punzonamientoEvaluado
+                      ? resultado.zapata.punzonamiento.verificaPunzonamiento
+                        ? "cumple"
+                        : "no-cumple"
+                      : "no-evaluado",
+                    utilizacion: punzonamientoEvaluado ? resultado.zapata.punzonamiento.aprovechamiento : undefined,
                   },
                   {
                     etiqueta: "bielas en la cara del pilar",
-                    estado: resultado.zapata.punzonamiento.caraPilar.verifica ? "cumple" : "no-cumple",
-                    utilizacion:
-                      resultado.zapata.punzonamiento.caraPilar.vEdMPa / resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa,
+                    estado: punzonamientoEvaluado
+                      ? resultado.zapata.punzonamiento.caraPilar.verifica
+                        ? "cumple"
+                        : "no-cumple"
+                      : "no-evaluado",
+                    utilizacion: punzonamientoEvaluado
+                      ? resultado.zapata.punzonamiento.caraPilar.vEdMPa / resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa
+                      : undefined,
                   },
                 ]}
               />
+
+              {descentrado && Math.abs(resultado.zapata.vuelosA.excentricidadPilarM) > 1e-9 && (
+                <PropuestaVigaCentradora necesaria={!resultado.zapata.geotecnico.verificaTension} />
+              )}
 
               <PanelMetricas
                 horizontal
@@ -421,12 +537,18 @@ export default function ZapataAisladaPage() {
 
               <Subgrupo titulo="Comprobaciones estructurales">
                 <div>
-                  <TarjetaLadoZapata titulo="Dirección A" resultado={resultado.zapata.direccionA} />
-                  <TarjetaLadoZapata titulo="Dirección B" resultado={resultado.zapata.direccionB} />
+                  {(["A", "B"] as const).flatMap((dir) =>
+                    vuelosAMostrar(dir).map((v) => <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} />)
+                  )}
                   <ResultadoCheck
                     etiqueta="Punzonamiento"
                     verifica={resultado.zapata.punzonamiento.verificaPunzonamiento}
-                    detalle="Anejo 19, art. 6.4.4 (2), ec. (6.51) con los momentos de los dos ejes sumados. No viene de la planilla."
+                    estado={punzonamientoEvaluado ? undefined : "no-evaluado"}
+                    detalle={
+                      punzonamientoEvaluado
+                        ? "Anejo 19, art. 6.4.4 (2), ec. (6.51) con los momentos de los dos ejes sumados. No viene de la planilla."
+                        : resultado.zapata.punzonamiento.motivoNoEvaluado
+                    }
                     comparacion={{
                       real: { etiqueta: "Vd", valor: resultado.zapata.punzonamiento.vEdKN },
                       limite: { etiqueta: "VRd,c", valor: resultado.zapata.punzonamiento.vRdCKN },
@@ -436,6 +558,7 @@ export default function ZapataAisladaPage() {
                   <ResultadoCheck
                     etiqueta="Bielas en la cara del pilar"
                     verifica={resultado.zapata.punzonamiento.caraPilar.verifica}
+                    estado={punzonamientoEvaluado ? undefined : "no-evaluado"}
                     detalle="Anejo 19, art. 6.4.5 (3), ec. (6.53): β·VEd/(u0·d) ≤ 0,4·ν·fcd."
                     comparacion={{
                       real: { etiqueta: "vEd", valor: resultado.zapata.punzonamiento.caraPilar.vEdMPa },
@@ -447,6 +570,9 @@ export default function ZapataAisladaPage() {
                     titulo="Ver desarrollo del punzonamiento"
                     filas={[
                       { etiqueta: "d promedio", valor: `${fmt(resultado.zapata.punzonamiento.dPromedioM, 3)} m` },
+                      ...(resultado.zapata.punzonamiento.situacion
+                        ? [{ etiqueta: "Pilar tratado como", valor: resultado.zapata.punzonamiento.situacion }]
+                        : []),
                       { etiqueta: "VEd,red (sin momento)", valor: `${fmt(resultado.zapata.punzonamiento.vEdRedKN)} kN` },
                       { etiqueta: "β por momento en el perímetro crítico", valor: fmt(resultado.zapata.punzonamiento.beta, 3) },
                       { etiqueta: "β en la cara del pilar (u1 a 2d)", valor: fmt(resultado.zapata.punzonamiento.caraPilar.beta, 3) },

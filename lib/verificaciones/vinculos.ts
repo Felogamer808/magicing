@@ -79,28 +79,32 @@ export interface Vinculo {
 }
 
 /**
- * De la zapata de medianería a la misma zapata con viga centradora.
+ * De la zapata aislada con el pilar descentrado a la misma zapata con viga
+ * centradora.
  *
- * Es el paso que se da cuando la medianería no verifica: agrandarla no ayuda
- * (la cuña de contacto mide 1,5·c sea cual sea el largo) y hay que cambiar de
- * sistema. Viaja todo lo de la zapata y el pilar; la viga no existía, así que
- * su luz se deja en blanco para que no se vea un resultado con una luz de
+ * Es el paso que se da cuando la zapata con el pilar contra la medianera no
+ * verifica: agrandarla no ayuda (la cuña de contacto mide 1,5·c sea cual sea
+ * el largo) y hay que cambiar de sistema. Viaja todo lo de la zapata y el
+ * pilar; la medianera es el borde de inicio en A, así que la distancia de la
+ * cara del pilar a ese borde es la distancia al límite. La viga no existía, así
+ * que su luz se deja en blanco para que no se vea un resultado con una luz de
  * ejemplo.
  *
- * El momento en A cambia de signo: en la medianería es positivo hacia el
- * interior (se suma a Nk·e0, que es negativo), y en la viga centradora es
- * positivo hacia la medianera, que es el sentido que carga la palanca.
+ * El momento en A cambia de signo: en la zapata es positivo hacia el borde
+ * final (el interior), y en la viga centradora es positivo hacia la medianera,
+ * que es el sentido que carga la palanca.
  */
 export const RUTA_VIGA_CENTRADORA = "/verificaciones/zapata-viga-centradora";
 export const BLANQUEAR_VIGA_CENTRADORA = ["luz"];
 
-export function camposVigaCentradoraDesdeMedianeria(campos: Record<string, string>): Record<string, string> {
+export function camposVigaCentradoraDesdeZapata(campos: Record<string, string>): Record<string, string> {
   const copiar = [
-    "fck", "fyk", "sigmaAdmisible", "A", "B", "H", "recubrimiento", "distanciaColumnaLimite",
+    "fck", "fyk", "sigmaAdmisible", "A", "B", "H", "recubrimiento",
     "anchoPilarA", "anchoPilarB", "Nk", "MkB", "numeroA", "diametroA", "numeroB", "diametroB", "formaAnclaje",
   ];
   const destino: Record<string, string> = {};
   for (const nombre of copiar) if (campos[nombre] !== undefined) destino[nombre] = campos[nombre];
+  if (campos.distanciaBordeA !== undefined) destino.distanciaColumnaLimite = campos.distanciaBordeA;
 
   const mkA = Number((campos.MkA ?? "0").replace(",", "."));
   if (Number.isFinite(mkA)) destino.MkA = mkA === 0 ? "0" : String(-mkA);

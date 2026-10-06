@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { armarArchivo, nombreDeArchivo } from "@/lib/proyectos/modelo";
+import { armarArchivo, convertirRetirados, nombreDeArchivo } from "@/lib/proyectos/modelo";
 import type { Proyecto } from "@/lib/proyectos/tipos";
 
 /**
@@ -49,7 +49,7 @@ function leerTodos(): Proyecto[] {
 
   try {
     const crudo: unknown = JSON.parse(texto);
-    const proyectos = Array.isArray(crudo) ? (crudo as Proyecto[]) : VACIO;
+    const proyectos = Array.isArray(crudo) ? convertirRetirados(crudo as Proyecto[]) : VACIO;
     cache = { texto, proyectos };
     return proyectos;
   } catch {

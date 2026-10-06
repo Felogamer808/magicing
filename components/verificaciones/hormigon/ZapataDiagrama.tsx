@@ -9,6 +9,9 @@ interface ZapataDiagramaProps {
   anchoPilarBM: number;
   numeroA: number;
   numeroB: number;
+  /** Distancia de la cara del pilar al borde de inicio en A (izquierda) y en B (arriba). Sin dato, centrado. */
+  distanciaBordeAM?: number;
+  distanciaBordeBM?: number;
 }
 
 const fmtM = (n: number) => `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
@@ -19,7 +22,16 @@ function lineasEspaciadas(n: number, desde: number, hasta: number): number[] {
   return Array.from({ length: n }, (_, i) => desde + i * paso);
 }
 
-export function ZapataDiagrama({ AM, BM, anchoPilarAM, anchoPilarBM, numeroA, numeroB }: ZapataDiagramaProps) {
+export function ZapataDiagrama({
+  AM,
+  BM,
+  anchoPilarAM,
+  anchoPilarBM,
+  numeroA,
+  numeroB,
+  distanciaBordeAM,
+  distanciaBordeBM,
+}: ZapataDiagramaProps) {
   const arrowId = useId();
 
   if (!(AM > 0) || !(BM > 0)) return null;
@@ -45,8 +57,12 @@ export function ZapataDiagrama({ AM, BM, anchoPilarAM, anchoPilarBM, numeroA, nu
 
   const pilarW = Math.min(anchoPilarAM * escala, w * 0.9);
   const pilarH = Math.min(anchoPilarBM * escala, h * 0.9);
-  const pilarX0 = x0 + (w - pilarW) / 2;
-  const pilarY0 = y0 + (h - pilarH) / 2;
+  // Sin posición, centrado; con posición, acotada para que el pilar no salga del dibujo.
+  const acotar = (v: number, max: number) => Math.min(Math.max(v, 0), max);
+  const pilarX0 =
+    x0 + (distanciaBordeAM !== undefined && Number.isFinite(distanciaBordeAM) ? acotar(distanciaBordeAM * escala, w - pilarW) : (w - pilarW) / 2);
+  const pilarY0 =
+    y0 + (distanciaBordeBM !== undefined && Number.isFinite(distanciaBordeBM) ? acotar(distanciaBordeBM * escala, h - pilarH) : (h - pilarH) / 2);
 
   const margen = Math.min(10, w * 0.05, h * 0.05);
 

@@ -17,6 +17,47 @@ import {
 } from "@/lib/proyectos/tipos";
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
+/**
+ * Verificaciones que dejaron de existir y cómo se leen ahora sus cálculos
+ * guardados. Sin esto, un proyecto viejo abriría con un cálculo que no apunta a
+ * ninguna página.
+ *
+ * La zapata de medianería pasó a ser la zapata aislada con el pilar
+ * descentrado (2026-10-06): la distancia del pilar al límite es la distancia
+ * de su cara al borde de inicio en A, y en B el pilar queda centrado.
+ */
+function convertirCalculo(c: CalculoGuardado): CalculoGuardado {
+  if ((c.verificacion as string) !== "zapata-medianeria") return c;
+  const numero = (nombre: string, porDefecto: number) => {
+    const n = Number((c.campos[nombre] ?? "").replace(",", "."));
+    return Number.isFinite(n) && (c.campos[nombre] ?? "") !== "" ? n : porDefecto;
+  };
+  const centroB = (numero("B", 1.2) - numero("anchoPilarB", 0.4)) / 2;
+  const { distanciaColumnaLimite, ...resto } = c.campos;
+  return {
+    ...c,
+    verificacion: "zapatas",
+    campos: {
+      ...resto,
+      posicionPilar: "Ubicación libre",
+      distanciaBordeA: distanciaColumnaLimite ?? "0.7",
+      distanciaBordeB: String(Math.round(Math.max(centroB, 0) * 1000) / 1000),
+    },
+  };
+}
+
+/** Pasa los cálculos de verificaciones retiradas a la que las reemplaza. */
+export function convertirRetirados(proyectos: Proyecto[]): Proyecto[] {
+  const hayQueConvertir = proyectos.some((p) =>
+    p.elementos.some((e) => e.calculos.some((c) => (c.verificacion as string) === "zapata-medianeria"))
+  );
+  if (!hayQueConvertir) return proyectos;
+  return proyectos.map((p) => ({
+    ...p,
+    elementos: p.elementos.map((e) => ({ ...e, calculos: e.calculos.map(convertirCalculo) })),
+  }));
+}
+
 function ahora(): string {
   return new Date().toISOString();
 }
@@ -200,7 +241,7 @@ export function leerArchivo(texto: string): ResultadoImportacion {
     return { ok: false, proyectos: [], mensaje: "El archivo no trae ninguna lista de proyectos." };
   }
 
-  const proyectos = crudo.proyectos.filter(esProyecto);
+  const proyectos = convertirRetirados(crudo.proyectos.filter(esProyecto));
   if (proyectos.length === 0) {
     return { ok: false, proyectos: [], mensaje: "El archivo no trae ningún proyecto legible." };
   }

@@ -91,10 +91,6 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
 
   "zapata-corrida": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
-  "zapata-medianeria": {
-    nivel: "probada",
-    nota: "Misma formulación del Anejo 19 que la zapata aislada (AUDITORIA.md, hallazgo 7). No incluye punzonamiento de pilar de borde ni vuelco y deslizamiento.",
-  },
   "zapata-viga-centradora": {
     nivel: "probada",
     nota: "Sin planilla de referencia: la palanca se contrasta a mano en los tests. La zapata usa el modelo del Anejo 19 de la aislada y la viga el de flexión y cortante. La zapata interior se calcula aparte, con su carga completa.",

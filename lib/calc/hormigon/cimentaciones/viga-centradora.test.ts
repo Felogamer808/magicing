@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { calcularVigaCentradora, type GeometriaVigaCentradora } from "@/lib/calc/hormigon/cimentaciones/viga-centradora";
-import { calcularZapataMedianeria } from "@/lib/calc/hormigon/cimentaciones/zapata-medianeria";
+import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 
 // Sin planilla de referencia: la palanca se resuelve a mano en cada test.
 
@@ -73,7 +73,7 @@ describe("viga centradora — palanca", () => {
 
 describe("viga centradora — el problema que resuelve", () => {
   it("la misma zapata sin viga no verifica; con viga sí", () => {
-    const sinViga = calcularZapataMedianeria(materiales, { ...geometria }, 250, {
+    const sinViga = calcularZapataAislada(materiales, { ...geometria, distanciaBordeA: geometria.distanciaColumnaLimite }, 250, {
       cargas: { Nk: 500, MkA: 0, MkB: 0 },
       armadoA: datos.armadoA,
       armadoB: datos.armadoB,

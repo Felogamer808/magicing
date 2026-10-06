@@ -5,6 +5,7 @@ import {
   agregarElemento,
   armarArchivo,
   contarCalculos,
+  convertirRetirados,
   crearCalculo,
   crearElemento,
   crearProyecto,
@@ -255,5 +256,34 @@ describe("nombre del archivo exportado", () => {
 
   it("un nombre que queda vacío al limpiarlo no produce un archivo sin nombre", () => {
     expect(nombreDeArchivo(crearProyecto("···"))).toMatch(/^magicing-proyecto-/);
+  });
+});
+
+describe("convertirRetirados — la zapata de medianería pasa a zapata aislada", () => {
+  const conMedianeria = () => {
+    const p = crearProyecto("Obra");
+    const e = crearElemento("Z-1");
+    const c = {
+      ...crearCalculo("zapatas", { A: "2,5", B: "1,2", anchoPilarB: "0,4", distanciaColumnaLimite: "0,05", Nk: "300" }),
+      verificacion: "zapata-medianeria",
+    } as unknown as ReturnType<typeof crearCalculo>;
+    return [{ ...p, elementos: [{ ...e, calculos: [c] }] }];
+  };
+
+  it("cambia la verificación y ubica el pilar donde estaba", () => {
+    const [p] = convertirRetirados(conMedianeria());
+    const c = p.elementos[0].calculos[0];
+    expect(c.verificacion).toBe("zapatas");
+    expect(c.campos.posicionPilar).toBe("Ubicación libre");
+    expect(c.campos.distanciaBordeA).toBe("0,05");
+    // En B el pilar queda centrado: (1,2 − 0,4)/2.
+    expect(c.campos.distanciaBordeB).toBe("0.4");
+    expect(c.campos.distanciaColumnaLimite).toBeUndefined();
+    expect(c.campos.Nk).toBe("300");
+  });
+
+  it("no toca proyectos sin cálculos retirados", () => {
+    const p = [crearProyecto("Obra")];
+    expect(convertirRetirados(p)).toBe(p);
   });
 });

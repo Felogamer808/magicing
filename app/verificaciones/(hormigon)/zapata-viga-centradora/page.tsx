@@ -18,6 +18,7 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { DiagramaVigaCentradora } from "@/components/verificaciones/hormigon/DiagramaVigaCentradora";
+import { DiagramaVuelosViga } from "@/components/verificaciones/hormigon/DiagramaVuelosViga";
 import { calcularVigaCentradora } from "@/lib/calc/hormigon/cimentaciones/viga-centradora";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -328,6 +329,20 @@ export default function ZapataVigaCentradoraPage() {
 
               <Subgrupo titulo="Zapata de medianería">
                 <div>
+                  <div className="mb-3 rounded-md border p-3">
+                    <DiagramaVuelosViga
+                      AM={resultado.v.A}
+                      BM={resultado.v.B}
+                      hZapataM={resultado.v.H}
+                      bVigaM={resultado.v.bViga}
+                      dM={resultado.r.zapataDireccionB.dM}
+                    />
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      Las alas rayadas son los vuelos: la parte de la zapata que sobresale a cada lado de la viga. El
+                      terreno las empuja hacia arriba y trabajan como ménsulas colgadas de la viga, sin estribos: el
+                      cortante lo toma sólo el hormigón.
+                    </p>
+                  </div>
                   <TarjetaLadoZapata titulo="Vuelos a los lados de la viga (B)" resultado={resultado.r.zapataDireccionB} />
                   <ResultadoCheck
                     etiqueta="Reparto en la dirección de la viga (20 %)"

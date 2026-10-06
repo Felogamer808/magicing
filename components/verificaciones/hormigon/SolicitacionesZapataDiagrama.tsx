@@ -104,8 +104,8 @@ export function SolicitacionesZapataDiagrama({
         )}
 
         {/* Pilar y zapata */}
-        <rect x={centro - pilarW / 2} y={yPilarTop + 34} width={pilarW} height={yZapata - yPilarTop - 34} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
-        <rect x={x0} y={yZapata} width={x1 - x0} height={altoZapata} stroke="currentColor" strokeWidth="1.9" fill="var(--color-muted)" fillOpacity="0.45" />
+        <rect x={centro - pilarW / 2} y={yPilarTop + 34} width={pilarW} height={yZapata - yPilarTop - 34} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+        <rect x={x0} y={yZapata} width={x1 - x0} height={altoZapata} stroke="var(--mat-hormigon-borde)" strokeWidth="1.9" fill="var(--mat-hormigon)" />
 
         {/* Trapecio de presiones del terreno */}
         <path

@@ -91,22 +91,22 @@ export function LosaDiagrama({
         </text>
 
         {/* sección de la losa */}
-        <rect x={x0} y={y0} width={W} height={hPx} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={W} height={hPx} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         {/* armadura negativa (arriba): Y exterior, X por dentro */}
         {xsY.map((x, i) => (
-          <circle key={`ny-${i}`} cx={x} cy={yNegY} r={rNegY} fill="currentColor" opacity="0.55" />
+          <circle key={`ny-${i}`} cx={x} cy={yNegY} r={rNegY} fill="var(--mat-armadura)" opacity="0.55" />
         ))}
         {xsX.map((x, i) => (
-          <circle key={`nx-${i}`} cx={x} cy={yNegX} r={rNegX} fill="currentColor" />
+          <circle key={`nx-${i}`} cx={x} cy={yNegX} r={rNegX} fill="var(--mat-armadura)" />
         ))}
 
         {/* armadura positiva (abajo) */}
         {xsY.map((x, i) => (
-          <circle key={`py-${i}`} cx={x} cy={yPosY} r={rPosY} fill="currentColor" opacity="0.55" />
+          <circle key={`py-${i}`} cx={x} cy={yPosY} r={rPosY} fill="var(--mat-armadura)" opacity="0.55" />
         ))}
         {xsX.map((x, i) => (
-          <circle key={`px-${i}`} cx={x} cy={yPosX} r={rPosX} fill="currentColor" />
+          <circle key={`px-${i}`} cx={x} cy={yPosX} r={rPosX} fill="var(--mat-armadura)" />
         ))}
 
         <text x={x1 - 2} y={y0 - 8} textAnchor="end" className="fill-current font-mono" fontSize="9.5" opacity="0.8">

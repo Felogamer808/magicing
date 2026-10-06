@@ -49,7 +49,7 @@ export function ZapataCombinadaDiagrama({ AM, HM, posicionCol1M, posicionCol2M }
         <path d={`M${xCol2} ${y0 - 34} L${xCol2} ${y0}`} stroke="currentColor" strokeWidth="3" opacity="0.8" />
 
         {/* zapata */}
-        <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={w} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         <text x={xCol1} y={y0 + h + 14} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
           {fmtM(posicionCol1M)}

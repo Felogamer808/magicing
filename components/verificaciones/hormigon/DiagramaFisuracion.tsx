@@ -101,7 +101,7 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
           const cx = n1 <= 1
             ? xIzq + anchoSeccion / 2
             : xIzq + anchoSeccion * 0.12 + (i * paso) / (n1 - 1);
-          return <circle key={i} cx={cx} cy={yD} r={2.8} className="fill-foreground" />;
+          return <circle key={i} cx={cx} cy={yD} r={2.8} fill="var(--mat-armadura)" />;
         })}
         <text x={xIzq - 12} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
           {n1}⌀{diametro1Mm}

@@ -24,9 +24,8 @@ function Pilar() {
       y={PY0}
       width={PX1 - PX0}
       height={PY1 - PY0}
-      fill="var(--color-muted)"
-      fillOpacity="0.9"
-      stroke="currentColor"
+      fill="var(--mat-hormigon)"
+      stroke="var(--mat-hormigon-borde)"
       strokeWidth="1.4"
     />
   );
@@ -147,9 +146,8 @@ export function CroquisSeccionPunzonamiento() {
         y={yTop}
         width={230}
         height={yBot - yTop}
-        fill="var(--color-muted)"
-        fillOpacity="0.45"
-        stroke="currentColor"
+        fill="var(--mat-hormigon)"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.6"
       />
 
@@ -159,9 +157,8 @@ export function CroquisSeccionPunzonamiento() {
         y={yBot}
         width={xPilar1 - xPilar0}
         height={34}
-        fill="var(--color-muted)"
-        fillOpacity="0.9"
-        stroke="currentColor"
+        fill="var(--mat-hormigon)"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.4"
       />
 
@@ -204,9 +201,8 @@ export function CroquisArmaduraPunzonamiento() {
         y={yTop}
         width={230}
         height={yBot - yTop}
-        fill="var(--color-muted)"
-        fillOpacity="0.45"
-        stroke="currentColor"
+        fill="var(--mat-hormigon)"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.6"
       />
       <rect
@@ -214,9 +210,8 @@ export function CroquisArmaduraPunzonamiento() {
         y={yBot}
         width={xPilar1 - 56}
         height={26}
-        fill="var(--color-muted)"
-        fillOpacity="0.9"
-        stroke="currentColor"
+        fill="var(--mat-hormigon)"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.4"
       />
 

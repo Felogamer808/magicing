@@ -28,10 +28,9 @@ function AlzadoCabezal({
         y={yTop - 20}
         width={anchoPilar}
         height={20}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.3"
-        fill="var(--color-muted)"
-        fillOpacity="0.5"
+        fill="var(--mat-hormigon)"
       />
       {/* cabezal */}
       <rect
@@ -39,10 +38,9 @@ function AlzadoCabezal({
         y={yTop}
         width={semiAncho * 2}
         height={yBot - yTop}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.6"
-        fill="var(--color-muted)"
-        fillOpacity="0.4"
+        fill="var(--mat-hormigon)"
       />
       {/* pilotes */}
       {[-1, 1].map((s) => (
@@ -52,10 +50,9 @@ function AlzadoCabezal({
           y={yBot}
           width={anchoPilote}
           height={22}
-          stroke="currentColor"
+          stroke="var(--mat-hormigon-borde)"
           strokeWidth="1.3"
-          fill="var(--color-muted)"
-          fillOpacity="0.5"
+          fill="var(--mat-hormigon)"
         />
       ))}
     </g>
@@ -126,7 +123,7 @@ export function CroquisArmaduraPrincipalCabezal() {
       <path d={`M${xc} ${yTop} L${xc + dx} ${yBot}`} stroke="currentColor" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
 
       {/* tirante */}
-      <path d={`M${xc - dx - 10} ${yBot - 8} L${xc + dx + 10} ${yBot - 8}`} stroke="currentColor" strokeWidth="2.6" />
+      <path d={`M${xc - dx - 10} ${yBot - 8} L${xc + dx + 10} ${yBot - 8}`} stroke="var(--mat-armadura)" strokeWidth="2.6" />
       <text x={xc} y={yBot - 12} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
         Td
       </text>
@@ -149,7 +146,7 @@ export function CroquisArmaduraSecundariaCabezal() {
       nota="Perpendicular al tirante y calculada como el 10 % de la principal realmente colocada, no de la necesaria."
     >
       {/* planta del cabezal */}
-      <rect x="20" y="34" width="130" height="60" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x="20" y="34" width="130" height="60" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
       {[40, 130].map((x) => (
         <circle key={x} cx={x} cy="64" r="11" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3 2" opacity="0.75" />
       ))}

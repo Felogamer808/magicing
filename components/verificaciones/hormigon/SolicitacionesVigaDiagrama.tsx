@@ -83,7 +83,7 @@ export function SolicitacionesVigaDiagrama({
         )}
 
         {/* Viga y apoyos */}
-        <rect x={x0} y={yViga} width={x1 - x0} height={altoViga} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
+        <rect x={x0} y={yViga} width={x1 - x0} height={altoViga} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
         <path d={`M${x0} ${yViga + altoViga} L${x0 - 11} ${yBaseApoyo} L${x0 + 11} ${yBaseApoyo} Z`} stroke="currentColor" strokeWidth="1.4" />
         <circle cx={x1} cy={yViga + altoViga + 8} r="7" stroke="currentColor" strokeWidth="1.4" />
         {[x0, x1].map((x) => (

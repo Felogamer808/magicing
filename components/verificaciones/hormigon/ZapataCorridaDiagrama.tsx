@@ -94,14 +94,14 @@ export function ZapataCorridaDiagrama({
         </text>
 
         {/* muro / pilar de referencia (se extiende hacia arriba, fuera de la zapata) */}
-        <rect x={pilarX0} y={y0 - 20} width={pilarW} height={20} stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.8" />
+        <rect x={pilarX0} y={y0 - 20} width={pilarW} height={20} stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
 
         {/* zapata en corte */}
-        <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={w} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         {/* armadura principal */}
         {xsBarras.map((x, i) => (
-          <circle key={i} cx={x} cy={yBarras} r={radio} fill="currentColor" />
+          <circle key={i} cx={x} cy={yBarras} r={radio} fill="var(--mat-armadura)" />
         ))}
       </svg>
 

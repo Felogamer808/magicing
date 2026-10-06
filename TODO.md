@@ -51,6 +51,9 @@ Independientes, contra `main`:
 - **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
   el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
   mezclan normas. Hay una tarea preparada con el detalle.
+- **Losa de fundación** sigue con el modelo de la planilla (brazo 0,85·d,
+  mínimos de la EHE) en `lib/calc/hormigon/losas/franja-sobre-terreno.ts`: la combinada ya no
+  lo usa y conviene pasarla al Anejo 19 con el mismo criterio.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.

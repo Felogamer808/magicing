@@ -34,6 +34,12 @@ export interface EntradaPunzonamientoDescentrado {
   dA: number;
   dB: number;
   nk: number;
+  /**
+   * Carga característica que genera las presiones (kN). Sin dato, la del
+   * pilar. En la zapata combinada es la suma de los dos pilares: la presión
+   * bajo uno la producen los dos.
+   */
+  nkPresiones?: number;
   /** Momentos propios del pilar, positivos hacia el borde final (kN·m). */
   mkA: number;
   mkB: number;
@@ -169,7 +175,7 @@ export function calcularPunzonamientoDescentrado(
   const mB = GAMMA_F * e.mkB;
 
   // Presión de cálculo real, lineal en las dos direcciones; el terreno no tracciona.
-  const sigmaMedia = vEdPilarKN / (A * B);
+  const sigmaMedia = (GAMMA_F * (e.nkPresiones ?? nk)) / (A * B);
   const sigma = (x: number, y: number) =>
     sigmaMedia * Math.max(0, 1 + (12 * e.excCalculoA * (x - A / 2)) / A ** 2 + (12 * e.excCalculoB * (y - B / 2)) / B ** 2);
 

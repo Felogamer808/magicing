@@ -18,12 +18,12 @@ import { DiagramaMensulaModelo } from "@/components/verificaciones/hormigon/Diag
 import { DiagramaMensulaPlanta } from "@/components/verificaciones/hormigon/DiagramaMensulaPlanta";
 import { useCampo } from "@/lib/hooks/useCampo";
 import {
-  calcularMensulaCorta,
   type ResultadoMensulaCorta,
 } from "@/lib/calc/hormigon/mensula-corta";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverMensulaCorta } from "@/lib/calc/hormigon/resolver-mensula-corta";
+import { recomendarMensulaCorta, type RecomendacionesMensula } from "@/lib/verificaciones/recomendaciones/mensula-corta";
 
 const meta = registroVerificaciones.find((v) => v.id === "mensula-corta")!;
 
@@ -64,45 +64,13 @@ export default function Page() {
 
   const hAutomatico = modoH.startsWith("H = 0,15");
 
-  const resultado = useMemo(() => {
-    const g = {
-      acM: aNumero(ac),
-      hcM: aNumero(hc),
-      h1M: aNumero(h1),
-      bM: aNumero(b),
-      hcolM: aNumero(hcol),
-      apM: aNumero(ap),
-      bpM: aNumero(bp),
-      recubrimientoM: aNumero(rec),
-    };
-    const fEdKN = aNumero(fEd);
-    const hEdKN = hAutomatico ? 0.15 * fEdKN : aNumero(hEd);
-    const fckMPa = aNumero(fck);
-    const fykMPa = aNumero(fyk);
-
-    const numeros = [...Object.values(g), fEdKN, hEdKN, fckMPa, fykMPa];
-    if (numeros.some((n) => !Number.isFinite(n))) return null;
-    // Sin canto no hay canto útil, y sin ancho de placa el nudo divide por cero.
-    if (g.hcM <= 0 || g.bM <= 0 || g.acM <= 0 || g.apM <= 0 || g.bpM <= 0) return null;
-    if (g.hcolM <= 0 || g.h1M <= 0 || fckMPa <= 0 || fykMPa <= 0 || fEdKN <= 0) return null;
-
-    const materiales = derivarMateriales({ fck: fckMPa, fyk: fykMPa });
-    const r = calcularMensulaCorta(materiales, g, {
-      fEdKN,
-      hEdKN,
-      diametroPrincipalMm: Number(phiP),
-      diametroCercoMm: Number(phiE),
-      condicionAdherencia: adherencia === "Buena" ? "buena" : "mala",
-      barraTransversalSoldada: soldada === "Sí",
-    });
-    // El canto útil puede salir negativo si el recubrimiento se come la pieza.
-    if (r.modelo.dM <= 0) return null;
-    return { r, geometria: g, fEdKN, hEdKN };
-  }, [
-    ac, hc, h1, b, hcol, ap, bp, rec,
-    fEd, hEd, hAutomatico, fck, fyk,
-    phiP, phiE, adherencia, soldada,
-  ]);
+  const campos = useMemo(
+    () => ({ ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada, modoH }),
+    [ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada, modoH]
+  );
+  const resultado = useMemo(() => resolverMensulaCorta(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarMensulaCorta(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -247,6 +215,7 @@ export default function Page() {
               geometria={resultado.geometria}
               phiP={Number(phiP)}
               phiE={Number(phiE)}
+              propuestas={propuestas}
             />
           )}
         </Etapa>
@@ -261,9 +230,11 @@ interface ResultadosProps {
   geometria: { hcM: number; h1M: number; hcolM: number; bM: number; acM: number; apM: number; bpM: number; recubrimientoM: number };
   phiP: number;
   phiE: number;
+  /** Cambios recalculados para lo que no cumple o queda justo. */
+  propuestas: RecomendacionesMensula;
 }
 
-function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
+function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
   const cercoCm2 = r.cercos.asRealCm2 / r.cercos.numeroCercos;
 
   return (
@@ -322,18 +293,21 @@ function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
             verifica={r.hormigon.nudo.verifica}
             detalle="Ec. (6.61), nudo comprimido con tirante anclado, k₂ = 0,85. Resiste el ancho de la placa, no el de la ménsula."
             comparacion={{ real: { etiqueta: "σ", valor: r.hormigon.nudo.sigmaMPa }, limite: { etiqueta: "k₂·ν′·f_cd", valor: r.hormigon.nudo.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+            recomendaciones={propuestas.nudo}
           />
           <ResultadoCheck
             etiqueta="Biela comprimida"
             verifica={r.hormigon.biela.verifica}
             detalle="Ec. (6.56): la biela lleva tracción transversal, así que su tope es 0,6·ν′·f_cd."
             comparacion={{ real: { etiqueta: "σ", valor: r.hormigon.biela.sigmaMPa }, limite: { etiqueta: "0,6·ν′·f_cd", valor: r.hormigon.biela.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+            recomendaciones={propuestas.biela}
           />
           <ResultadoCheck
             etiqueta="Tensión tangencial"
             verifica={r.hormigon.tangencial.verifica}
             detalle="Montoya §24.8.2.e: τ_d ≤ 0,25·f_cd y nunca más de 5 MPa."
             comparacion={{ real: { etiqueta: "τ_d", valor: r.hormigon.tangencial.sigmaMPa }, limite: { etiqueta: "τ_lím", valor: r.hormigon.tangencial.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+            recomendaciones={propuestas.tangencial}
           />
         </div>
       </Subgrupo>
@@ -345,18 +319,21 @@ function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
             verifica={r.tirante.verificaAs}
             detalle={`${r.tirante.numeroBarras}ø${phiP}. Gobierna ${r.tirante.mandaCuantiaMinima ? "una cuantía mínima" : r.tirante.mandaInstruccion ? "la Instrucción española (§24.8.3.b)" : "el Anejo 19 (§J.3)"}.`}
             comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+            recomendaciones={propuestas.tirante}
           />
           <ResultadoCheck
             etiqueta="Cuantía mecánica mínima del tirante"
             verifica={r.tirante.asRealCm2 >= r.tirante.asMecanicaAciCm2}
             detalle="Montoya §24.8.2.c: 0,04·b·d·f_cd/f_yd (ACI), a menudo determinante."
             comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s,mec", valor: r.tirante.asMecanicaAciCm2 }, unidad: "cm²", exige: "≥" }}
+            recomendaciones={propuestas.cuantiaMecanica}
           />
           <ResultadoCheck
             etiqueta={`Cercos ${r.cercos.caso}`}
             verifica={r.cercos.verificaAs}
             detalle={`${r.cercos.numeroCercos} cercos cerrados ø${phiE} de ${fmt(cercoCm2)} cm² cada uno (dos ramas). El área pedía ${r.cercos.numeroPorArea}; el resto sale del mínimo de 3 y de la separación de 150 mm.`}
             comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+            recomendaciones={propuestas.cercos}
           />
           {r.cercos.horizontales && (
             <ResultadoCheck
@@ -364,6 +341,7 @@ function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
               verifica={r.cercos.horizontales.verificaAs}
               detalle="Montoya §24.8.3.c: 0,2·F_vd en los 2/3 superiores de d, además de los verticales."
               comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.horizontales.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.horizontales.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+              recomendaciones={propuestas.cercosH}
             />
           )}
           <PanelFormulas
@@ -389,18 +367,21 @@ function Resultados({ r, geometria, phiP, phiE }: ResultadosProps) {
             verifica={r.hormigon.verificaD0}
             detalle="Montoya §24.8.1: con d₀ < d/2 puede abrirse una fisura oblicua entre la carga y la cara inclinada. El fallo es repentino."
             comparacion={{ real: { etiqueta: "d₀", valor: r.hormigon.d0M }, limite: { etiqueta: "d/2", valor: r.hormigon.d0MinM }, unidad: "m", exige: "≥", decimales: 3 }}
+            recomendaciones={propuestas.degollamiento}
           />
           <ResultadoCheck
             etiqueta="Anclaje del marco en la ménsula"
             verifica={r.anclaje.verificaMensula}
             detalle="Art. 8.4.3(3): se mide sobre el eje de la barra, así que la bajada por el borde y el retorno por el intradós cuentan."
             comparacion={{ real: { etiqueta: "l_bd", valor: r.anclaje.lbdMensulaMm }, limite: { etiqueta: "disponible", valor: r.anclaje.disponibleMensulaMm }, unidad: "mm", exige: "≤", decimales: 0 }}
+            recomendaciones={propuestas.anclajeMensula}
           />
           <ResultadoCheck
             etiqueta="Anclaje del marco en el pilar"
             verifica={r.anclaje.verificaPilar}
             detalle={`La pata se dimensiona: ${fmt(r.anclaje.pataPilarMm, 0)} mm, nunca menos de 15ø.`}
             comparacion={{ real: { etiqueta: "l_bd", valor: r.anclaje.lbdPilarMm }, limite: { etiqueta: "disponible", valor: r.anclaje.disponiblePilarMm }, unidad: "mm", exige: "≤", decimales: 0 }}
+            recomendaciones={propuestas.anclajePilar}
           />
           <PanelFormulas
             titulo="Ver desarrollo de materiales y anclaje"

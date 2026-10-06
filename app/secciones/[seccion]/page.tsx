@@ -1,3 +1,4 @@
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -43,7 +44,7 @@ export default async function PaginaSeccion({ params }: PageProps<"/secciones/[s
       </div>
 
       <div className="drafting-marks flex flex-col gap-3 border border-border bg-card/60 px-6 py-8 sm:px-10 sm:py-10">
-        <p className="spec-label">{seccion.normasDisponibles.join(" · ")}</p>
+        <p className="spec-label">{seccion.normasDisponibles.map(nombreNorma).join(" · ")}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{seccion.nombre}</h1>
         <p className="max-w-2xl text-muted-foreground">{seccion.descripcion}</p>
       </div>

@@ -1,3 +1,4 @@
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
@@ -149,7 +150,7 @@ export default function AlcancePage() {
                         {v.nombre}
                       </Link>
                       <span className="ml-2 font-mono text-xs text-muted-foreground">
-                        {v.normasDisponibles.join(" · ")}
+                        {v.normasDisponibles.map(nombreNorma).join(" · ")}
                       </span>
                       {validacion.nota && (
                         <p className="mt-0.5 text-xs text-muted-foreground">{validacion.nota}</p>
@@ -179,7 +180,7 @@ export default function AlcancePage() {
               <div key={norma} className="rounded-md border p-3">
                 <p className="flex flex-wrap items-baseline gap-2">
                   <Badge variant="secondary" className="font-mono tracking-wide">
-                    {norma}
+                    {nombreNorma(norma)}
                   </Badge>
                   <span className="text-sm font-medium">{edicion.titulo}</span>
                 </p>

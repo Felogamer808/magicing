@@ -175,6 +175,21 @@ export interface EdicionNorma {
  * donde el motor no declara edición, se dice que no la declara en vez de
  * suponer la más nueva.
  */
+/**
+ * Nombre con el que se muestra cada norma. El identificador interno sigue
+ * siendo "EC2" —es lo que guardan los datos persistidos y lo que declaran los
+ * módulos—, pero lo que se cita es el Anejo 19 del Código Estructural, no el
+ * EC2 con un anejo nacional cualquiera: mostrar "EC2" invitaba a buscar el
+ * coeficiente en otro documento.
+ */
+const NOMBRE_NORMA: Record<string, string> = {
+  EC2: "Anejo 19",
+};
+
+export function nombreNorma(id: string): string {
+  return NOMBRE_NORMA[id] ?? id;
+}
+
 export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
   EC2: {
     titulo: "Código Estructural español, Anejo 19 — Proyecto de estructuras de hormigón",
@@ -206,7 +221,7 @@ export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
     titulo: "Building Code Requirements for Structural Concrete",
     edicion: "ACI 318-19",
     observacion:
-      "Sólo la usa pretensado. No se cruza con el EC2: cada módulo se resuelve entero con la norma que declara.",
+      "Sólo la usa pretensado. No se cruza con el Anejo 19: cada módulo se resuelve entero con la norma que declara.",
   },
   "UNIT 50-84": {
     titulo: "Acción del viento sobre las construcciones (Uruguay)",

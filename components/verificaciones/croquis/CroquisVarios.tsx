@@ -19,13 +19,13 @@ export function CroquisSeccionFisuracion() {
       ancho="max-w-[17rem]"
       nota="El recubrimiento va hasta la superficie de la barra, no hasta su centro. M cuasipermanente es la carga sostenida, no la de cálculo."
     >
-      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* zona traccionada eficaz */}
       <rect x={x0} y={yBot - 26} width={x1 - x0} height={26} stroke="currentColor" strokeWidth="0.9" strokeDasharray="4 3" fill="currentColor" fillOpacity="0.08" />
 
       {[64, 90, 116, 142, 162].map((x) => (
-        <circle key={x} cx={x} cy={yBot - 12} r="4" fill="currentColor" />
+        <circle key={x} cx={x} cy={yBot - 12} r="4" fill="var(--mat-armadura)" />
       ))}
 
       <CotaV x={34} y0={yTop} y1={yBot} texto="h" />
@@ -52,14 +52,14 @@ export function CroquisFamiliaFisuracion({ numero }: { numero: 1 | 2 }) {
           : "La familia 2 es una segunda tanda de otro diámetro en la misma cara traccionada."
       }
     >
-      <rect x="26" y="26" width="154" height="44" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.4" />
+      <rect x="26" y="26" width="154" height="44" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
       {[42, 68, 94, 120, 146, 168].map((x, i) => (
         <circle
           key={x}
           cx={x}
           cy="58"
           r={esPrimera || i % 2 === 0 ? 4.5 : 3}
-          fill="currentColor"
+          fill="var(--mat-armadura)"
           fillOpacity={esPrimera ? 1 : i % 2 === 0 ? 0.3 : 1}
         />
       ))}
@@ -174,9 +174,9 @@ export function CroquisRecubrimientoAnclaje() {
       ancho="max-w-[16rem]"
       nota="cd es el mínimo entre a/2 (mitad de la separación libre entre barras), c1 (recubrimiento lateral) y c (recubrimiento inferior)."
     >
-      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       {barX.map((x) => (
-        <circle key={x} cx={x} cy={yBar} r="5" fill="currentColor" />
+        <circle key={x} cx={x} cy={yBar} r="5" fill="var(--mat-armadura)" />
       ))}
 
       <CotaH x0={barX[0]} x1={barX[1]} y={yBar + 20} texto="a" />
@@ -206,8 +206,8 @@ export function CroquisCargaColgada() {
       ancho="max-w-[17rem]"
       nota="Rd se cuelga con estribos que suben hasta la cara comprimida opuesta a la carga. h es el canto de la viga que cuelga; a, el ancho de la pieza colgada."
     >
-      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.4" />
-      <rect x={xColgH0} y={yBot} width={xColgH1 - xColgH0} height={yColgB - yBot} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={xColgH0} y={yBot} width={xColgH1 - xColgH0} height={yColgB - yBot} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
 
       {[102, 114, 124].map((x) => (
         <path key={x} d={`M${x} ${yColgB - 4} L${x} ${yTop + 6}`} stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" opacity="0.85" />
@@ -238,11 +238,11 @@ export function CroquisSeccionMixta() {
       ancho="max-w-[15rem]"
       nota="D es el diámetro exterior del tubo y t su espesor de pared. yG es la distancia del centro a la fila de barras que se está describiendo."
     >
-      <circle cx={cx} cy={cy} r={R} stroke="currentColor" strokeWidth="2.4" fill="var(--color-muted)" fillOpacity="0.3" />
-      <circle cx={cx} cy={cy} r={R - 6} stroke="currentColor" strokeWidth="1.2" opacity="0.8" />
+      <circle cx={cx} cy={cy} r={R} stroke="var(--mat-acero-borde)" strokeWidth="2.4" fill="var(--mat-hormigon)" />
+      <circle cx={cx} cy={cy} r={R - 6} stroke="var(--mat-acero-borde)" strokeWidth="1.2" opacity="0.8" />
       {Array.from({ length: 6 }).map((_, i) => {
         const a = (2 * Math.PI * i) / 6 - Math.PI / 2;
-        return <circle key={i} cx={cx + (R - 16) * Math.cos(a)} cy={cy + (R - 16) * Math.sin(a)} r="3.6" fill="currentColor" />;
+        return <circle key={i} cx={cx + (R - 16) * Math.cos(a)} cy={cy + (R - 16) * Math.sin(a)} r="3.6" fill="var(--mat-armadura)" />;
       })}
       <CotaH x0={cx - R} x1={cx + R} y={cy + R + 18} texto="D" />
       <Referencia x={128} y={30} hacia={[cx + R - 3, 40]} texto="t (pared)" />
@@ -266,9 +266,9 @@ export function CroquisPerfilSoldadura() {
       nota="H y B son las dimensiones exteriores del perfil, tf el espesor del ala y tw el del alma. El lado D es el cateto del cordón, no su garganta."
     >
       {/* alas y alma */}
-      <rect x={cx - semiB} y={yTop} width={semiB * 2} height={9} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
-      <rect x={cx - semiB} y={yBot - 9} width={semiB * 2} height={9} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
-      <rect x={cx - 5} y={yTop + 9} width={10} height={yBot - yTop - 18} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.6" />
+      <rect x={cx - semiB} y={yTop} width={semiB * 2} height={9} stroke="var(--mat-acero-borde)" strokeWidth="1.4" fill="var(--mat-acero)" />
+      <rect x={cx - semiB} y={yBot - 9} width={semiB * 2} height={9} stroke="var(--mat-acero-borde)" strokeWidth="1.4" fill="var(--mat-acero)" />
+      <rect x={cx - 5} y={yTop + 9} width={10} height={yBot - yTop - 18} stroke="var(--mat-acero-borde)" strokeWidth="1.4" fill="var(--mat-acero)" />
 
       {/* cordón en la base */}
       {[-1, 1].map((s) => (
@@ -306,11 +306,11 @@ export function CroquisChapaBase() {
       ancho="max-w-[16rem]"
       nota="Lx y Ly son los lados de la chapa y t su espesor. lc es el vuelo libre entre la cara del pilar y el borde, que es el que flecta la chapa."
     >
-      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} stroke="var(--mat-acero-borde)" strokeWidth="1.6" fill="var(--mat-acero)" />
       <rect x={cx - 24} y={cy - 16} width={48} height={32} stroke="currentColor" strokeWidth="1.4" strokeDasharray="4 3" opacity="0.85" />
 
       {[x0 + 12, x1 - 12].map((x) =>
-        [y0 + 12, y1 - 12].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="4" stroke="currentColor" strokeWidth="1.3" />)
+        [y0 + 12, y1 - 12].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="4" stroke="var(--mat-acero-borde)" strokeWidth="1.3" />)
       )}
 
       <CotaH x0={x0} x1={x1} y={y1 + 20} texto="Lx" />

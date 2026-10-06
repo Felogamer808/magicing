@@ -64,12 +64,12 @@ export function DiagramaVigaCentradora({
       <text x={x0 - 4} y={yTerreno + 28} textAnchor="end" className="fill-current font-mono" fontSize="9.5" opacity="0.7">límite</text>
 
       {/* zapatas y viga */}
-      <rect x={x(0)} y={yZapata} width={AM * escala} height={hZ} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
-      <rect x={xInterior - anchoInterior / 2} y={yZapata} width={anchoInterior} height={hZ} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" fill="var(--color-muted)" fillOpacity="0.25" />
-      <rect x={xPilar} y={yViga} width={xInterior - xPilar} height={hV} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x={x(0)} y={yZapata} width={AM * escala} height={hZ} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
+      <rect x={xInterior - anchoInterior / 2} y={yZapata} width={anchoInterior} height={hZ} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" strokeDasharray="5 3" fill="var(--mat-hormigon)" />
+      <rect x={xPilar} y={yViga} width={xInterior - xPilar} height={hV} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
 
       {/* pilar medianero */}
-      <rect x={x(distanciaColumnaLimiteM)} y={yViga - 50} width={Math.max(anchoPilarAM * escala, 8)} height={50} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.55" />
+      <rect x={x(distanciaColumnaLimiteM)} y={yViga - 50} width={Math.max(anchoPilarAM * escala, 8)} height={50} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {/* fuerzas */}
       <path d={flechaAbajo(xPilar, yViga - 88, yViga - 54)} stroke="currentColor" strokeWidth="1.6" />
@@ -80,8 +80,8 @@ export function DiagramaVigaCentradora({
         R₁ = {fmt(reaccionKN, 0)} kN
       </text>
 
-      <path d={flechaAbajo(xInterior, yTerreno + 4, yTerreno + 34)} stroke="var(--color-destructive)" strokeWidth="1.6" />
-      <text x={xInterior} y={yTerreno + 48} textAnchor="middle" className="font-mono" fontSize="10.5" fill="var(--color-destructive)">
+      <path d={flechaAbajo(xInterior, yTerreno + 4, yTerreno + 34)} stroke="currentColor" strokeWidth="1.6" />
+      <text x={xInterior} y={yTerreno + 48} textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
         ΔN = {fmt(descargaKN, 0)} kN
       </text>
 

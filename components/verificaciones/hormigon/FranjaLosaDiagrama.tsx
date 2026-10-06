@@ -37,7 +37,7 @@ export function FranjaLosaDiagrama({ longitudM, HM, posicionesColumnasM }: Franj
           <path key={i} d={`M${xc} ${y0 - 30} L${xc} ${y0}`} stroke="currentColor" strokeWidth="3" opacity="0.8" />
         ))}
 
-        <rect x={x0} y={y0} width={w} height={h} stroke="currentColor" strokeWidth="2" fill="var(--color-muted)" fillOpacity="0.4" />
+        <rect x={x0} y={y0} width={w} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
 
         {/* suelo: achurado debajo */}
         {Array.from({ length: Math.round(w / 10) }).map((_, i) => (

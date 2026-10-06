@@ -112,8 +112,8 @@ export function CroquisGeometriaMuro() {
       <DiagramaEmpuje x={xMuro + anchoMuro} yTop={yTop + 6} yBase={yBase} />
 
       {/* alzado y zapata */}
-      <rect x={xMuro} y={yTop} width={anchoMuro} height={yBaseMuro - yTop} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
-      <rect x={xZapIzq} y={yBaseMuro} width={anchoZap} height={cantoZap} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x={xMuro} y={yTop} width={anchoMuro} height={yBaseMuro - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={xZapIzq} y={yBaseMuro} width={anchoZap} height={cantoZap} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       <CotaV x={42} y0={yTop} y1={yBaseMuro} texto="alt. muro" />
       <CotaH x0={xZapIzq} x1={xZapIzq + anchoZap} y={yBase + 16} texto="ancho zapata" />
@@ -161,8 +161,8 @@ function CasoApuntalado({
       </text>
       <LineaTerreno x0={x + APOYOS_ANCHO_MURO} x1={x + 40} y={APOYOS_Y_TOP} />
       <DiagramaEmpuje x={x + APOYOS_ANCHO_MURO} yTop={APOYOS_Y_TOP} yBase={APOYOS_Y_BASE} ancho={16} />
-      <rect x={x} y={APOYOS_Y_TOP} width={APOYOS_ANCHO_MURO} height={APOYOS_Y_BASE_MURO - APOYOS_Y_TOP} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.5" />
-      <rect x={x - 14} y={APOYOS_Y_BASE_MURO} width={38} height={APOYOS_CANTO_ZAP} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x={x} y={APOYOS_Y_TOP} width={APOYOS_ANCHO_MURO} height={APOYOS_Y_BASE_MURO - APOYOS_Y_TOP} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+      <rect x={x - 14} y={APOYOS_Y_BASE_MURO} width={38} height={APOYOS_CANTO_ZAP} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
       {apoyos.map((a) => (
         <Apoyo key={a.texto} x={x} y={a.y} texto={a.texto} />
       ))}
@@ -257,8 +257,8 @@ export function CroquisSueloMuro() {
       <LineaTerreno x0={96} x1={182} y={26} />
 
       {/* alzado y zapata */}
-      <rect x="84" y="26" width="12" height="62" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.5" />
-      <rect x="62" y="88" width="56" height="10" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x="84" y="26" width="12" height="62" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
+      <rect x="62" y="88" width="56" height="10" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
 
       <DiagramaEmpuje x={96} yTop={26} yBase={98} />
 

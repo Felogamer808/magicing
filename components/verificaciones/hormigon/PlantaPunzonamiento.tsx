@@ -167,9 +167,8 @@ export function PlantaPunzonamiento({ planta, dM, u1M, verificaCritico }: Planta
           y={pilarSvg.y}
           width={pilarSvg.ancho}
           height={pilarSvg.alto}
-          fill="var(--color-muted)"
-          fillOpacity="0.9"
-          stroke="currentColor"
+          fill="var(--mat-hormigon)"
+          stroke="var(--mat-hormigon-borde)"
           strokeWidth="1.6"
         />
 

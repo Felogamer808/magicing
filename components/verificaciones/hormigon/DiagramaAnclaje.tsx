@@ -63,10 +63,9 @@ export function DiagramaAnclaje({ diametroMm, forma, lbdMm, mandrilMinMm }: Diag
           y={yConcTop}
           width={anchoConc}
           height={altoConc}
-          stroke="currentColor"
+          stroke="var(--mat-hormigon-borde)"
           strokeWidth="1.6"
-          fill="var(--color-muted)"
-          fillOpacity="0.4"
+          fill="var(--mat-hormigon)"
         />
         <g clipPath={`url(#${arrowId}-clip)`} stroke="currentColor" strokeWidth="0.5" opacity="0.28">
           {Array.from({ length: nHatch }, (_, i) => {
@@ -153,9 +152,9 @@ export function DiagramaSolape({ diametroMm, l0Mm }: DiagramaSolapeProps) {
         </defs>
 
         {/* barra que llega, termina al final de la zona de solape */}
-        <path d={`M0 ${yBarA} L${xSolFin} ${yBarA}`} stroke="currentColor" strokeWidth="3.2" />
+        <path d={`M0 ${yBarA} L${xSolFin} ${yBarA}`} stroke="var(--mat-armadura)" strokeWidth="3.2" />
         {/* barra que sigue, arranca al principio de la zona de solape */}
-        <path d={`M${xSolInicio} ${yBarB} L${xSolFin + colaB} ${yBarB}`} stroke="currentColor" strokeWidth="3.2" />
+        <path d={`M${xSolInicio} ${yBarB} L${xSolFin + colaB} ${yBarB}`} stroke="var(--mat-armadura)" strokeWidth="3.2" />
 
         {/* zona de solape, sombreada */}
         <rect x={xSolInicio} y={yBarA - 3} width={l0Px} height={yBarB - yBarA + 6} fill="currentColor" opacity="0.08" />

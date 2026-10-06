@@ -75,20 +75,18 @@ export function DiagramaMensulaPlanta({
         y={Y(0)}
         width={hcolM * escala}
         height={bM * escala}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.8"
-        fill="var(--color-muted)"
-        fillOpacity="0.3"
+        fill="var(--mat-hormigon)"
       />
       <rect
         x={X(hcolM)}
         y={Y(0)}
         width={vueloTotalM * escala}
         height={bM * escala}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.8"
-        fill="var(--color-muted)"
-        fillOpacity="0.3"
+        fill="var(--mat-hormigon)"
       />
 
       {/* placa de apoyo */}
@@ -128,7 +126,7 @@ export function DiagramaMensulaPlanta({
             cx={X(hcolM + acM)}
             cy={Y(yM)}
             r="3.2"
-            fill="currentColor"
+            fill="var(--mat-armadura)"
             stroke="none"
           />
         );

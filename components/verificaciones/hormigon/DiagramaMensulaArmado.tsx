@@ -82,19 +82,17 @@ export function DiagramaMensulaArmado({
         y={yPilarSup}
         width={hcolM * escala}
         height={yPilarInf - yPilarSup}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.8"
-        fill="var(--color-muted)"
-        fillOpacity="0.3"
+        fill="var(--mat-hormigon)"
       />
       <path
         d={`M${X(hcolM)} ${y0} L${X(hcolM + vueloTotalM)} ${y0} L${X(
           hcolM + vueloTotalM
         )} ${Y(h1M)} L${X(hcolM)} ${yBase} Z`}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.8"
-        fill="var(--color-muted)"
-        fillOpacity="0.3"
+        fill="var(--mat-hormigon)"
       />
 
       {/* cercos, por debajo del marco para que el marco se lea encima */}

@@ -32,9 +32,9 @@ export function DiagramaCabezal({
   return (
     <svg viewBox={`0 0 ${W + 48} ${yBase + 72}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       {/* pilar */}
-      <rect x={cx - pilarW / 2} y={y0 - 32} width={pilarW} height={32} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x={cx - pilarW / 2} y={y0 - 32} width={pilarW} height={32} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
       {/* cabezal */}
-      <rect x={x0} y={y0} width={W} height={hPx} stroke="currentColor" strokeWidth="2.2" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x={x0} y={y0} width={W} height={hPx} stroke="var(--mat-hormigon-borde)" strokeWidth="2.2" fill="var(--mat-hormigon)" />
       {/* bielas comprimidas */}
       <path d={`M${cx} ${y0} L${cx - dxPilote} ${yBase}`} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" opacity="0.75" />
       <path d={`M${cx} ${y0} L${cx + dxPilote} ${yBase}`} stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 3" opacity="0.75" />
@@ -43,7 +43,7 @@ export function DiagramaCabezal({
       <text x={cx} y={yBase - 12} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">Td</text>
       {/* pilotes */}
       {[-1, 1].map((s) => (
-        <rect key={s} x={cx + s * dxPilote - piloteW / 2} y={yBase} width={piloteW} height={44} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
+        <rect key={s} x={cx + s * dxPilote - piloteW / 2} y={yBase} width={piloteW} height={44} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
       ))}
       {/* cota s */}
       <g stroke="currentColor" strokeWidth="1" opacity="0.7">

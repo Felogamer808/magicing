@@ -94,10 +94,9 @@ export function DiagramaMensulaModelo({
         y={yPilarSup}
         width={hcolM * escala}
         height={yPilarInf - yPilarSup}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="2.2"
-        fill="var(--color-muted)"
-        fillOpacity="0.35"
+        fill="var(--mat-hormigon)"
       />
 
       {/* ménsula: cara superior horizontal, borde exterior h₁ e intradós inclinado */}
@@ -105,10 +104,9 @@ export function DiagramaMensulaModelo({
         d={`M${xCaraPilar} ${y0} L${X(hcolM + vueloTotalM)} ${y0} L${X(
           hcolM + vueloTotalM
         )} ${Y(h1M)} L${xCaraPilar} ${yBase} Z`}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="2.2"
-        fill="var(--color-muted)"
-        fillOpacity="0.35"
+        fill="var(--mat-hormigon)"
       />
 
       {/* placa de apoyo y cargas */}
@@ -117,10 +115,9 @@ export function DiagramaMensulaModelo({
         y={y0 - espesorPlaca}
         width={anchoPlacaPx}
         height={espesorPlaca}
-        stroke="currentColor"
+        stroke="var(--mat-hormigon-borde)"
         strokeWidth="1.6"
-        fill="var(--color-muted)"
-        fillOpacity="0.7"
+        fill="var(--mat-hormigon)"
       />
       <path
         d={`M${xCarga} ${y0 - 48} L${xCarga} ${y0 - espesorPlaca - 3}`}

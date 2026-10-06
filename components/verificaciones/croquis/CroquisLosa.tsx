@@ -20,10 +20,9 @@ function SeccionLosa({
       y={yTop}
       width={x1 - x0}
       height={yBot - yTop}
-      stroke="currentColor"
+      stroke="var(--mat-hormigon-borde)"
       strokeWidth="1.6"
-      fill="var(--color-muted)"
-      fillOpacity="0.45"
+      fill="var(--mat-hormigon)"
     />
   );
 }
@@ -33,7 +32,7 @@ function BarrasDePunta({ xs, y, r = 3 }: { xs: number[]; y: number; r?: number }
   return (
     <g>
       {xs.map((x) => (
-        <circle key={x} cx={x} cy={y} r={r} fill="currentColor" />
+        <circle key={x} cx={x} cy={y} r={r} fill="var(--mat-armadura)" />
       ))}
     </g>
   );
@@ -160,7 +159,7 @@ export function CroquisMomentosLosa() {
       nota="Los momentos entran ya mayorados y por metro de ancho. Mx arma la dirección X y My la Y; el signo dice qué cara tracciona."
     >
       {/* paño en planta */}
-      <rect x="30" y="24" width="104" height="76" stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.35" />
+      <rect x="30" y="24" width="104" height="76" stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
       <path d="M38 62 L126 62" stroke="currentColor" strokeWidth="1.2" markerStart="url(#croquis-flecha)" markerEnd="url(#croquis-flecha)" />
       <text x="82" y="58" textAnchor="middle" className="fill-current font-mono" fontSize="10.5">
         X
@@ -171,13 +170,13 @@ export function CroquisMomentosLosa() {
       </text>
 
       {/* corte con los dos signos */}
-      <rect x="156" y="40" width="72" height="16" stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.45" />
+      <rect x="156" y="40" width="72" height="16" stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
       <BarraDeCostado x0={160} x1={224} y={44} />
       <text x="192" y="34" textAnchor="middle" className="fill-current font-mono" fontSize="8.5">
         M −  arriba
       </text>
 
-      <rect x="156" y="76" width="72" height="16" stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.45" />
+      <rect x="156" y="76" width="72" height="16" stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
       <BarraDeCostado x0={160} x1={224} y={88} />
       <text x="192" y="104" textAnchor="middle" className="fill-current font-mono" fontSize="8.5">
         M +  abajo

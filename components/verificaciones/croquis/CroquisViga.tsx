@@ -6,12 +6,12 @@ import { CotaH, CotaV, Croquis, Referencia } from "./Croquis";
 export function CroquisMateriales() {
   return (
     <Croquis viewBox="0 0 220 96" ancho="max-w-[16rem]">
-      <rect x="30" y="18" width="88" height="60" stroke="currentColor" strokeWidth="1.5" fill="var(--color-muted)" fillOpacity="0.55" />
+      <rect x="30" y="18" width="88" height="60" stroke="var(--mat-hormigon-borde)" strokeWidth="1.5" fill="var(--mat-hormigon)" />
       {Array.from({ length: 5 }).map((_, i) => (
         <path key={i} d={`M${34 + i * 18} 78 L${52 + i * 18} 18`} stroke="currentColor" strokeWidth="0.5" opacity="0.28" />
       ))}
       {[46, 74, 102].map((x) => (
-        <circle key={x} cx={x} cy="66" r="4.5" fill="currentColor" />
+        <circle key={x} cx={x} cy="66" r="4.5" fill="var(--mat-armadura)" />
       ))}
       <Referencia x={128} y={34} hacia={[116, 40]} texto="fck  hormigón" />
       <Referencia x={128} y={72} hacia={[107, 66]} texto="fyk  acero" />
@@ -27,7 +27,7 @@ export function CroquisGeometriaViga() {
       ancho="max-w-[16rem]"
       nota="El recubrimiento se mide desde la cara de hormigón hasta el estribo."
     >
-      <rect x="62" y="26" width="86" height="70" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x="62" y="26" width="86" height="70" stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <rect x="70" y="34" width="70" height="54" stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" opacity="0.8" />
       <CotaH x0={62} x1={148} y={18} texto="b" />
       <CotaV x={52} y0={26} y1={96} texto="h" />
@@ -70,9 +70,9 @@ export function CroquisArmaduraFlexion({ numero, cara }: CroquisArmaduraProps) {
           : "El momento negativo tracciona la cara superior: la armadura va arriba."
       }
     >
-      <rect x="62" y="26" width="86" height="70" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x="62" y="26" width="86" height="70" stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       {xs.map((x, i) => (
-        <circle key={i} cx={x} cy={yBarras} r="4.5" fill="currentColor" />
+        <circle key={i} cx={x} cy={yBarras} r="4.5" fill="var(--mat-armadura)" />
       ))}
 
       {/* Curva del momento que tracciona esa cara */}
@@ -126,10 +126,10 @@ export function CroquisRamasEstribo({ ramas }: CroquisRamasProps) {
       ancho="max-w-[16rem]"
       nota="Las ramas son las patas verticales que cruzan la sección, no los estribos repartidos a lo largo de la viga."
     >
-      <rect x={x0} y="24" width={x1 - x0} height="72" stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.5" />
+      <rect x={x0} y="24" width={x1 - x0} height="72" stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
 
       {xs.map((x, i) => (
-        <path key={i} d={`M${x} 32 L${x} 88`} stroke="currentColor" strokeWidth="1.8" />
+        <path key={i} d={`M${x} 32 L${x} 88`} stroke="var(--mat-armadura)" strokeWidth="1.8" />
       ))}
 
       <text x={(x0 + x1) / 2} y="112" textAnchor="middle" className="fill-current font-mono" fontSize="11.5">

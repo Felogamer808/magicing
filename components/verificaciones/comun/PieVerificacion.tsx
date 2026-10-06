@@ -1,5 +1,6 @@
 "use client";
 
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NIVELES_VALIDACION, validacionDe } from "@/lib/verificaciones/validacion";
@@ -48,7 +49,7 @@ export function PieVerificacion() {
             <p className="mt-1">{nivel.significado}</p>
             {validacion.nota && <p className="mt-1.5">{validacion.nota}</p>}
             <p className="mt-1.5 font-mono">
-              Resuelta con {meta.normasDisponibles.join(" · ")}
+              Resuelta con {meta.normasDisponibles.map(nombreNorma).join(" · ")}
             </p>
           </div>
         )}

@@ -31,6 +31,19 @@ const ELU_MAYORADAS: Combinacion = {
     "Los esfuerzos se introducen con los coeficientes de mayoración ya aplicados. La herramienta no los vuelve a mayorar.",
 };
 
+/*
+ * El voladizo junta dos lecturas de la misma combinación: la carga que flecta
+ * entra mayorada como desfavorable, y la que estabiliza el apoyo lejano entra
+ * en su valor mínimo, ponderada como favorable. El coeficiente favorable sale
+ * del Anejo 18, que no está entre las fuentes, así que lo aplica el usuario.
+ */
+const APEO_VOLADIZO: Combinacion = {
+  regimen: "mixta",
+  etiqueta: "ELU · desfavorables mayoradas, estabilizante mínima",
+  detalle:
+    "La carga del voladizo y la máxima del apoyo lejano entran mayoradas. La mínima del apoyo lejano, que compensa el levantamiento, entra con su parte permanente ponderada como favorable: el coeficiente lo elegís vos.",
+};
+
 const ZAPATAS: Combinacion = {
   regimen: "mixta",
   etiqueta: "Cargas características · sin mayorar",
@@ -209,6 +222,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "vigas-flexion-cortante": ELU_MAYORADAS,
   "vigas-torsion": ELU_MAYORADAS,
   "vigas-apeo-bielas": ELU_MAYORADAS,
+  "vigas-apeo-voladizo": APEO_VOLADIZO,
   "carga-colgada": ELU_MAYORADAS,
   "mensula-corta": ELU_MAYORADAS,
   "zona-parcialmente-cargada": ELU_MAYORADAS,
@@ -217,6 +231,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
   "zapata-medianeria": ZAPATAS,
+  "zapata-viga-centradora": ZAPATAS,
   "zapata-combinada": ZAPATAS,
   "losa-fundacion": ZAPATAS,
   pilotes: PILOTES,

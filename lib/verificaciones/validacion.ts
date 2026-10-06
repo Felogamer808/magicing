@@ -71,8 +71,11 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nota: "Repasada completa, incluida la interacción torsión + cortante, que antes no se comprobaba.",
   },
   zapatas: {
-    nivel: "auditada",
-    nota: "Cortante y punzonamiento repasados. El punzonamiento se corrigió para recorrer los perímetros dentro de 2d y no sólo el de 2d.",
+    // Bajó de "auditada": la auditoría cubría sólo cortante y punzonamiento.
+    // Ahora todo el módulo sigue el Anejo 19, pero se programó y revisó en la
+    // misma sesión, sin repaso independiente (AUDITORIA.md, hallazgo 6).
+    nivel: "probada",
+    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Falta contrastar un caso propio. Vuelco y deslizamiento no se comprueban.",
   },
   fisuracion: {
     nivel: "auditada",
@@ -88,7 +91,14 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
 
   "zapata-corrida": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
-  "zapata-medianeria": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
+  "zapata-medianeria": {
+    nivel: "probada",
+    nota: "Misma formulación del Anejo 19 que la zapata aislada (AUDITORIA.md, hallazgo 7). No incluye punzonamiento de pilar de borde ni vuelco y deslizamiento.",
+  },
+  "zapata-viga-centradora": {
+    nivel: "probada",
+    nota: "Sin planilla de referencia: la palanca se contrasta a mano en los tests. La zapata usa el modelo del Anejo 19 de la aislada y la viga el de flexión y cortante. La zapata interior se calcula aparte, con su carga completa.",
+  },
   "zapata-combinada": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   "losa-fundacion": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   pilotes: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
@@ -97,6 +107,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
 
   punzonamiento: { nivel: "probada" },
   "vigas-apeo-bielas": { nivel: "probada" },
+  "vigas-apeo-voladizo": {
+    nivel: "probada",
+    nota: "Sólo Anejo 19, sin planilla de referencia: tests contra la estática del modelo y las ecuaciones del articulado. No comprueba la tracción transversal de las bielas.",
+  },
   "carga-colgada": { nivel: "probada" },
   "mensula-corta": { nivel: "probada" },
   "zona-parcialmente-cargada": {
@@ -165,6 +179,21 @@ export interface EdicionNorma {
  * donde el motor no declara edición, se dice que no la declara en vez de
  * suponer la más nueva.
  */
+/**
+ * Nombre con el que se muestra cada norma. El identificador interno sigue
+ * siendo "EC2" —es lo que guardan los datos persistidos y lo que declaran los
+ * módulos—, pero lo que se cita es el Anejo 19 del Código Estructural, no el
+ * EC2 con un anejo nacional cualquiera: mostrar "EC2" invitaba a buscar el
+ * coeficiente en otro documento.
+ */
+const NOMBRE_NORMA: Record<string, string> = {
+  EC2: "Anejo 19",
+};
+
+export function nombreNorma(id: string): string {
+  return NOMBRE_NORMA[id] ?? id;
+}
+
 export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
   EC2: {
     titulo: "Código Estructural español, Anejo 19 — Proyecto de estructuras de hormigón",
@@ -196,7 +225,7 @@ export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
     titulo: "Building Code Requirements for Structural Concrete",
     edicion: "ACI 318-19",
     observacion:
-      "Sólo la usa pretensado. No se cruza con el EC2: cada módulo se resuelve entero con la norma que declara.",
+      "Sólo la usa pretensado. No se cruza con el Anejo 19: cada módulo se resuelve entero con la norma que declara.",
   },
   "UNIT 50-84": {
     titulo: "Acción del viento sobre las construcciones (Uruguay)",

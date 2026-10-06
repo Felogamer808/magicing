@@ -381,7 +381,7 @@ export default function ZapataCorridaPage() {
               "Cálculo por metro corrido: es la rebanada de 1 m de una zapata aislada, con el mismo modelo del Anejo 19 (art. 9.8.2, zapatas de pilares y muros).",
               "La tensión sobre el terreno incluye el peso propio, también en la excentricidad, y la resultante tiene que caer dentro del núcleo central (e ≤ A/6). Se comprueba sobre el ancho eficaz A − 2e.",
               "Flexión por el art. 9.8.2.2: sección de cálculo a 0,15·b dentro de la cara del muro, Fs = M/(0,9·d) y As = Fs/fyd. Con el muro descentrado cada vuelo se arma por separado.",
-              "Cuantía mínima del art. 9.2.1.1 (1), ec. (9.1); φ ≥ 12 mm (art. 9.8.2.1 (1)); anclaje (art. 8.4) desde x = h/2; cortante sin armadura a d de la cara (art. 6.2.2).",
+              "Cuantía mínima del art. 9.2.1.1 (1), ec. (9.1); φ ≥ 12 mm (art. 9.8.2.1 (1)); anclaje (art. 8.4) desde x = h/2, con el largo medido sobre el eje de la barra: con patilla suma la pata hasta H − 2·rec (art. 8.4.3 (3)); cortante sin armadura a d de la cara (art. 6.2.2).",
               "Reparto a lo largo del muro: 20 % de la principal en todo el ancho (art. 9.3.1.1 (2)).",
               "Con par tirante–terreno: Tk = (Nk·e + Mk)/h, presión uniforme (DB SE-C, art. 4.3.1.3 (6)), deslizamiento Tk ≤ (N + P)·tan(3/4·φ')/1,5 (DB SE-C, art. 4.2.3.1 (4) y tabla 2.1) y armadura del tirante 1,5·Tk/fyd. Al muro le queda Mk + Tk·(h − H) en el arranque.",
             ]}

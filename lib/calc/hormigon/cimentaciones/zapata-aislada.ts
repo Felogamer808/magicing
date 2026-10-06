@@ -302,7 +302,11 @@ export interface ResultadoAnclajeZapata {
   sigmaSdMPa: number;
   /** Longitud neta de anclaje necesaria, ec. (8.4) (mm). */
   lbdMm: number;
-  /** Longitud disponible: x menos el recubrimiento del extremo (mm). */
+  /**
+   * Longitud disponible, medida a lo largo del eje de la barra (art. 8.4.3 (3)):
+   * x menos el recubrimiento del extremo y, con patilla, la pata que sube hasta
+   * H − 2·rec (mm). Sólo los tramos rectos, sin el desarrollo del doblez.
+   */
   disponibleMm: number;
   verifica: boolean;
   /** Falso si el vuelo no llega a h/2: no hay tirante que anclar y no se comprueba. */
@@ -432,7 +436,11 @@ export function armarVueloZapata(
 
   const anclajeEn = (xM: number): ResultadoAnclajeZapata => {
     const carga = cargaHasta(xM);
-    const disponibleMm = (xM - recubrimiento) * 1000;
+    // A lo largo del eje de la barra (art. 8.4.3 (3), pág. 124): con patilla
+    // suma la pata vertical, hasta H − 2·rec. Sin el doblez, del lado seguro
+    // (criterio decidido por el usuario el 2026-10-06).
+    const pataMm = formaAnclaje === "gancho" ? Math.max(H - 2 * recubrimiento, 0) * 1000 : 0;
+    const disponibleMm = (xM - recubrimiento) * 1000 + pataMm;
     if (!Number.isFinite(carga.momentoKNm)) {
       return { xM, fsKN: Infinity, sigmaSdMPa: fyd, lbdMm: Infinity, disponibleMm, verifica: false, comprobado: true };
     }

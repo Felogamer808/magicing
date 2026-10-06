@@ -514,7 +514,7 @@ export default function ZapataAisladaPage() {
               "Con el pilar descentrado, el punzonamiento descuenta la presión real bajo el perímetro (lineal en las dos direcciones) y el β usa sólo el momento propio del pilar. Cerca de un borde (a menos de 2d), el perímetro se recorta como en la fig. A19.6.15 y el β es el de pilar de borde o esquina (ecs. (6.44)-(6.46)).",
               "Flexión por el modelo del Anejo 19, art. 9.8.2.2: sección de cálculo a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d) y As = Fs/fyd.",
               "Cuantía mínima de tracción del art. 9.2.1.1 (1), ec. (9.1), la misma que en vigas y losas. φ ≥ 12 mm (art. 9.8.2.1 (1)).",
-              "Anclaje (art. 8.4) comprobado desde x = h/2 hasta la sección de cálculo: Fs(x) tiene que anclarse en x menos el recubrimiento. Buena adherencia, α3 = α5 = 1.",
+              "Anclaje (art. 8.4) comprobado desde x = h/2 hasta la sección de cálculo: Fs(x) tiene que anclarse en el largo que queda medido sobre el eje de la barra (art. 8.4.3 (3)): x menos el recubrimiento y, con patilla, más la pata hasta H − 2·rec, sin contar el doblez. Buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}
           />

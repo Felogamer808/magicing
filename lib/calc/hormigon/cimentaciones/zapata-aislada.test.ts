@@ -261,6 +261,17 @@ describe("zapata aislada con excentricidad (Mk A ≠ Mk B, corregido)", () => {
     expect(a.fsKN).toBeLessThanOrEqual(r.direccionA.fsKN + 1e-9);
     expect(a.verifica).toBe(a.lbdMm <= a.disponibleMm);
   });
+
+  it("con patilla, el disponible suma la pata vertical hasta H − 2·rec (art. 8.4.3 (3))", () => {
+    const conPatilla = calcularZapataAislada(materiales, geometria, 300, {
+      cargas: { Nk: 500, MkA: 50, MkB: 20 },
+      armadoA: { numero: 8, diametroMm: 16 },
+      armadoB: { numero: 6, diametroMm: 16 },
+      formaAnclaje: "gancho",
+    });
+    const a = conPatilla.direccionA.anclaje;
+    expect(a.disponibleMm).toBeCloseTo((a.xM - 0.05) * 1000 + (0.5 - 2 * 0.05) * 1000, 6);
+  });
 });
 
 describe("anclaje y diámetro mínimo de la parrilla (art. 9.8.2)", () => {

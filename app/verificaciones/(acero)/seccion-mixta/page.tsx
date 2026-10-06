@@ -15,12 +15,13 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { LeyendaTecnica } from "@/components/verificaciones/comun/LeyendaTecnica";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { DiagramaCFT } from "@/components/verificaciones/acero/DiagramaCFT";
-import { calcularSeccionMixta } from "@/lib/calc/acero/seccion-mixta";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisSeccionMixta,
 } from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverSeccionMixta } from "@/lib/calc/acero/resolver-seccion-mixta";
+import { recomendarSeccionMixta } from "@/lib/verificaciones/recomendaciones/seccion-mixta";
 
 const meta = registroVerificaciones.find((v) => v.id === "secciones-mixtas")!;
 
@@ -53,27 +54,13 @@ export default function SeccionMixtaPage() {
   const [yG, setYG] = useCampo("yG", "92.5");
   const [lFuego, setLFuego] = useCampo("lFuego", "3");
 
-  const resultado = useMemo(() => {
-    const n = {
-      es: aNumero(es), fy: aNumero(fy), fc: aNumero(fc), ec: aNumero(ec),
-      dMm: aNumero(dMm), tMm: aNumero(tMm), lM: aNumero(lM),
-      phiBarra: aNumero(phiBarra), nBarras: aNumero(nBarras),
-      p: aNumero(p), m: aNumero(m), v: aNumero(v), yG: aNumero(yG), lFuego: aNumero(lFuego),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.es <= 0 || n.fy <= 0 || n.fc <= 0 || n.ec <= 0) return null;
-    if (n.dMm <= 0 || n.tMm <= 0 || n.lM <= 0 || n.phiBarra <= 0 || n.nBarras <= 0) return null;
-    if (n.tMm * 2 >= n.dMm || n.lFuego <= 0) return null;
-
-    return {
-      n,
-      r: calcularSeccionMixta(
-        { esKPa: n.es * 1000, fyKPa: n.fy * 1000, fcKPa: n.fc * 1000, ecKPa: n.ec * 1000 },
-        { dMm: n.dMm, tMm: n.tMm, lM: n.lM, diametroBarraMm: n.phiBarra, numeroBarras: n.nBarras },
-        { pKN: n.p, mKNm: n.m, vKN: n.v, yGMm: n.yG, temperaturaC: 600, longitudFuegoM: n.lFuego }
-      ),
-    };
-  }, [es, fy, fc, ec, dMm, tMm, lM, phiBarra, nBarras, p, m, v, yG, lFuego]);
+  const campos = useMemo(
+    () => ({ es, fy, fc, ec, dMm, tMm, lM, phiBarra, nBarras, p, m, v, yG, lFuego }),
+    [es, fy, fc, ec, dMm, tMm, lM, phiBarra, nBarras, p, m, v, yG, lFuego]
+  );
+  const resultado = useMemo(() => resolverSeccionMixta(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarSeccionMixta(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: todos tienen que ser positivos y el espesor menor que el radio." });
@@ -221,6 +208,7 @@ export default function SeccionMixtaPage() {
                       limite: { etiqueta: "Pn/Ωc", valor: resultado.r.compresion.pAdmKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.axil}
                   />
                   <ResultadoCheck
                     etiqueta="Momento admisible"
@@ -230,6 +218,7 @@ export default function SeccionMixtaPage() {
                       limite: { etiqueta: "Mn/Ωb", valor: resultado.r.flexion.mAdmKNm },
                       unidad: "kN·m", exige: "≤",
                     }}
+                    recomendaciones={rec.momento}
                   />
                   <ResultadoCheck
                     etiqueta="Cortante admisible"
@@ -239,6 +228,7 @@ export default function SeccionMixtaPage() {
                       limite: { etiqueta: "Vn/Ωv", valor: resultado.r.corte.vAdmKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.corte}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la compresión"
@@ -275,6 +265,7 @@ export default function SeccionMixtaPage() {
                       limite: { etiqueta: "mínima", valor: resultado.r.propiedades.asrMinM2 * 10000 },
                       unidad: "cm²", exige: "≥", decimales: 2,
                     }}
+                    recomendaciones={rec.asMin}
                   />
                 </div>
               </Subgrupo>

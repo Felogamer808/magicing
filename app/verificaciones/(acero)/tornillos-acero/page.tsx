@@ -18,19 +18,22 @@ import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { DiagramaGrupoBulones } from "@/components/verificaciones/acero/DiagramaGrupoBulones";
 import {
   OMEGA_J,
-  bulonMasExigido,
-  calcularBloqueDeCorte,
-  interaccionTraccionCorteKN,
-  repartoElasticoBulones,
-  resistenciaBulonKN,
-  resistenciaDeslizamientoKN,
-  type ClaseSuperficie,
-  type GradoBulon,
-  type PosicionBulon,
-  type TipoAgujeroDeslizamiento,
 } from "@/lib/calc/acero/tornillos";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import {
+  GRADOS,
+  DEFORMACION,
+  DOS_CHAPAS,
+  HAY_BLOQUE,
+  HAY_TRACCION,
+  UBS,
+  HAY_DESLIZAMIENTO,
+  CLASES,
+  TIPOS_AGUJERO,
+  resolverTornillos,
+} from "@/lib/calc/acero/resolver-tornillos";
+import { recomendarTornillos } from "@/lib/verificaciones/recomendaciones/tornillos";
 
 const meta = registroVerificaciones.find((v) => v.id === "tornillos-acero")!;
 
@@ -41,39 +44,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-const GRADOS: readonly GradoBulon[] = ["A325", "A307"];
-const DEFORMACION = ["Controlada (agujeros estándar)", "No controlada"] as const;
-const DOS_CHAPAS = ["Una chapa", "Dos chapas"] as const;
-const HAY_BLOQUE = ["No corresponde", "Sí, verificar"] as const;
-const HAY_TRACCION = ["No corresponde", "Sí, verificar"] as const;
-const UBS = ["Uniforme (Ubs = 1,0)", "No uniforme (Ubs = 0,5)"] as const;
-const HAY_DESLIZAMIENTO = ["No, conexión de contacto", "Sí, slip-critical"] as const;
-const CLASES = ["Clase A (μ = 0,30)", "Clase B (μ = 0,50)"] as const;
-const CLASE_MAP: Record<(typeof CLASES)[number], ClaseSuperficie> = {
-  "Clase A (μ = 0,30)": "A",
-  "Clase B (μ = 0,50)": "B",
-};
-const TIPOS_AGUJERO = ["Estándar (φ=1,00)", "Agrandado o ranura corta paralela (φ=0,85)", "Ranura alargada (φ=0,70)"] as const;
-const TIPO_AGUJERO_MAP: Record<(typeof TIPOS_AGUJERO)[number], TipoAgujeroDeslizamiento> = {
-  "Estándar (φ=1,00)": "estandar",
-  "Agrandado o ranura corta paralela (φ=0,85)": "agrandado",
-  "Ranura alargada (φ=0,70)": "ranuraAlargada",
-};
-
-/** Grilla centrada en su propio centroide: es la hipótesis que pide el método elástico. */
-function grillaBulones(filas: number, columnas: number, sxM: number, syM: number): PosicionBulon[] {
-  const posiciones: PosicionBulon[] = [];
-  for (let f = 0; f < filas; f++) {
-    for (let c = 0; c < columnas; c++) {
-      posiciones.push({
-        xM: (c - (columnas - 1) / 2) * sxM,
-        yM: (f - (filas - 1) / 2) * syM,
-      });
-    }
-  }
-  return posiciones;
-}
 
 export default function TornillosAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
@@ -122,117 +92,13 @@ export default function TornillosAceroPage() {
   const [diametroAgujeroBloque, setDiametroAgujeroBloque] = useCampo("diametroAgujeroBloque", "22");
   const [ubs, setUbs] = useCampo("ubs", UBS[0]);
 
-  const resultado = useMemo(() => {
-    const n = {
-      filas: Math.round(aNumero(filas)), columnas: Math.round(aNumero(columnas)),
-      sx: aNumero(sx), sy: aNumero(sy),
-      fx: aNumero(fx), fy: aNumero(fy), m: aNumero(momento),
-      d: aNumero(diametro), planos: Math.round(aNumero(planosDeCorte)),
-      e1: aNumero(espesor1), fu1: aNumero(fu1), lc1: aNumero(lc1),
-    };
-    if (![n.filas, n.columnas].every((x) => Number.isInteger(x) && x > 0)) return null;
-    if (![n.sx, n.sy, n.d, n.e1, n.fu1, n.lc1].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![n.fx, n.fy, n.m].every((x) => Number.isFinite(x))) return null;
-    if (!Number.isInteger(n.planos) || n.planos <= 0) return null;
-
-    const bulones = grillaBulones(n.filas, n.columnas, n.sx, n.sy);
-    const fuerzas = repartoElasticoBulones(bulones, n.fx, n.fy, n.m);
-    const critico = bulonMasExigido(fuerzas);
-    if (!critico) return null;
-
-    const chapas = [
-      {
-        espesorMm: n.e1, distanciaLibreMm: n.lc1, fuPa: n.fu1 * 1e6,
-        deformacionControlada: deformacion1 === DEFORMACION[0],
-      },
-    ];
-    if (dosChapas === DOS_CHAPAS[1]) {
-      const e2 = aNumero(espesor2);
-      const f2 = aNumero(fu2);
-      const l2 = aNumero(lc2);
-      if (![e2, f2, l2].every((x) => Number.isFinite(x) && x > 0)) return null;
-      chapas.push({
-        espesorMm: e2, distanciaLibreMm: l2, fuPa: f2 * 1e6,
-        deformacionControlada: deformacion2 === DEFORMACION[0],
-      });
-    }
-
-    const bulon = resistenciaBulonKN({
-      diametroMm: n.d,
-      grado: grado as GradoBulon,
-      planosDeCorte: n.planos,
-      chapas,
-    });
-
-    let traccion: ReturnType<typeof interaccionTraccionCorteKN> | null = null;
-    let traccionReqKN = 0;
-    if (hayTraccion === HAY_TRACCION[1]) {
-      traccionReqKN = aNumero(traccionReq);
-      if (!(Number.isFinite(traccionReqKN) && traccionReqKN >= 0)) return null;
-      traccion = interaccionTraccionCorteKN({
-        diametroMm: n.d,
-        grado: grado as GradoBulon,
-        vReqKN: critico.vKN,
-        planosDeCorte: n.planos,
-      });
-    }
-
-    let deslizamiento: ReturnType<typeof resistenciaDeslizamientoKN> | null = null;
-    if (hayDeslizamiento === HAY_DESLIZAMIENTO[1]) {
-      const tbKN = aNumero(tb);
-      const relleno = Math.round(aNumero(chapasDeRelleno));
-      if (!(Number.isFinite(tbKN) && tbKN > 0)) return null;
-      if (!(Number.isInteger(relleno) && relleno >= 0)) return null;
-      deslizamiento = resistenciaDeslizamientoKN({
-        clase: CLASE_MAP[clase as (typeof CLASES)[number]],
-        tipoAgujero: TIPO_AGUJERO_MAP[tipoAgujeroDesl as (typeof TIPOS_AGUJERO)[number]],
-        tbKN,
-        planosDeFriccion: n.planos,
-        chapasDeRelleno: relleno,
-      });
-    }
-
-    let bloque: ReturnType<typeof calcularBloqueDeCorte> | null = null;
-    if (hayBloque === HAY_BLOQUE[1]) {
-      const cl = aNumero(corteLargo);
-      const ce = aNumero(corteEspesor);
-      const ca = Math.round(aNumero(corteAgujeros));
-      const ta = aNumero(traccionAncho);
-      const te = aNumero(traccionEspesor);
-      const tan = Math.round(aNumero(traccionAgujeros));
-      const dAg = aNumero(diametroAgujeroBloque);
-      if (![cl, ce, ta, te, dAg].every((x) => Number.isFinite(x) && x > 0)) return null;
-      if (![ca, tan].every((x) => Number.isInteger(x) && x >= 0)) return null;
-
-      bloque = calcularBloqueDeCorte({
-        planoCorte: {
-          areaBrutaM2: (cl * ce) / 1e6,
-          agujeros: Array.from({ length: ca }, () => ({ diametroMm: dAg, espesorMm: ce })),
-        },
-        planoTraccion: {
-          areaBrutaM2: (ta * te) / 1e6,
-          agujeros: Array.from({ length: tan }, () => ({ diametroMm: dAg, espesorMm: te })),
-        },
-        ubs: ubs === UBS[0] ? 1.0 : 0.5,
-        fyPa: 248e6, // A36; se podría exponer como dato si hiciera falta otro acero
-        fuPa: n.fu1 * 1e6,
-      });
-    }
-
-    // El bloque se arranca con toda la fuerza que la unión le pasa a la pieza,
-    // no con la de un bulón: es la resultante en el plano. El momento sólo
-    // reparte entre bulones y no suma fuerza neta.
-    const fuerzaUnionKN = Math.hypot(n.fx, n.fy);
-
-    return { bulones, fuerzas, critico, bulon, traccion, traccionReqKN, deslizamiento, bloque, fuerzaUnionKN, n };
-  }, [
-    filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte,
-    espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2,
-    hayTraccion, traccionReq,
-    hayDeslizamiento, clase, tipoAgujeroDesl, tb, chapasDeRelleno,
-    hayBloque, corteLargo, corteEspesor, corteAgujeros, traccionAncho, traccionEspesor,
-    traccionAgujeros, diametroAgujeroBloque, ubs,
-  ]);
+  const campos = useMemo(
+    () => ({ filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte, espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2, hayTraccion, traccionReq, hayDeslizamiento, clase, tipoAgujeroDesl, tb, chapasDeRelleno, hayBloque, corteLargo, corteEspesor, corteAgujeros, traccionAncho, traccionEspesor, traccionAgujeros, diametroAgujeroBloque, ubs }),
+    [filas, columnas, sx, sy, fx, fy, momento, diametro, grado, planosDeCorte, espesor1, fu1, lc1, deformacion1, dosChapas, espesor2, fu2, lc2, deformacion2, hayTraccion, traccionReq, hayDeslizamiento, clase, tipoAgujeroDesl, tb, chapasDeRelleno, hayBloque, corteLargo, corteEspesor, corteAgujeros, traccionAncho, traccionEspesor, traccionAgujeros, diametroAgujeroBloque, ubs]
+  );
+  const resultado = useMemo(() => resolverTornillos(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarTornillos(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Completá el grupo de bulones, el bulón, las chapas y la solicitación con valores válidos." });
@@ -495,6 +361,7 @@ export default function TornillosAceroPage() {
                       limite: { etiqueta: "admisible", valor: resultado.bulon.admisibleKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.bulon}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la resistencia del bulón"
@@ -592,6 +459,7 @@ export default function TornillosAceroPage() {
                         limite: { etiqueta: "admisible", valor: resultado.traccion.admisibleKN },
                         unidad: "kN", exige: "≤",
                       }}
+                      recomendaciones={rec.traccion}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo de la interacción"
@@ -617,6 +485,7 @@ export default function TornillosAceroPage() {
                         limite: { etiqueta: "admisible", valor: resultado.deslizamiento.admisibleKN },
                         unidad: "kN", exige: "≤",
                       }}
+                      recomendaciones={rec.deslizamiento}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo del deslizamiento"
@@ -641,6 +510,7 @@ export default function TornillosAceroPage() {
                         limite: { etiqueta: "admisible", valor: resultado.bloque.admisibleKN },
                         unidad: "kN", exige: "≤",
                       }}
+                      recomendaciones={rec.bloque}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo del bloque de corte"

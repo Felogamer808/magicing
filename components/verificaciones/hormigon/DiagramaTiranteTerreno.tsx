@@ -1,88 +1,104 @@
 "use client";
 
-import { fmt } from "@/lib/verificaciones/formato";
+import { useId } from "react";
+import { CapaMaterial, FlechaCarga } from "@/components/verificaciones/croquis/Primitivas";
 
 interface DiagramaTiranteTerrenoProps {
   /** "pilar" en la zapata aislada, "muro" en la corrida. */
   elemento: "pilar" | "muro";
-  /** Brazo h cargado (m), para rotular la cota. */
+  /** Brazo h cargado (m). */
   hM?: number;
-  /** Canto de la zapata (m), para rotular. */
+  /** Canto de la zapata (m). */
   HM?: number;
 }
 
+const fmtM = (n: number) => `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+
 /**
- * Esquema del par tirante–terreno, en alzado: el pilar contra la medianera,
- * la losa que tira de él arriba (T) y el rozamiento que lo frena en la base
- * (F = T). La cota h va del eje del tirante a la base de la zapata, que es el
- * brazo del par; h − H es el tramo de pilar que queda en flexión.
+ * Esquema del par tirante–terreno, en alzado y en la gramática de los demás
+ * dibujos: el pilar contra la medianera, la losa cuya armadura hace de tirante
+ * (T) y el rozamiento que lo frena en la base (F = T). La cota h va del eje del
+ * tirante a la base de la zapata, que es el brazo del par; h − H es el tramo
+ * de pilar que queda en flexión.
  *
  * No está a escala: sólo muestra qué es cada medida.
  */
 export function DiagramaTiranteTerreno({ elemento, hM, HM }: DiagramaTiranteTerrenoProps) {
-  const xLim = 40;
+  const arrowId = useId();
+
+  const xLim = 52;
   const anchoPilar = 22;
   const xPilar2 = xLim + anchoPilar;
   const yLosa1 = 40;
-  const yLosa2 = 52;
-  const yEje = (yLosa1 + yLosa2) / 2;
-  const yZapata = 160;
-  const yBase = 196;
-  const xZapataFin = 200;
-  const xLosaFin = 300;
-  const xCota = 250;
+  const yLosa2 = 54;
+  const yEje = yLosa1 + 9;
+  const yZapata = 156;
+  const yBase = 186;
+  const xZapataFin = 196;
+  const xLosaFin = 270;
+  const xCota = 228;
 
-  const flecha = (x1: number, y1: number, x2: number, y2: number) => {
-    const ang = Math.atan2(y2 - y1, x2 - x1);
-    const a = 7;
-    const p1 = [x2 - a * Math.cos(ang - 0.45), y2 - a * Math.sin(ang - 0.45)];
-    const p2 = [x2 - a * Math.cos(ang + 0.45), y2 - a * Math.sin(ang + 0.45)];
-    return `M${x1} ${y1} L${x2} ${y2} M${p1[0]} ${p1[1]} L${x2} ${y2} L${p2[0]} ${p2[1]}`;
-  };
+  const contorno = `M${xLim} ${yLosa1} L${xLosaFin} ${yLosa1} L${xLosaFin} ${yLosa2} L${xPilar2} ${yLosa2} L${xPilar2} ${yZapata} L${xZapataFin} ${yZapata} L${xZapataFin} ${yBase} L${xLim} ${yBase} Z`;
+  const cota = { stroke: "currentColor", strokeWidth: 1, opacity: 0.75 };
+  const valido = (n?: number) => n !== undefined && Number.isFinite(n);
 
   return (
-    <svg viewBox="0 0 340 256" className="h-auto w-full text-primary" fill="none" aria-hidden="true">
-      {/* medianera */}
-      <path d={`M${xLim} 10 L${xLim} ${yBase + 24}`} stroke="currentColor" strokeWidth="1.2" strokeDasharray="5 4" opacity="0.6" />
-      <text x={xLim - 4} y={yBase + 22} textAnchor="end" className="fill-current font-mono" fontSize="9" opacity="0.7">límite</text>
+    <div className="flex flex-col items-center gap-3">
+      <svg viewBox="0 0 300 226" className="h-auto w-full text-primary" fill="none" role="img"
+           aria-label="Par tirante–terreno: la losa tira del pilar arriba y el rozamiento lo frena en la base; h va del eje del tirante a la base.">
+        <defs>
+          <marker id={arrowId} markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0 0 L6 3 L0 6 Z" fill="currentColor" />
+          </marker>
+        </defs>
 
-      {/* losa, con la armadura que hace de tirante */}
-      <rect x={xLim} y={yLosa1} width={xLosaFin - xLim} height={yLosa2 - yLosa1} stroke="currentColor" strokeWidth="1.4" fill="var(--color-muted)" fillOpacity="0.5" />
-      <path d={`M${xLim + 4} ${yEje} L${xLosaFin} ${yEje}`} stroke="var(--color-destructive)" strokeWidth="1.2" strokeDasharray="6 3" />
-      <text x={xLosaFin - 2} y={yLosa1 - 4} textAnchor="end" className="fill-current font-mono" fontSize="9">losa</text>
+        {/* límite de propiedad */}
+        <path d={`M${xLim} 12 L${xLim} ${yBase + 22}`} stroke="currentColor" strokeWidth="1" strokeDasharray="5 4" opacity="0.6" />
+        <text x={xLim - 4} y={yBase + 20} textAnchor="end" className="fill-current font-mono" fontSize="9.5" opacity="0.7">límite</text>
 
-      {/* pilar o muro */}
-      <rect x={xLim} y={yLosa2} width={anchoPilar} height={yZapata - yLosa2} stroke="currentColor" strokeWidth="1.6" fill="var(--color-muted)" fillOpacity="0.8" />
-      <text x={xPilar2 + 4} y={(yLosa2 + yZapata) / 2 + 14} className="fill-current font-mono" fontSize="9">{elemento}</text>
+        {/* losa, pilar y zapata en un solo contorno */}
+        <CapaMaterial d={contorno} material="hormigon" />
+        {/* armadura de la losa: el tirante */}
+        <path d={`M${xLim + 5} ${yEje} L${xLosaFin - 4} ${yEje}`} stroke="var(--mat-armadura)" strokeWidth="2" />
+        <text x={xLosaFin - 4} y={yLosa1 - 5} textAnchor="end" className="fill-current font-mono" fontSize="9.5">losa</text>
+        <text x={xPilar2 + 6} y={(yLosa2 + yZapata) / 2} className="fill-current font-mono" fontSize="9.5">{elemento}</text>
+        <text x={(xPilar2 + xZapataFin) / 2 + 8} y={(yZapata + yBase) / 2 + 4} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">zapata</text>
 
-      {/* zapata */}
-      <rect x={xLim} y={yZapata} width={xZapataFin - xLim} height={yBase - yZapata} stroke="currentColor" strokeWidth="1.8" fill="var(--color-muted)" fillOpacity="0.5" />
-      <text x={(xLim + xZapataFin) / 2 + 20} y={(yZapata + yBase) / 2 + 3} textAnchor="middle" className="fill-current font-mono" fontSize="9">zapata</text>
+        {/* fuerzas */}
+        <FlechaCarga x={xLim + anchoPilar / 2} y={yLosa1 - 2} largo={24} rotulo="N" />
+        <FlechaCarga x={xPilar2 + 78} y={yEje + 18} largo={56} sentido="derecha" />
+        <text x={xPilar2 + 50} y={yEje + 32} textAnchor="middle" className="fill-[var(--mat-cota)] font-mono" fontSize="10.5">T</text>
+        <FlechaCarga x={xZapataFin - 84} y={yBase + 9} largo={56} sentido="izquierda" />
+        <text x={xZapataFin - 56} y={yBase + 24} textAnchor="middle" className="fill-[var(--mat-cota)] font-mono" fontSize="10.5">F = T</text>
 
-      {/* fuerzas */}
-      <path d={flecha(xLim + anchoPilar / 2, 4, xLim + anchoPilar / 2, yLosa1 - 3)} stroke="currentColor" strokeWidth="1.5" />
-      <text x={xLim + anchoPilar / 2 + 6} y={16} className="fill-current font-mono" fontSize="10">N</text>
-      <path d={flecha(xPilar2 + 10, yEje, xPilar2 + 70, yEje)} stroke="var(--color-destructive)" strokeWidth="1.8" />
-      <text x={xPilar2 + 40} y={yLosa1 - 6} textAnchor="middle" className="font-mono" fontSize="10" fill="var(--color-destructive)">T (tirante)</text>
-      <path d={flecha(xZapataFin - 20, yBase + 8, xZapataFin - 80, yBase + 8)} stroke="var(--color-destructive)" strokeWidth="1.8" />
-      <text x={xZapataFin - 50} y={yBase + 50} textAnchor="middle" className="font-mono" fontSize="10" fill="var(--color-destructive)">F = T (rozamiento)</text>
-      {/* presión uniforme */}
-      {Array.from({ length: 6 }, (_, i) => xLim + 12 + (i * (xZapataFin - xLim - 24)) / 5).map((x) => (
-        <path key={x} d={flecha(x, yBase + 34, x, yBase + 3)} stroke="currentColor" strokeWidth="0.9" opacity="0.45" />
-      ))}
+        {/* cota h: del eje del tirante a la base */}
+        <g {...cota}>
+          <path d={`M${xLosaFin - 30} ${yEje} L${xCota + 6} ${yEje}`} strokeDasharray="2 2" />
+          <path d={`M${xZapataFin + 4} ${yBase} L${xCota + 6} ${yBase}`} />
+          <path d={`M${xCota} ${yEje} L${xCota} ${yBase}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
+        </g>
+        <text x={xCota + 18} y={(yEje + yBase) / 2} textAnchor="middle" className="fill-current font-mono" fontSize="10.5"
+              transform={`rotate(-90 ${xCota + 18} ${(yEje + yBase) / 2})`}>
+          {valido(hM) ? `h = ${fmtM(hM!)}` : "h"}
+        </text>
+        {/* cota H */}
+        <g stroke="currentColor" strokeWidth="0.75" opacity="0.6">
+          <path d={`M${xZapataFin + 4} ${yZapata} L${xZapataFin + 16} ${yZapata}`} />
+          <path d={`M${xZapataFin + 10} ${yZapata} L${xZapataFin + 10} ${yBase}`} strokeDasharray="2 2" />
+        </g>
+        <text x={xZapataFin + 14} y={(yZapata + yBase) / 2 + 3} className="fill-current font-mono" fontSize="9.5">H</text>
+      </svg>
 
-      {/* cota h: del eje del tirante a la base */}
-      <path d={`M${xLosaFin - 40} ${yEje} L${xCota + 8} ${yEje} M${xZapataFin} ${yBase} L${xCota + 8} ${yBase}`} stroke="currentColor" strokeWidth="0.7" opacity="0.6" />
-      <path d={flecha(xCota, (yEje + yBase) / 2, xCota, yEje + 1)} stroke="currentColor" strokeWidth="1.2" />
-      <path d={flecha(xCota, (yEje + yBase) / 2, xCota, yBase - 1)} stroke="currentColor" strokeWidth="1.2" />
-      <text x={xCota + 6} y={(yEje + yBase) / 2 + 4} className="fill-current font-mono" fontSize="11">
-        h{hM !== undefined && Number.isFinite(hM) ? ` = ${fmt(hM, 2)} m` : ""}
-      </text>
-      {/* cota H */}
-      <path d={`M${xZapataFin + 10} ${yZapata} L${xZapataFin + 22} ${yZapata} M${xZapataFin + 16} ${yZapata} L${xZapataFin + 16} ${yBase}`} stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-      <text x={xZapataFin + 20} y={yZapata + 14} className="fill-current font-mono" fontSize="9" opacity="0.8">
-        H{HM !== undefined && Number.isFinite(HM) ? ` = ${fmt(HM, 2)}` : ""}
-      </text>
-    </svg>
+      <dl className="grid w-full max-w-xs grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground">
+        <dt>h</dt>
+        <dd className="text-right text-foreground">eje del tirante → base{valido(hM) ? ` · ${fmtM(hM!)}` : ""}</dd>
+        <dt>H</dt>
+        <dd className="text-right text-foreground">canto de la zapata{valido(HM) ? ` · ${fmtM(HM!)}` : ""}</dd>
+        <dt>h − H</dt>
+        <dd className="text-right text-foreground">
+          {elemento} en flexión{valido(hM) && valido(HM) ? ` · ${fmtM(hM! - HM!)}` : ""}
+        </dd>
+      </dl>
+    </div>
   );
 }

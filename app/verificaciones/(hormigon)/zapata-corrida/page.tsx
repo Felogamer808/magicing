@@ -16,7 +16,7 @@ import { ConclusionResultados } from "@/components/verificaciones/comun/Conclusi
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
-import { ArmaduraZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ArmaduraZapataCorridaDiagrama";
+import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
 import { DiagramaPresionSuelo } from "@/components/verificaciones/hormigon/DiagramaPresionSuelo";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
@@ -208,17 +208,24 @@ export default function ZapataCorridaPage() {
   );
 
   const armado = diagrama ? (
-    <ArmaduraZapataCorridaDiagrama
-      AM={diagrama.AM}
+    <CorteArmaduraZapata
+      largoM={diagrama.AM}
       HM={diagrama.HM}
-      anchoMuroM={diagrama.anchoPilarM}
+      anchoApoyoM={diagrama.anchoPilarM}
       distanciaBordeM={diagrama.distanciaBordeM}
       recubrimientoM={aNumero(recubrimiento)}
-      diametroPrincipalMm={diagrama.diametroPrincipalMm}
-      separacionPrincipalM={diagrama.separacionPrincipalM}
+      diametroA1Mm={diagrama.diametroPrincipalMm}
+      numeroA2={aNumero(numeroSecundario)}
+      diametroA2Mm={aNumero(diametroSecundario)}
       patilla={formaAnclaje === "gancho"}
-      numeroReparto={aNumero(numeroSecundario)}
-      diametroRepartoMm={aNumero(diametroSecundario)}
+      apoyo="muro"
+      resumen={[
+        { etiqueta: "A1 · principal", valor: `Ø${diagrama.diametroPrincipalMm} c/${fmt(diagrama.separacionPrincipalM, 2)} m` },
+        { etiqueta: "A1 · extremo", valor: FORMAS[formaAnclaje].toLowerCase() },
+        { etiqueta: "A2 · reparto", valor: `${numeroSecundario} Ø${diametroSecundario} en todo A` },
+        { etiqueta: "d", valor: `${fmt(diagrama.dM, 2)} m` },
+        { etiqueta: "Recubrimiento", valor: `${fmt(aNumero(recubrimiento), 2)} m` },
+      ]}
     />
   ) : (
     corte
@@ -345,12 +352,9 @@ export default function ZapataCorridaPage() {
                     ]}
                   />
                 </Subgrupo>
-                <Subgrupo titulo="Qué es cada armadura">
-                  <div className="rounded-md border p-3">{armado}</div>
-                </Subgrupo>
               </>
             }
-            dibujo={corte}
+            dibujo={armado}
           />
         </Etapa>
 

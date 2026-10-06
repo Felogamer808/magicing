@@ -18,6 +18,7 @@ import { CroquisCargasZapata } from "@/components/verificaciones/croquis/Croquis
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesZapataDiagrama";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
+import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -271,6 +272,42 @@ export default function ZapataAisladaPage() {
     ];
   };
 
+  // Corte por A de la parrilla: las barras de A en el plano, las de B de punta.
+  // La separación se deduce como en el cálculo: ancho menos recubrimientos y
+  // un diámetro, repartido entre n − 1 huecos.
+  const corteArmadura = (() => {
+    const v = {
+      A: aNumero(A), B: aNumero(B), H: aNumero(H), rec: aNumero(recubrimiento),
+      cA: aNumero(anchoPilarA), nA: aNumero(numeroA), fA: aNumero(diametroA), nB: aNumero(numeroB), fB: aNumero(diametroB),
+    };
+    if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) return null;
+    const sep = (ancho: number, n: number, f: number) => (n > 1 ? (ancho - 2 * v.rec - f / 1000) / (n - 1) : NaN);
+    const bordeA = aNumero(distanciaBordeA);
+    const dA = v.H - v.rec - v.fA / 2000;
+    const dB = dA - v.fA / 2000 - v.fB / 2000;
+    return (
+      <CorteArmaduraZapata
+        largoM={v.A}
+        HM={v.H}
+        anchoApoyoM={v.cA}
+        distanciaBordeM={descentrado && Number.isFinite(bordeA) ? bordeA : undefined}
+        recubrimientoM={v.rec}
+        diametroA1Mm={v.fA}
+        numeroA2={v.nB}
+        diametroA2Mm={v.fB}
+        patilla={formaAnclaje === "gancho"}
+        apoyo="pilar"
+        resumen={[
+          { etiqueta: "A1 · dir. A", valor: `${v.nA} Ø${v.fA} c/${fmt(sep(v.B, v.nA, v.fA), 2)} m` },
+          { etiqueta: "A2 · dir. B", valor: `${v.nB} Ø${v.fB} c/${fmt(sep(v.A, v.nB, v.fB), 2)} m` },
+          { etiqueta: "Extremo", valor: FORMAS[formaAnclaje].toLowerCase() },
+          { etiqueta: "d A / d B", valor: `${fmt(dA, 2)} / ${fmt(dB, 2)} m` },
+          { etiqueta: "Recubrimiento", valor: `${fmt(v.rec, 2)} m` },
+        ]}
+      />
+    );
+  })();
+
   const planta = diagrama ? (
     <ZapataDiagrama {...diagrama} />
   ) : (
@@ -433,7 +470,12 @@ export default function ZapataAisladaPage() {
                 </p>
               </Subgrupo>
             }
-            dibujo={planta}
+            dibujo={
+              <div className="flex flex-col gap-6">
+                {planta}
+                {corteArmadura}
+              </div>
+            }
           />
         </Etapa>
 

@@ -40,6 +40,7 @@ const ETAPAS = [
 ] as const;
 
 const POSICIONES = ["Centrado", "Ubicación libre", "Contra la medianera (borde en A)"] as const;
+const EQUILIBRIOS = ["Lo toma el terreno", "Par tirante–terreno"] as const;
 
 const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
 const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
@@ -65,6 +66,12 @@ export default function ZapataAisladaPage() {
   // "Contra la medianera" es un atajo: deja el pilar en ubicación libre con la
   // cara al ras del borde de inicio en A y centrado en B.
   const descentrado = posicionPilar === POSICIONES[1];
+  // Quién toma el momento de la excentricidad en A. El tirante sólo tiene
+  // sentido con el pilar descentrado.
+  const [equilibrioA, setEquilibrioA] = useCampo("equilibrioA", EQUILIBRIOS[0]);
+  const [brazoTirante, setBrazoTirante] = useCampo("brazoTirante", "3");
+  const [phiTerreno, setPhiTerreno] = useCampo("phiTerreno", "30");
+  const conTirante = descentrado && equilibrioA === EQUILIBRIOS[1];
 
   const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
   const [Nk, setNk] = useCampo("Nk", "500");
@@ -115,6 +122,10 @@ export default function ZapataAisladaPage() {
       if (!(bordeB >= 0 && bordeB + v.anchoPilarB <= v.B + 1e-9)) return null;
     }
 
+    const brazo = aNumero(brazoTirante);
+    const phi = aNumero(phiTerreno);
+    if (conTirante && !(brazo > 0 && phi > 0 && phi < 90)) return null;
+
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = {
       A: v.A,
@@ -131,12 +142,14 @@ export default function ZapataAisladaPage() {
       armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
       armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
       formaAnclaje,
+      ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
     });
 
     return { zapata };
   }, [
     fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB, descentrado, distanciaBordeA, distanciaBordeB,
     sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
+    conTirante, brazoTirante, phiTerreno,
   ]);
 
   const diagrama = useMemo(() => {
@@ -189,6 +202,11 @@ export default function ZapataAisladaPage() {
         ? "Hay datos vacíos o no válidos, o el pilar queda fuera de la zapata: la distancia de su cara al borde más su ancho no puede superar el lado."
         : "Hay datos vacíos o no válidos: no se puede calcular.",
     });
+  } else if (resultado.zapata.tirante && !resultado.zapata.tirante.geometriaValida) {
+    avisos.push({
+      tipo: "error",
+      texto: "El brazo del tirante tiene que ser mayor que el canto de la zapata: se mide del eje del tirante a la base.",
+    });
   } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
     avisos.push({
       tipo: "error",
@@ -197,7 +215,7 @@ export default function ZapataAisladaPage() {
   } else if (!resultado.zapata.dentroDelNucleo) {
     avisos.push({
       tipo: "error",
-      texto: "La resultante sale del núcleo central y la zapata se despega: no verifica el terreno. Con el pilar descentrado, agrandar la zapata casi no ayuda; la salida habitual es una viga centradora.",
+      texto: "La resultante sale del núcleo central y la zapata se despega: no verifica el terreno. Con el pilar descentrado, agrandar la zapata casi no ayuda; las salidas habituales son una viga centradora o el par tirante–terreno.",
     });
   }
   if (resultado?.zapata.punzonamiento.situacion && resultado.zapata.punzonamiento.situacion !== "interior") {
@@ -316,6 +334,26 @@ export default function ZapataAisladaPage() {
                           planta. 0 en A es el pilar contra la medianera. El momento del descentramiento,
                           Nk·e, sale solo: no hace falta cargarlo en Mk.
                         </p>
+                        <div className="col-span-2">
+                          <CampoSeleccion
+                            id="equilibrioA"
+                            etiqueta="Quién toma el momento en A"
+                            valor={equilibrioA}
+                            opciones={EQUILIBRIOS}
+                            onChange={setEquilibrioA}
+                          />
+                        </div>
+                        {conTirante && (
+                          <>
+                            <CampoNumerico id="brazoTirante" etiqueta="h: tirante → base" sufijo="m" valor={brazoTirante} onChange={setBrazoTirante} />
+                            <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
+                            <p className="col-span-2 text-xs text-muted-foreground">
+                              La losa tira del pilar arriba y el rozamiento lo frena en la base: ese par toma
+                              el momento en A y la presión queda uniforme. h va del eje del tirante a la base
+                              de la zapata.
+                            </p>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -425,6 +463,7 @@ export default function ZapataAisladaPage() {
               "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = (Nk·e0 + Mk) / (Nk + PP), con e0 el descentramiento del pilar.",
               "La resultante tiene que caer dentro del núcleo central en las dos direcciones (e ≤ L/6): sin despegue. La tensión se comprueba por el área eficaz.",
               "Con el pilar descentrado cada vuelo tiene su propio momento y se arma por separado con las mismas barras; la zapata de medianería es el caso con el pilar contra el borde.",
+              "Con par tirante–terreno, el tirante a h de la base anula el momento en A: Tk = (Nk·e + Mk)/h, presión uniforme (DB SE-C, art. 4.3.1.3 (6)), deslizamiento Tk ≤ (N + P)·tan(3/4·φ')/1,5 (DB SE-C, art. 4.2.3.1 (4) y tabla 2.1) y armadura del tirante 1,5·Tk/fyd. Al pilar le queda Mk + Tk·(h − H) en el arranque.",
               "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
               "Con el pilar descentrado, el punzonamiento descuenta la presión real bajo el perímetro (lineal en las dos direcciones) y el β usa sólo el momento propio del pilar. Cerca de un borde (a menos de 2d), el perímetro se recorta como en la fig. A19.6.15 y el β es el de pilar de borde o esquina (ecs. (6.44)-(6.46)).",
               "Flexión por el modelo del Anejo 19, art. 9.8.2.2: sección de cálculo a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d) y As = Fs/fyd.",
@@ -481,7 +520,7 @@ export default function ZapataAisladaPage() {
                 ]}
               />
 
-              {descentrado && Math.abs(resultado.zapata.vuelosA.excentricidadPilarM) > 1e-9 && (
+              {descentrado && !conTirante && Math.abs(resultado.zapata.vuelosA.excentricidadPilarM) > 1e-9 && (
                 <PropuestaVigaCentradora necesaria={!resultado.zapata.geotecnico.verificaTension} />
               )}
 
@@ -534,6 +573,38 @@ export default function ZapataAisladaPage() {
                   />
                 </div>
               </Subgrupo>
+
+              {resultado.zapata.tirante && (
+                <Subgrupo titulo="Par tirante–terreno">
+                  <div>
+                    <ResultadoCheck
+                      etiqueta="Deslizamiento de la zapata"
+                      verifica={resultado.zapata.tirante.verificaDeslizamiento}
+                      detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(resultado.zapata.tirante.deltaGrados, 1)}° (art. 4.2.3.1 (4)), cargas sin mayorar y γR = 1,5 (tabla 2.1).`}
+                      comparacion={{
+                        real: { etiqueta: "Tk", valor: Math.abs(resultado.zapata.tirante.tkKN) },
+                        limite: { etiqueta: "(N+P)·tan δ/γR", valor: resultado.zapata.tirante.rozamientoResistenteKN },
+                        unidad: "kN", exige: "≤",
+                      }}
+                    />
+                    <PanelMetricas
+                      horizontal
+                      metricas={[
+                        { etiqueta: "Tirante Tk / Td", valor: `${fmt(Math.abs(resultado.zapata.tirante.tkKN))} / ${fmt(resultado.zapata.tirante.tdKN)} kN` },
+                        { etiqueta: "As tirante (losa)", valor: `${fmt(resultado.zapata.tirante.asTiranteCm2)} cm²`, nota: "Td/fyd, Anejo 19" },
+                        { etiqueta: "Pilar: M arranque", valor: `${fmt(Math.abs(resultado.zapata.tirante.mPilarArranqueKNm))} kN·m`, nota: "característico" },
+                        { etiqueta: "Pilar: V", valor: `${fmt(resultado.zapata.tirante.vPilarKN)} kN`, nota: "característico" },
+                      ]}
+                    />
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      La armadura de la losa tiene que poder tomar el tirante, además de su propia flexión,
+                      y anclarse en el pilar. El pilar queda en flexocompresión con M y V: se verifica
+                      aparte. La zapata se arma con la presión uniforme y el punzonamiento usa el momento
+                      del arranque del pilar.
+                    </p>
+                  </div>
+                </Subgrupo>
+              )}
 
               <Subgrupo titulo="Comprobaciones estructurales">
                 <div>

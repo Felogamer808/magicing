@@ -578,3 +578,22 @@ describe("pilar descentrado (ex zapata de medianería) — sanidad: a mayor exce
     expect(r.vuelosA.inicio.verificaAs).toBe(false);
   });
 });
+
+describe("pilar descentrado — a menos de 2d de dos bordes opuestos", () => {
+  // Pilar de 0,30 en el medio de B = 1,50: queda a 0,60 de cada borde, menos
+  // que 2d. Recortar los dos lados dejaba una recta de borde a borde, W = 0 y β
+  // infinito.
+  const materiales = derivarMateriales({ fck: 30, fyk: 500 });
+  const r = calcularZapataAislada(
+    materiales,
+    { A: 2, B: 1.5, H: 0.5, anchoPilarA: 0.4, anchoPilarB: 0.3, recubrimiento: 0.05, distanciaBordeA: 0, distanciaBordeB: 0.6 },
+    300,
+    { cargas: { Nk: 500, MkA: 50, MkB: 20 }, armadoA: { numero: 8, diametroMm: 16 }, armadoB: { numero: 6, diametroMm: 16 } }
+  );
+
+  it("no recorta los dos lados opuestos si no es obligatorio: el punzonamiento da un número", () => {
+    expect(Number.isFinite(r.punzonamiento.vEdKN)).toBe(true);
+    expect(Number.isFinite(r.punzonamiento.beta)).toBe(true);
+    expect(r.punzonamiento.situacion).not.toBe("entre bordes");
+  });
+});

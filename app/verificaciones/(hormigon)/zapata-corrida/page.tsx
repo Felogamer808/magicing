@@ -25,6 +25,8 @@ import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/Dia
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
+import type { ResultadoDireccionZapata } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import { recomendarZapataCorrida, type LadoCorrida } from "@/lib/verificaciones/recomendaciones/zapata-corrida";
 import { recomendarArmaduraTirante, verificarTirante, type EntradaArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
@@ -125,13 +127,15 @@ export default function ZapataCorridaPage() {
       ...(descentrado ? { distanciaBorde: borde } : {}),
     };
 
-    const zapata = calcularZapataCorrida(materiales, geometria, v.sigmaAdmisible, {
+    const datosZapata = {
       carga: { Nk: v.Nk, MkA: v.MkA },
       armadoPrincipal: { diametroMm: v.diametroPrincipal, separacionM: v.separacionPrincipal },
       armadoSecundario: { numero: v.numeroSecundario, diametroMm: v.diametroSecundario },
       formaAnclaje,
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
-    });
+    };
+    const zapata = calcularZapataCorrida(materiales, geometria, v.sigmaAdmisible, datosZapata);
+    const recomendaciones = recomendarZapataCorrida({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos: datosZapata });
 
     // Armadura del tirante: sólo si hay tirante y las barras son válidas.
     const t = {
@@ -157,7 +161,7 @@ export default function ZapataCorridaPage() {
     const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
     const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
 
-    return { zapata, armaduraTirante, recomendacionesTirante };
+    return { zapata, armaduraTirante, recomendacionesTirante, recomendaciones };
   }, [
     fck, fyk, A, H, recubrimiento, anchoPilar, descentrado, distanciaBorde, conTirante, brazoTirante, phiTerreno,
     sigmaAdmisible, Nk, MkA,
@@ -227,14 +231,16 @@ export default function ZapataCorridaPage() {
     });
   }
 
-  const vuelos = resultado
+  const vuelos: { nombre: string; r: ResultadoDireccionZapata; lado: LadoCorrida }[] = resultado
     ? resultado.zapata.muroCentrado
-      ? [{ nombre: "Vuelo", r: resultado.zapata.principal }]
+      ? [{ nombre: "Vuelo", r: resultado.zapata.principal, lado: "gobernante" }]
       : [
-          { nombre: "Vuelo izquierdo", r: resultado.zapata.vuelos.inicio },
-          { nombre: "Vuelo derecho", r: resultado.zapata.vuelos.fin },
+          { nombre: "Vuelo izquierdo", r: resultado.zapata.vuelos.inicio, lado: "inicio" },
+          { nombre: "Vuelo derecho", r: resultado.zapata.vuelos.fin, lado: "fin" },
         ]
     : [];
+  const rec = resultado?.recomendaciones ?? {};
+  const recVuelo = (lado: LadoCorrida) => ({ as: rec[`${lado}.as`], anclaje: rec[`${lado}.anclaje`], corte: rec[`${lado}.corte`] });
 
   const corte = diagrama ? (
     <ZapataCorridaDiagrama {...diagrama} />
@@ -449,28 +455,33 @@ export default function ZapataCorridaPage() {
                     etiqueta: "tensión del terreno",
                     estado: resultado.zapata.geotecnico.verificaTension ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
+                    conPropuestas: !!rec.tension,
                   },
                   ...vuelos.flatMap((v) => [
                     {
                       etiqueta: `armadura · ${v.nombre.toLowerCase()}`,
                       estado: v.r.verificaAs && v.r.verificaDiametroMinimo ? ("cumple" as const) : ("no-cumple" as const),
                       utilizacion: v.r.asNecCm2 / v.r.asRealCm2,
+                      conPropuestas: !!rec[`${v.lado}.as`],
                     },
                     {
                       etiqueta: `anclaje · ${v.nombre.toLowerCase()}`,
                       estado: v.r.anclaje.verifica ? ("cumple" as const) : ("no-cumple" as const),
                       utilizacion: v.r.anclaje.disponibleMm > 0 ? v.r.anclaje.lbdMm / v.r.anclaje.disponibleMm : 0,
+                      conPropuestas: !!rec[`${v.lado}.anclaje`],
                     },
                     {
                       etiqueta: `cortante · ${v.nombre.toLowerCase()}`,
                       estado: v.r.verificaCorte ? ("cumple" as const) : ("no-cumple" as const),
                       utilizacion: v.r.vRdCKN > 0 ? v.r.vEdKN / v.r.vRdCKN : 0,
+                      conPropuestas: !!rec[`${v.lado}.corte`],
                     },
                   ]),
                   {
                     etiqueta: "armadura de reparto",
                     estado: resultado.zapata.secundario.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.secundario.asNecCm2 / resultado.zapata.secundario.asRealCm2,
+                    conPropuestas: !!rec.reparto,
                   },
                   ...(resultado.armaduraTirante
                     ? [
@@ -478,11 +489,13 @@ export default function ZapataCorridaPage() {
                           etiqueta: "armadura del tirante",
                           estado: resultado.armaduraTirante.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
                           utilizacion: resultado.armaduraTirante.asNecCm2 / resultado.armaduraTirante.asRealCm2,
+                          conPropuestas: !!resultado.recomendacionesTirante?.as,
                         },
                         {
                           etiqueta: "anclaje del tirante",
                           estado: resultado.armaduraTirante.verificaAnclaje ? ("cumple" as const) : ("no-cumple" as const),
                           utilizacion: resultado.armaduraTirante.lbdMm / resultado.armaduraTirante.disponibleMm,
+                          conPropuestas: !!resultado.recomendacionesTirante?.anclaje,
                         },
                       ]
                     : []),
@@ -492,6 +505,7 @@ export default function ZapataCorridaPage() {
                           etiqueta: "deslizamiento",
                           estado: resultado.zapata.tirante.verificaDeslizamiento ? ("cumple" as const) : ("no-cumple" as const),
                           utilizacion: Math.abs(resultado.zapata.tirante.tkKN) / resultado.zapata.tirante.rozamientoResistenteKN,
+                          conPropuestas: !!rec.deslizamiento,
                         },
                       ]
                     : []),
@@ -518,6 +532,7 @@ export default function ZapataCorridaPage() {
                       limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
                       unidad: "kN/m²", exige: "≤",
                     }}
+                    recomendaciones={rec.tension}
                   />
                   <div className="max-w-md pt-4">
                     <DiagramaPresionSuelo
@@ -551,6 +566,7 @@ export default function ZapataCorridaPage() {
                         limite: { etiqueta: "(N+P)·tan δ/γR", valor: resultado.zapata.tirante.rozamientoResistenteKN },
                         unidad: "kN/m", exige: "≤",
                       }}
+                      recomendaciones={rec.deslizamiento}
                     />
                     <PanelMetricas
                       horizontal
@@ -587,7 +603,7 @@ export default function ZapataCorridaPage() {
               <Subgrupo titulo="Comprobaciones estructurales (por metro)">
                 <div>
                   {vuelos.map((v) => (
-                    <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} />
+                    <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} recomendaciones={recVuelo(v.lado)} />
                   ))}
                   <ResultadoCheck
                     etiqueta="Armadura de reparto suficiente"
@@ -598,6 +614,7 @@ export default function ZapataCorridaPage() {
                       limite: { etiqueta: "As nec", valor: resultado.zapata.secundario.asNecCm2 },
                       unidad: "cm²", exige: "≥",
                     }}
+                    recomendaciones={rec.reparto}
                   />
                 </div>
               </Subgrupo>

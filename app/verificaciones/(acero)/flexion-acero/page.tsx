@@ -18,11 +18,12 @@ import { CurvaFlexion } from "@/components/verificaciones/acero/CurvaFlexion";
 import { DiagramaPandeoLateral } from "@/components/verificaciones/acero/DiagramaPandeoLateral";
 import { OMEGA_B } from "@/lib/calc/acero/flexion";
 import {
-  calcularFlexionSegunSeccion,
   type ResultadoFlexionCualquiera,
 } from "@/lib/calc/acero/seleccion-articulo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverFlexionAcero } from "@/lib/calc/acero/resolver-flexion";
+import { recomendarFlexionAcero } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexion-acero")!;
 
@@ -98,24 +99,13 @@ export default function FlexionAceroPage() {
   const [e, setE] = useCampo("eFlexion", "200000");
   const [mRequerido, setMRequerido] = useCampo("mRequerido", "40");
 
-  const resultado = useMemo(() => {
-    const n = { lb: aNumero(lb), cb: aNumero(cb), fy: aNumero(fy), e: aNumero(e), m: aNumero(mRequerido) };
-    if (!seccion.completos || !Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
-
-    try {
-      return calcularFlexionSegunSeccion({
-        familia: seccion.familia,
-        params: seccion.params,
-        lbM: n.lb,
-        cb: n.cb,
-        fyPa: n.fy * 1e6,
-        ePa: n.e * 1e6,
-        mRequeridoKNm: n.m,
-      });
-    } catch {
-      return null;
-    }
-  }, [seccion.familia, seccion.params, seccion.completos, lb, cb, fy, e, mRequerido]);
+  const campos = useMemo(
+    () => ({ familia: seccion.familia, params: seccion.crudo, lb, cb, fyFlexion: fy, eFlexion: e, mRequerido }),
+    [seccion.familia, seccion.crudo, lb, cb, fy, e, mRequerido]
+  );
+  const resultado = useMemo(() => resolverFlexionAcero(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarFlexionAcero(campos), [campos]);
 
   const noCompacta =
     resultado?.articulo === "F2" && (!resultado.compacta.ala || !resultado.compacta.alma);
@@ -233,6 +223,7 @@ export default function FlexionAceroPage() {
                       limite: { etiqueta: "admisible", valor: resultado.admisibleKNm },
                       unidad: "kN·m", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.flexion}
                   />
                   {/*
                     F8 no depende de Lb —el tubo redondo no pandea lateralmente—, así

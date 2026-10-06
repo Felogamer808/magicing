@@ -17,15 +17,13 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import {
-  calcularTraccion,
-  factorUCaso2,
   OMEGA_T_FLUENCIA,
   OMEGA_T_ROTURA,
-  type AgujeroTraccion,
-  type PasoZigzag,
 } from "@/lib/calc/acero/traccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { CADENA, SECCION_CRITICA, TRANSMISION, resolverTraccionAcero } from "@/lib/calc/acero/resolver-traccion";
+import { recomendarTraccionAcero } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "traccion-acero")!;
 
@@ -38,13 +36,6 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const SECCION_CRITICA = ["Sin agujeros", "Con agujeros"] as const;
-const CADENA = ["Recta", "En zigzag"] as const;
-const TRANSMISION = [
-  "Toda la sección (U = 1)",
-  "Parcial — Caso 2: U = 1 − x̄/L",
-  "U conocido, de otro caso de la tabla D3.1",
-] as const;
 
 export default function TraccionAceroPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
@@ -68,65 +59,13 @@ export default function TraccionAceroPage() {
   const [largoConexion, setLargoConexion] = useCampo("largoConexion", "175");
   const [uManual, setUManual] = useCampo("uManual", "0.85");
 
-  const resultado = useMemo(() => {
-    const n = { l: aNumero(lM), fy: aNumero(fy), fu: aNumero(fu), p: aNumero(pRequerida) };
-    if (!seccion.completos) return null;
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
-
-    const hayAgujeros = seccionCritica === SECCION_CRITICA[1];
-    let agujeros: AgujeroTraccion[] | undefined;
-    let zigzag: PasoZigzag[] | undefined;
-
-    if (hayAgujeros) {
-      const cantidad = aNumero(nAgujeros);
-      const diametro = aNumero(diametroAgujero);
-      const espesor = aNumero(espesorAgujero);
-      if (![cantidad, diametro, espesor].every((x) => Number.isFinite(x) && x > 0)) return null;
-      agujeros = Array.from({ length: Math.round(cantidad) }, () => ({
-        diametroMm: diametro,
-        espesorMm: espesor,
-      }));
-
-      if (cadena === CADENA[1]) {
-        const s = aNumero(zigzagS);
-        const g = aNumero(zigzagG);
-        if (![s, g].every((x) => Number.isFinite(x) && x > 0)) return null;
-        zigzag = [{ sMm: s, gMm: g, espesorMm: espesor }];
-      }
-    }
-
-    let u: number | undefined;
-    if (transmision === TRANSMISION[1]) {
-      const x = aNumero(xBarra);
-      const largo = aNumero(largoConexion);
-      if (![x, largo].every((v) => Number.isFinite(v) && v >= 0) || largo <= 0) return null;
-      u = factorUCaso2(x, largo);
-    } else if (transmision === TRANSMISION[2]) {
-      const uv = aNumero(uManual);
-      if (!Number.isFinite(uv) || uv <= 0 || uv > 1) return null;
-      u = uv;
-    }
-
-    try {
-      return calcularTraccion({
-        familia: seccion.familia,
-        params: seccion.params,
-        lM: n.l,
-        fyPa: n.fy * 1e6,
-        fuPa: n.fu * 1e6,
-        agujeros,
-        zigzag,
-        u,
-        pRequeridaKN: n.p,
-      });
-    } catch {
-      return null;
-    }
-  }, [
-    seccion.familia, seccion.params, seccion.completos, lM, fy, fu, pRequerida,
-    seccionCritica, nAgujeros, diametroAgujero, espesorAgujero, cadena, zigzagS, zigzagG,
-    transmision, xBarra, largoConexion, uManual,
-  ]);
+  const campos = useMemo(
+    () => ({ familia: seccion.familia, params: seccion.crudo, lM, fy, fu, pRequerida, seccionCritica, nAgujeros, diametroAgujero, espesorAgujero, cadena, zigzagS, zigzagG, transmision, xBarra, largoConexion, uManual }),
+    [seccion.familia, seccion.crudo, lM, fy, fu, pRequerida, seccionCritica, nAgujeros, diametroAgujero, espesorAgujero, cadena, zigzagS, zigzagG, transmision, xBarra, largoConexion, uManual]
+  );
+  const resultado = useMemo(() => resolverTraccionAcero(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarTraccionAcero(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -305,6 +244,7 @@ export default function TraccionAceroPage() {
                       limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
                       unidad: "kN", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.traccion}
                   />
                   {resultado.superaEsbeltezRecomendada && (
                     <p className="text-xs text-muted-foreground">

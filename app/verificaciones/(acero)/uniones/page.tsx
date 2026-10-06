@@ -14,12 +14,14 @@ import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
-import { calcularChapaBase, calcularSoldaduraH, type Electrodo } from "@/lib/calc/acero/uniones";
+import { type Electrodo } from "@/lib/calc/acero/uniones";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import {
   CroquisChapaBase,
   CroquisPerfilSoldadura,
 } from "@/components/verificaciones/croquis/CroquisVarios";
+import { resolverChapaBase, resolverSoldadura } from "@/lib/calc/acero/resolver-uniones";
+import { recomendarUniones } from "@/lib/verificaciones/recomendaciones/uniones";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "soldaduras")!;
@@ -32,14 +34,6 @@ const ETAPAS = [
 ] as const;
 
 const ELECTRODOS: readonly Electrodo[] = ["E60", "E70", "E80"];
-
-/** Convierte "0.18, 0.127" en [0.18, 0.127]. */
-function parsearDistancias(texto: string): number[] {
-  return texto
-    .split(/[,;]/)
-    .map((t) => Number(t.trim().replace(",", ".")))
-    .filter((n) => Number.isFinite(n) && n > 0);
-}
 
 export default function UnionesPage() {
   const [norma, setNorma] = useCampo("norma", "AISC 360");
@@ -75,43 +69,14 @@ export default function UnionesPage() {
   const [momentoPernos, setMomentoPernos] = useCampo("momentoPernos", "25.2");
   const [distancias, setDistancias] = useCampo("distancias", "0.18, 0.127");
 
-  const soldadura = useMemo(() => {
-    const n = {
-      h: aNumero(hMm), b: aNumero(bMm), tf: aNumero(tfMm), tw: aNumero(twMm), lado: aNumero(lado),
-      px: aNumero(px), py: aNumero(py), pz: aNumero(pz), mx: aNumero(mx), my: aNumero(my), mz: aNumero(mz),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x))) return null;
-    if (n.h <= 0 || n.b <= 0 || n.tf <= 0 || n.tw <= 0 || n.lado <= 0) return null;
-    if (n.tw >= n.h || 2 * n.tf >= n.h) return null;
-    return calcularSoldaduraH(
-      { hMm: n.h, bMm: n.b, tfMm: n.tf, twMm: n.tw },
-      n.lado,
-      electrodo,
-      { pxKN: n.px, pyKN: n.py, pzKN: n.pz, mxKNm: n.mx, myKNm: n.my, mzKNm: n.mz }
-    );
-  }, [hMm, bMm, tfMm, twMm, lado, electrodo, px, py, pz, mx, my, mz]);
-
-  const chapa = useMemo(() => {
-    const n = {
-      fy: aNumero(fy), fu: aNumero(fu), fck: aNumero(fck),
-      lx: aNumero(lx), ly: aNumero(ly), t: aNumero(tChapa),
-      d: aNumero(dPerno), lc: aNumero(lc), nPernos: aNumero(nPernos),
-      ag: aNumero(ag), ae: aNumero(ae),
-      nMax: aNumero(nMax), corte: aNumero(cortePerno), momento: aNumero(momentoPernos),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (n.fy <= 0 || n.fu <= 0 || n.fck <= 0 || n.lx <= 0.12 || n.t <= 0 || n.d <= 0 || n.nPernos <= 0) return null;
-    const dist = parsearDistancias(distancias);
-    if (dist.length === 0) return null;
-    return calcularChapaBase(
-      { fyKPa: n.fy * 1000, fuKPa: n.fu * 1000, fckKPa: n.fck * 1000 },
-      {
-        lxM: n.lx, lyM: n.ly, tM: n.t, diametroPernoMm: n.d, lcM: n.lc,
-        numeroPernos: n.nPernos, agM2: n.ag, aeM2: n.ae,
-      },
-      { nMaxKN: n.nMax, cortePorPernoKN: n.corte, momentoKNm: n.momento, distanciasPernosM: dist }
-    );
-  }, [fy, fu, fck, lx, ly, tChapa, dPerno, lc, nPernos, ag, ae, nMax, cortePerno, momentoPernos, distancias]);
+  const campos = useMemo(
+    () => ({ hMm, bMm, tfMm, twMm, lado, electrodo, px, py, pz, mx, my, mz, fy, fu, fck, lx, ly, tChapa, dPerno, lc, nPernos, ag, ae, nMax, cortePerno, momentoPernos, distancias }),
+    [hMm, bMm, tfMm, twMm, lado, electrodo, px, py, pz, mx, my, mz, fy, fu, fck, lx, ly, tChapa, dPerno, lc, nPernos, ag, ae, nMax, cortePerno, momentoPernos, distancias]
+  );
+  const soldadura = useMemo(() => resolverSoldadura(campos), [campos]);
+  const chapa = useMemo(() => resolverChapaBase(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarUniones(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!soldadura) avisos.push({ tipo: "error", texto: "Cordón: completá los datos del perfil (tw y 2·tf menores que H)." });
@@ -260,6 +225,7 @@ export default function UnionesPage() {
                         limite: { etiqueta: "τ adm", valor: soldadura.tauAdmKPa / 1000 },
                         unidad: "MPa", exige: "≤", decimales: 1,
                       }}
+                      recomendaciones={rec.soldadura}
                     />
                     <ResultadoCheck
                       etiqueta="Lado del cordón dentro del rango admitido"
@@ -296,26 +262,31 @@ export default function UnionesPage() {
                       etiqueta="I. Aplastamiento del hormigón"
                       verifica={chapa.aplastamientoHormigon.verifica}
                       comparacion={{ real: { etiqueta: "N", valor: chapa.aplastamientoHormigon.solicitacionKN }, limite: { etiqueta: "admisible", valor: chapa.aplastamientoHormigon.admisibleKN }, unidad: "kN", exige: "≤" }}
+                      recomendaciones={rec.aplastamientoHormigon}
                     />
                     <ResultadoCheck
                       etiqueta="II. Aplastamiento de la chapa"
                       verifica={chapa.aplastamientoChapa.verifica}
                       comparacion={{ real: { etiqueta: "R", valor: chapa.aplastamientoChapa.solicitacionKN }, limite: { etiqueta: "admisible", valor: chapa.aplastamientoChapa.admisibleKN }, unidad: "kN", exige: "≤" }}
+                      recomendaciones={rec.aplastamientoChapa}
                     />
                     <ResultadoCheck
                       etiqueta="III. Tracción en la chapa"
                       verifica={chapa.traccionChapa.verifica}
                       comparacion={{ real: { etiqueta: "N", valor: chapa.traccionChapa.solicitacionKN }, limite: { etiqueta: "admisible", valor: chapa.traccionChapa.admisibleKN }, unidad: "kN", exige: "≤" }}
+                      recomendaciones={rec.traccionChapa}
                     />
                     <ResultadoCheck
                       etiqueta="IV. Corte en los pernos"
                       verifica={chapa.cortePernos.verifica}
                       comparacion={{ real: { etiqueta: "R", valor: chapa.cortePernos.solicitacionKN }, limite: { etiqueta: "admisible", valor: chapa.cortePernos.admisibleKN }, unidad: "kN por perno", exige: "≤" }}
+                      recomendaciones={rec.cortePernos}
                     />
                     <ResultadoCheck
                       etiqueta="V. Tracción en los pernos"
                       verifica={chapa.traccionPernos.verifica}
                       comparacion={{ real: { etiqueta: "F1", valor: chapa.traccionPernos.solicitacionKN }, limite: { etiqueta: "admisible", valor: chapa.traccionPernos.admisibleKN }, unidad: "kN", exige: "≤" }}
+                      recomendaciones={rec.traccionPernos}
                     />
                     <PanelFormulas
                       titulo="Ver fuerza en cada fila de pernos"

@@ -18,17 +18,16 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaPandeo } from "@/components/verificaciones/acero/CurvaPandeo";
 import {
-  calcularCompresion,
   OMEGA_C,
-  type DatosColumnaArmada,
   type PandeoEnUnEje,
   type PandeoTorsional,
   type ResultadoCompresion,
-  type TipoConectorArmada,
 } from "@/lib/calc/acero/compresion";
 import { propiedades } from "@/lib/calc/acero/perfiles";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { CONEXION, TIPO_CONECTOR, resolverCompresionAcero } from "@/lib/calc/acero/resolver-compresion";
+import { recomendarCompresionAcero } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "compresion-acero")!;
 
@@ -46,13 +45,6 @@ const GOBIERNA_TEXTO: Record<ResultadoCompresion["gobierna"], string> = {
   débil: "el eje débil",
   torsional: "el pandeo torsional",
 };
-
-const CONEXION = ["Continua (soldadura corrida)", "Intermitente (conectores espaciados)"] as const;
-const TIPO_CONECTOR = ["Atornillado sin pretensar", "Soldado o atornillado pretensado (clase A/B)"] as const;
-
-function tipoConectorDesde(etiqueta: string): TipoConectorArmada {
-  return etiqueta === TIPO_CONECTOR[0] ? "atornillado-sin-pretensar" : "soldado-o-pretensado";
-}
 
 function FilasDeEje({
   titulo,
@@ -128,40 +120,13 @@ export default function CompresionAceroPage() {
 
   const pideColumnaArmada = esColumnaArmable && conexion === CONEXION[1];
 
-  const resultado = useMemo(() => {
-    const n = { lcx: aNumero(lcx), lcy: aNumero(lcy), fy: aNumero(fy), e: aNumero(e), p: aNumero(pRequerida) };
-    if (!seccion.completos) return null;
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x > 0)) return null;
-
-    const nKzl = aNumero(kzl);
-    if (esDoblementeSimetrica && !(Number.isFinite(nKzl) && nKzl > 0)) return null;
-
-    let columnaArmada: DatosColumnaArmada | undefined;
-    if (pideColumnaArmada) {
-      const aM = aNumero(separacionConectores);
-      if (!Number.isFinite(aM) || aM <= 0) return null;
-      columnaArmada = { aM, tipo: tipoConectorDesde(tipoConector) };
-    }
-
-    try {
-      return calcularCompresion({
-        familia: seccion.familia,
-        params: seccion.params,
-        lcxM: n.lcx,
-        lcyM: n.lcy,
-        fyPa: n.fy * 1e6,
-        ePa: n.e * 1e6,
-        pRequeridaKN: n.p,
-        kzLM: esDoblementeSimetrica ? nKzl : undefined,
-        columnaArmada,
-      });
-    } catch {
-      return null;
-    }
-  }, [
-    seccion.familia, seccion.params, seccion.completos, esDoblementeSimetrica, lcx, lcy, kzl, fy, e, pRequerida,
-    pideColumnaArmada, separacionConectores, tipoConector,
-  ]);
+  const campos = useMemo(
+    () => ({ familia: seccion.familia, params: seccion.crudo, lcx, lcy, kzl, fy, e, pRequerida, separacionConectores, tipoConector, conexion }),
+    [seccion.familia, seccion.crudo, lcx, lcy, kzl, fy, e, pRequerida, separacionConectores, tipoConector, conexion]
+  );
+  const resultado = useMemo(() => resolverCompresionAcero(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarCompresionAcero(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -320,6 +285,7 @@ export default function CompresionAceroPage() {
                       limite: { etiqueta: "admisible", valor: resultado.admisibleKN },
                       unidad: "kN", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.compresion}
                   />
                   <CurvaPandeo
                     fyPa={aNumero(fy) * 1e6}
@@ -351,6 +317,7 @@ export default function CompresionAceroPage() {
                         unidad: "m", exige: "≤", decimales: 3,
                       }}
                       detalle="art. E6.2(a): a ≤ 0,75 · (Lc/r)m · ri"
+                      recomendaciones={rec.conectores}
                     />
                     {!resultado.columnaArmada.cumpleSeparacionMaxima && (
                       <p className="text-xs text-muted-foreground">

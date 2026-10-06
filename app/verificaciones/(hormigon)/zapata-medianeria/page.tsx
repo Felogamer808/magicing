@@ -16,6 +16,7 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { CroquisCargasZapata, CroquisGeometriaZapata } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
+import { PropuestaVigaCentradora } from "@/components/verificaciones/hormigon/PropuestaVigaCentradora";
 import { ZapataMedianeriaDiagrama } from "@/components/verificaciones/hormigon/ZapataMedianeriaDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
@@ -344,6 +345,10 @@ export default function ZapataMedianeriaPage() {
                   },
                 ]}
               />
+
+              {(!resultado.zapata.geotecnico.verificaTension || !resultado.zapata.dentroDelNucleo) && (
+                <PropuestaVigaCentradora />
+              )}
 
               <PanelMetricas
                 horizontal

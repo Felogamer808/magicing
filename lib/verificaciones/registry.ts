@@ -62,6 +62,7 @@ export type IdVerificacion =
   | "zapatas"
   | "zapata-corrida"
   | "zapata-medianeria"
+  | "zapata-viga-centradora"
   | "zapata-combinada"
   | "losa-fundacion"
   | "pilotes"
@@ -343,6 +344,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Zapata excéntrica junto a un límite de propiedad, sin poder volar hacia ese lado.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zapata-medianeria",
+    disponible: true,
+  },
+  {
+    id: "zapata-viga-centradora",
+    nombre: "Zapata de medianería con viga centradora",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion:
+      "Cuando la medianería no da: viga que une la zapata con la interior, toma el momento y deja la zapata con presión centrada.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/zapata-viga-centradora",
     disponible: true,
   },
   {

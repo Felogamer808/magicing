@@ -49,15 +49,25 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
           detalle="El vuelo no llega a h/2 (art. 9.8.2.2 (5)): la fisura inclinada no cae dentro y no hay tirante que anclar de este lado."
         />
       )}
-      <ResultadoCheck
-        etiqueta={`${titulo} · cortante sin armadura transversal`}
-        verifica={resultado.verificaCorte}
-        comparacion={{
-          real: { etiqueta: "Vd", valor: resultado.vEdKN },
-          limite: { etiqueta: "VRd,c", valor: resultado.vRdCKN },
-          unidad: "kN", exige: "≤",
-        }}
-      />
+      {/* Sin VRd,c calculada es que la sección a d de la cara cae fuera del
+          vuelo: no hay cortante que comprobar, y "0 = 0" no lo explica. */}
+      {resultado.vRdCKN > 0 ? (
+        <ResultadoCheck
+          etiqueta={`${titulo} · cortante sin armadura transversal`}
+          verifica={resultado.verificaCorte}
+          comparacion={{
+            real: { etiqueta: "Vd", valor: resultado.vEdKN },
+            limite: { etiqueta: "VRd,c", valor: resultado.vRdCKN },
+            unidad: "kN", exige: "≤",
+          }}
+        />
+      ) : (
+        <ResultadoCheck
+          etiqueta={`${titulo} · cortante sin armadura transversal`}
+          verifica={resultado.verificaCorte}
+          detalle="La sección a d de la cara cae fuera del vuelo: no hay cortante que comprobar."
+        />
+      )}
       <PanelFormulas
         titulo={`Ver desarrollo · ${titulo.toLowerCase()}`}
         filas={[

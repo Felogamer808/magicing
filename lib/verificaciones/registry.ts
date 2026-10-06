@@ -57,6 +57,7 @@ export type IdVerificacion =
   | "vigas-apeo-voladizo"
   | "carga-colgada"
   | "mensula-corta"
+  | "zona-parcialmente-cargada"
   | "losas"
   | "punzonamiento"
   | "secciones-mixtas"
@@ -237,7 +238,7 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "vigas-apeo-bielas",
     nombre: "Vigas de apeo — bielas y tirantes",
     seccion: "hormigon-armado",
-    categoria: "Vigas",
+    categoria: "Regiones D",
     descripcion:
       "Apeo de pilar resuelto como región D: clasificación B/D, tirante, bielas, nudos, tracción transversal, malla de piel, anclaje con horquillas y armadura de cuelgue.",
     normasDisponibles: ["EC2"],
@@ -259,7 +260,7 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "carga-colgada",
     nombre: "Armadura de cuelgue",
     seccion: "hormigon-armado",
-    categoria: "Vigas",
+    categoria: "Regiones D",
     descripcion:
       "Estribos de suspensión para una carga colgada: viga invertida u otro caso donde la reacción se aplica por debajo de la zona comprimida.",
     normasDisponibles: ["EC2"],
@@ -270,11 +271,22 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "mensula-corta",
     nombre: "Ménsula corta",
     seccion: "hormigon-armado",
-    categoria: "Ménsulas",
+    categoria: "Regiones D",
     descripcion:
       "Región D por bielas y tirantes: tirante por Anejo 19 y por la Instrucción española, nudo bajo la placa, biela, degollamiento, cercos de las dos familias, anclaje y despiece del marco.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/mensula-corta",
+    disponible: true,
+  },
+  {
+    id: "zona-parcialmente-cargada",
+    nombre: "Zona parcialmente cargada",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Carga concentrada sobre un área chica (apoyo, placa, aparato de apoyo): aplastamiento local con el área de distribución y armadura para las tracciones transversales.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/zona-parcialmente-cargada",
     disponible: true,
   },
   {

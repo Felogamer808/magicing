@@ -64,7 +64,7 @@ export default function CargaColgadaPage() {
       <ProveedorComprobaciones>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Vigas · dimensionamiento</p>
+          <p className="spec-label">Regiones D · dimensionamiento</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />

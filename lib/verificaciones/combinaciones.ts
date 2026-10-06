@@ -225,6 +225,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "vigas-apeo-voladizo": APEO_VOLADIZO,
   "carga-colgada": ELU_MAYORADAS,
   "mensula-corta": ELU_MAYORADAS,
+  "zona-parcialmente-cargada": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   punzonamiento: ELU_MAYORADAS,
   zapatas: ZAPATAS,

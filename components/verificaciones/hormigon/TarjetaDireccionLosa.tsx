@@ -5,6 +5,7 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import type { ResultadoDireccionLosa } from "@/lib/calc/hormigon/losas/losa";
 import { fmt } from "@/lib/verificaciones/formato";
+import type { Recomendacion } from "@/lib/verificaciones/recomendaciones/motor";
 
 interface TarjetaDireccionLosaProps {
   titulo: string;
@@ -13,6 +14,7 @@ interface TarjetaDireccionLosaProps {
   separacionM: number;
   /** Aclaración propia de la dirección, p. ej. que su canto útil es menor. */
   nota?: string;
+  recomendaciones?: readonly Recomendacion[];
 }
 
 /**
@@ -26,6 +28,7 @@ export function TarjetaDireccionLosa({
   diametroMm,
   separacionM,
   nota,
+  recomendaciones,
 }: TarjetaDireccionLosaProps) {
   return (
     <Subgrupo titulo={titulo} detalle={`Ø${fmt(diametroMm, 0)}/${fmt(separacionM * 100, 0)} cm`}>
@@ -39,6 +42,7 @@ export function TarjetaDireccionLosa({
             unidad: "cm²/m",
             exige: "≥",
           }}
+          recomendaciones={recomendaciones}
         />
         {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
         <PanelFormulas

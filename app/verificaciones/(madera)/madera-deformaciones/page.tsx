@@ -18,20 +18,11 @@ import { CroquisSeccionMadera } from "@/components/verificaciones/madera/Croquis
 import { DiagramaFlechas } from "@/components/verificaciones/madera/DiagramaFlechas";
 import {
   SelectorMadera,
-  servicioDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import {
-  componentesFlecha,
-  comprobarFlechas,
-  flechaDistribuidaMm,
-  flechaPuntualMm,
-  type TipoElemento,
-} from "@/lib/calc/madera/deformaciones";
-import { kdef } from "@/lib/calc/madera/materiales";
-import { propiedades } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { ELEMENTOS, EXIGENCIA, resolverMaderaDeformaciones } from "@/lib/calc/madera/resolver-madera-deformaciones";
+import { recomendarMaderaDeformaciones } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-deformaciones")!;
 
@@ -42,11 +33,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-const ELEMENTOS = ["Viga sobre dos apoyos", "Voladizo"] as const;
-const elementoDesde = (e: string): TipoElemento =>
-  e === ELEMENTOS[1] ? "voladizo" : "dos-apoyos";
-const EXIGENCIA = ["Estricto (tabiquería o acabados frágiles)", "Laxo (sin elementos frágiles)"] as const;
 
 export default function MaderaDeformacionesPage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -71,53 +57,13 @@ export default function MaderaDeformacionesPage() {
   const [elemento, setElemento] = useCampo("elemento", ELEMENTOS[0]);
   const [exigencia, setExigencia] = useCampo("exigencia", EXIGENCIA[0]);
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const l = aNumero(luz);
-    const e = aNumero(emean);
-    const g = aNumero(gmean);
-    const psi = aNumero(psi2);
-    const wc = aNumero(contraflecha);
-    const cargas = [aNumero(qg), aNumero(qq), aNumero(pg), aNumero(pq)];
-
-    if (![b, h, l, e, g].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![psi, wc, ...cargas].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const t = tipoDesdeEtiqueta(tipo);
-    const cs = servicioDesdeEtiqueta(servicio);
-    const factorKdef = kdef(t, cs);
-    const props = propiedades({ anchoM: b, cantoM: h });
-
-    const [qgN, qqN, pgN, pqN] = cargas;
-    const distG = flechaDistribuidaMm(qgN, l, e, g, props.iyM4, h);
-    const distQ = flechaDistribuidaMm(qqN, l, e, g, props.iyM4, h);
-    const puntG = flechaPuntualMm(pgN, l, e, g, props.iyM4, h);
-    const puntQ = flechaPuntualMm(pqN, l, e, g, props.iyM4, h);
-
-    const componentes = componentesFlecha({
-      instantaneaGMm: distG.totalMm + puntG.totalMm,
-      instantaneaQMm: distQ.totalMm + puntQ.totalMm,
-      kdef: factorKdef,
-      psi2: psi,
-      contraflechaMm: wc,
-    });
-
-    const comprobaciones = comprobarFlechas(
-      componentes, l, elementoDesde(elemento), exigencia === EXIGENCIA[0]
-    );
-
-    return {
-      b, h, l, t, cs, factorKdef, props, componentes, comprobaciones, wc,
-      distG, distQ, puntG, puntQ,
-      cortanteMm: distG.cortanteMm + distQ.cortanteMm + puntG.cortanteMm + puntQ.cortanteMm,
-      relacionEG: e / g,
-    };
-    // La duración de la carga no entra: kdef sólo depende de la clase de
-    // servicio, tabla 3.2. El desplegable se muestra igual porque el bloque de
-    // material es el mismo en todas las páginas de la sección.
-  }, [ancho, canto, luz, emean, gmean, qg, qq, pg, pq, psi2, contraflecha,
-      tipo, servicio, elemento, exigencia]);
+  const campos = useMemo(
+    () => ({ ancho, canto, luz, emean, gmean, qg, qq, pg, pq, psi2, contraflecha, tipo, servicio, elemento, exigencia }),
+    [ancho, canto, luz, emean, gmean, qg, qq, pg, pq, psi2, contraflecha, tipo, servicio, elemento, exigencia]
+  );
+  const r = useMemo(() => resolverMaderaDeformaciones(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaDeformaciones(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) avisos.push({ tipo: "error", texto: "Cargá sección, módulos y cargas con valores válidos." });
@@ -256,6 +202,7 @@ export default function MaderaDeformacionesPage() {
                         exige: "≤",
                         decimales: 2,
                       }}
+                      recomendaciones={rec[c.etiqueta]}
                     />
                   ))}
                   <DiagramaFlechas componentes={r.componentes} contraflechaMm={r.wc} />

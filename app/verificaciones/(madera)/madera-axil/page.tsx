@@ -19,21 +19,11 @@ import { CroquisSeccionMadera } from "@/components/verificaciones/madera/Croquis
 import { CurvaPandeoMadera } from "@/components/verificaciones/madera/CurvaPandeoMadera";
 import {
   SelectorMadera,
-  duracionDesdeEtiqueta,
-  servicioDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import {
-  kc90,
-  verificarCompresion,
-  verificarCompresionPerpendicular,
-  verificarTraccion,
-  type TipoApoyo,
-} from "@/lib/calc/madera/axil";
-import { GAMMA_M, KSYS_COMPARTIDA, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
-import { propiedades } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { APOYOS, ESPECIES, REPARTO, resolverMaderaAxil } from "@/lib/calc/madera/resolver-madera-axil";
+import { recomendarMaderaAxil } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-axil")!;
 
@@ -44,11 +34,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-const APOYOS = ["Apoyo continuo", "Apoyos aislados"] as const;
-const apoyoDesde = (e: string): TipoApoyo => (e === APOYOS[0] ? "continuo" : "aislado");
-const ESPECIES = ["Conífera", "Frondosa"] as const;
-const REPARTO = ["No compartida", "Compartida (ksys = 1,1)"] as const;
 
 export default function MaderaAxilPage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -79,96 +64,13 @@ export default function MaderaAxilPage() {
   const [vecina, setVecina] = useCampo("vecina", "1.2");
   const [apoyo, setApoyo] = useCampo("apoyo", APOYOS[1]);
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const ft0kV = aNumero(ft0k);
-    const fc0kV = aNumero(fc0k);
-    const fc90kV = aNumero(fc90k);
-    const e = aNumero(e005);
-    const nt = aNumero(traccion);
-    const nc = aNumero(compresion);
-    const ly = aNumero(lky);
-    const lz = aNumero(lkz);
-
-    if (![b, h, ft0kV, fc0kV, fc90kV, e, ly, lz].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![nt, nc].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const t = tipoDesdeEtiqueta(tipo);
-    const km = kmod(t, servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-    const gammaM = GAMMA_M[t];
-    const ksys = reparto === REPARTO[1] ? KSYS_COMPARTIDA : 1;
-
-    /*
-     * En tracción el "h" de kh es la anchura de la pieza —la dimensión mayor de
-     * la sección, arts. 3.2(3) y 3.3(3)—, no el canto de flexión. Compresión no
-     * lleva kh: los factores de tamaño sólo suben fm,k y ft,0,k.
-     */
-    const khT = kh(t, Math.max(b, h));
-    const ft0d = resistenciaDeCalculo(ft0kV, { kmod: km, gammaM, kh: khT, ksys });
-    const fc0d = resistenciaDeCalculo(fc0kV, { kmod: km, gammaM, ksys });
-    const fc90d = resistenciaDeCalculo(fc90kV, { kmod: km, gammaM });
-
-    const props = propiedades({ anchoM: b, cantoM: h });
-
-    const rTraccion = nt > 0 ? verificarTraccion(nt, props.areaM2, ft0d.valor) : null;
-
-    const rCompresion =
-      nc > 0
-        ? verificarCompresion({
-            axilKN: nc,
-            areaM2: props.areaM2,
-            radioGiroYM: props.radioGiroYM,
-            radioGiroZM: props.radioGiroZM,
-            longitudPandeoYM: ly,
-            longitudPandeoZM: lz,
-            fc0kMPa: fc0kV,
-            fc0dMPa: fc0d.valor,
-            e005GPa: e,
-            tipo: t,
-          })
-        : null;
-
-    const cargaAp = aNumero(cargaApoyo);
-    const ba = aNumero(anchoApoyo);
-    const la = aNumero(largoApoyo);
-    const a = aNumero(vuelo);
-    const l1 = aNumero(vecina);
-    const apoyoValido =
-      [cargaAp, ba, la, a, l1].every((x) => Number.isFinite(x) && x >= 0) && ba > 0 && la > 0 && cargaAp > 0;
-
-    const factorKc90 = apoyoValido
-      ? kc90({
-          tipo: t,
-          conifera: especie === ESPECIES[0],
-          apoyo: apoyoDesde(apoyo),
-          longitudContactoM: la,
-          distanciaVecinaM: l1,
-          cantoM: h,
-        })
-      : null;
-
-    const rPerpendicular =
-      apoyoValido && factorKc90
-        ? verificarCompresionPerpendicular({
-            cargaKN: cargaAp,
-            anchoApoyoM: ba,
-            longitudContactoM: la,
-            vueloM: a,
-            distanciaVecinaM: l1,
-            fc90dMPa: fc90d.valor,
-            kc90: factorKc90.kc90,
-          })
-        : null;
-
-    return {
-      b, h, t, km, gammaM, ksys, khT, ft0d, fc0d, fc90d, props,
-      rTraccion, rCompresion, factorKc90, rPerpendicular, apoyoValido,
-      fc0kV, e, la, a,
-    };
-  }, [ancho, canto, ft0k, fc0k, fc90k, e005, traccion, compresion, lky, lkz,
-      tipo, servicio, duracion, especie, reparto,
-      cargaApoyo, anchoApoyo, largoApoyo, vuelo, vecina, apoyo]);
+  const campos = useMemo(
+    () => ({ ancho, canto, ft0k, fc0k, fc90k, e005, traccion, compresion, lky, lkz, tipo, servicio, duracion, especie, reparto, cargaApoyo, anchoApoyo, largoApoyo, vuelo, vecina, apoyo }),
+    [ancho, canto, ft0k, fc0k, fc90k, e005, traccion, compresion, lky, lkz, tipo, servicio, duracion, especie, reparto, cargaApoyo, anchoApoyo, largoApoyo, vuelo, vecina, apoyo]
+  );
+  const r = useMemo(() => resolverMaderaAxil(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaAxil(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) {
@@ -334,6 +236,7 @@ export default function MaderaAxilPage() {
                           limite: { etiqueta: "ft,0,d", valor: r.rTraccion.ft0dMPa },
                           unidad: "MPa", exige: "≤", decimales: 3,
                         }}
+                        recomendaciones={rec.traccion}
                       />
                     )}
                     {r.rCompresion && (
@@ -348,6 +251,7 @@ export default function MaderaAxilPage() {
                             limite: { etiqueta: "kc·fc,0,d", valor: r.rCompresion.resistenciaReducidaMPa },
                             unidad: "MPa", exige: "≤", decimales: 3,
                           }}
+                          recomendaciones={rec.compresion}
                         />
                         <CurvaPandeoMadera
                           tipo={r.t}
@@ -402,6 +306,7 @@ export default function MaderaAxilPage() {
                         limite: { etiqueta: "kc,90·fc,90,d", valor: r.rPerpendicular.resistenciaReducidaMPa },
                         unidad: "MPa", exige: "≤", decimales: 3,
                       }}
+                      recomendaciones={rec.perpendicular}
                     />
                     {r.factorKc90 && (
                       <p className="text-xs text-muted-foreground">{r.factorKc90.motivo}</p>

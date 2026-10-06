@@ -17,24 +17,14 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { CroquisVigaVariable } from "@/components/verificaciones/madera/CroquisVigaVariable";
 import {
   SelectorMadera,
-  duracionDesdeEtiqueta,
-  servicioDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import { GAMMA_M, kh, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
 import {
   NOMBRE_FORMA,
-  anguloInclinacionGrados,
-  espesorMaximoLaminaMm,
-  kmAlpha,
-  seccionCriticaTaper,
-  verificarVertice,
-  volumenVertice,
-  type EstadoBordeInclinado,
-  type FormaViga,
 } from "@/lib/calc/madera/seccion-variable";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { BORDES, resolverMaderaSeccionVariable } from "@/lib/calc/madera/resolver-madera-seccion-variable";
+import { recomendarMaderaSeccionVariable } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-seccion-variable")!;
 
@@ -46,13 +36,6 @@ const ETAPAS = [
 ] as const;
 
 const FORMAS = Object.values(NOMBRE_FORMA);
-const formaDesde = (e: string): FormaViga =>
-  ((Object.entries(NOMBRE_FORMA) as [FormaViga, string][]).find(([, n]) => n === e)?.[0] ??
-    "dos-aguas");
-
-const BORDES = ["Traccionado", "Comprimido"] as const;
-const bordeDesde = (e: string): EstadoBordeInclinado =>
-  e === BORDES[0] ? "traccionado" : "comprimido";
 
 export default function MaderaSeccionVariablePage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -78,86 +61,13 @@ export default function MaderaSeccionVariablePage() {
   const [fc90k, setFc90k] = useCampo("fc90k", "2.5");
   const [fmjdek, setFmjdek] = useCampo("fmjdek", "18.5");
 
-  const r = useMemo(() => {
-    const l = aNumero(luz);
-    const b = aNumero(ancho);
-    const he = aNumero(cantoApoyo);
-    const hap = aNumero(cantoVertice);
-    const q = aNumero(carga);
-    const rin = aNumero(radio);
-    const tLam = aNumero(espesorLamina);
-    const fmkV = aNumero(fmk);
-    const fvkV = aNumero(fvk);
-    const ft90kV = aNumero(ft90k);
-    const fc90kV = aNumero(fc90k);
-
-    if (![l, b, he, hap, q, tLam, fmkV, fvkV, ft90kV, fc90kV].every((x) => Number.isFinite(x) && x > 0))
-      return null;
-    if (!(hap > he)) return null;
-    if (!Number.isFinite(rin) || rin < 0) return null;
-
-    const t = tipoDesdeEtiqueta(tipo);
-    const km = kmod(t, servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-    const gammaM = GAMMA_M[t];
-    const laminada = t !== "maciza";
-
-    const fmd = resistenciaDeCalculo(fmkV, { kmod: km, gammaM, kh: kh(t, hap) });
-    const fvd = resistenciaDeCalculo(fvkV, { kmod: km, gammaM });
-    const ft90d = resistenciaDeCalculo(ft90kV, { kmod: km, gammaM });
-    const fc90d = resistenciaDeCalculo(fc90kV, { kmod: km, gammaM });
-
-    const formaV = formaDesde(forma);
-    const anguloGrados = anguloInclinacionGrados(l, he, hap);
-
-    // Borde inclinado: sección crítica y km,α.
-    const critica = seccionCriticaTaper(l, he, hap, b, q);
-    const estadoBorde = bordeDesde(borde);
-    const factorKmAlpha = kmAlpha(
-      estadoBorde, anguloGrados, fmd.valor, fvd.valor,
-      estadoBorde === "traccionado" ? ft90d.valor : fc90d.valor
-    );
-    const resistenciaBorde = factorKmAlpha * fmd.valor;
-    const aprovechaBorde =
-      resistenciaBorde > 0 ? critica.sigmaMdMPa / resistenciaBorde : Infinity;
-
-    // Vértice.
-    const momentoVertice = (q * l ** 2) / 8;
-    const volumenTotal = b * ((he + hap) / 2) * l;
-    const volumen = volumenVertice(b, hap, anguloGrados, volumenTotal);
-
-    // Rasante en el vértice, con la anchura eficaz del art. 6.1.7.
-    const cortanteVertice = 0;
-    const tauD = cortanteVertice;
-
-    const vertice = verificarVertice({
-      forma: formaV,
-      anchoM: b,
-      cantoVerticeM: hap,
-      anguloVerticeGrados: anguloGrados,
-      radioInteriorM: formaV === "dos-aguas" || rin === 0 ? Infinity : rin,
-      espesorLaminaM: tLam,
-      momentoVerticeKNm: momentoVertice,
-      volumenM3: volumen.adoptadoM3,
-      laminada,
-      fmdMPa: fmd.valor,
-      ft90dMPa: ft90d.valor,
-      fvdMPa: fvd.valor,
-      tauDMPa: tauD,
-    });
-
-    const espesorMax =
-      formaV !== "dos-aguas" && rin > 0
-        ? espesorMaximoLaminaMm(rin * 1000, aNumero(fmjdek))
-        : null;
-
-    return {
-      l, b, he, hap, q, rin, tLam, laminada, km, gammaM,
-      fmd, fvd, ft90d, fc90d, anguloGrados, critica, factorKmAlpha,
-      resistenciaBorde, aprovechaBorde, momentoVertice, volumen, vertice,
-      formaV, espesorMax, estadoBorde,
-    };
-  }, [luz, ancho, cantoApoyo, cantoVertice, carga, radio, espesorLamina,
-      fmk, fvk, ft90k, fc90k, fmjdek, tipo, servicio, duracion, forma, borde]);
+  const campos = useMemo(
+    () => ({ luz, ancho, cantoApoyo, cantoVertice, carga, radio, espesorLamina, fmk, fvk, ft90k, fc90k, fmjdek, tipo, servicio, duracion, forma, borde }),
+    [luz, ancho, cantoApoyo, cantoVertice, carga, radio, espesorLamina, fmk, fvk, ft90k, fc90k, fmjdek, tipo, servicio, duracion, forma, borde]
+  );
+  const r = useMemo(() => resolverMaderaSeccionVariable(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaSeccionVariable(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) {
@@ -305,6 +215,7 @@ export default function MaderaSeccionVariablePage() {
                       limite: { etiqueta: "km,α·fm,d", valor: r.resistenciaBorde },
                       unidad: "MPa", exige: "≤", decimales: 2,
                     }}
+                    recomendaciones={rec.borde}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del borde inclinado"
@@ -332,6 +243,7 @@ export default function MaderaSeccionVariablePage() {
                       limite: { etiqueta: "kr·fm,d", valor: r.vertice.resistenciaFlexionMPa },
                       unidad: "MPa", exige: "≤", decimales: 2,
                     }}
+                    recomendaciones={rec.vertice}
                   />
                   <ResultadoCheck
                     etiqueta="Tracción perpendicular en el vértice, ec. (6.50)"
@@ -343,6 +255,7 @@ export default function MaderaSeccionVariablePage() {
                       limite: { etiqueta: "kdis·kvol·ft,90,d", valor: r.vertice.resistenciaT90MPa },
                       unidad: "MPa", exige: "≤", decimales: 3,
                     }}
+                    recomendaciones={rec.traccion90}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de la zona del vértice"

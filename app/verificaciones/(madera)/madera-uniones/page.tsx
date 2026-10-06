@@ -18,27 +18,13 @@ import { DiagramaModosFallo } from "@/components/verificaciones/madera/DiagramaM
 import {
   NOMBRE_CLAVIJA,
   NOMBRE_ESPECIE_UNION,
-  chapaCentralDoble,
-  chapasExterioresDoble,
-  clasificarChapa,
-  cortaduraDobleMaderaMadera,
-  cortaduraSimpleMaderaMadera,
-  fh0k,
-  fhAlphaK,
-  k90,
-  myRkNmm,
-  numeroEficaz,
-  type EspecieUnion,
-  type TipoClavija,
 } from "@/lib/calc/madera/uniones";
-import { GAMMA_M_UNIONES, kmod } from "@/lib/calc/madera/materiales";
-import {
-  duracionDesdeEtiqueta,
-  servicioDesdeEtiqueta,
-} from "@/components/verificaciones/madera/SelectorMadera";
+import { GAMMA_M_UNIONES } from "@/lib/calc/madera/materiales";
 import { NOMBRE_DURACION } from "@/lib/calc/madera/materiales";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { CONFIGURACIONES, resolverMaderaUniones } from "@/lib/calc/madera/resolver-madera-uniones";
+import { recomendarMaderaUniones } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-uniones")!;
 
@@ -50,22 +36,9 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const CONFIGURACIONES = [
-  "Madera-madera, cortadura simple",
-  "Madera-madera, cortadura doble",
-  "Chapas de acero exteriores, cortadura doble",
-  "Chapa de acero central, cortadura doble",
-] as const;
-
 const CLAVIJAS = Object.values(NOMBRE_CLAVIJA);
-const clavijaDesde = (e: string): TipoClavija =>
-  ((Object.entries(NOMBRE_CLAVIJA) as [TipoClavija, string][]).find(([, n]) => n === e)?.[0] ??
-    "perno");
 
 const ESPECIES = Object.values(NOMBRE_ESPECIE_UNION);
-const especieDesde = (e: string): EspecieUnion =>
-  ((Object.entries(NOMBRE_ESPECIE_UNION) as [EspecieUnion, string][]).find(([, n]) => n === e)?.[0] ??
-    "conifera");
 
 const CLASES_SERVICIO = ["Clase 1", "Clase 2", "Clase 3"] as const;
 const DURACIONES = Object.values(NOMBRE_DURACION);
@@ -94,69 +67,13 @@ export default function MaderaUnionesPage() {
   const [planos, setPlanos] = useCampo("planos", "2");
   const [fed, setFed] = useCampo("fed", "40");
 
-  const r = useMemo(() => {
-    const dV = aNumero(d);
-    const fukV = aNumero(fuk);
-    const t1V = aNumero(t1);
-    const t2V = aNumero(t2);
-    const rho1V = aNumero(rho1);
-    const rho2V = aNumero(rho2);
-    const ang = aNumero(angulo);
-    const chapa = aNumero(espesorChapa);
-    const faxV = aNumero(fax);
-    const n = aNumero(nMedios);
-    const sep = aNumero(separacion);
-    const nPlanos = aNumero(planos);
-    const fedV = aNumero(fed);
-
-    if (![dV, fukV, t1V, t2V, rho1V, rho2V].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![ang, faxV, chapa].every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (![n, sep, nPlanos, fedV].every((x) => Number.isFinite(x) && x > 0)) return null;
-
-    const esp = especieDesde(especie);
-    const tipo = clavijaDesde(clavija);
-
-    const factorK90 = k90(esp, dV);
-    const fh1 = fhAlphaK(fh0k(dV, rho1V), factorK90, ang);
-    const fh2 = fhAlphaK(fh0k(dV, rho2V), factorK90, ang);
-    const my = myRkNmm(fukV, dV);
-
-    const comunMadera = {
-      dMm: dV, t1Mm: t1V, t2Mm: t2V,
-      fh1kMPa: fh1, fh2kMPa: fh2, myRkNmm: my, faxRkKN: faxV, tipo,
-    };
-    const comunAcero = {
-      dMm: dV, tMm: t1V, fhkMPa: fh1, myRkNmm: my,
-      faxRkKN: faxV, tipo, espesorChapaMm: chapa,
-    };
-
-    const union =
-      config === CONFIGURACIONES[0]
-        ? cortaduraSimpleMaderaMadera(comunMadera)
-        : config === CONFIGURACIONES[1]
-          ? cortaduraDobleMaderaMadera(comunMadera)
-          : config === CONFIGURACIONES[2]
-            ? chapasExterioresDoble({ ...comunAcero, tMm: t2V })
-            : chapaCentralDoble(comunAcero);
-
-    const usaChapa = config === CONFIGURACIONES[2] || config === CONFIGURACIONES[3];
-
-    const nef = numeroEficaz(n, sep, dV);
-    const km = kmod(esp === "lvl" ? "LVL" : "maciza",
-                    servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-
-    // Ec. (2.17): la capacidad de la unión también pasa por kmod y γM.
-    const fvRdPorMedioKN = (km * union.fvRkKN) / GAMMA_M_UNIONES;
-    const capacidadKN = fvRdPorMedioKN * nef * nPlanos;
-
-    return {
-      dV, fh1, fh2, my, factorK90, union, usaChapa,
-      claseChapa: clasificarChapa(chapa, dV),
-      nef, n, km, fvRdPorMedioKN, capacidadKN, fedV, nPlanos,
-      aprovechamiento: capacidadKN > 0 ? fedV / capacidadKN : Infinity,
-    };
-  }, [d, fuk, t1, t2, rho1, rho2, angulo, espesorChapa, fax, nMedios, separacion,
-      planos, fed, config, clavija, especie, servicio, duracion]);
+  const campos = useMemo(
+    () => ({ d, fuk, t1, t2, rho1, rho2, angulo, espesorChapa, fax, nMedios, separacion, planos, fed, config, clavija, especie, servicio, duracion }),
+    [d, fuk, t1, t2, rho1, rho2, angulo, espesorChapa, fax, nMedios, separacion, planos, fed, config, clavija, especie, servicio, duracion]
+  );
+  const r = useMemo(() => resolverMaderaUniones(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaUniones(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) avisos.push({ tipo: "error", texto: "Cargá diámetro, espesores, densidades y el grupo con valores válidos." });
@@ -311,6 +228,7 @@ export default function MaderaUnionesPage() {
                       unidad: "kN", exige: "≤", decimales: 2,
                     }}
                     detalle={`${fmt(r.fvRdPorMedioKN, 2)} kN por plano y por medio × ${fmt(r.nef, 2)} medios eficaces × ${fmt(r.nPlanos, 0)} planos`}
+                    recomendaciones={rec.union}
                   />
                   <DiagramaModosFallo resultado={r.union} />
                   <PanelFormulas

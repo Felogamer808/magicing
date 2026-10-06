@@ -18,29 +18,14 @@ import { CroquisSeccionMadera } from "@/components/verificaciones/madera/Croquis
 import { CurvaVuelco } from "@/components/verificaciones/madera/CurvaVuelco";
 import {
   SelectorMadera,
-  servicioDesdeEtiqueta,
-  duracionDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
 import {
   NOMBRE_CASO_VUELCO,
-  flexionEsviada,
-  verificarVuelco,
-  type BordeCarga,
-  type CasoVuelco,
 } from "@/lib/calc/madera/flexion";
-import {
-  GAMMA_M,
-  KM_OTRAS_SECCIONES,
-  KM_RECTANGULAR,
-  KSYS_COMPARTIDA,
-  kh,
-  kmod,
-  resistenciaDeCalculo,
-} from "@/lib/calc/madera/materiales";
-import { propiedades, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { BORDES, ARRIOSTRADO, REPARTO, resolverMaderaFlexion } from "@/lib/calc/madera/resolver-madera-flexion";
+import { recomendarMaderaFlexion } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-flexion")!;
 
@@ -53,16 +38,6 @@ const ETAPAS = [
 ] as const;
 
 const CASOS = Object.values(NOMBRE_CASO_VUELCO);
-const casoDesdeEtiqueta = (e: string): CasoVuelco =>
-  ((Object.entries(NOMBRE_CASO_VUELCO) as [CasoVuelco, string][]).find(([, n]) => n === e)?.[0] ??
-    "apoyada-distribuida");
-
-const BORDES = ["Borde comprimido", "Centro de gravedad", "Borde traccionado"] as const;
-const bordeDesde = (e: string): BordeCarga =>
-  e === BORDES[0] ? "comprimido" : e === BORDES[2] ? "traccionado" : "centro-gravedad";
-
-const ARRIOSTRADO = ["No", "Sí, en toda su longitud"] as const;
-const REPARTO = ["No compartida", "Compartida (ksys = 1,1)"] as const;
 
 export default function MaderaFlexionPage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -87,65 +62,13 @@ export default function MaderaFlexionPage() {
   const [borde, setBorde] = useCampo("borde", BORDES[0]);
   const [arriostrado, setArriostrado] = useCampo("arriostrado", ARRIOSTRADO[0]);
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const l = aNumero(luz);
-    const fmkV = aNumero(fmk);
-    const e = aNumero(e005);
-    const g = aNumero(g005);
-    const myV = aNumero(my);
-    const mzV = aNumero(mz);
-
-    if (![b, h, l, fmkV, e, g].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![myV, mzV].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const t = tipoDesdeEtiqueta(tipo);
-    const km = kmod(t, servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-    const gammaM = GAMMA_M[t];
-    const ksys = reparto === REPARTO[1] ? KSYS_COMPARTIDA : 1;
-
-    /*
-     * kh se calcula por separado en cada eje: para el eje fuerte manda el canto
-     * y para el débil la anchura, porque el "h" de las ecs. (3.1)/(3.2) es la
-     * dimensión perpendicular al eje de flexión.
-     */
-    const khY = kh(t, h);
-    const khZ = kh(t, b);
-
-    const fmYd = resistenciaDeCalculo(fmkV, { kmod: km, gammaM, kh: khY, ksys });
-    const fmZd = resistenciaDeCalculo(fmkV, { kmod: km, gammaM, kh: khZ, ksys });
-
-    const seccion = { anchoM: b, cantoM: h };
-    const props = propiedades(seccion);
-
-    const sigmaY = tensionFlexionMPa(myV, props.wyM3);
-    const sigmaZ = tensionFlexionMPa(mzV, props.wzM3);
-
-    const esviada = flexionEsviada(
-      sigmaY, sigmaZ, fmYd.valor, fmZd.valor,
-      mzV > 0 ? KM_RECTANGULAR : KM_OTRAS_SECCIONES
-    );
-
-    const vuelco = verificarVuelco({
-      seccion,
-      luzM: l,
-      caso: casoDesdeEtiqueta(caso),
-      borde: bordeDesde(borde),
-      e005GPa: e,
-      g005GPa: g,
-      fmkMPa: fmkV,
-      fmdMPa: fmYd.valor,
-      sigmaMdMPa: sigmaY,
-      arriostrado: arriostrado === ARRIOSTRADO[1],
-    });
-
-    return {
-      b, h, l, t, km, gammaM, ksys, khY, khZ, fmYd, fmZd, props,
-      sigmaY, sigmaZ, esviada, vuelco, hayEsviada: mzV > 0,
-    };
-  }, [ancho, canto, luz, fmk, e005, g005, my, mz, tipo, servicio, duracion, reparto,
-      caso, borde, arriostrado]);
+  const campos = useMemo(
+    () => ({ ancho, canto, luz, fmk, e005, g005, my, mz, tipo, servicio, duracion, reparto, caso, borde, arriostrado }),
+    [ancho, canto, luz, fmk, e005, g005, my, mz, tipo, servicio, duracion, reparto, caso, borde, arriostrado]
+  );
+  const r = useMemo(() => resolverMaderaFlexion(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaFlexion(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) avisos.push({ tipo: "error", texto: "Cargá geometría, resistencias y momentos con valores válidos." });
@@ -284,6 +207,7 @@ export default function MaderaFlexionPage() {
                       exige: "≤",
                       decimales: 3,
                     }}
+                    recomendaciones={rec.flexion}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo de resistencias y tensiones"
@@ -323,6 +247,7 @@ export default function MaderaFlexionPage() {
                       exige: "≤",
                       decimales: 2,
                     }}
+                    recomendaciones={rec.vuelco}
                   />
                   {r.vuelco.sinReduccion && (
                     <p className="text-xs text-muted-foreground">

@@ -217,7 +217,7 @@ export default function VigaApeoBielasPage() {
       <ProveedorComprobaciones>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec-label">Vigas · regiones D</p>
+          <p className="spec-label">Hormigón armado · Regiones D</p>
           <h1 className="text-2xl font-semibold tracking-tight">{meta.nombre}</h1>
         </div>
         <BarraAcciones normas={meta.normasDisponibles} norma={norma} onNormaChange={setNorma} />

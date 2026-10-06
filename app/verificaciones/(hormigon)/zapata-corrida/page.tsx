@@ -16,6 +16,7 @@ import { ConclusionResultados } from "@/components/verificaciones/comun/Conclusi
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
+import { ArmaduraZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ArmaduraZapataCorridaDiagrama";
 import { DiagramaPresionSuelo } from "@/components/verificaciones/hormigon/DiagramaPresionSuelo";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
@@ -206,6 +207,23 @@ export default function ZapataCorridaPage() {
     <CroquisZapataCorrida />
   );
 
+  const armado = diagrama ? (
+    <ArmaduraZapataCorridaDiagrama
+      AM={diagrama.AM}
+      HM={diagrama.HM}
+      anchoMuroM={diagrama.anchoPilarM}
+      distanciaBordeM={diagrama.distanciaBordeM}
+      recubrimientoM={aNumero(recubrimiento)}
+      diametroPrincipalMm={diagrama.diametroPrincipalMm}
+      separacionPrincipalM={diagrama.separacionPrincipalM}
+      patilla={formaAnclaje === "gancho"}
+      numeroReparto={aNumero(numeroSecundario)}
+      diametroRepartoMm={aNumero(diametroSecundario)}
+    />
+  ) : (
+    corte
+  );
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -326,6 +344,9 @@ export default function ZapataCorridaPage() {
                       },
                     ]}
                   />
+                </Subgrupo>
+                <Subgrupo titulo="Qué es cada armadura">
+                  <div className="rounded-md border p-3">{armado}</div>
                 </Subgrupo>
               </>
             }

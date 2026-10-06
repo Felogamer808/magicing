@@ -99,6 +99,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   "vigas-apeo-bielas": { nivel: "probada" },
   "carga-colgada": { nivel: "probada" },
   "mensula-corta": { nivel: "probada" },
+  "zona-parcialmente-cargada": {
+    nivel: "probada",
+    nota: "Sin planilla de referencia: los tests fijan geometría exacta. Contrastar el primer caso contra un cálculo propio.",
+  },
   muros: { nivel: "probada" },
   "muros-contencion": {
     nivel: "probada",

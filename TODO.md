@@ -3,6 +3,84 @@
 Estado al último commit. Lo terminado no se lista: está en `git log` y en el
 `README.md`.
 
+## En curso — traspaso del 2026-10-06
+
+Resumen de la sesión del 2026-10-05, para seguir desde otra computadora.
+
+### PR abiertas, en orden de fusión
+
+Las de zapatas van encadenadas: cada una parte de la anterior, así que se
+fusionan en este orden. GitHub re-apunta la base sola al fusionar la previa.
+
+1. **#73** Zapata aislada: tres errores del lado inseguro (resultante fuera de
+   la base daba "cumple", excentricidad sin peso propio, armado con presiones
+   negativas al despegarse).
+2. **#74** Zapata aislada: punzonamiento con el momento del pilar, ec. (6.51), y
+   bielas en la cara del pilar, ec. (6.53).
+3. **#75** Zapata aislada: flexión, cuantía mínima y anclaje según el Anejo 19
+   (art. 9.8.2.2). Saca lo último de EHE-08 del módulo.
+4. **#76** Zapata de medianería con el Anejo 19, como la aislada.
+5. **#79** Viga centradora: página nueva y botón "Resolver con viga centradora"
+   desde la medianería.
+
+Independientes, contra `main`:
+
+- **#77** Viga con carga en voladizo por bielas y tirantes, sólo Anejo 19.
+  Página nueva. Motivada por una viga real (h 0,89, b 0,77, L 1,24, a 0,33,
+  P 1485 kN): el nudo bajo el pilar apeado de 0,14 × 0,50 **no verifica**
+  (21,2 MPa contra 15,0 MPa) y el tirante tiene que ir doblado hacia abajo.
+- **#78** Mostrar la norma de hormigón como "Anejo 19" en vez de "EC2".
+
+### Lo que sigue
+
+- **Modo proyecto con vínculos entre elementos** (segunda mitad del pedido de
+  la viga centradora): que Z-1 (medianería), VC-1 (viga) y Z-2 (interior)
+  queden vinculados en un proyecto y las cargas viajen solas. Propuesta: el
+  vínculo es un elemento que apunta a otros; las cargas transmitidas se
+  muestran, no se copian; si cambia el elemento de origen, el vinculado queda
+  marcado como desactualizado; `VERSION_FORMATO` pasa a 2 con conversión
+  automática desde 1. **Faltan dos respuestas del usuario:** si el vínculo se
+  crea al guardar desde la página o desde la vista del proyecto, y si se piensa
+  vincular otros casos (pilar → zapata, viga → viga que la apea) para hacerlo
+  genérico.
+- **Vuelco y deslizamiento de zapatas.** El Anejo 19 no los trata (art. 2.6 (3)
+  remite a documentos específicos; el EQU, al Anejo 18). Faltan datos del
+  usuario: qué norma (CTE DB-SE-C o EC7) y sus coeficientes con la cita, carga
+  horizontal Hk, rozamiento suelo-zapata, y si se cuentan empuje pasivo y
+  tierras sobre la zapata.
+- **Punzonamiento de pilar de borde en la zapata de medianería.** No está.
+- **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
+  el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
+  mezclan normas. Hay una tarea preparada con el detalle.
+- **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
+  auditar; la corrida usa reparto de la EHE (0,9 ‰ y 20 %).
+- **Contrastar un caso propio** de zapata aislada y medianería: quedan en
+  "probada" hasta que alguien lo haga.
+
+### Pendiente de confirmar por el usuario
+
+- **Los proyectos son para Uruguay.** El viento ya va por UNIT. Queda por
+  confirmar si para hormigón rige una norma UNIT (posiblemente la UNIT 1050) y
+  en qué se basa, o si se acepta el Código Estructural / EC2 por criterio del
+  proyectista. Conviene resolverlo antes de otra migración grande de norma.
+
+### Criterios decididos el 2026-10-05
+
+Para no volver a preguntarlos:
+
+- Zapatas: excentricidad del terreno con peso propio, e = Mk/(Nk+PP).
+- Punzonamiento con momento: los dos ejes se suman; MEd = 1,5·Mk sin descontar
+  el contramomento del terreno; en la cara del pilar VEd = 1,5·Nk entero.
+- Anclaje de zapatas: si la sección de cálculo queda a menos de h/2 del borde,
+  ese lado no tiene tirante que anclar.
+- Viga centradora: une zapata con zapata y no apoya en el terreno; ΔN no se
+  descuenta de la interior; peso propio de la viga en toda la luz; M₁ con su
+  signo; reparto del 20 % (art. 9.3.1.1 (2)); va en Cimentaciones, dentro de
+  Hormigón armado.
+- Viga con carga en voladizo: página aparte, sólo Anejo 19; z = h − d′; la
+  carga mínima que estabiliza el apoyo lejano se carga ya ponderada como
+  favorable (el coeficiente es del Anejo 18, que no está entre las fuentes).
+
 ## Terminado: croquis por tarjeta de datos
 
 Las **16 páginas** tienen croquis en sus tarjetas de datos, rotulando los mismos

@@ -18,20 +18,14 @@ import { CroquisEntalladura } from "@/components/verificaciones/madera/CroquisEn
 import { CroquisSeccionMadera } from "@/components/verificaciones/madera/CroquisSeccionMadera";
 import {
   SelectorMadera,
-  duracionDesdeEtiqueta,
-  servicioDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
 import {
   KN,
-  verificarCortante,
-  verificarEntalladura,
-  verificarTorsion,
-  type LadoEntalladura,
 } from "@/lib/calc/madera/cortante";
-import { GAMMA_M, KCR, kmod, resistenciaDeCalculo } from "@/lib/calc/madera/materiales";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { LADOS, ladoDesde, HAY_ENTALLADURA, FORMAS, resolverMaderaCortante } from "@/lib/calc/madera/resolver-madera-cortante";
+import { recomendarMaderaCortante } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-cortante")!;
 
@@ -42,13 +36,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-const LADOS = ["Mismo lado que el apoyo", "Lado opuesto al apoyo"] as const;
-const ladoDesde = (e: string): LadoEntalladura =>
-  e === LADOS[1] ? "lado-opuesto" : "mismo-lado";
-
-const HAY_ENTALLADURA = ["Sin entalladura", "Con entalladura en el apoyo"] as const;
-const FORMAS = ["Rectangular", "Circular"] as const;
 
 export default function MaderaCortantePage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -71,67 +58,13 @@ export default function MaderaCortantePage() {
   const [torsor, setTorsor] = useCampo("torsor", "0");
   const [forma, setForma] = useCampo("forma", FORMAS[0]);
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const v = aNumero(vd);
-    const fvkV = aNumero(fvk);
-    const t = aNumero(torsor);
-
-    if (![b, h, fvkV].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![v, t].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const tipoM = tipoDesdeEtiqueta(tipo);
-    const km = kmod(tipoM, servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-    const gammaM = GAMMA_M[tipoM];
-    const kcr = KCR[tipoM];
-
-    // El cortante no lleva kh ni ksys: los factores de tamaño sólo afectan a
-    // fm,k y ft,0,k, arts. 3.2(3) y 3.3(3).
-    const fvd = resistenciaDeCalculo(fvkV, { kmod: km, gammaM });
-
-    const cortante = verificarCortante(v, b, h, kcr, fvd.valor);
-
-    const hay = conEntalladura === HAY_ENTALLADURA[1];
-    const hefV = aNumero(hef);
-    const proy = aNumero(proyeccion);
-    const xV = aNumero(xApoyo);
-    const entalladuraValida =
-      hay && [hefV, proy, xV].every((x) => Number.isFinite(x) && x >= 0) && hefV > 0 && hefV <= h;
-
-    const entalladura = entalladuraValida
-      ? verificarEntalladura({
-          tipo: tipoM,
-          cortanteKN: v,
-          anchoM: b,
-          cantoM: h,
-          cantoEficazM: hefV,
-          proyeccionM: proy,
-          distanciaApoyoM: xV,
-          lado: ladoDesde(lado),
-          kcr,
-          fvdMPa: fvd.valor,
-        })
-      : null;
-
-    const torsion =
-      t > 0
-        ? verificarTorsion({
-            torsorKNm: t,
-            anchoM: b,
-            cantoM: h,
-            forma: forma === FORMAS[1] ? "circular" : "rectangular",
-            fvdMPa: fvd.valor,
-          })
-        : null;
-
-    return {
-      b, h, v, tipoM, km, gammaM, kcr, fvd, cortante,
-      entalladura, entalladuraValida, hay,
-      hefV, proy, xV, torsion,
-    };
-  }, [ancho, canto, vd, fvk, torsor, tipo, servicio, duracion, conEntalladura,
-      hef, proyeccion, xApoyo, lado, forma]);
+  const campos = useMemo(
+    () => ({ ancho, canto, vd, fvk, torsor, tipo, servicio, duracion, conEntalladura, hef, proyeccion, xApoyo, lado, forma }),
+    [ancho, canto, vd, fvk, torsor, tipo, servicio, duracion, conEntalladura, hef, proyeccion, xApoyo, lado, forma]
+  );
+  const r = useMemo(() => resolverMaderaCortante(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaCortante(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) avisos.push({ tipo: "error", texto: "Cargá sección, resistencia y esfuerzos con valores válidos." });
@@ -308,6 +241,7 @@ export default function MaderaCortantePage() {
                       limite: { etiqueta: "fv,d", valor: r.cortante.fvdMPa },
                       unidad: "MPa", exige: "≤", decimales: 3,
                     }}
+                    recomendaciones={rec.cortante}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del cortante"
@@ -339,6 +273,7 @@ export default function MaderaCortantePage() {
                         limite: { etiqueta: "kv·fv,d", valor: r.entalladura.resistenciaReducidaMPa },
                         unidad: "MPa", exige: "≤", decimales: 3,
                       }}
+                      recomendaciones={rec.entalladura}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo de kv"
@@ -366,6 +301,7 @@ export default function MaderaCortantePage() {
                         limite: { etiqueta: "kshape·fv,d", valor: r.torsion.resistenciaReducidaMPa },
                         unidad: "MPa", exige: "≤", decimales: 3,
                       }}
+                      recomendaciones={rec.torsion}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo de la torsión"

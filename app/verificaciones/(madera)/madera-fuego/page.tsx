@@ -23,23 +23,14 @@ import {
 import { SelectorVista } from "@/components/verificaciones/comun/SelectorVista";
 import {
   NOMBRE_MADERA,
-  GAMMA_M,
-  kmod,
-  type TipoMadera,
 } from "@/lib/calc/madera/materiales";
 import {
   NOMBRE_ESPECIE_FUEGO,
-  betaN,
-  relacionIncendioFrio,
-  resistenciaEnIncendioMPa,
-  seccionReducida,
-  type CarasExpuestas,
-  type EspecieFuego,
 } from "@/lib/calc/madera/fuego";
-import { pandeoEje } from "@/lib/calc/madera/axil";
-import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverMaderaFuego } from "@/lib/calc/madera/resolver-madera-fuego";
+import { recomendarMaderaFuego } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-fuego")!;
 
@@ -51,13 +42,8 @@ const ETAPAS = [
 ] as const;
 
 const TIPOS = Object.values(NOMBRE_MADERA);
-const tipoDesde = (e: string): TipoMadera =>
-  ((Object.entries(NOMBRE_MADERA) as [TipoMadera, string][]).find(([, n]) => n === e)?.[0] ?? "maciza");
 
 const ESPECIES = Object.values(NOMBRE_ESPECIE_FUEGO);
-const especieDesde = (e: string): EspecieFuego =>
-  ((Object.entries(NOMBRE_ESPECIE_FUEGO) as [EspecieFuego, string][]).find(([, n]) => n === e)?.[0] ??
-    "conifera");
 
 /**
  * Atajos para los tres montajes de siempre. Siguen estando porque son el 95 %
@@ -79,17 +65,6 @@ const MONTAJES: { nombre: string; caras: CarasDibujo }[] = [
     caras: { izquierda: true, derecha: true, superior: false, inferior: false },
   },
 ];
-
-/**
- * El motor sólo necesita cuántas caras arden, no cuáles: con la sección
- * reducida, quemar arriba o abajo da el mismo canto eficaz. El dibujo sí
- * necesita cuáles, así que la pantalla guarda las cuatro y acá se cuentan.
- */
-function contarCaras(c: CarasDibujo): CarasExpuestas {
-  const enAnchura = (Number(c.izquierda) + Number(c.derecha)) as 0 | 1 | 2;
-  const enCanto = (Number(c.superior) + Number(c.inferior)) as 0 | 1 | 2;
-  return { enAnchura, enCanto };
-}
 
 function describirCaras(c: CarasDibujo): string {
   const n = Object.values(c).filter(Boolean).length;
@@ -154,58 +129,13 @@ export default function MaderaFuegoPage() {
   const alternarCara = (cara: NombreCara) =>
     ponerCaras({ ...carasDibujo, [cara]: !carasDibujo[cara] });
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const t = aNumero(tiempo);
-    const fmkV = aNumero(fmk);
-    const fc0kV = aNumero(fc0k);
-    const e = aNumero(e005);
-    const m = aNumero(momento);
-    const n = aNumero(axil);
-    const lz = aNumero(lkz);
-
-    if (![b, h, fmkV, fc0kV, e, lz].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![t, m, n].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const tipoM = tipoDesde(tipo);
-    const esp = especieDesde(especie);
-    const caras = contarCaras(carasDibujo);
-    const velocidad = betaN(tipoM, esp);
-
-    const reducida = seccionReducida(b, h, t, velocidad, caras);
-    const reducidaFria = seccionReducida(b, h, 0, velocidad, caras);
-
-    // Resistencias del art. 4.2.2(5): kmod,fi = 1 y γM,fi = 1, con kfi.
-    const fmdFi = resistenciaEnIncendioMPa(fmkV, tipoM);
-    const fc0dFi = resistenciaEnIncendioMPa(fc0kV, tipoM);
-    const e005Fi = resistenciaEnIncendioMPa(e, tipoM);
-
-    if (reducida.agotada) {
-      return {
-        b, h, tipoM, caras, velocidad, reducida, reducidaFria,
-        fmdFi, fc0dFi, agotada: true as const,
-      };
-    }
-
-    const props = propiedades({ anchoM: reducida.anchoEficazM, cantoM: reducida.cantoEficazM });
-    const propsFrias = propiedades({ anchoM: b, cantoM: h });
-
-    const sigmaM = tensionFlexionMPa(m, props.wyM3);
-    const sigmaC = tensionAxilMPa(n, props.areaM2);
-
-    const ejeZ = pandeoEje(lz / props.radioGiroZM, fc0kV, e005Fi, tipoM);
-
-    const relacion = relacionIncendioFrio(tipoM, kmod(tipoM, 1, "media"), GAMMA_M[tipoM]);
-
-    return {
-      b, h, tipoM, caras, velocidad, reducida, reducidaFria, props, propsFrias,
-      fmdFi, fc0dFi, e005Fi, sigmaM, sigmaC, ejeZ, relacion,
-      aprovechaFlexion: fmdFi > 0 ? sigmaM / fmdFi : Infinity,
-      aprovechaCompresion: ejeZ.kc * fc0dFi > 0 ? sigmaC / (ejeZ.kc * fc0dFi) : Infinity,
-      agotada: false as const,
-    };
-  }, [ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, carasDibujo]);
+  const campos = useMemo(
+    () => ({ ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, caraIzq, caraDer, caraSup, caraInf }),
+    [ancho, canto, tiempo, fmk, fc0k, e005, momento, axil, lkz, tipo, especie, caraIzq, caraDer, caraSup, caraInf]
+  );
+  const r = useMemo(() => resolverMaderaFuego(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaFuego(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) {
@@ -377,6 +307,7 @@ export default function MaderaFuegoPage() {
                     etiqueta={`Queda sección eficaz a los ${fmt(aNumero(tiempo), 0)} min`}
                     verifica={false}
                     detalle={`El descuento por cara es de ${fmt(r.reducida.profundidadEficazM * 1000, 1)} mm y la sección no da para tanto.`}
+                    recomendaciones={rec.seccion}
                   />
                   <p className="text-sm text-muted-foreground">
                     Hay que engrosar la escuadría, reducir el tiempo requerido o proteger las caras
@@ -410,6 +341,7 @@ export default function MaderaFuegoPage() {
                         limite: { etiqueta: "fm,d,fi", valor: r.fmdFi },
                         unidad: "MPa", exige: "≤", decimales: 2,
                       }}
+                      recomendaciones={rec.flexion}
                     />
                   )}
                   {aNumero(axil) > 0 && (
@@ -421,6 +353,7 @@ export default function MaderaFuegoPage() {
                         limite: { etiqueta: "kc·fc,0,d,fi", valor: r.ejeZ.kc * r.fc0dFi },
                         unidad: "MPa", exige: "≤", decimales: 2,
                       }}
+                      recomendaciones={rec.compresion}
                     />
                   )}
                   <p className="text-xs text-muted-foreground">

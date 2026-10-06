@@ -17,9 +17,10 @@ import { DiagramaFlexion } from "@/components/verificaciones/pretensado/Diagrama
 import { DiagramaPerdidas } from "@/components/verificaciones/pretensado/DiagramaPerdidas";
 import { DiagramaTensiones } from "@/components/verificaciones/pretensado/DiagramaTensiones";
 import { SeccionPretensadaDiagrama } from "@/components/verificaciones/pretensado/SeccionPretensadaDiagrama";
-import { calcularPretensado } from "@/lib/calc/hormigon/pretensado";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverPretensado } from "@/lib/calc/hormigon/resolver-pretensado";
+import { recomendarPretensado } from "@/lib/verificaciones/recomendaciones/pretensado";
 
 const meta = registroVerificaciones.find((v) => v.id === "pretensado")!;
 
@@ -76,63 +77,13 @@ export default function PretensadoPage() {
   const [pDif, setPDif] = useCampo("pDif", "10");
   const [hr, setHr] = useCampo("hr", "90");
 
-  const resultado = useMemo(() => {
-    const n = {
-      fc: aNumero(fc), fci: aNumero(fci), fcSitu: aNumero(fcSitu), fpu: aNumero(fpu),
-      areaToron: aNumero(areaToron), fuerzaToron: aNumero(fuerzaToron), fyPasiva: aNumero(fyPasiva),
-      luz: aNumero(luz),
-      hS: aNumero(hS), bS: aNumero(bS), aS: aNumero(aS), iS: aNumero(iS), ygS: aNumero(ygS), perimS: aNumero(perimS),
-      hC: aNumero(hC), bC: aNumero(bC), aC: aNumero(aC), iC: aNumero(iC), ygC: aNumero(ygC), perimC: aNumero(perimC),
-      recPas: aNumero(recPas), recPret: aNumero(recPret),
-      cargaMuerta: aNumero(cargaMuerta), sobrecarga: aNumero(sobrecarga), ev: aNumero(ev),
-      torones: aNumero(torones), diamPas: aNumero(diamPas), nPas: aNumero(nPas),
-      pInst: aNumero(pInst), pDif: aNumero(pDif), hr: aNumero(hr),
-    };
-
-    const positivos = [
-      n.fc, n.fci, n.fcSitu, n.fpu, n.areaToron, n.fuerzaToron, n.fyPasiva, n.luz,
-      n.hS, n.bS, n.aS, n.iS, n.ygS, n.perimS, n.hC, n.bC, n.aC, n.iC, n.ygC, n.perimC,
-      n.recPret, n.torones, n.hr,
-    ];
-    if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    const noNegativos = [n.cargaMuerta, n.sobrecarga, n.ev, n.nPas, n.pInst, n.pDif, n.recPas];
-    if (!noNegativos.every((x) => Number.isFinite(x) && x >= 0)) return null;
-    // La armadura pasiva no puede quedar por encima del pretensado ni fuera de la sección.
-    if (n.recPret >= n.hS || n.ygS >= n.hS || n.ygC >= n.hC) return null;
-
-    try {
-      return calcularPretensado({
-        fcPremoldeadoMPa: n.fc,
-        fciMPa: n.fci,
-        fcInSituMPa: n.fcSitu,
-        densidadKgM3: 2500,
-        fpuMPa: n.fpu,
-        epMPa: 195000,
-        areaToronMm2: n.areaToron,
-        fuerzaPorToronKN: n.fuerzaToron,
-        fyPasivaMPa: n.fyPasiva,
-        diametroPasivaMm: n.diamPas,
-        cantidadPasiva: n.nPas,
-        luzM: n.luz,
-        simple: { hM: n.hS, bM: n.bS, areaM2: n.aS, iM4: n.iS, ygM: n.ygS, perimetroM: n.perimS },
-        compuesta: { hM: n.hC, bM: n.bC, areaM2: n.aC, iM4: n.iC, ygM: n.ygC, perimetroM: n.perimC },
-        recMecPasivaM: n.recPas,
-        recMecPretensadoM: n.recPret,
-        cargaMuertaKNm: n.cargaMuerta,
-        sobrecargaKNm: n.sobrecarga,
-        cargaEvKNm: n.ev,
-        toronesInf: Math.round(n.torones),
-        toronesSup: 0,
-        perdidasInstantaneas: n.pInst / 100,
-        perdidasDiferidas: n.pDif / 100,
-        humedadRelativa: n.hr,
-      });
-    } catch {
-      return null;
-    }
-  }, [fc, fci, fcSitu, fpu, areaToron, fuerzaToron, fyPasiva, luz, hS, bS, aS, iS, ygS, perimS,
-      hC, bC, aC, iC, ygC, perimC, recPas, recPret, cargaMuerta, sobrecarga, ev, torones,
-      diamPas, nPas, pInst, pDif, hr]);
+  const campos = useMemo(
+    () => ({ fc, fci, fcSitu, fpu, areaToron, fuerzaToron, fyPasiva, luz, hS, bS, aS, iS, ygS, perimS, hC, bC, aC, iC, ygC, perimC, recPas, recPret, cargaMuerta, sobrecarga, ev, torones, diamPas, nPas, pInst, pDif, hr }),
+    [fc, fci, fcSitu, fpu, areaToron, fuerzaToron, fyPasiva, luz, hS, bS, aS, iS, ygS, perimS, hC, bC, aC, iC, ygC, perimC, recPas, recPret, cargaMuerta, sobrecarga, ev, torones, diamPas, nPas, pInst, pDif, hr]
+  );
+  const resultado = useMemo(() => resolverPretensado(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarPretensado(campos), [campos]);
 
   /*
    * Escala común a los tres diagramas de tensión: sin ella cada uno se dibujaría
@@ -307,6 +258,7 @@ export default function PretensadoPage() {
                       limite: { etiqueta: "φMn", valor: resultado.flexion.momentoAdmisibleKNm },
                       unidad: "kN·m", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.flexion}
                   />
                   <DiagramaFlexion
                     hM={aNumero(hC)}
@@ -408,6 +360,7 @@ export default function PretensadoPage() {
                       limite: { etiqueta: "límite", valor: resultado.deformaciones.limiteTotalMm },
                       unidad: "mm", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.flechas}
                   />
                   <DiagramaFlechas
                     instantaneaMm={resultado.deformaciones.instantaneaMm}
@@ -438,6 +391,7 @@ export default function PretensadoPage() {
                       limite: { etiqueta: "Ap mínima", valor: resultado.armaduraActiva.apMinimoMm2 },
                       unidad: "mm²", exige: "≥", decimales: 0,
                     }}
+                    recomendaciones={rec.areaPretensado}
                   />
                   <ResultadoCheck
                     etiqueta="Cuantía mínima (1,2·Mcr ≤ φMn)"
@@ -447,6 +401,7 @@ export default function PretensadoPage() {
                       limite: { etiqueta: "φMn", valor: resultado.flexion.momentoAdmisibleKNm },
                       unidad: "kN·m", exige: "≤", decimales: 1,
                     }}
+                    recomendaciones={rec.cuantiaMinima}
                   />
                 </div>
               </Subgrupo>

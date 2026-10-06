@@ -6,13 +6,8 @@ import {
   DESCRIPCION_SERVICIO,
   EJEMPLOS_DURACION,
   GAMMA_M,
-  NOMBRE_DURACION,
-  NOMBRE_MADERA,
   kdef,
   kmod,
-  type ClaseServicio,
-  type DuracionCarga,
-  type TipoMadera,
 } from "@/lib/calc/madera/materiales";
 import { fmt } from "@/lib/verificaciones/formato";
 
@@ -28,29 +23,16 @@ import { fmt } from "@/lib/verificaciones/formato";
  * demasiado alto, que sube toda la resistencia de la pieza.
  */
 
-export const TIPOS_MADERA: readonly string[] = Object.values(NOMBRE_MADERA);
-export const CLASES_SERVICIO = ["Clase 1", "Clase 2", "Clase 3"] as const;
-export const DURACIONES: readonly string[] = Object.values(NOMBRE_DURACION);
-
-export function tipoDesdeEtiqueta(etiqueta: string): TipoMadera {
-  const par = (Object.entries(NOMBRE_MADERA) as [TipoMadera, string][]).find(
-    ([, nombre]) => nombre === etiqueta
-  );
-  return par ? par[0] : "maciza";
-}
-
-export function duracionDesdeEtiqueta(etiqueta: string): DuracionCarga {
-  const par = (Object.entries(NOMBRE_DURACION) as [DuracionCarga, string][]).find(
-    ([, nombre]) => nombre === etiqueta
-  );
-  return par ? par[0] : "media";
-}
-
-export function servicioDesdeEtiqueta(etiqueta: string): ClaseServicio {
-  if (etiqueta === CLASES_SERVICIO[0]) return 1;
-  if (etiqueta === CLASES_SERVICIO[2]) return 3;
-  return 2;
-}
+// Los rótulos y sus conversores viven en lib: los usan también los resolvers.
+export {
+  CLASES_SERVICIO,
+  DURACIONES,
+  TIPOS_MADERA,
+  duracionDesdeEtiqueta,
+  servicioDesdeEtiqueta,
+  tipoDesdeEtiqueta,
+} from "@/lib/calc/madera/etiquetas";
+import { CLASES_SERVICIO, DURACIONES, TIPOS_MADERA, duracionDesdeEtiqueta, servicioDesdeEtiqueta, tipoDesdeEtiqueta } from "@/lib/calc/madera/etiquetas";
 
 interface Props {
   tipo: string;

@@ -19,19 +19,12 @@ import { CurvaPandeoMadera } from "@/components/verificaciones/madera/CurvaPande
 import { DiagramaInteraccionMadera } from "@/components/verificaciones/madera/DiagramaInteraccionMadera";
 import {
   SelectorMadera,
-  duracionDesdeEtiqueta,
-  servicioDesdeEtiqueta,
-  tipoDesdeEtiqueta,
 } from "@/components/verificaciones/madera/SelectorMadera";
-import { pandeoEje } from "@/lib/calc/madera/axil";
-import { NOMBRE_MODO, verificarFlexionCompuesta } from "@/lib/calc/madera/flexion-compuesta";
-import { kcrit, longitudEficazM, tensionCritica } from "@/lib/calc/madera/flexion";
-import {
-  GAMMA_M, KM_OTRAS_SECCIONES, KM_RECTANGULAR, kh, kmod, resistenciaDeCalculo,
-} from "@/lib/calc/madera/materiales";
-import { propiedades, tensionAxilMPa, tensionFlexionMPa } from "@/lib/calc/madera/seccion";
+import { NOMBRE_MODO } from "@/lib/calc/madera/flexion-compuesta";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { SIGNOS, PROBLEMAS, resolverMaderaFlexionCompuesta } from "@/lib/calc/madera/resolver-madera-flexion-compuesta";
+import { recomendarMaderaFlexionCompuesta } from "@/lib/verificaciones/recomendaciones/madera";
 
 const meta = registroVerificaciones.find((v) => v.id === "madera-flexion-compuesta")!;
 
@@ -42,9 +35,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-const SIGNOS = ["Compresión", "Tracción"] as const;
-const PROBLEMAS = ["Columna: pandeo por compresión", "Viga: vuelco lateral, ec. (6.35)"] as const;
 
 export default function MaderaFlexionCompuestaPage() {
   const [norma, setNorma] = useCampo("norma", "EC5");
@@ -72,83 +62,13 @@ export default function MaderaFlexionCompuestaPage() {
   const [problema, setProblema] = useCampo("problema", PROBLEMAS[0]);
   const [luz, setLuz] = useCampo("luz", "6");
 
-  const r = useMemo(() => {
-    const b = aNumero(ancho);
-    const h = aNumero(canto);
-    const ly = aNumero(lky);
-    const lz = aNumero(lkz);
-    const l = aNumero(luz);
-    const fmkN = aNumero(fmkV);
-    const ft0kN = aNumero(ft0k);
-    const fc0kN = aNumero(fc0k);
-    const e = aNumero(e005);
-    const g = aNumero(g005);
-    const n = aNumero(axil);
-    const myN = aNumero(my);
-    const mzN = aNumero(mz);
-
-    if (![b, h, ly, lz, l, fmkN, ft0kN, fc0kN, e, g].every((x) => Number.isFinite(x) && x > 0)) return null;
-    if (![n, myN, mzN].every((x) => Number.isFinite(x) && x >= 0)) return null;
-
-    const t = tipoDesdeEtiqueta(tipo);
-    const km = kmod(t, servicioDesdeEtiqueta(servicio), duracionDesdeEtiqueta(duracion));
-    const gammaM = GAMMA_M[t];
-
-    const fmYd = resistenciaDeCalculo(fmkN, { kmod: km, gammaM, kh: kh(t, h) });
-    const fmZd = resistenciaDeCalculo(fmkN, { kmod: km, gammaM, kh: kh(t, b) });
-    const ft0d = resistenciaDeCalculo(ft0kN, { kmod: km, gammaM, kh: kh(t, Math.max(b, h)) });
-    const fc0d = resistenciaDeCalculo(fc0kN, { kmod: km, gammaM });
-
-    const props = propiedades({ anchoM: b, cantoM: h });
-
-    const ejeY = pandeoEje(ly / props.radioGiroYM, fc0kN, e, t);
-    const ejeZ = pandeoEje(lz / props.radioGiroZM, fc0kN, e, t);
-    const sinInestabilidad = ejeY.lambdaRel <= 0.3 && ejeZ.lambdaRel <= 0.3;
-
-    const traccionada = signo === SIGNOS[1];
-    const sigmaAxil = tensionAxilMPa(n, props.areaM2);
-    const sigmaMY = tensionFlexionMPa(myN, props.wyM3);
-    const sigmaMZ = tensionFlexionMPa(mzN, props.wzM3);
-
-    // Vuelco, sólo necesario en el modo de la ec. (6.35).
-    const esVuelco = !traccionada && problema === PROBLEMAS[1];
-    const lef = longitudEficazM(l, "apoyada-distribuida", "comprimido", h);
-    const sigmaCrit = tensionCritica({ anchoM: b, cantoM: h }, lef, e, g).simplificadaMPa;
-    const lambdaRelM = sigmaCrit > 0 ? Math.sqrt(fmkN / sigmaCrit) : Infinity;
-    const factorKcrit = kcrit(lambdaRelM);
-
-    const resultado = verificarFlexionCompuesta({
-      sigmaT0dMPa: traccionada ? sigmaAxil : 0,
-      sigmaC0dMPa: traccionada ? 0 : sigmaAxil,
-      sigmaMYdMPa: sigmaMY,
-      sigmaMZdMPa: sigmaMZ,
-      ft0dMPa: ft0d.valor,
-      fc0dMPa: fc0d.valor,
-      fmYdMPa: fmYd.valor,
-      fmZdMPa: fmZd.valor,
-      km: mzN > 0 ? KM_RECTANGULAR : KM_OTRAS_SECCIONES,
-      kcY: ejeY.kc,
-      kcZ: ejeZ.kc,
-      kcrit: factorKcrit,
-      sinInestabilidad,
-      verificarVuelco: esVuelco,
-    });
-
-    return {
-      b, h, t, km, gammaM, props, ejeY, ejeZ, sinInestabilidad, traccionada,
-      sigmaAxil, sigmaMY, sigmaMZ, fmYd, fmZd, ft0d, fc0d, resultado,
-      esVuelco, lef, sigmaCrit, lambdaRelM, factorKcrit, fc0kN, e,
-      ratioAxil: traccionada
-        ? sigmaAxil / ft0d.valor
-        : sinInestabilidad
-          ? sigmaAxil / fc0d.valor
-          : sigmaAxil / (Math.min(ejeY.kc, ejeZ.kc) * fc0d.valor),
-      ratioFlexion: esVuelco
-        ? sigmaMY / (factorKcrit * fmYd.valor)
-        : sigmaMY / fmYd.valor,
-    };
-  }, [ancho, canto, lky, lkz, luz, fmkV, ft0k, fc0k, e005, g005, axil, my, mz,
-      tipo, servicio, duracion, signo, problema]);
+  const campos = useMemo(
+    () => ({ ancho, canto, lky, lkz, luz, fmk: fmkV, ft0k, fc0k, e005, g005, axil, my, mz, tipo, servicio, duracion, signo, problema }),
+    [ancho, canto, lky, lkz, luz, fmkV, ft0k, fc0k, e005, g005, axil, my, mz, tipo, servicio, duracion, signo, problema]
+  );
+  const r = useMemo(() => resolverMaderaFlexionCompuesta(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarMaderaFlexionCompuesta(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!r) avisos.push({ tipo: "error", texto: "Cargá sección, resistencias, longitudes de pandeo y esfuerzos con valores válidos." });
@@ -299,6 +219,7 @@ export default function MaderaFlexionCompuestaPage() {
                       exige: "≤",
                       decimales: 3,
                     }}
+                    recomendaciones={rec.interaccion}
                   />
                   {r.sinInestabilidad && !r.traccionada && (
                     <p className="text-xs text-muted-foreground">

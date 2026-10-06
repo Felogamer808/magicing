@@ -61,13 +61,16 @@ Independientes, contra `main`:
   sólo se informan; no hay todavía verificación de pilar de hormigón que los
   tome. La losa tampoco se verifica con la tracción del tirante sumada.
 - **Recomendaciones cuando no cumple o queda justa**: el motor está en
-  `lib/verificaciones/recomendaciones/` y ya lo usa todo hormigón armado.
-  Cada página calcula con un resolver en `lib/calc/` que toma los campos tal
-  como se cargaron, así las propuestas repiten el mismo cálculo. Falta acero,
-  madera y pretensado: cada una declara sus palancas, no hay que tocar el
-  motor. Sin propuestas a propósito: los casos apuntalados del muro de
-  contención (son alternativas) y el anclaje con horquilla de la viga de apeo
-  (es la alternativa al recto).
+  `lib/verificaciones/recomendaciones/` y ya lo usan todas las páginas con
+  comprobaciones (hormigón, acero, madera y pretensado). Cada página calcula
+  con un resolver en `lib/calc/` que toma los campos tal como se cargaron, así
+  las propuestas repiten el mismo cálculo. Una verificación nueva tiene que
+  traer su resolver y sus palancas. Sin propuestas a propósito: los casos
+  apuntalados del muro de contención (son alternativas), el anclaje con
+  horquilla de la viga de apeo (es la alternativa al recto), las tensiones del
+  pretensado (se resuelven con la sección, que se carga como un juego de
+  propiedades que no se pueden mover sueltas) y el rango del lado del cordón
+  de soldadura (puede fallar por grande o por chico).
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

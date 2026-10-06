@@ -18,6 +18,7 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ZapataCorridaDiagrama } from "@/components/verificaciones/hormigon/ZapataCorridaDiagrama";
 import { DiagramaPresionSuelo } from "@/components/verificaciones/hormigon/DiagramaPresionSuelo";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
+import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
@@ -271,6 +272,9 @@ export default function ZapataCorridaPage() {
                               toma el momento y la presión queda uniforme. h va del eje del tirante a la
                               base de la zapata.
                             </p>
+                            <div className="col-span-2 max-w-sm">
+                              <DiagramaTiranteTerreno elemento="muro" hM={aNumero(brazoTirante)} HM={aNumero(H)} />
+                            </div>
                           </>
                         )}
                       </>

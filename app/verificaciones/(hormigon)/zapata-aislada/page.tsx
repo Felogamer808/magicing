@@ -18,6 +18,7 @@ import { CroquisCargasZapata } from "@/components/verificaciones/croquis/Croquis
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesZapataDiagrama";
 import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
+import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
@@ -352,6 +353,9 @@ export default function ZapataAisladaPage() {
                               el momento en A y la presión queda uniforme. h va del eje del tirante a la base
                               de la zapata.
                             </p>
+                            <div className="col-span-2 max-w-sm">
+                              <DiagramaTiranteTerreno elemento="pilar" hM={aNumero(brazoTirante)} HM={aNumero(H)} />
+                            </div>
                           </>
                         )}
                       </>

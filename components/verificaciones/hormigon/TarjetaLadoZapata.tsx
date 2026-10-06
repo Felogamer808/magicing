@@ -4,10 +4,13 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import type { ResultadoDireccionZapata } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { fmt } from "@/lib/verificaciones/formato";
+import type { Recomendacion } from "@/lib/verificaciones/recomendaciones/motor";
 
 interface TarjetaLadoZapataProps {
   titulo: string;
   resultado: ResultadoDireccionZapata;
+  /** Propuestas recalculadas para cada comprobación del vuelo, si las hay. */
+  recomendaciones?: { as?: readonly Recomendacion[]; anclaje?: readonly Recomendacion[]; corte?: readonly Recomendacion[] };
 }
 
 /**
@@ -19,7 +22,7 @@ interface TarjetaLadoZapataProps {
  * Filas de comprobación, no tarjeta: se lee en la hoja técnica junto con las
  * demás comprobaciones estructurales.
  */
-export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps) {
+export function TarjetaLadoZapata({ titulo, resultado, recomendaciones }: TarjetaLadoZapataProps) {
   return (
     <div>
       <ResultadoCheck
@@ -30,6 +33,7 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
           limite: { etiqueta: "As nec", valor: resultado.asNecCm2 },
           unidad: "cm²", exige: "≥",
         }}
+        recomendaciones={recomendaciones?.as}
       />
       {resultado.anclaje.comprobado ? (
         <ResultadoCheck
@@ -41,6 +45,7 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
             limite: { etiqueta: "disponible", valor: resultado.anclaje.disponibleMm },
             unidad: "mm", exige: "≤",
           }}
+          recomendaciones={recomendaciones?.anclaje}
         />
       ) : (
         <ResultadoCheck
@@ -60,6 +65,7 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
             limite: { etiqueta: "VRd,c", valor: resultado.vRdCKN },
             unidad: "kN", exige: "≤",
           }}
+          recomendaciones={recomendaciones?.corte}
         />
       ) : (
         <ResultadoCheck

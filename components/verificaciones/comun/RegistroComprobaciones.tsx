@@ -34,7 +34,8 @@ export function ProveedorComprobaciones({ children }: { children: ReactNode }) {
         previa &&
         previa.etiqueta === c.etiqueta &&
         previa.estado === c.estado &&
-        previa.utilizacion === c.utilizacion
+        previa.utilizacion === c.utilizacion &&
+        previa.conPropuestas === c.conPropuestas
       ) {
         return m;
       }
@@ -58,11 +59,11 @@ export function ProveedorComprobaciones({ children }: { children: ReactNode }) {
 /** Anota una comprobación mientras está montada. */
 export function useAnotarComprobacion(clave: string, c: ComprobacionResumen) {
   const registro = useContext(ContextoRegistro);
-  const { etiqueta, estado, utilizacion } = c;
+  const { etiqueta, estado, utilizacion, conPropuestas } = c;
   useEffect(() => {
     if (!registro) return;
-    registro.anotar(clave, { etiqueta, estado, utilizacion });
-  }, [registro, clave, etiqueta, estado, utilizacion]);
+    registro.anotar(clave, { etiqueta, estado, utilizacion, conPropuestas });
+  }, [registro, clave, etiqueta, estado, utilizacion, conPropuestas]);
   useEffect(() => {
     if (!registro) return;
     return () => registro.quitar(clave);

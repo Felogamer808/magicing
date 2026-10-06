@@ -4,6 +4,7 @@ import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck
 import { DiagramaArmaduraTirante } from "@/components/verificaciones/hormigon/DiagramaArmaduraTirante";
 import type { ResultadoArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import { fmt } from "@/lib/verificaciones/formato";
+import type { RecomendacionesTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 
 interface VerificacionArmaduraTiranteProps {
   elemento: "pilar" | "muro";
@@ -17,11 +18,12 @@ interface VerificacionArmaduraTiranteProps {
   patilla: boolean;
   pataMm: number;
   adherencia: string;
+  recomendaciones?: RecomendacionesTirante;
 }
 
 /** Área y anclaje del tirante, con el dibujo del nudo. */
 export function VerificacionArmaduraTirante({
-  elemento, resultado, descripcionBarras, unidadAs, anchoApoyoM, recubrimientoM, patilla, pataMm, adherencia,
+  elemento, resultado, descripcionBarras, unidadAs, anchoApoyoM, recubrimientoM, patilla, pataMm, adherencia, recomendaciones,
 }: VerificacionArmaduraTiranteProps) {
   return (
     <div className="grid gap-6 pt-4 md:grid-cols-[1fr_minmax(0,18rem)]">
@@ -35,6 +37,7 @@ export function VerificacionArmaduraTirante({
             limite: { etiqueta: "As nec", valor: resultado.asNecCm2 },
             unidad: unidadAs, exige: "≥",
           }}
+          recomendaciones={recomendaciones?.as}
         />
         <ResultadoCheck
           etiqueta={`Anclaje del tirante en el ${elemento}`}
@@ -45,6 +48,7 @@ export function VerificacionArmaduraTirante({
             limite: { etiqueta: "disponible", valor: resultado.disponibleMm },
             unidad: "mm", exige: "≤",
           }}
+          recomendaciones={recomendaciones?.anclaje}
         />
       </div>
       <DiagramaArmaduraTirante

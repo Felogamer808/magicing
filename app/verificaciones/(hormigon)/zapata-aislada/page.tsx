@@ -21,7 +21,6 @@ import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaL
 import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
-import { verificarArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -31,6 +30,8 @@ import {
   type ResultadoDireccionZapata,
 } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { PropuestaVigaCentradora } from "@/components/verificaciones/hormigon/PropuestaVigaCentradora";
+import { recomendarZapataAislada, type LadoAislada } from "@/lib/verificaciones/recomendaciones/zapata-aislada";
+import { recomendarArmaduraTirante, verificarTirante, type EntradaArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -149,13 +150,15 @@ export default function ZapataAisladaPage() {
       ...(descentrado ? { distanciaBordeA: bordeA, distanciaBordeB: bordeB } : {}),
     };
 
-    const zapata = calcularZapataAislada(materiales, geometria, v.sigmaAdmisible, {
+    const datosZapata = {
       cargas: { Nk: v.Nk, MkA: v.MkA, MkB: v.MkB },
       armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
       armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
       formaAnclaje,
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
-    });
+    };
+    const zapata = calcularZapataAislada(materiales, geometria, v.sigmaAdmisible, datosZapata);
+    const recomendaciones = recomendarZapataAislada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos: datosZapata });
 
     // Armadura del tirante: sólo si hay tirante y las barras son válidas.
     const t = {
@@ -164,21 +167,24 @@ export default function ZapataAisladaPage() {
     };
     const patillaTirante = extremoTirante === EXTREMOS_TIRANTE[1];
     const barrasValidas = t.f > 0 && t.n > 0 && t.rec >= 0 && (!patillaTirante || t.pata >= 0);
-    const armaduraTirante =
+    const entradaTirante: EntradaArmaduraTirante | undefined =
       zapata.tirante && barrasValidas
-        ? verificarArmaduraTirante(materiales, {
+        ? {
+            fck: v.fck,
+            fyk: v.fyk,
             tdKN: zapata.tirante.tdKN,
-            diametroMm: t.f,
-            asRealCm2: (t.n * Math.PI * (t.f / 10) ** 2) / 4,
+            barras: { tipo: "numero", numero: t.n, diametroMm: t.f },
             anchoApoyoM: v.anchoPilarA,
             recubrimientoM: t.rec,
             forma: patillaTirante ? "gancho" : "recta",
             pataMm: patillaTirante ? t.pata : 0,
             situacion: adherenciaTirante === "Mala" ? "mala" : "buena",
-          })
+          }
         : undefined;
+    const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
+    const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
 
-    return { zapata, armaduraTirante };
+    return { zapata, armaduraTirante, recomendacionesTirante, recomendaciones };
   }, [
     fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB, descentrado, distanciaBordeA, distanciaBordeB,
     sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
@@ -266,20 +272,29 @@ export default function ZapataAisladaPage() {
    * centrado basta el que gobierna; descentrado, los dos, porque cada uno tiene
    * su propio largo y su propia presión.
    */
-  const vuelosAMostrar = (dir: "A" | "B"): { nombre: string; r: ResultadoDireccionZapata }[] => {
+  type VueloMostrado = { nombre: string; r: ResultadoDireccionZapata; clave: `${"A" | "B"}.${LadoAislada}` };
+  const rec = resultado?.recomendaciones ?? {};
+  const recVuelo = (clave: VueloMostrado["clave"]) => ({
+    as: rec[`${clave}.as`],
+    anclaje: rec[`${clave}.anclaje`],
+    corte: rec[`${clave}.corte`],
+  });
+
+  const vuelosAMostrar = (dir: "A" | "B"): VueloMostrado[] => {
     if (!resultado) return [];
     const z = resultado.zapata;
-    if (!descentrado) return [{ nombre: `Dirección ${dir}`, r: dir === "A" ? z.direccionA : z.direccionB }];
+    if (!descentrado) return [{ nombre: `Dirección ${dir}`, r: dir === "A" ? z.direccionA : z.direccionB, clave: `${dir}.gobernante` }];
     const v = dir === "A" ? z.vuelosA : z.vuelosB;
     const [inicio, fin] = dir === "A" ? ["izquierdo", "derecho"] : ["superior", "inferior"];
     return [
-      { nombre: `Dirección ${dir} — vuelo ${inicio}`, r: v.inicio },
-      { nombre: `Dirección ${dir} — vuelo ${fin}`, r: v.fin },
+      { nombre: `Dirección ${dir} — vuelo ${inicio}`, r: v.inicio, clave: `${dir}.inicio` },
+      { nombre: `Dirección ${dir} — vuelo ${fin}`, r: v.fin, clave: `${dir}.fin` },
     ];
   };
 
   /** Armadura, anclaje y cortante de una dirección: el peor de sus vuelos. */
-  const comprobacionesDireccion = (dir: "A" | "B", vuelos: { nombre: string; r: ResultadoDireccionZapata }[]) => {
+  const comprobacionesDireccion = (dir: "A" | "B", vuelos: VueloMostrado[]) => {
+    const propuestas = (tipo: "as" | "anclaje" | "corte") => vuelos.some((v) => rec[`${v.clave}.${tipo}`]);
     const todos = (f: (r: ResultadoDireccionZapata) => boolean) => vuelos.every((v) => f(v.r));
     const maximo = (f: (r: ResultadoDireccionZapata) => number | undefined) => {
       const valores = vuelos.map((v) => f(v.r)).filter((x): x is number => x !== undefined && Number.isFinite(x));
@@ -290,16 +305,19 @@ export default function ZapataAisladaPage() {
         etiqueta: `armadura en ${dir}`,
         estado: todos((r) => r.verificaAs) ? ("cumple" as const) : ("no-cumple" as const),
         utilizacion: maximo((r) => r.asNecCm2 / r.asRealCm2),
+        conPropuestas: propuestas("as"),
       },
       {
         etiqueta: `anclaje en ${dir}`,
         estado: todos((r) => r.anclaje.verifica) ? ("cumple" as const) : ("no-cumple" as const),
         utilizacion: maximo((r) => (r.anclaje.comprobado ? r.anclaje.lbdMm / r.anclaje.disponibleMm : undefined)),
+        conPropuestas: propuestas("anclaje"),
       },
       {
         etiqueta: `cortante en ${dir}`,
         estado: todos((r) => r.verificaCorte) ? ("cumple" as const) : ("no-cumple" as const),
         utilizacion: maximo((r) => (r.vRdCKN > 0 ? r.vEdKN / r.vRdCKN : undefined)),
+        conPropuestas: propuestas("corte"),
       },
     ];
   };
@@ -579,6 +597,7 @@ export default function ZapataAisladaPage() {
                     etiqueta: "tensión del terreno",
                     estado: resultado.zapata.geotecnico.verificaTension ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.geotecnico.sigmaKPa / aNumero(sigmaAdmisible),
+                    conPropuestas: !!rec.tension,
                   },
                   ...(["A", "B"] as const).flatMap((dir) => comprobacionesDireccion(dir, vuelosAMostrar(dir))),
                   {
@@ -596,6 +615,7 @@ export default function ZapataAisladaPage() {
                         : "no-cumple"
                       : "no-evaluado",
                     utilizacion: punzonamientoEvaluado ? resultado.zapata.punzonamiento.aprovechamiento : undefined,
+                    conPropuestas: !!rec.punzonamiento,
                   },
                   {
                     etiqueta: "bielas en la cara del pilar",
@@ -607,6 +627,7 @@ export default function ZapataAisladaPage() {
                     utilizacion: punzonamientoEvaluado
                       ? resultado.zapata.punzonamiento.caraPilar.vEdMPa / resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa
                       : undefined,
+                    conPropuestas: !!rec.bielas,
                   },
                 ]}
               />
@@ -635,6 +656,7 @@ export default function ZapataAisladaPage() {
                       limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
                       unidad: "kN/m²", exige: "≤",
                     }}
+                    recomendaciones={rec.tension}
                   />
                   <div className="grid gap-6 pt-4 md:grid-cols-2">
                     <DiagramaPresionSuelo
@@ -677,6 +699,7 @@ export default function ZapataAisladaPage() {
                         limite: { etiqueta: "(N+P)·tan δ/γR", valor: resultado.zapata.tirante.rozamientoResistenteKN },
                         unidad: "kN", exige: "≤",
                       }}
+                      recomendaciones={rec.deslizamiento}
                     />
                     <PanelMetricas
                       horizontal
@@ -695,6 +718,7 @@ export default function ZapataAisladaPage() {
                     </p>
                     {resultado.armaduraTirante && (
                       <VerificacionArmaduraTirante
+                        recomendaciones={resultado.recomendacionesTirante}
                         elemento="pilar"
                         resultado={resultado.armaduraTirante}
                         descripcionBarras={`${numeroTirante} Ø${diametroTirante}`}
@@ -713,7 +737,7 @@ export default function ZapataAisladaPage() {
               <Subgrupo titulo="Comprobaciones estructurales">
                 <div>
                   {(["A", "B"] as const).flatMap((dir) =>
-                    vuelosAMostrar(dir).map((v) => <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} />)
+                    vuelosAMostrar(dir).map((v) => <TarjetaLadoZapata key={v.nombre} titulo={v.nombre} resultado={v.r} recomendaciones={recVuelo(v.clave)} />)
                   )}
                   <ResultadoCheck
                     etiqueta="Punzonamiento"
@@ -729,6 +753,7 @@ export default function ZapataAisladaPage() {
                       limite: { etiqueta: "VRd,c", valor: resultado.zapata.punzonamiento.vRdCKN },
                       unidad: "kN", exige: "≤",
                     }}
+                    recomendaciones={rec.punzonamiento}
                   />
                   <ResultadoCheck
                     etiqueta="Bielas en la cara del pilar"
@@ -740,6 +765,7 @@ export default function ZapataAisladaPage() {
                       limite: { etiqueta: "vRd,max", valor: resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={rec.bielas}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del punzonamiento"

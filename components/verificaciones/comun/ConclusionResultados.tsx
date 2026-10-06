@@ -10,6 +10,8 @@ export interface ComprobacionResumen {
   estado: EstadoVerificacion;
   /** Demanda sobre capacidad. Sólo en las comprobaciones resistentes. */
   utilizacion?: number;
+  /** Si debajo tiene propuestas recalculadas para resolverla o darle margen. */
+  conPropuestas?: boolean;
 }
 
 /**
@@ -22,6 +24,8 @@ export function ConclusionResultados({ comprobaciones }: { comprobaciones: reado
   const evaluadas = comprobaciones.filter((c) => c.estado === "cumple" || c.estado === "no-cumple");
   const estado: EstadoVerificacion =
     fallan.length > 0 ? "no-cumple" : evaluadas.length === 0 ? "no-evaluado" : "cumple";
+
+  const conPropuestas = comprobaciones.filter((c) => c.conPropuestas);
 
   const conUtilizacion = comprobaciones.filter(
     (c) => c.utilizacion !== undefined && Number.isFinite(c.utilizacion)
@@ -65,6 +69,13 @@ export function ConclusionResultados({ comprobaciones }: { comprobaciones: reado
       {fallan.length > 0 && (
         <p className="mt-1 text-sm text-muted-foreground">
           Fallan: {fallan.map((c) => c.etiqueta).join(" · ")}.
+        </p>
+      )}
+      {conPropuestas.length > 0 && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          Hay cambios recalculados para resolver o dar margen en:{" "}
+          <span className="text-foreground">{conPropuestas.map((c) => c.etiqueta).join(" · ")}</span>. Están
+          debajo de cada comprobación.
         </p>
       )}
     </div>

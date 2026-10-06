@@ -60,6 +60,11 @@ Independientes, contra `main`:
 - **Par tirante–terreno**: el pilar o muro queda con M y V en el arranque y
   sólo se informan; no hay todavía verificación de pilar de hormigón que los
   tome. La losa tampoco se verifica con la tracción del tirante sumada.
+- **Recomendaciones cuando no cumple o queda justa**: el motor está en
+  `lib/verificaciones/recomendaciones/` y ya lo usan la zapata aislada, la
+  corrida, la combinada y el tirante. Falta extenderlo al resto de las
+  familias (vigas, losas, punzonamiento, pilotes, muros, acero, madera): cada
+  una declara sus palancas, no hay que tocar el motor.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

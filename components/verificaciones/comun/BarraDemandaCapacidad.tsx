@@ -1,4 +1,5 @@
 import { fmt } from "@/lib/verificaciones/formato";
+import { AL_LIMITE } from "@/lib/verificaciones/recomendaciones/motor";
 
 /**
  * Barra de demanda contra capacidad: cuánto de lo disponible se está usando.
@@ -29,9 +30,6 @@ interface BarraDemandaCapacidadProps {
    */
   mostrarValores?: boolean;
 }
-
-/** Umbral a partir del cual conviene avisar que queda poco margen. */
-const AL_LIMITE = 0.9;
 
 /** Utilización hasta la que la barra se estira para mostrar el exceso. */
 const ESCALA_MAXIMA = 3;

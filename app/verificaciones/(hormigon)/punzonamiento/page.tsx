@@ -21,13 +21,10 @@ import {
   CroquisSeccionPunzonamiento,
 } from "@/components/verificaciones/croquis/CroquisPunzonamiento";
 import { PlantaPunzonamiento } from "@/components/verificaciones/hormigon/PlantaPunzonamiento";
-import {
-  BETA_RECOMENDADO,
-  calcularPunzonamiento,
-  K_MAX_ARMADURA,
-  type PosicionPilar,
-} from "@/lib/calc/hormigon/losas/punzonamiento";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { BETA_RECOMENDADO, K_MAX_ARMADURA, type PosicionPilar } from "@/lib/calc/hormigon/losas/punzonamiento";
+import { resolverPunzonamiento } from "@/lib/calc/hormigon/losas/resolver-punzonamiento";
+import { recomendarPunzonamiento } from "@/lib/verificaciones/recomendaciones/punzonamiento";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "punzonamiento")!;
@@ -82,68 +79,18 @@ export default function PunzonamientoPage() {
   const [nPerimetros, setNPerimetros] = useCampo("nPerimetros", "3");
   const [distPrimer, setDistPrimer] = useCampo("distPrimer", "0.08");
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk),
-      espesor: aNumero(espesor), recubrimiento: aNumero(recubrimiento),
-      c1: aNumero(c1), c2: aNumero(c2),
-      distBordeC1: aNumero(distBordeC1), distBordeC2: aNumero(distBordeC2),
-      phiNegY: aNumero(phiNegY), sNegY: aNumero(sNegY),
-      phiNegZ: aNumero(phiNegZ), sNegZ: aNumero(sNegZ),
-      vEd: aNumero(vEd), beta: aNumero(betaTexto),
-      phiCerco: aNumero(phiCerco), ramas: aNumero(ramas),
-      sr: aNumero(sr), st: aNumero(st),
-      nPerimetros: aNumero(nPerimetros), distPrimer: aNumero(distPrimer),
-    };
-
-    const positivos = [n.fck, n.fyk, n.espesor, n.c1, n.c2, n.phiNegY, n.sNegY, n.phiNegZ, n.sNegZ,
-                       n.phiCerco, n.ramas, n.sr, n.st];
-    if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
-    const noNegativos = [n.recubrimiento, n.distBordeC1, n.distBordeC2, n.vEd, n.nPerimetros, n.distPrimer];
-    if (!noNegativos.every((x) => Number.isFinite(x) && x >= 0)) return null;
-    if (betaModo === "A mano" && (!Number.isFinite(n.beta) || n.beta < 1)) return null;
-
-    /*
-     * Los dos cantos útiles salen del mismo dato en vez de pedirse por separado:
-     * las dos capas de negativos no pueden estar a la misma altura, y la de
-     * adentro pierde un diámetro entero. Ésa es justamente la razón por la que
-     * la ec. (6.32) promedia dy y dz en vez de usar un solo canto.
-     */
-    const dY = n.espesor - n.recubrimiento - n.phiNegY / 1000 / 2;
-    const dZ = n.espesor - n.recubrimiento - n.phiNegY / 1000 - n.phiNegZ / 1000 / 2;
-    if (dY <= 0 || dZ <= 0) return null;
-
-    const r = calcularPunzonamiento(
-      { fckMPa: n.fck, fykMPa: n.fyk },
-      {
-        posicion,
-        dYM: dY,
-        dZM: dZ,
-        c1M: n.c1,
-        c2M: n.c2,
-        distBordeC1M: n.distBordeC1,
-        distBordeC2M: n.distBordeC2,
-      },
-      {
-        diametroYMm: n.phiNegY, separacionYM: n.sNegY,
-        diametroZMm: n.phiNegZ, separacionZM: n.sNegZ,
-      },
-      { vEdKN: n.vEd, betaManual: betaModo === "A mano" ? n.beta : null },
-      {
-        diametroMm: n.phiCerco,
-        ramasPorPerimetro: n.ramas,
-        srM: n.sr,
-        stM: n.st,
-        numeroPerimetros: n.nPerimetros,
-        distPrimerPerimetroM: n.distPrimer,
-        alphaGrados: 90,
-      }
-    );
-
-    return { r, n, dY, dZ };
-  }, [fck, fyk, espesor, recubrimiento, c1, c2, distBordeC1, distBordeC2, phiNegY, sNegY,
-      phiNegZ, sNegZ, vEd, betaModo, betaTexto, phiCerco, ramas, sr, st, nPerimetros,
-      distPrimer, posicion]);
+  const campos = useMemo(
+    () => ({
+      posicion: posicionTexto, betaModo, beta: betaTexto,
+      fck, fyk, espesor, recubrimiento, c1, c2, distBordeC1, distBordeC2,
+      phiNegY, sNegY, phiNegZ, sNegZ, vEd, phiCerco, ramas, sr, st, nPerimetros, distPrimer,
+    }),
+    [posicionTexto, betaModo, betaTexto, fck, fyk, espesor, recubrimiento, c1, c2, distBordeC1, distBordeC2,
+     phiNegY, sNegY, phiNegZ, sNegZ, vEd, phiCerco, ramas, sr, st, nPerimetros, distPrimer]
+  );
+  const resultado = useMemo(() => resolverPunzonamiento(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const rec = useMemo(() => recomendarPunzonamiento(campos), [campos]);
 
   const hayBorde = posicion !== "interior";
 
@@ -366,6 +313,7 @@ export default function PunzonamientoPage() {
                       limite: { etiqueta: "vRd,max", valor: resultado.r.caraPilar.vRdMaxMPa },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={rec.caraPilar}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo en la cara del pilar"
@@ -405,6 +353,7 @@ export default function PunzonamientoPage() {
                       limite: { etiqueta: "vRd,c", valor: resultado.r.critico.vRdCMPa },
                       unidad: "MPa", exige: "≤",
                     }}
+                    recomendaciones={rec.critico}
                   />
                   <PanelFormulas
                     titulo="Ver desarrollo del perímetro crítico"
@@ -440,6 +389,7 @@ export default function PunzonamientoPage() {
                           etiqueta="Losa con armadura de punzonamiento"
                           verifica={false}
                           detalle={`vEd = ${fmt(resultado.r.critico.vEdMPa, 3)} MPa supera el techo ${fmt(K_MAX_ARMADURA, 1)}·vRd,c = ${fmt(resultado.r.armadura.vRdCsTopeMPa, 3)} MPa (ec. 6.52): ninguna cantidad de armadura alcanza. Subir el canto, agrandar el pilar o poner capitel.`}
+                          recomendaciones={rec.fueraDeAlcance}
                         />
                       ) : (
                         <ResultadoCheck
@@ -451,6 +401,7 @@ export default function PunzonamientoPage() {
                             limite: { etiqueta: "vRd,cs", valor: resultado.r.armadura.vRdCsMPa },
                             unidad: "MPa", exige: "≤",
                           }}
+                          recomendaciones={rec.armadura}
                         />
                       )}
                       <PanelFormulas
@@ -489,6 +440,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "exigido", valor: resultado.r.armadura.distUltimoPerimetroExigidaM * 100 },
                         unidad: "cm", exige: "≥", decimales: 0,
                       }}
+                      recomendaciones={rec.uOut}
                     />
                     <ResultadoCheck
                       etiqueta="Al menos 2 perímetros"
@@ -498,6 +450,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "mínimo", valor: 2 },
                         unidad: "perímetros", exige: "≥", decimales: 0,
                       }}
+                      recomendaciones={rec.perimetros}
                     />
                     <ResultadoCheck
                       etiqueta="Separación radial sr ≤ 0,75d"
@@ -507,6 +460,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "0,75d", valor: resultado.r.detallado.srMaxM * 100 },
                         unidad: "cm", exige: "≤", decimales: 1,
                       }}
+                      recomendaciones={rec.sr}
                     />
                     <ResultadoCheck
                       etiqueta="Separación tangencial st ≤ 1,5d"
@@ -516,6 +470,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "1,5d", valor: resultado.r.detallado.stMaxM * 100 },
                         unidad: "cm", exige: "≤", decimales: 1,
                       }}
+                      recomendaciones={rec.st}
                     />
                     <ResultadoCheck
                       etiqueta="1.er perímetro a no más de d/2"
@@ -525,6 +480,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "d/2", valor: resultado.r.detallado.distPrimerPerimetroMaxM * 100 },
                         unidad: "cm", exige: "≤", decimales: 1,
                       }}
+                      recomendaciones={rec.primerPerimetro}
                     />
                     <ResultadoCheck
                       etiqueta="Asw,min por rama, ec. (9.11)"
@@ -534,6 +490,7 @@ export default function PunzonamientoPage() {
                         limite: { etiqueta: "Asw,min", valor: resultado.r.detallado.aswMinRamaMm2 },
                         unidad: "mm²", exige: "≥", decimales: 0,
                       }}
+                      recomendaciones={rec.aswMin}
                     />
                   </div>
                 </Subgrupo>

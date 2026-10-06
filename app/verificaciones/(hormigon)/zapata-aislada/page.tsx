@@ -21,7 +21,6 @@ import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaL
 import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
-import { verificarArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -31,6 +30,7 @@ import {
   type ResultadoDireccionZapata,
 } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { PropuestaVigaCentradora } from "@/components/verificaciones/hormigon/PropuestaVigaCentradora";
+import { recomendarArmaduraTirante, verificarTirante, type EntradaArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -164,21 +164,24 @@ export default function ZapataAisladaPage() {
     };
     const patillaTirante = extremoTirante === EXTREMOS_TIRANTE[1];
     const barrasValidas = t.f > 0 && t.n > 0 && t.rec >= 0 && (!patillaTirante || t.pata >= 0);
-    const armaduraTirante =
+    const entradaTirante: EntradaArmaduraTirante | undefined =
       zapata.tirante && barrasValidas
-        ? verificarArmaduraTirante(materiales, {
+        ? {
+            fck: v.fck,
+            fyk: v.fyk,
             tdKN: zapata.tirante.tdKN,
-            diametroMm: t.f,
-            asRealCm2: (t.n * Math.PI * (t.f / 10) ** 2) / 4,
+            barras: { tipo: "numero", numero: t.n, diametroMm: t.f },
             anchoApoyoM: v.anchoPilarA,
             recubrimientoM: t.rec,
             forma: patillaTirante ? "gancho" : "recta",
             pataMm: patillaTirante ? t.pata : 0,
             situacion: adherenciaTirante === "Mala" ? "mala" : "buena",
-          })
+          }
         : undefined;
+    const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
+    const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
 
-    return { zapata, armaduraTirante };
+    return { zapata, armaduraTirante, recomendacionesTirante };
   }, [
     fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB, descentrado, distanciaBordeA, distanciaBordeB,
     sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
@@ -695,6 +698,7 @@ export default function ZapataAisladaPage() {
                     </p>
                     {resultado.armaduraTirante && (
                       <VerificacionArmaduraTirante
+                        recomendaciones={resultado.recomendacionesTirante}
                         elemento="pilar"
                         resultado={resultado.armaduraTirante}
                         descripcionBarras={`${numeroTirante} Ø${diametroTirante}`}

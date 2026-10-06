@@ -8,6 +8,8 @@ import {
 import { fmt } from "@/lib/verificaciones/formato";
 import { useId } from "react";
 import { useAnotarComprobacion } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { RecomendacionesCheck } from "@/components/verificaciones/comun/RecomendacionesCheck";
+import type { Recomendacion } from "@/lib/verificaciones/recomendaciones/motor";
 
 /** Una de las dos magnitudes que se enfrentan en la comprobación. */
 interface MagnitudComparada {
@@ -46,6 +48,11 @@ interface ResultadoCheckProps {
    * lo primero que se busca al mirar el resultado.
    */
   comparacion?: ComparacionCheck;
+  /**
+   * Cambios recalculados que la resuelven, o que le dan margen si está justa.
+   * Vienen vacíos cuando cumple con margen.
+   */
+  recomendaciones?: readonly Recomendacion[];
 }
 
 /**
@@ -76,7 +83,7 @@ function laBarraExplicaElVeredicto(verifica: boolean, c: ComparacionCheck): bool
   return cumpleSegunNumeros === verifica;
 }
 
-export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacion }: ResultadoCheckProps) {
+export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacion, recomendaciones }: ResultadoCheckProps) {
   const estadoFinal: EstadoVerificacion = estado ?? (verifica ? "cumple" : "no-cumple");
   const evaluada = estadoFinal === "cumple" || estadoFinal === "no-cumple";
   // Sin números finitos no hay desigualdad que mostrar: "NaN < 8,74" no
@@ -99,6 +106,7 @@ export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacio
     etiqueta: etiqueta.charAt(0).toLowerCase() + etiqueta.slice(1),
     estado: estadoFinal,
     utilizacion: utilizacion !== undefined && Number.isFinite(utilizacion) ? utilizacion : undefined,
+    conPropuestas: evaluada && (recomendaciones?.length ?? 0) > 0,
   });
 
   /*
@@ -162,6 +170,10 @@ export function ResultadoCheck({ etiqueta, verifica, estado, detalle, comparacio
 
       {detalle && (
         <p className="mt-1 font-mono text-xs text-muted-foreground tabular-nums">{detalle}</p>
+      )}
+
+      {evaluada && recomendaciones && (
+        <RecomendacionesCheck recomendaciones={recomendaciones} noCumple={estadoFinal === "no-cumple"} />
       )}
     </div>
   );

@@ -25,7 +25,8 @@ import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigo
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataCombinada } from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
-import { verificarArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
+import { recomendarZapataCombinada } from "@/lib/verificaciones/recomendaciones/zapata-combinada";
+import { recomendarArmaduraTirante, verificarTirante, type EntradaArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -109,42 +110,43 @@ export default function ZapataCombinadaPage() {
     if (conTirante && !(brazo > 0 && phi > 0 && phi < 90)) return null;
 
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const zapata = calcularZapataCombinada(
-      materiales,
-      { L: v.L, B: v.B, H: v.H, recubrimiento: v.rec, ...(descentrado ? { distanciaBordeB: borde } : {}) },
-      v.sigmaAdmisible,
-      {
-        pilares: [
-          { posicionM: v.pos1, Nk: v.Nk1, anchoLargoM: v.cL1, anchoAnchoM: v.cB1 },
-          { posicionM: v.pos2, Nk: v.Nk2, anchoLargoM: v.cL2, anchoAnchoM: v.cB2 },
-        ],
-        inferior: { numero: v.nInf, diametroMm: v.fInf },
-        superior: { numero: v.nSup, diametroMm: v.fSup },
-        transversal: { diametroMm: v.fT, separacionM: v.sT },
-        formaAnclaje,
-        ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
-      }
-    );
+    const geometria = { L: v.L, B: v.B, H: v.H, recubrimiento: v.rec, ...(descentrado ? { distanciaBordeB: borde } : {}) };
+    const datos = {
+      pilares: [
+        { posicionM: v.pos1, Nk: v.Nk1, anchoLargoM: v.cL1, anchoAnchoM: v.cB1 },
+        { posicionM: v.pos2, Nk: v.Nk2, anchoLargoM: v.cL2, anchoAnchoM: v.cB2 },
+      ] as const,
+      inferior: { numero: v.nInf, diametroMm: v.fInf },
+      superior: { numero: v.nSup, diametroMm: v.fSup },
+      transversal: { diametroMm: v.fT, separacionM: v.sT },
+      formaAnclaje,
+      ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
+    };
+    const zapata = calcularZapataCombinada(materiales, geometria, v.sigmaAdmisible, datos);
+    const recomendaciones = recomendarZapataCombinada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos });
 
     // El tirante se verifica con el pilar que más tira; las mismas barras en los dos.
     const t = { f: aNumero(diametroTirante), n: aNumero(numeroTirante), rec: aNumero(recubrimientoTirante), pata: aNumero(pataTirante) };
     const patillaTirante = extremoTirante === EXTREMOS_TIRANTE[1];
     const iMayor = zapata.tirante && Math.abs(zapata.tirante.porPilar[1].tkKN) > Math.abs(zapata.tirante.porPilar[0].tkKN) ? 1 : 0;
-    const armaduraTirante =
+    const entradaTirante: EntradaArmaduraTirante | undefined =
       zapata.tirante && t.f > 0 && t.n > 0 && t.rec >= 0 && (!patillaTirante || t.pata >= 0)
-        ? verificarArmaduraTirante(materiales, {
+        ? {
+            fck: v.fck,
+            fyk: v.fyk,
             tdKN: zapata.tirante.porPilar[iMayor].tdKN,
-            diametroMm: t.f,
-            asRealCm2: (t.n * Math.PI * (t.f / 10) ** 2) / 4,
+            barras: { tipo: "numero", numero: t.n, diametroMm: t.f },
             anchoApoyoM: iMayor === 0 ? v.cB1 : v.cB2,
             recubrimientoM: t.rec,
             forma: patillaTirante ? "gancho" : "recta",
             pataMm: patillaTirante ? t.pata : 0,
             situacion: adherenciaTirante === "Mala" ? "mala" : "buena",
-          })
+          }
         : undefined;
+    const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
+    const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
 
-    return { zapata, armaduraTirante, iMayor };
+    return { zapata, armaduraTirante, recomendacionesTirante, iMayor, recomendaciones };
   }, [
     fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, descentrado, distanciaBordeB, conTirante, brazoTirante, phiTerreno,
     pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2,
@@ -223,6 +225,12 @@ export default function ZapataCombinadaPage() {
   }
 
   const z = resultado?.zapata;
+  const rec = resultado?.recomendaciones ?? {};
+  const recVuelo = (lado: "inicio" | "fin" | "gobernante") => ({
+    as: rec[`${lado}.as`],
+    anclaje: rec[`${lado}.anclaje`],
+    corte: rec[`${lado}.corte`],
+  });
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -428,6 +436,7 @@ export default function ZapataCombinadaPage() {
                         limite: { etiqueta: "σ adm", valor: aNumero(sigmaAdmisible) },
                         unidad: "kN/m²", exige: "≤",
                       }}
+                      recomendaciones={rec.tension}
                     />
                     <div className="grid gap-6 pt-4 md:grid-cols-2">
                       <DiagramaPresionSuelo distribucion={z.geotecnico.distribucionL} lM={aNumero(A)} sigmaAdmisibleKPa={aNumero(sigmaAdmisible)} etiqueta="A lo largo" />
@@ -448,6 +457,7 @@ export default function ZapataCombinadaPage() {
                           limite: { etiqueta: "(N+P)·tan δ/γR", valor: z.tirante.global.rozamientoResistenteKN },
                           unidad: "kN", exige: "≤",
                         }}
+                        recomendaciones={rec.deslizamiento}
                       />
                       <PanelMetricas
                         horizontal
@@ -458,6 +468,7 @@ export default function ZapataCombinadaPage() {
                       />
                       {resultado.armaduraTirante && (
                         <VerificacionArmaduraTirante
+                          recomendaciones={resultado.recomendacionesTirante}
                           elemento="pilar"
                           resultado={resultado.armaduraTirante}
                           descripcionBarras={`${numeroTirante} Ø${diametroTirante} por pilar (P${resultado.iMayor + 1} gobierna)`}
@@ -484,6 +495,7 @@ export default function ZapataCombinadaPage() {
                         limite: { etiqueta: "As nec", valor: z.inferior.flexion.asNecCm2 },
                         unidad: "cm²", exige: "≥",
                       }}
+                      recomendaciones={rec.inferior}
                     />
                     <ResultadoCheck
                       etiqueta="Armadura superior (M−)"
@@ -503,6 +515,7 @@ export default function ZapataCombinadaPage() {
                             }
                           : undefined
                       }
+                      recomendaciones={rec.superior}
                     />
                     <ResultadoCheck
                       etiqueta="Cortante sin armadura transversal"
@@ -513,6 +526,7 @@ export default function ZapataCombinadaPage() {
                         limite: { etiqueta: "VRd,c", valor: z.cortante.vRdCKN },
                         unidad: "kN", exige: "≤",
                       }}
+                      recomendaciones={rec.cortante}
                     />
                     <PanelFormulas
                       titulo="Ver desarrollo a lo largo"
@@ -529,11 +543,11 @@ export default function ZapataCombinadaPage() {
                   <div>
                     {descentrado ? (
                       <>
-                        <TarjetaLadoZapata titulo="Vuelo del lado de la medianera" resultado={z.transversal.inicio} />
-                        <TarjetaLadoZapata titulo="Vuelo hacia adentro" resultado={z.transversal.fin} />
+                        <TarjetaLadoZapata titulo="Vuelo del lado de la medianera" resultado={z.transversal.inicio} recomendaciones={recVuelo("inicio")} />
+                        <TarjetaLadoZapata titulo="Vuelo hacia adentro" resultado={z.transversal.fin} recomendaciones={recVuelo("fin")} />
                       </>
                     ) : (
-                      <TarjetaLadoZapata titulo="Vuelo a lo ancho" resultado={z.transversal.gobernante} />
+                      <TarjetaLadoZapata titulo="Vuelo a lo ancho" resultado={z.transversal.gobernante} recomendaciones={recVuelo("gobernante")} />
                     )}
                   </div>
                 </Subgrupo>
@@ -555,6 +569,7 @@ export default function ZapataCombinadaPage() {
                               ? undefined
                               : { real: { etiqueta: "Vd", valor: p.vEdKN }, limite: { etiqueta: "VRd,c", valor: p.vRdCKN }, unidad: "kN", exige: "≤" }
                           }
+                          recomendaciones={rec[i === 0 ? "punzonamiento1" : "punzonamiento2"]}
                         />
                         <ResultadoCheck
                           etiqueta={`Bielas en la cara de P${i + 1}`}
@@ -565,6 +580,7 @@ export default function ZapataCombinadaPage() {
                             limite: { etiqueta: "vRd,max", valor: p.caraPilar.vRdMaxMPa },
                             unidad: "MPa", exige: "≤",
                           }}
+                          recomendaciones={rec[i === 0 ? "bielas1" : "bielas2"]}
                         />
                       </div>
                     ))}

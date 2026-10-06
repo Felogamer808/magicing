@@ -15,11 +15,12 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaApeoVoladizo } from "@/components/verificaciones/hormigon/DiagramaApeoVoladizo";
-import { calcularApeoVoladizo, type AnclajeExtremo } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
+import { type AnclajeExtremo } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverApeoVoladizo } from "@/lib/calc/hormigon/vigas/resolver-apeo-voladizo";
+import { recomendarApeoVoladizo } from "@/lib/verificaciones/recomendaciones/vigas-apeo-voladizo";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-apeo-voladizo")!;
 
@@ -80,54 +81,13 @@ export default function VigaApeoVoladizoPage() {
   const [nPilar, setNPilar] = useCampo("nPilar", "4");
   const [phiPilar, setPhiPilar] = useCampo("phiPilar", "12");
 
-  const resultado = useMemo(() => {
-    const n = {
-      fck: aNumero(fck), fyk: aNumero(fyk), rec: aNumero(rec),
-      h: aNumero(h), b: aNumero(b), luz: aNumero(luz), voladizo: aNumero(voladizo),
-      extremoLibre: aNumero(extremoLibre), extremoLejano: aNumero(extremoLejano),
-      cargaAncho: aNumero(cargaAncho), cargaProf: aNumero(cargaProf),
-      apoyoCAncho: aNumero(apoyoCAncho), apoyoCProf: aNumero(apoyoCProf),
-      apoyoLAncho: aNumero(apoyoLAncho), apoyoLProf: aNumero(apoyoLProf),
-      elemLAncho: aNumero(elemLAncho), elemLProf: aNumero(elemLProf),
-      p: aNumero(p), nMax: aNumero(nMax), nMin: aNumero(nMin),
-      nTirante: aNumero(nTirante), phiTirante: aNumero(phiTirante), phiEstribo: aNumero(phiEstribo),
-      nPilar: aNumero(nPilar), phiPilar: aNumero(phiPilar),
-    };
-    if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
-    const positivos = [
-      n.fck, n.fyk, n.h, n.b, n.luz, n.voladizo, n.cargaAncho, n.cargaProf, n.apoyoCAncho, n.apoyoCProf,
-      n.apoyoLAncho, n.apoyoLProf, n.elemLAncho, n.elemLProf, n.p, n.nTirante, n.phiTirante, n.phiEstribo,
-      n.nPilar, n.phiPilar,
-    ];
-    if (positivos.some((x) => x <= 0)) return null;
-    if (n.nMin > n.nMax) return null;
-    if (n.rec + (n.phiEstribo + n.phiTirante) / 1000 >= n.h) return null;
-
-    const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
-    const r = calcularApeoVoladizo(
-      materiales,
-      {
-        hM: n.h, bM: n.b, recubrimientoM: n.rec, luzM: n.luz, voladizoM: n.voladizo,
-        extremoLibreM: n.extremoLibre, extremoLejanoM: n.extremoLejano,
-        carga: { anchoM: n.cargaAncho, profundidadM: n.cargaProf },
-        apoyoCercano: { anchoM: n.apoyoCAncho, profundidadM: n.apoyoCProf },
-        apoyoLejano: { anchoM: n.apoyoLAncho, profundidadM: n.apoyoLProf },
-        elementoLejano: { anchoM: n.elemLAncho, profundidadM: n.elemLProf },
-      },
-      {
-        pEdKN: n.p, nLejanoMaxKN: n.nMax, nLejanoMinKN: n.nMin,
-        tirante: { numero: n.nTirante, diametroMm: n.phiTirante },
-        diametroEstriboMm: n.phiEstribo,
-        formaAnclajeTirante: forma,
-        armaduraPilarLejano: { numero: n.nPilar, diametroMm: n.phiPilar },
-      }
-    );
-    return { n, r };
-  }, [
-    fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf,
-    apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin,
-    nTirante, phiTirante, phiEstribo, forma, nPilar, phiPilar,
-  ]);
+  const campos = useMemo(
+    () => ({ fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, nPilar, phiPilar }),
+    [fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, nPilar, phiPilar]
+  );
+  const resultado = useMemo(() => resolverApeoVoladizo(campos), [campos]);
+  // Cambios recalculados para lo que no cumple o queda justo.
+  const propuestas = useMemo(() => recomendarApeoVoladizo(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -322,43 +282,51 @@ export default function VigaApeoVoladizoPage() {
                     verifica={resultado.r.verificaTirante}
                     detalle="T = P·a/z, con fyd = fyk/γs."
                     comparacion={{ real: { etiqueta: "As real", valor: resultado.r.asRealTiranteCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.asNecTiranteCm2 }, unidad: "cm²", exige: "≥" }}
+                    recomendaciones={propuestas.tirante}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo bajo el pilar apeado · cara cargada (k2 = 0,85)"
                     verifica={resultado.r.nudoCargaApoyo.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoCargaApoyo.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoCargaApoyo.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoCargaApoyo}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo bajo el pilar apeado · cara de la biela (k2 = 0,85)"
                     verifica={resultado.r.nudoCargaBiela.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoCargaBiela.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoCargaBiela.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoCargaBiela}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo sobre el apoyo cercano (k1 = 1,0)"
                     verifica={resultado.r.nudoApoyoCercano.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoApoyoCercano.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoApoyoCercano.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoApoyoCercano}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo bajo el elemento lejano"
                     verifica={resultado.r.nudoElementoLejano.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoElementoLejano.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoElementoLejano.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoElementoLejano}
                   />
                   <ResultadoCheck
                     etiqueta="Nudo sobre el apoyo lejano (k1 = 1,0)"
                     verifica={resultado.r.nudoApoyoLejano.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoApoyoLejano.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoApoyoLejano.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+                    recomendaciones={propuestas.nudoApoyoLejano}
                   />
                   <ResultadoCheck
                     etiqueta="Anclaje del tirante en el voladizo"
                     verifica={resultado.r.anclajeTiranteCarga.verifica}
                     detalle={detalleAnclaje(resultado.r.anclajeTiranteCarga)}
                     comparacion={comparacionAnclaje(resultado.r.anclajeTiranteCarga)}
+                    recomendaciones={propuestas.anclajeCarga}
                   />
                   <ResultadoCheck
                     etiqueta="Anclaje del tirante sobre el apoyo lejano"
                     verifica={resultado.r.anclajeTiranteLejano.verifica}
                     detalle={detalleAnclaje(resultado.r.anclajeTiranteLejano)}
                     comparacion={comparacionAnclaje(resultado.r.anclajeTiranteLejano)}
+                    recomendaciones={propuestas.anclajeLejano}
                   />
                   {resultado.r.traccionPilarLejanoKN > 0 && (
                     <>
@@ -366,6 +334,7 @@ export default function VigaApeoVoladizoPage() {
                         etiqueta="Pilar lejano a tracción · armadura suficiente"
                         verifica={resultado.r.verificaPilarLejano}
                         comparacion={{ real: { etiqueta: "As real", valor: resultado.r.asRealPilarLejanoCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.asNecPilarLejanoCm2 }, unidad: "cm²", exige: "≥" }}
+                        recomendaciones={propuestas.pilarLejano}
                       />
                       {resultado.r.anclajePilarLejano && (
                         <ResultadoCheck
@@ -373,6 +342,7 @@ export default function VigaApeoVoladizoPage() {
                           verifica={resultado.r.anclajePilarLejano.verifica}
                           detalle={detalleAnclaje(resultado.r.anclajePilarLejano)}
                           comparacion={comparacionAnclaje(resultado.r.anclajePilarLejano)}
+                          recomendaciones={propuestas.anclajePilar}
                         />
                       )}
                     </>

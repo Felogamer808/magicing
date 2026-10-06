@@ -57,6 +57,7 @@ export type IdVerificacion =
   | "vigas-apeo-voladizo"
   | "carga-colgada"
   | "mensula-corta"
+  | "zona-parcialmente-cargada"
   | "losas"
   | "punzonamiento"
   | "secciones-mixtas"
@@ -276,6 +277,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Región D por bielas y tirantes: tirante por Anejo 19 y por la Instrucción española, nudo bajo la placa, biela, degollamiento, cercos de las dos familias, anclaje y despiece del marco.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/mensula-corta",
+    disponible: true,
+  },
+  {
+    id: "zona-parcialmente-cargada",
+    nombre: "Zona parcialmente cargada",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Carga concentrada sobre un área chica (apoyo, placa, aparato de apoyo): aplastamiento local con el área de distribución y armadura para las tracciones transversales.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/zona-parcialmente-cargada",
     disponible: true,
   },
   {

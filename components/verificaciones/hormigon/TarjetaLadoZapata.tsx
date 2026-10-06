@@ -2,12 +2,12 @@
 
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
-import type { calcularZapataMedianeria } from "@/lib/calc/hormigon/cimentaciones/zapata-medianeria";
+import type { ResultadoDireccionZapata } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { fmt } from "@/lib/verificaciones/formato";
 
 interface TarjetaLadoZapataProps {
   titulo: string;
-  resultado: ReturnType<typeof calcularZapataMedianeria>["ladoLimite"];
+  resultado: ResultadoDireccionZapata;
 }
 
 /**
@@ -31,6 +31,24 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
           unidad: "cm²", exige: "≥",
         }}
       />
+      {resultado.anclaje.comprobado ? (
+        <ResultadoCheck
+          etiqueta={`${titulo} · anclaje de la parrilla`}
+          verifica={resultado.anclaje.verifica}
+          detalle={`Anejo 19, art. 9.8.2.2 y 8.4. Gobierna x = ${fmt(resultado.anclaje.xM, 3)} m desde el borde, con Fs = ${fmt(resultado.anclaje.fsKN)} kN.`}
+          comparacion={{
+            real: { etiqueta: "lbd", valor: resultado.anclaje.lbdMm },
+            limite: { etiqueta: "disponible", valor: resultado.anclaje.disponibleMm },
+            unidad: "mm", exige: "≤",
+          }}
+        />
+      ) : (
+        <ResultadoCheck
+          etiqueta={`${titulo} · anclaje de la parrilla`}
+          verifica
+          detalle="El vuelo no llega a h/2 (art. 9.8.2.2 (5)): la fisura inclinada no cae dentro y no hay tirante que anclar de este lado."
+        />
+      )}
       <ResultadoCheck
         etiqueta={`${titulo} · cortante sin armadura transversal`}
         verifica={resultado.verificaCorte}
@@ -43,12 +61,13 @@ export function TarjetaLadoZapata({ titulo, resultado }: TarjetaLadoZapataProps)
       <PanelFormulas
         titulo={`Ver desarrollo · ${titulo.toLowerCase()}`}
         filas={[
-          { etiqueta: "Vuelo", valor: `${fmt(resultado.lM, 3)} m` },
+          { etiqueta: "Borde a sección de cálculo (0,15·c dentro del pilar)", valor: `${fmt(resultado.lM, 3)} m` },
           { etiqueta: "σ en el borde", valor: `${fmt(resultado.sigmaMaxKPa)} kN/m²` },
-          { etiqueta: "σ en sección crítica", valor: `${fmt(resultado.sigmaCriticaKPa)} kN/m²` },
-          { etiqueta: "Td", valor: `${fmt(resultado.tdKN)} kN` },
-          { etiqueta: "As mín. mecánico (planilla)", valor: `${fmt(resultado.asMinMecanicoCm2)} cm²` },
-          { etiqueta: "As mín. geométrico (planilla)", valor: `${fmt(resultado.asMinGeometricoCm2)} cm²` },
+          { etiqueta: "σ en la sección de cálculo", valor: `${fmt(resultado.sigmaCriticaKPa)} kN/m²` },
+          { etiqueta: "M en la sección de cálculo", valor: `${fmt(resultado.momentoKNm)} kN·m` },
+          { etiqueta: "Fs,max = M/(0,9·d)", valor: `${fmt(resultado.fsKN)} kN` },
+          { etiqueta: "As = Fs/fyd", valor: `${fmt(resultado.asCalculadoCm2)} cm²` },
+          { etiqueta: "As mín., ec. (9.1)", valor: `${fmt(resultado.asMinCm2)} cm²` },
         ]}
       />
     </div>

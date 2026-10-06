@@ -177,6 +177,7 @@ describe("zapata aislada (caso original de la planilla, Mk=0)", () => {
     expect(r.direccionB.dM).toBeCloseTo(0.242, 6);
     expect(r.direccionA.fsKN).toBe(0);
     expect(r.direccionA.anclaje.verifica).toBe(true);
+    expect(r.direccionA.anclaje.comprobado).toBe(false);
     // ec. (9.1): b·h²/6 / (0,8·h) · fctm,fl / fyd, con fctm,fl = 1,3·fctm.
     const fctmFl = 1.3 * 0.3 * 30 ** (2 / 3);
     expect(r.direccionA.asMinCm2).toBeCloseTo(1e4 * ((0.7 * 0.3 ** 2) / 6 / (0.8 * 0.3)) * (fctmFl / (500 / 1.15)), 6);

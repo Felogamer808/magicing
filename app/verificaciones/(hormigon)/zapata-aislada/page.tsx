@@ -17,6 +17,7 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { CroquisCargasZapata } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesZapataDiagrama";
+import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
@@ -321,7 +322,9 @@ export default function ZapataAisladaPage() {
                   {
                     etiqueta: "anclaje en A",
                     estado: resultado.zapata.direccionA.anclaje.verifica ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionA.anclaje.lbdMm / resultado.zapata.direccionA.anclaje.disponibleMm,
+                    utilizacion: resultado.zapata.direccionA.anclaje.comprobado
+                      ? resultado.zapata.direccionA.anclaje.lbdMm / resultado.zapata.direccionA.anclaje.disponibleMm
+                      : undefined,
                   },
                   {
                     etiqueta: "cortante en A",
@@ -336,7 +339,9 @@ export default function ZapataAisladaPage() {
                   {
                     etiqueta: "anclaje en B",
                     estado: resultado.zapata.direccionB.anclaje.verifica ? "cumple" : "no-cumple",
-                    utilizacion: resultado.zapata.direccionB.anclaje.lbdMm / resultado.zapata.direccionB.anclaje.disponibleMm,
+                    utilizacion: resultado.zapata.direccionB.anclaje.comprobado
+                      ? resultado.zapata.direccionB.anclaje.lbdMm / resultado.zapata.direccionB.anclaje.disponibleMm
+                      : undefined,
                   },
                   {
                     etiqueta: "diámetro mínimo φ12",
@@ -416,56 +421,8 @@ export default function ZapataAisladaPage() {
 
               <Subgrupo titulo="Comprobaciones estructurales">
                 <div>
-                  {(["A", "B"] as const).map((dir) => {
-                    const r = dir === "A" ? resultado.zapata.direccionA : resultado.zapata.direccionB;
-                    return (
-                      <div key={dir}>
-                        <ResultadoCheck
-                          etiqueta={`Dirección ${dir} · armadura suficiente`}
-                          verifica={r.verificaAs}
-                          comparacion={{
-                            real: { etiqueta: "As real", valor: r.asRealCm2 },
-                            limite: { etiqueta: "As nec", valor: r.asNecCm2 },
-                            unidad: "cm²", exige: "≥",
-                          }}
-                        />
-                        <ResultadoCheck
-                          etiqueta={`Dirección ${dir} · anclaje de la parrilla`}
-                          verifica={r.anclaje.verifica}
-                          detalle={`Anejo 19, art. 9.8.2.2 y 8.4. Gobierna x = ${fmt(r.anclaje.xM, 3)} m desde el borde, con Fs = ${fmt(r.anclaje.fsKN)} kN.`}
-                          comparacion={{
-                            real: { etiqueta: "lbd", valor: r.anclaje.lbdMm },
-                            limite: { etiqueta: "disponible", valor: r.anclaje.disponibleMm },
-                            unidad: "mm", exige: "≤",
-                          }}
-                        />
-                        <ResultadoCheck
-                          etiqueta={`Dirección ${dir} · cortante sin armadura transversal`}
-                          verifica={r.verificaCorte}
-                          comparacion={{
-                            real: { etiqueta: "Vd", valor: r.vEdKN },
-                            limite: { etiqueta: "VRd,c", valor: r.vRdCKN },
-                            unidad: "kN", exige: "≤",
-                          }}
-                        />
-                        <PanelFormulas
-                          titulo={`Ver desarrollo de la dirección ${dir}`}
-                          filas={[
-                            { etiqueta: "d", valor: `${fmt(r.dM, 3)} m` },
-                            { etiqueta: "σ máx / mín", valor: `${fmt(r.sigmaMaxKPa)} / ${fmt(r.sigmaMinKPa)} kN/m²` },
-                            { etiqueta: "σ crítica", valor: `${fmt(r.sigmaCriticaKPa)} kN/m²` },
-                            { etiqueta: "Borde a sección de cálculo (0,15·c dentro del pilar)", valor: `${fmt(r.lM, 3)} m` },
-                            { etiqueta: "M en la sección de cálculo", valor: `${fmt(r.momentoKNm)} kN·m` },
-                            { etiqueta: "zi = 0,9·d", valor: `${fmt(r.ziM, 3)} m` },
-                            { etiqueta: "Fs,max = M/zi", valor: `${fmt(r.fsKN)} kN` },
-                            { etiqueta: "As = Fs/fyd", valor: `${fmt(r.asCalculadoCm2)} cm²` },
-                            { etiqueta: "As mín., ec. (9.1)", valor: `${fmt(r.asMinCm2)} cm²` },
-                            { etiqueta: "σsd en el anclaje", valor: `${fmt(r.anclaje.sigmaSdMPa, 0)} MPa` },
-                          ]}
-                        />
-                      </div>
-                    );
-                  })}
+                  <TarjetaLadoZapata titulo="Dirección A" resultado={resultado.zapata.direccionA} />
+                  <TarjetaLadoZapata titulo="Dirección B" resultado={resultado.zapata.direccionB} />
                   <ResultadoCheck
                     etiqueta="Punzonamiento"
                     verifica={resultado.zapata.punzonamiento.verificaPunzonamiento}

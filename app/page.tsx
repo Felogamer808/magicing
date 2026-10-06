@@ -1,3 +1,4 @@
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +68,7 @@ export default function Home() {
                   <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                     {v.normasDisponibles.map((norma) => (
                       <Badge key={norma} variant="secondary" className="font-mono tracking-wide">
-                        {norma}
+                        {nombreNorma(norma)}
                       </Badge>
                     ))}
                     <span className="text-xs text-muted-foreground">{v.categoria}</span>

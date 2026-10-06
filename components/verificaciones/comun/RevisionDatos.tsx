@@ -1,3 +1,4 @@
+import { nombreNorma } from "@/lib/verificaciones/validacion";
 import { CircleX, TriangleAlert } from "lucide-react";
 
 export interface DatoRevision {
@@ -38,7 +39,7 @@ export function RevisionDatos({ norma, datos, hipotesis, avisos }: RevisionDatos
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-[11px] text-muted-foreground">Norma</dt>
-          <dd className="font-mono">{norma}</dd>
+          <dd className="font-mono">{nombreNorma(norma)}</dd>
         </div>
         {datos.map((d) => (
           <div key={d.etiqueta}>

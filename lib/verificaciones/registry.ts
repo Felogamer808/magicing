@@ -248,7 +248,7 @@ export const registroVerificaciones: VerificacionMeta[] = [
     id: "vigas-apeo-voladizo",
     nombre: "Viga con carga en voladizo — bielas y tirantes",
     seccion: "hormigon-armado",
-    categoria: "Vigas",
+    categoria: "Regiones D",
     descripcion:
       "Pilar apeado fuera de los dos apoyos, sólo con el Anejo 19: tirante superior, levantamiento del apoyo lejano, nudos y anclaje del tirante en los dos extremos.",
     normasDisponibles: ["EC2"],

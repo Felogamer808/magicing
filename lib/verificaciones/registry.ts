@@ -54,6 +54,7 @@ export type IdVerificacion =
   | "vigas-flexion-cortante"
   | "vigas-torsion"
   | "vigas-apeo-bielas"
+  | "vigas-apeo-voladizo"
   | "carga-colgada"
   | "mensula-corta"
   | "losas"
@@ -242,6 +243,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Apeo de pilar resuelto como región D: clasificación B/D, tirante, bielas, nudos, tracción transversal, malla de piel, anclaje con horquillas y armadura de cuelgue.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/vigas-apeo-bielas",
+    disponible: true,
+  },
+  {
+    id: "vigas-apeo-voladizo",
+    nombre: "Viga con carga en voladizo — bielas y tirantes",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Pilar apeado fuera de los dos apoyos, sólo con el Anejo 19: tirante superior, levantamiento del apoyo lejano, nudos y anclaje del tirante en los dos extremos.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/vigas-apeo-voladizo",
     disponible: true,
   },
   {

@@ -37,13 +37,8 @@ import {
 } from "@/lib/calc/hormigon/comun/diferidas";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { CroquisArmaduraFlexion, CroquisMateriales } from "@/components/verificaciones/croquis/CroquisViga";
-import {
-  areaBarrasCm2,
-  cementoDesdeNombre,
-  exposicionDesdeNombre,
-  resolverDeformaciones,
-  sistemaDesdeNombre,
-} from "@/lib/calc/hormigon/resolver-deformaciones";
+import { areaBarrasCm2, resolverDeformaciones, sistemaDesdeNombre } from "@/lib/calc/hormigon/resolver-deformaciones";
+import { cementoDesdeNombre, exposicionDesdeNombre } from "@/lib/calc/hormigon/comun/diferidas";
 import { recomendarDeformaciones } from "@/lib/verificaciones/recomendaciones/deformaciones";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 

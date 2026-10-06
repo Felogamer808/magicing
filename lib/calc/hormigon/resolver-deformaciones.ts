@@ -1,14 +1,12 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import { derivarMateriales } from "./comun/materiales";
 import {
-  NOMBRE_CEMENTO,
-  NOMBRE_EXPOSICION,
   calcularFluencia,
   calcularRetraccion,
+  cementoDesdeNombre,
+  exposicionDesdeNombre,
   perimetroExpuestoM,
   tamanoTeoricoMm,
-  type ClaseCemento,
-  type ExposicionSeccion,
 } from "./comun/diferidas";
 import {
   COEF_FLECHA,
@@ -22,14 +20,6 @@ import {
 const SISTEMAS = Object.keys(K_SISTEMA) as SistemaEstructural[];
 export const sistemaDesdeNombre = (nombre: string): SistemaEstructural =>
   SISTEMAS.find((s) => NOMBRE_SISTEMA[s] === nombre) ?? "simplemente-apoyada";
-
-const CEMENTOS = Object.keys(NOMBRE_CEMENTO) as ClaseCemento[];
-export const cementoDesdeNombre = (nombre: string): ClaseCemento =>
-  CEMENTOS.find((c) => NOMBRE_CEMENTO[c] === nombre) ?? "N";
-
-const EXPOSICIONES = Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion[];
-export const exposicionDesdeNombre = (nombre: string): ExposicionSeccion =>
-  EXPOSICIONES.find((e) => NOMBRE_EXPOSICION[e] === nombre) ?? "tres-caras";
 
 /** Área de un grupo de barras, en cm². Devuelve 0 si los datos no sirven todavía. */
 export function areaBarrasCm2(numeroTxt: string, diametroTxt: string): number {

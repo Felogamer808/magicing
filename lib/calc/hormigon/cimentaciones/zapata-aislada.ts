@@ -3,6 +3,7 @@ import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
 import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { calcularPunzonamientoDescentrado } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
 
 export interface GeometriaZapataAislada {
   /** Dimensión de la zapata en dirección A (m) */
@@ -220,6 +221,8 @@ export interface ResultadoPunzonamiento {
    * pilar de borde todavía no están implementados.
    */
   motivoNoEvaluado?: string;
+  /** Con el pilar descentrado: cómo trata la norma al pilar en el perímetro crítico. */
+  situacion?: "interior" | "borde" | "esquina" | "entre bordes";
   /** Comprobación de bielas en la cara del pilar, art. 6.4.5 (3), ec. (6.53). */
   caraPilar: {
     /** Perímetro del pilar u0 (m) */
@@ -662,16 +665,18 @@ export function calcularZapataAislada(
   const direccionA = vueloGobernante(vuelosA);
   const direccionB = vueloGobernante(vuelosB);
 
-  const punzonamiento = pilarCentrado
+  // Centrado, el cálculo auditado de siempre; descentrado, con la presión real
+  // y el perímetro recortado por el borde.
+  const punzonamiento: ResultadoPunzonamiento = pilarCentrado
     ? calcularPunzonamiento(materiales, geometria, cargas, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2)
-    : punzonamientoNoEvaluado(
-        materiales,
-        geometria,
-        cargas,
-        dA,
-        dB,
-        "Con el pilar descentrado el punzonamiento necesita la presión real bajo el perímetro y, cerca del borde, el perímetro recortado (art. 6.4.2 (4)) con el β de pilar de borde (art. 6.4.3 (4)-(5)). Todavía no está implementado."
-      );
+    : calcularPunzonamientoDescentrado(materiales, {
+        A, B, anchoPilarA, anchoPilarB, bordeA, bordeB, dA, dB,
+        nk: Nk, mkA: MkA, mkB: MkB,
+        excCalculoA: vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + MkA),
+        excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + MkB),
+        asRealACm2: direccionA.asRealCm2,
+        asRealBCm2: direccionB.asRealCm2,
+      });
 
   return {
     vueloMaxM,
@@ -692,35 +697,6 @@ export function calcularZapataAislada(
     vuelosA,
     vuelosB,
     punzonamiento,
-  };
-}
-
-/** Punzonamiento sin evaluar, con la cara del pilar en blanco y el motivo. */
-function punzonamientoNoEvaluado(
-  materiales: MaterialesDerivados,
-  geometria: GeometriaZapataAislada,
-  cargas: CargasZapata,
-  dA: number,
-  dB: number,
-  motivo: string
-): ResultadoPunzonamiento {
-  const dPromedioM = (dA + dB) / 2;
-  const u0M = 2 * (geometria.anchoPilarA + geometria.anchoPilarB);
-  const vEdMPa = (GAMMA_F * cargas.Nk) / (u0M * dPromedioM) / 1000;
-  const vRdMaxMPa = 0.4 * 0.6 * (1 - materiales.fck / 250) * materiales.fcd;
-  return {
-    dPromedioM,
-    aCriticaM: 0,
-    u1M: 0,
-    vEdRedKN: 0,
-    vEdKN: 0,
-    beta: 1,
-    vRdCKN: 0,
-    verificaPunzonamiento: true,
-    aprovechamiento: 0,
-    hayPerimetroDentro: false,
-    motivoNoEvaluado: motivo,
-    caraPilar: { u0M, beta: 1, vEdMPa, vRdMaxMPa, verifica: vEdMPa <= vRdMaxMPa },
   };
 }
 

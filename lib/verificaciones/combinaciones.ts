@@ -230,6 +230,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
   "zapata-medianeria": ZAPATAS,
+  "zapata-viga-centradora": ZAPATAS,
   "zapata-combinada": ZAPATAS,
   "losa-fundacion": ZAPATAS,
   pilotes: PILOTES,

@@ -24,13 +24,14 @@ Auditado a fondo:
 - `materiales.ts`, `cortante.ts`
 - `vigas-flexion-cortante.ts` — flexión y cortante completos
 - `vigas-torsion.ts`
-- `zapata-aislada.ts` — cortante y punzonamiento
+- `zapata-aislada.ts` — completo (hallazgo 6)
+- `zapata-medianeria.ts` — completo salvo punzonamiento (hallazgo 7)
 - `fisuracion.ts`
 - `losa.ts` — mínimos y separaciones
 - `cabezal-pilotes.ts` — modelo de bielas y tirantes
 
 **No auditado todavía**, y conviene hacerlo: `zapata-corrida.ts`,
-`zapata-medianeria.ts`, `zapata-combinada.ts`, `losa-fundacion.ts`, `pilote.ts`,
+`zapata-combinada.ts`, `losa-fundacion.ts`, `pilote.ts`,
 y las armaduras complementarias de `vigas-complementos.ts` (anclaje, piel,
 deformaciones).
 
@@ -110,6 +111,8 @@ comprobando. Hay que iterar `a` y quedarse con el mínimo.
 
 Lo que sí está bien: `β = 1,15` para pilar interior es el valor simplificado del
 art. 6.4.3(6), y aplicarlo sobre una zapata de carga centrada es conservador.
+*(Revisado en el hallazgo 6: con momento no alcanza, y se reemplazó por la
+ec. (6.51).)*
 
 ## Hallazgo 4 — Fisuración implementaba el método de la EHE-08 ✅ CORREGIDO
 
@@ -190,6 +193,49 @@ la segunda dimensión del pilar y el formulario sólo carga el ancho. Además ra
 vez gobierna, porque el pilar ya está dimensionado para ese mismo axil con su
 propio `f_cd`. Si algún día se agrega la segunda dimensión, es la comprobación
 que falta.
+
+## Hallazgo 6 — Zapata aislada: auditoría completa (2026-10-05)
+
+La primera pasada auditó sólo el cortante y el punzonamiento, pero el sello de
+"auditada" se mostraba para todo el módulo. Al revisar el resto aparecieron:
+
+- **Resultante fuera de la base daba "cumple"** ✅ CORREGIDO (#73): los dos
+  anchos eficaces negativos daban un área positiva.
+- **Excentricidad sin peso propio** ✅ CORREGIDO (#73): `e = Mk/Nk` con la
+  carga `Nk + PP`. Pasa a `e = Mk/(Nk+PP)`.
+- **Armado con presiones negativas** ✅ CORREGIDO (#73): con despegue se usaba
+  el trapecio N/A ± M/W; ahora la cuña real.
+- **Punzonamiento sin momento** ✅ CORREGIDO: β = 1,15 fijo. Pasa a la
+  ec. (6.51) (art. 6.4.4 (2), pág. 95) con los dos ejes sumados y MEd = 1,5·Mk,
+  más la comprobación en la cara del pilar, ec. (6.53) (art. 6.4.5 (3), pág. 96).
+  El barrido de perímetros se corta en el vuelo si es menor que 2d.
+- **Flexión, cuantías y anclaje de la EHE-08** ✅ CORREGIDO: `Td = M/(0,85d)`
+  con fyd ≤ 400, sección a c/4, cuantías 0,04·fcd/fyd y 0,9 ‰, anclaje `m·φ²`.
+  Pasa a `F_s = M/(0,9·d)` en la sección a 0,15·c (art. 9.8.2.2 (3), págs.
+  153-154), fyd sin tope, mínima de la ec. (9.1), φ ≥ 12 (art. 9.8.2.1 (1)) y
+  anclaje de F_s(x) barriendo x desde h/2 (art. 9.8.2.2 (5) y 8.4).
+
+El módulo queda en "probada" y no en "auditada": todo lo de arriba se programó
+y se revisó en la misma sesión, sin un repaso independiente. Sube cuando alguien
+contraste un caso propio.
+
+## Hallazgo 7 — Zapata de medianería: los mismos errores que la aislada (2026-10-05) ✅ CORREGIDO
+
+- Excentricidad del terreno sin peso propio: `e0 + Mk/Nk`. Pasa a
+  `(Nk·e0 + Mk)/(Nk + PP)`.
+- `MkB` no entraba en la tensión del terreno. Ahora entra por área eficaz en B.
+- `Math.max(A − 2e, 0,01)` escondía la resultante fuera de la base. Ahora la
+  tensión sale infinita y no verifica.
+- Armado con el trapecio N/A ± M/W aunque el borde interior se despegara.
+  Ahora se integra la cuña real a cada lado.
+- Flexión, cuantías y anclaje de la EHE-08. Pasa a la formulación de la aislada
+  (art. 9.8.2.2, ec. (9.1), art. 8.4), con cada vuelo armado por separado.
+
+Criterio nuevo, común a las dos (decidido por el usuario): si la sección de
+cálculo queda a menos de h/2 del borde, no hay tirante que anclar de ese lado.
+
+Sigue sin punzonamiento: es un pilar de borde, con perímetro recortado
+(art. 6.4.2), y no se implementó.
 
 ## Conformes ✅
 

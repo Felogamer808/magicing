@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { DiagramaPresionSuelo } from '@/components/verificaciones/hormigon/DiagramaPresionSuelo';
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -16,8 +17,10 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { CroquisCargasZapata } from "@/components/verificaciones/croquis/CroquisCimentacion";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { SolicitacionesZapataDiagrama } from "@/components/verificaciones/hormigon/SolicitacionesZapataDiagrama";
+import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaLadoZapata";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -31,6 +34,9 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
+
+const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
+const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
 
 export default function ZapataAisladaPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -55,6 +61,7 @@ export default function ZapataAisladaPage() {
   const [diametroA, setDiametroA] = useCampo("diametroA", "16");
   const [numeroB, setNumeroB] = useCampo("numeroB", "6");
   const [diametroB, setDiametroB] = useCampo("diametroB", "16");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
 
   const resultado = useMemo(() => {
     const v = {
@@ -100,12 +107,13 @@ export default function ZapataAisladaPage() {
       cargas: { Nk: v.Nk, MkA: v.MkA, MkB: v.MkB },
       armadoA: { numero: v.numeroA, diametroMm: v.diametroA },
       armadoB: { numero: v.numeroB, diametroMm: v.diametroB },
+      formaAnclaje,
     });
 
     return { zapata };
   }, [
     fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB,
-    sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB,
+    sigmaAdmisible, Nk, MkA, MkB, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
   ]);
 
   const diagrama = useMemo(() => {
@@ -131,6 +139,11 @@ export default function ZapataAisladaPage() {
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
     avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular." });
+  } else if (!Number.isFinite(resultado.zapata.geotecnico.sigmaKPa)) {
+    avisos.push({
+      tipo: "error",
+      texto: "La resultante cae fuera de la base: la zapata no tiene apoyo posible. Hay que agrandarla o reducir el momento.",
+    });
   } else if (
     resultado.zapata.geotecnico.distribucionA.hayDespegue ||
     resultado.zapata.geotecnico.distribucionB.hayDespegue
@@ -214,6 +227,7 @@ export default function ZapataAisladaPage() {
                   mkKNm={aNumero(MkA)}
                   sigmaMaxKPa={resultado.zapata.direccionA.sigmaMaxKPa}
                   sigmaMinKPa={resultado.zapata.direccionA.sigmaMinKPa}
+                  longitudContactoM={resultado.zapata.direccionA.longitudContactoM}
                 />
               ) : (
                 <CroquisCargasZapata />
@@ -240,8 +254,18 @@ export default function ZapataAisladaPage() {
                     },
                   ]}
                 />
+                <div className="max-w-xs">
+                  <CampoSeleccion
+                    id="formaAnclaje"
+                    etiqueta="Extremo de las barras"
+                    valor={FORMAS[formaAnclaje]}
+                    opciones={Object.values(FORMAS)}
+                    onChange={(v) => setFormaAnclaje(formaPorNombre(v))}
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Las barras de la dirección A son las paralelas al lado A y resisten el vuelo en esa dirección.
+                  Si la barra recta no alcanza a anclar, el art. 9.8.2.2 (4) permite doblarla en patilla.
                 </p>
               </Subgrupo>
             }
@@ -260,15 +284,16 @@ export default function ZapataAisladaPage() {
                 ? [
                     { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN`, derivado: true },
                     { etiqueta: "Vuelo máximo", valor: `${fmt(resultado.zapata.vueloMaxM, 3)} m`, derivado: true },
-                    { etiqueta: "Tipo", valor: resultado.zapata.esRigida ? "rígida (vuelo ≤ 2H)" : "flexible (vuelo > 2H)", derivado: true },
                   ]
                 : []),
             ]}
             hipotesis={[
-              "La tensión sobre el terreno incluye el peso propio de la zapata.",
-              "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz.",
-              "Punzonamiento por el método general del EC2: se barren los perímetros hasta 2d y se informa el que peor verifica.",
-              "Cuantías mínimas mecánica y geométrica heredadas de la planilla (EHE‑08); pendiente pasarlas al Anejo 19, art. 9.8.",
+              "La tensión sobre el terreno incluye el peso propio de la zapata, también en la excentricidad: e = Mk / (Nk + PP).",
+              "Si la resultante sale del núcleo central, el terreno no tracciona: se trabaja con el área eficaz, y el armado y el cortante se calculan con la cuña de presiones, no con el trapecio.",
+              "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
+              "Flexión por el modelo del Anejo 19, art. 9.8.2.2: sección de cálculo a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d) y As = Fs/fyd.",
+              "Cuantía mínima de tracción del art. 9.2.1.1 (1), ec. (9.1), la misma que en vigas y losas. φ ≥ 12 mm (art. 9.8.2.1 (1)).",
+              "Anclaje (art. 8.4) comprobado desde x = h/2 hasta la sección de cálculo: Fs(x) tiene que anclarse en x menos el recubrimiento. Buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}
           />
@@ -295,6 +320,13 @@ export default function ZapataAisladaPage() {
                     utilizacion: resultado.zapata.direccionA.asNecCm2 / resultado.zapata.direccionA.asRealCm2,
                   },
                   {
+                    etiqueta: "anclaje en A",
+                    estado: resultado.zapata.direccionA.anclaje.verifica ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.direccionA.anclaje.comprobado
+                      ? resultado.zapata.direccionA.anclaje.lbdMm / resultado.zapata.direccionA.anclaje.disponibleMm
+                      : undefined,
+                  },
+                  {
                     etiqueta: "cortante en A",
                     estado: resultado.zapata.direccionA.verificaCorte ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.direccionA.vEdKN / resultado.zapata.direccionA.vRdCKN,
@@ -305,6 +337,20 @@ export default function ZapataAisladaPage() {
                     utilizacion: resultado.zapata.direccionB.asNecCm2 / resultado.zapata.direccionB.asRealCm2,
                   },
                   {
+                    etiqueta: "anclaje en B",
+                    estado: resultado.zapata.direccionB.anclaje.verifica ? "cumple" : "no-cumple",
+                    utilizacion: resultado.zapata.direccionB.anclaje.comprobado
+                      ? resultado.zapata.direccionB.anclaje.lbdMm / resultado.zapata.direccionB.anclaje.disponibleMm
+                      : undefined,
+                  },
+                  {
+                    etiqueta: "diámetro mínimo φ12",
+                    estado:
+                      resultado.zapata.direccionA.verificaDiametroMinimo && resultado.zapata.direccionB.verificaDiametroMinimo
+                        ? "cumple"
+                        : "no-cumple",
+                  },
+                  {
                     etiqueta: "cortante en B",
                     estado: resultado.zapata.direccionB.verificaCorte ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.direccionB.vEdKN / resultado.zapata.direccionB.vRdCKN,
@@ -313,6 +359,12 @@ export default function ZapataAisladaPage() {
                     etiqueta: "punzonamiento",
                     estado: resultado.zapata.punzonamiento.verificaPunzonamiento ? "cumple" : "no-cumple",
                     utilizacion: resultado.zapata.punzonamiento.aprovechamiento,
+                  },
+                  {
+                    etiqueta: "bielas en la cara del pilar",
+                    estado: resultado.zapata.punzonamiento.caraPilar.verifica ? "cumple" : "no-cumple",
+                    utilizacion:
+                      resultado.zapata.punzonamiento.caraPilar.vEdMPa / resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa,
                   },
                 ]}
               />
@@ -362,7 +414,6 @@ export default function ZapataAisladaPage() {
                     filas={[
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.zapata.geotecnico.pesoPropioKN)} kN` },
                       { etiqueta: "Vuelo máximo", valor: `${fmt(resultado.zapata.vueloMaxM, 3)} m` },
-                      { etiqueta: "Zapata rígida (vuelo ≤ 2H)", valor: resultado.zapata.esRigida ? "Sí" : "No" },
                     ]}
                   />
                 </div>
@@ -370,58 +421,35 @@ export default function ZapataAisladaPage() {
 
               <Subgrupo titulo="Comprobaciones estructurales">
                 <div>
-                  {(["A", "B"] as const).map((dir) => {
-                    const r = dir === "A" ? resultado.zapata.direccionA : resultado.zapata.direccionB;
-                    return (
-                      <div key={dir}>
-                        <ResultadoCheck
-                          etiqueta={`Dirección ${dir} · armadura suficiente`}
-                          verifica={r.verificaAs}
-                          comparacion={{
-                            real: { etiqueta: "As real", valor: r.asRealCm2 },
-                            limite: { etiqueta: "As nec", valor: r.asNecCm2 },
-                            unidad: "cm²", exige: "≥",
-                          }}
-                        />
-                        <ResultadoCheck
-                          etiqueta={`Dirección ${dir} · cortante sin armadura transversal`}
-                          verifica={r.verificaCorte}
-                          comparacion={{
-                            real: { etiqueta: "Vd", valor: r.vEdKN },
-                            limite: { etiqueta: "VRd,c", valor: r.vRdCKN },
-                            unidad: "kN", exige: "≤",
-                          }}
-                        />
-                        <PanelFormulas
-                          titulo={`Ver desarrollo de la dirección ${dir}`}
-                          filas={[
-                            { etiqueta: "d", valor: `${fmt(r.dM, 3)} m` },
-                            { etiqueta: "σ máx / mín", valor: `${fmt(r.sigmaMaxKPa)} / ${fmt(r.sigmaMinKPa)} kN/m²` },
-                            { etiqueta: "σ crítica", valor: `${fmt(r.sigmaCriticaKPa)} kN/m²` },
-                            { etiqueta: "Vuelo a sección crítica", valor: `${fmt(r.lM, 3)} m` },
-                            { etiqueta: "Td", valor: `${fmt(r.tdKN)} kN` },
-                            { etiqueta: "As mín. mecánico (planilla)", valor: `${fmt(r.asMinMecanicoCm2)} cm²` },
-                            { etiqueta: "As mín. geométrico (planilla)", valor: `${fmt(r.asMinGeometricoCm2)} cm²` },
-                            { etiqueta: "Longitud de anclaje", valor: `${fmt(r.lbIMm, 0)} mm` },
-                          ]}
-                        />
-                      </div>
-                    );
-                  })}
+                  <TarjetaLadoZapata titulo="Dirección A" resultado={resultado.zapata.direccionA} />
+                  <TarjetaLadoZapata titulo="Dirección B" resultado={resultado.zapata.direccionB} />
                   <ResultadoCheck
                     etiqueta="Punzonamiento"
                     verifica={resultado.zapata.punzonamiento.verificaPunzonamiento}
-                    detalle="No viene de la planilla: método general del EC2. Revisar antes de usar en obra."
+                    detalle="Anejo 19, art. 6.4.4 (2), ec. (6.51) con los momentos de los dos ejes sumados. No viene de la planilla."
                     comparacion={{
                       real: { etiqueta: "Vd", valor: resultado.zapata.punzonamiento.vEdKN },
                       limite: { etiqueta: "VRd,c", valor: resultado.zapata.punzonamiento.vRdCKN },
                       unidad: "kN", exige: "≤",
                     }}
                   />
+                  <ResultadoCheck
+                    etiqueta="Bielas en la cara del pilar"
+                    verifica={resultado.zapata.punzonamiento.caraPilar.verifica}
+                    detalle="Anejo 19, art. 6.4.5 (3), ec. (6.53): β·VEd/(u0·d) ≤ 0,4·ν·fcd."
+                    comparacion={{
+                      real: { etiqueta: "vEd", valor: resultado.zapata.punzonamiento.caraPilar.vEdMPa },
+                      limite: { etiqueta: "vRd,max", valor: resultado.zapata.punzonamiento.caraPilar.vRdMaxMPa },
+                      unidad: "MPa", exige: "≤",
+                    }}
+                  />
                   <PanelFormulas
                     titulo="Ver desarrollo del punzonamiento"
                     filas={[
                       { etiqueta: "d promedio", valor: `${fmt(resultado.zapata.punzonamiento.dPromedioM, 3)} m` },
+                      { etiqueta: "VEd,red (sin momento)", valor: `${fmt(resultado.zapata.punzonamiento.vEdRedKN)} kN` },
+                      { etiqueta: "β por momento en el perímetro crítico", valor: fmt(resultado.zapata.punzonamiento.beta, 3) },
+                      { etiqueta: "β en la cara del pilar (u1 a 2d)", valor: fmt(resultado.zapata.punzonamiento.caraPilar.beta, 3) },
                       {
                         etiqueta: "Perímetro crítico, a",
                         valor: `${fmt(resultado.zapata.punzonamiento.aCriticaM, 3)} m = ${fmt(resultado.zapata.punzonamiento.aCriticaM / resultado.zapata.punzonamiento.dPromedioM, 2)} d`,

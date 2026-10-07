@@ -33,7 +33,7 @@ type Dir = "A" | "B";
 /** Con el pilar centrado se muestra un vuelo por dirección; descentrado, los dos. */
 export type LadoAislada = "gobernante" | "inicio" | "fin";
 type ClaveVuelo = `${Dir}.${LadoAislada}.${"as" | "anclaje" | "corte"}`;
-export type ClaveAislada = "tension" | "deslizamiento" | "punzonamiento" | "bielas" | ClaveVuelo;
+export type ClaveAislada = "tension" | "deslizamiento" | "vuelcoA" | "vuelcoB" | "punzonamiento" | "bielas" | ClaveVuelo;
 export type RecomendacionesAislada = Partial<Record<ClaveAislada, Recomendacion[]>>;
 
 const NOMBRE_LADO: Record<LadoAislada, string> = { gobernante: "", inicio: " (vuelo de inicio)", fin: " (vuelo final)" };
@@ -42,6 +42,8 @@ const TIPO = { as: "armadura", anclaje: "anclaje", corte: "cortante" } as const;
 const NOMBRES = {
   tension: "tensión del terreno",
   deslizamiento: "deslizamiento",
+  vuelcoA: "vuelco en A",
+  vuelcoB: "vuelco en B",
   punzonamiento: "punzonamiento",
   bielas: "bielas en la cara del pilar",
   ...Object.fromEntries(
@@ -73,7 +75,10 @@ function utilizaciones(e: EntradaZapataAislada) {
   const desc = descentrado(e);
   return (z: ResultadoZapataAislada): Partial<Record<ClaveAislada, number>> => ({
     tension: z.geotecnico.sigmaKPa / e.sigmaAdmisibleKPa,
-    ...(z.tirante ? { deslizamiento: Math.abs(z.tirante.tkKN) / z.tirante.rozamientoResistenteKN } : {}),
+    // Sin horizontal no hay deslizamiento que proponer: utilización 0 no entra.
+    ...(z.deslizamiento && z.deslizamiento.horizontalKN > 0 ? { deslizamiento: z.deslizamiento.aprovechamiento } : {}),
+    ...(z.vuelcoA && z.vuelcoA.borde !== "ninguno" ? { vuelcoA: z.vuelcoA.aprovechamiento } : {}),
+    ...(z.vuelcoB.borde !== "ninguno" ? { vuelcoB: z.vuelcoB.aprovechamiento } : {}),
     ...(desc
       ? {
           ...utilizacionesVuelo("A.inicio", z.vuelosA.inicio),
@@ -208,7 +213,11 @@ const BRAZO: Palanca<E> = palancaValor<E>(
 
 function palancasPorClave(clave: ClaveAislada): readonly Palanca<E>[] {
   if (clave === "tension") return [AMBOS_LADOS, lado("A"), lado("B")];
-  if (clave === "deslizamiento") return [BRAZO];
+  // Más zapata es más peso que frena y estabiliza; el brazo del tirante sólo
+  // existe con tirante (con brazoM 0 la palanca no propone nada).
+  if (clave === "deslizamiento") return [BRAZO, AMBOS_LADOS, H];
+  if (clave === "vuelcoA") return [lado("A"), AMBOS_LADOS, H];
+  if (clave === "vuelcoB") return [lado("B"), AMBOS_LADOS, H];
   if (clave === "punzonamiento") return [H, FCK];
   if (clave === "bielas") return [H, pilar("anchoPilarA"), pilar("anchoPilarB"), FCK];
   const d = clave[0] as Dir;

@@ -43,11 +43,11 @@ Independientes, contra `main`:
   crea al guardar desde la página o desde la vista del proyecto, y si se piensa
   vincular otros casos (pilar → zapata, viga → viga que la apea) para hacerlo
   genérico.
-- **Vuelco y deslizamiento de zapatas.** El Anejo 19 no los trata (art. 2.6 (3)
-  remite a documentos específicos; el EQU, al Anejo 18). Faltan datos del
-  usuario: qué norma (CTE DB-SE-C o EC7) y sus coeficientes con la cita, carga
-  horizontal Hk, rozamiento suelo-zapata, y si se cuentan empuje pasivo y
-  tierras sobre la zapata.
+- **Vuelco y deslizamiento** (hecho en aislada y corrida, 2026-10-07, por el
+  CTE DB SE-C). Falta en la **zapata combinada**, que tiene su propio tirante,
+  y la situación **extraordinaria** (γR = 1,1; 0,9 / 1,2), que se dejó afuera a
+  propósito. Criterios decididos: estabiliza sólo "Nk permanente" (campo
+  aparte, vacío = Nk), sin tierras ni pasivo, sólo situación persistente.
 - **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
   el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
   mezclan normas. Hay una tarea preparada con el detalle.

@@ -80,6 +80,9 @@ export default function ZapataCorridaPage() {
   const [sigmaAdmisible, setSigmaAdmisible] = useCampo("sigmaAdmisible", "300");
   const [Nk, setNk] = useCampo("Nk", "100");
   const [MkA, setMkA] = useCampo("MkA", "15");
+  const [HkA, setHkA] = useCampo("HkA", "0");
+  // Vacío = igual a Nk. Es la parte que estabiliza al vuelco y frena el deslizamiento.
+  const [NkPermanente, setNkPermanente] = useCampo("NkPermanente", "");
 
   const [diametroPrincipal, setDiametroPrincipal] = useCampo("diametroPrincipal", "16");
   const [separacionPrincipal, setSeparacionPrincipal] = useCampo("separacionPrincipal", "0.15");
@@ -119,7 +122,14 @@ export default function ZapataCorridaPage() {
     if (descentrado && !(borde >= 0 && borde + v.anchoPilar <= v.A + 1e-9)) return null;
     const brazo = aNumero(brazoTirante);
     const phi = aNumero(phiTerreno);
-    if (conTirante && !(brazo > 0 && phi > 0 && phi < 90)) return null;
+    const phiValido = phi > 0 && phi < 90;
+    if (conTirante && !(brazo > 0 && phiValido)) return null;
+
+    const hkA = aNumero(HkA);
+    if (!Number.isFinite(hkA)) return null;
+    // Vacío es "igual a Nk"; si se carga, no puede superarlo.
+    const nkPermanente = NkPermanente.trim() === "" ? undefined : aNumero(NkPermanente);
+    if (nkPermanente !== undefined && !(nkPermanente >= 0 && nkPermanente <= v.Nk)) return null;
 
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = {
@@ -128,11 +138,16 @@ export default function ZapataCorridaPage() {
     };
 
     const datosZapata = {
-      carga: { Nk: v.Nk, MkA: v.MkA },
+      carga: {
+        Nk: v.Nk, MkA: v.MkA, HkA: hkA,
+        ...(nkPermanente !== undefined ? { NkPermanente: nkPermanente } : {}),
+      },
       armadoPrincipal: { diametroMm: v.diametroPrincipal, separacionM: v.separacionPrincipal },
       armadoSecundario: { numero: v.numeroSecundario, diametroMm: v.diametroSecundario },
       formaAnclaje,
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
+      // Sin φ′ válido el deslizamiento queda sin evaluar, no se inventa.
+      ...(phiValido ? { phiGrados: phi } : {}),
     };
     const zapata = calcularZapataCorrida(materiales, geometria, v.sigmaAdmisible, datosZapata);
     const recomendaciones = recomendarZapataCorrida({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos: datosZapata });
@@ -164,7 +179,7 @@ export default function ZapataCorridaPage() {
     return { zapata, armaduraTirante, recomendacionesTirante, recomendaciones };
   }, [
     fck, fyk, A, H, recubrimiento, anchoPilar, descentrado, distanciaBorde, conTirante, brazoTirante, phiTerreno,
-    sigmaAdmisible, Nk, MkA,
+    sigmaAdmisible, Nk, MkA, HkA, NkPermanente,
     diametroPrincipal, separacionPrincipal, numeroSecundario, diametroSecundario, formaAnclaje,
     diametroTirante, separacionTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
   ]);
@@ -296,6 +311,7 @@ export default function ZapataCorridaPage() {
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                     <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
                     <CampoNumerico id="sigmaAdmisible" etiqueta="σ adm. suelo" sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
+                    <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Zapata y muro">
@@ -332,7 +348,7 @@ export default function ZapataCorridaPage() {
                         {conTirante && (
                           <>
                             <CampoNumerico id="brazoTirante" etiqueta="h: tirante → base" sufijo="m" valor={brazoTirante} onChange={setBrazoTirante} />
-                            <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
+                            <div />
                             <p className="col-span-2 text-xs text-muted-foreground">
                               La losa tira del muro arriba y el rozamiento lo frena en la base: ese par
                               toma el momento y la presión queda uniforme. h va del eje del tirante a la
@@ -357,8 +373,12 @@ export default function ZapataCorridaPage() {
           <div className="grid max-w-md grid-cols-2 gap-4">
             <CampoNumerico id="Nk" etiqueta="Nk" sufijo="kN/m" valor={Nk} onChange={setNk} />
             <CampoNumerico id="MkA" etiqueta="Mk" sufijo="kN·m/m" valor={MkA} onChange={setMkA} />
+            <CampoNumerico id="HkA" etiqueta="Hk" sufijo="kN/m" valor={HkA} onChange={setHkA} />
+            <CampoNumerico id="NkPermanente" etiqueta="Nk permanente" sufijo="kN/m" valor={NkPermanente} onChange={setNkPermanente} />
             <p className="col-span-2 text-xs text-muted-foreground">
-              Mk es el momento que baja por el muro, positivo hacia el borde derecho.
+              Mk es el momento que baja por el muro y Hk la horizontal en su arranque, positivos hacia el
+              borde derecho. Nk permanente es la parte de Nk que siempre está: la única que estabiliza al
+              vuelco y frena el deslizamiento. Vacío, se toma Nk entero.
             </p>
           </div>
         </Etapa>
@@ -435,6 +455,7 @@ export default function ZapataCorridaPage() {
               "Flexión por el art. 9.8.2.2: sección de cálculo a 0,15·b dentro de la cara del muro, Fs = M/(0,9·d) y As = Fs/fyd. Con el muro descentrado cada vuelo se arma por separado.",
               "Cuantía mínima del art. 9.2.1.1 (1), ec. (9.1); φ ≥ 12 mm (art. 9.8.2.1 (1)); anclaje (art. 8.4) desde x = h/2, con el largo medido sobre el eje de la barra: con patilla suma la pata hasta H − 2·rec (art. 8.4.3 (3)); cortante sin armadura a d de la cara (art. 6.2.2).",
               "Reparto a lo largo del muro: 20 % de la principal en todo el ancho (art. 9.3.1.1 (2)).",
+              "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12), por metro: vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan Mk + Hk·H; deslizamiento con Hk ≤ (Nk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)). Estabiliza y frena sólo la parte permanente de Nk. Sin empuje pasivo ni peso de tierras.",
               "Con par tirante–terreno: Tk = (Nk·e + Mk)/h, presión uniforme (DB SE-C, art. 4.3.1.3 (6)), deslizamiento Tk ≤ (N + P)·tan(3/4·φ')/1,5 (DB SE-C, art. 4.2.3.1 (4) y tabla 2.1) y armadura del tirante 1,5·Tk/fyd. Al muro le queda Mk + Tk·(h − H) en el arranque.",
             ]}
             avisos={avisos}
@@ -499,16 +520,24 @@ export default function ZapataCorridaPage() {
                         },
                       ]
                     : []),
-                  ...(resultado.zapata.tirante
-                    ? [
-                        {
-                          etiqueta: "deslizamiento",
-                          estado: resultado.zapata.tirante.verificaDeslizamiento ? ("cumple" as const) : ("no-cumple" as const),
-                          utilizacion: Math.abs(resultado.zapata.tirante.tkKN) / resultado.zapata.tirante.rozamientoResistenteKN,
-                          conPropuestas: !!rec.deslizamiento,
-                        },
-                      ]
+                  ...(resultado.zapata.vuelco
+                    ? [{
+                        etiqueta: "vuelco",
+                        estado: resultado.zapata.vuelco.verifica ? ("cumple" as const) : ("no-cumple" as const),
+                        utilizacion: resultado.zapata.vuelco.aprovechamiento,
+                        conPropuestas: !!rec.vuelco,
+                      }]
                     : []),
+                  {
+                    etiqueta: "deslizamiento",
+                    estado: resultado.zapata.deslizamiento
+                      ? resultado.zapata.deslizamiento.verifica
+                        ? "cumple"
+                        : "no-cumple"
+                      : "no-evaluado",
+                    utilizacion: resultado.zapata.deslizamiento?.aprovechamiento,
+                    conPropuestas: !!rec.deslizamiento,
+                  },
                 ]}
               />
 
@@ -551,23 +580,53 @@ export default function ZapataCorridaPage() {
                       { etiqueta: "Zapata rígida (vuelo ≤ 2H)", valor: resultado.zapata.esRigida ? "Sí" : "No" },
                     ]}
                   />
+                  {resultado.zapata.vuelco ? (
+                    <ResultadoCheck
+                      etiqueta="Vuelco"
+                      verifica={resultado.zapata.vuelco.verifica}
+                      detalle={
+                        resultado.zapata.vuelco.borde === "ninguno"
+                          ? "Sin momento ni horizontal: no hay vuelco que comprobar."
+                          : `CTE DB SE-C, ec. (2.1) y tabla 2.1: 1,8·Mdst ≤ 0,9·Mstb respecto del borde ${resultado.zapata.vuelco.borde === "fin" ? "derecho" : "izquierdo"}, por metro. Mdst = ${fmt(resultado.zapata.vuelco.momentoDesestabilizadorKNm)} kN·m/m, Mstb = ${fmt(resultado.zapata.vuelco.momentoEstabilizadorKNm)} kN·m/m.`
+                      }
+                      comparacion={
+                        resultado.zapata.vuelco.borde === "ninguno"
+                          ? undefined
+                          : {
+                              real: { etiqueta: "1,8·Mdst", valor: resultado.zapata.vuelco.efectoDesestabilizadorKNm },
+                              limite: { etiqueta: "0,9·Mstb", valor: resultado.zapata.vuelco.efectoEstabilizadorKNm },
+                              unidad: "kN·m/m", exige: "≤",
+                            }
+                      }
+                      recomendaciones={rec.vuelco}
+                    />
+                  ) : (
+                    <ResultadoCheck etiqueta="Vuelco" verifica detalle="Con tirante, el par tirante–terreno impide el giro." />
+                  )}
+                  {resultado.zapata.deslizamiento ? (
+                    <ResultadoCheck
+                      etiqueta="Deslizamiento"
+                      verifica={resultado.zapata.deslizamiento.verifica}
+                      detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(resultado.zapata.deslizamiento.deltaGrados, 1)}° (art. 4.2.3.1 (4)), sin adherencia, cargas sin mayorar y γR = 1,5 (tabla 2.1). Por metro; frena sólo la carga permanente más el peso propio.${conTirante ? " Con tirante, la base frena el tirante más la horizontal." : ""}`}
+                      comparacion={{
+                        real: { etiqueta: "H", valor: resultado.zapata.deslizamiento.horizontalKN },
+                        limite: { etiqueta: "(Nperm+P)·tan δ/γR", valor: resultado.zapata.deslizamiento.rozamientoCalculoKN },
+                        unidad: "kN/m", exige: "≤",
+                      }}
+                      recomendaciones={rec.deslizamiento}
+                    />
+                  ) : (
+                    <ResultadoCheck etiqueta="Deslizamiento" verifica={false} detalle="Falta φ' del terreno: sin él no se puede comprobar." />
+                  )}
                 </div>
               </Subgrupo>
 
               {resultado.zapata.tirante && (
                 <Subgrupo titulo="Par tirante–terreno">
                   <div>
-                    <ResultadoCheck
-                      etiqueta="Deslizamiento de la zapata"
-                      verifica={resultado.zapata.tirante.verificaDeslizamiento}
-                      detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(resultado.zapata.tirante.deltaGrados, 1)}° (art. 4.2.3.1 (4)), cargas sin mayorar y γR = 1,5 (tabla 2.1). Por metro.`}
-                      comparacion={{
-                        real: { etiqueta: "Tk", valor: Math.abs(resultado.zapata.tirante.tkKN) },
-                        limite: { etiqueta: "(N+P)·tan δ/γR", valor: resultado.zapata.tirante.rozamientoResistenteKN },
-                        unidad: "kN/m", exige: "≤",
-                      }}
-                      recomendaciones={rec.deslizamiento}
-                    />
+                    <p className="text-xs text-muted-foreground">
+                      El deslizamiento de la base, con el tirante incluido, está en Geotecnia.
+                    </p>
                     <PanelMetricas
                       horizontal
                       metricas={[

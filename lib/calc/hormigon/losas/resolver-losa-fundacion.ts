@@ -19,6 +19,8 @@ export function resolverLosaFundacion(campos: Record<string, string>) {
     anchoTributario: num("anchoTributario"),
     H: num("H"),
     recubrimiento: num("recubrimiento"),
+    pilarLargo: num("pilarLargo"),
+    pilarAncho: num("pilarAncho"),
     sigmaAdmisible: num("sigmaAdmisible"),
     pos1: num("pos1"),
     Nk1: num("Nk1"),
@@ -30,17 +32,17 @@ export function resolverLosaFundacion(campos: Record<string, string>) {
     separacionInferior: num("separacionInferior"),
     diametroSuperior: num("diametroSuperior"),
     separacionSuperior: num("separacionSuperior"),
-    numeroSecundario: num("numeroSecundario"),
-    diametroSecundario: num("diametroSecundario"),
+    diametroTransversal: num("diametroTransversal"),
+    separacionTransversal: num("separacionTransversal"),
   };
 
   const todosValidos = Object.values(v).every((n) => Number.isFinite(n));
-  const geometriaValida = v.longitud > 0 && v.anchoTributario > 0 && v.H > 0;
+  const geometriaValida = v.longitud > 0 && v.anchoTributario > 0 && v.H > 0 && v.pilarLargo > 0 && v.pilarAncho > 0;
   const posicionesValidas = v.pos1 >= 0 && v.pos2 > v.pos1 && v.pos3 > v.pos2 && v.pos3 <= v.longitud;
   const cargasValidas = v.Nk1 > 0 && v.Nk2 > 0 && v.Nk3 > 0;
   const armadurasValidas =
     v.diametroInferior > 0 && v.separacionInferior > 0 && v.diametroSuperior > 0 && v.separacionSuperior > 0 &&
-    v.numeroSecundario > 0 && v.diametroSecundario > 0;
+    v.diametroTransversal > 0 && v.separacionTransversal > 0;
 
   if (!todosValidos || !geometriaValida || !posicionesValidas || !cargasValidas || !armadurasValidas || v.sigmaAdmisible <= 0) {
     return null;
@@ -50,17 +52,20 @@ export function resolverLosaFundacion(campos: Record<string, string>) {
 
   const franja = calcularFranjaLosa(
     materiales,
-    { longitudM: v.longitud, anchoTributarioM: v.anchoTributario, H: v.H, recubrimiento: v.recubrimiento },
+    {
+      longitudM: v.longitud, anchoTributarioM: v.anchoTributario, H: v.H, recubrimiento: v.recubrimiento,
+      pilarLargoM: v.pilarLargo, pilarAnchoM: v.pilarAncho,
+    },
     v.sigmaAdmisible,
     {
-      columnas: [
+      pilares: [
         { posicionM: v.pos1, Nk: v.Nk1 },
         { posicionM: v.pos2, Nk: v.Nk2 },
         { posicionM: v.pos3, Nk: v.Nk3 },
       ],
-      armadoInferior: { diametroMm: v.diametroInferior, separacionM: v.separacionInferior },
-      armadoSuperior: { diametroMm: v.diametroSuperior, separacionM: v.separacionSuperior },
-      armadoSecundario: { numero: v.numeroSecundario, diametroMm: v.diametroSecundario },
+      inferior: { diametroMm: v.diametroInferior, separacionM: v.separacionInferior },
+      superior: { diametroMm: v.diametroSuperior, separacionM: v.separacionSuperior },
+      transversalInferior: { diametroMm: v.diametroTransversal, separacionM: v.separacionTransversal },
     }
   );
 

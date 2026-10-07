@@ -80,9 +80,10 @@ se fueron con coeficientes distintos.
 Compartidas y reutilizables desde `zapata-aislada.ts`: `calcularCorteUnidireccional`,
 `calcularArmadoDesdePresion`, `calcularArmadoDireccion`.
 
-`calcularVigaSobreTerreno` (en `zapata-combinada.ts`) es el motor común de zapata
-combinada y franja de losa: resuelve la pieza como viga cargada por la reacción
-del terreno, integrando el diagrama numéricamente.
+`calcularFranjaLosa(materiales, geometria, sigmaAdmisibleKPa, datos)` (en
+`losas/losa-fundacion.ts`) resuelve una franja de losa de fundación como viga
+sobre el terreno, por el Anejo 19, con el mismo modelo que la zapata combinada:
+flexión por metro, cortante a d de la cara y punzonamiento de cada pilar.
 
 ### Otras
 

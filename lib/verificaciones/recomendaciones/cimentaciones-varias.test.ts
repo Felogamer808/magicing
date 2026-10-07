@@ -27,12 +27,18 @@ describe("recomendaciones de la losa de fundación", () => {
     fck: "25", fyk: "500", longitud: "9", anchoTributario: "3", H: "0.5", recubrimiento: "0.05", sigmaAdmisible: "200",
     pos1: "1.5", Nk1: "200", pos2: "4.5", Nk2: "200", pos3: "7.5", Nk3: "200",
     diametroInferior: "16", separacionInferior: "0.15", diametroSuperior: "12", separacionSuperior: "0.15",
-    numeroSecundario: "8", diametroSecundario: "10",
+    pilarLargo: "0.3", pilarAncho: "0.3", diametroTransversal: "12", separacionTransversal: "0.15",
   };
 
   it("superior corta: cerrar la separación primero, y cumple", () => {
-    const r = recomendarLosaFundacion({ ...BASE, Nk1: "900", Nk2: "900", Nk3: "900", diametroSuperior: "8", separacionSuperior: "0.3" }).superior ?? [];
+    const r = recomendarLosaFundacion({ ...BASE, pos1: "1", pos3: "8", Nk1: "400", Nk2: "400", Nk3: "400", diametroSuperior: "8", separacionSuperior: "0.3" }).superior ?? [];
     expect(r[0].accion).toMatch(/^Superior: Ø8 c\/0,\d\d \(hoy Ø8 c\/0,30\)$/);
+    for (const p of r) expect(p.utilizacion).toBeLessThanOrEqual(1);
+  });
+
+  it("punzonamiento excedido: más canto primero, y cumple", () => {
+    const r = recomendarLosaFundacion({ ...BASE, H: "0.3", Nk2: "1500" }).punzonamiento2 ?? [];
+    expect(r[0].accion).toMatch(/^H = /);
     for (const p of r) expect(p.utilizacion).toBeLessThanOrEqual(1);
   });
 });

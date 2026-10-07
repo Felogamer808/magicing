@@ -58,9 +58,10 @@ Independientes, contra `main`:
   ya no ofrece H = 0,15·F automático. "Carga colgada" (`cuelgue.ts`) también:
   As·fyd ≥ Rd por el art. 6.5.3(1), zona de la figura A19.9.7 informativa y
   h ≥ 1,2·a como aviso.
-- **Losa de fundación** sigue con el modelo de la planilla (brazo 0,85·d,
-  mínimos de la EHE) en `lib/calc/hormigon/losas/franja-sobre-terreno.ts`: la combinada ya no
-  lo usa y conviene pasarla al Anejo 19 con el mismo criterio.
+- **Losa de fundación al Anejo 19** (hecho, 2026-10-07): flexión por metro
+  (art. 6.1, ec. (9.1)), separación máxima de losas, cortante a d de la cara y
+  punzonamiento de los tres pilares con la reacción descontada. Sin armadura
+  de reparto: la otra dirección es su propia franja.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.

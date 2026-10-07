@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
+import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { useProyectoActivo } from "@/lib/proyectos/activo";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
@@ -20,7 +21,7 @@ import {
   eliminarElemento,
 } from "@/lib/proyectos/modelo";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 
 /**
  * Detalle de un proyecto: sus datos, sus materiales y sus elementos.
@@ -64,14 +65,9 @@ export default function ProyectoPage() {
   });
 
   const material = (clave: "fckMPa" | "fykMPa" | "recubrimientoM") => ({
-    value: String(proyecto.materiales[clave]).replace(".", ","),
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const n = aNumero(e.target.value);
-      if (!Number.isFinite(n)) return;
-      guardar(
-        actualizarProyecto(proyecto, { materiales: { ...proyecto.materiales, [clave]: n } })
-      );
-    },
+    valor: proyecto.materiales[clave],
+    onCambio: (n: number) =>
+      guardar(actualizarProyecto(proyecto, { materiales: { ...proyecto.materiales, [clave]: n } })),
   });
 
   function agregar(e: React.FormEvent) {
@@ -181,19 +177,19 @@ export default function ProyectoPage() {
               <Label htmlFor="p-fck">
                 fck <span className="text-muted-foreground">(MPa)</span>
               </Label>
-              <Input id="p-fck" inputMode="decimal" {...material("fckMPa")} />
+              <CampoMaterial id="p-fck" {...material("fckMPa")} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="p-fyk">
                 fyk <span className="text-muted-foreground">(MPa)</span>
               </Label>
-              <Input id="p-fyk" inputMode="decimal" {...material("fykMPa")} />
+              <CampoMaterial id="p-fyk" {...material("fykMPa")} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="p-rec">
                 Recubrimiento <span className="text-muted-foreground">(m)</span>
               </Label>
-              <Input id="p-rec" inputMode="decimal" {...material("recubrimientoM")} />
+              <CampoMaterial id="p-rec" {...material("recubrimientoM")} />
             </div>
             <p className="col-span-full text-xs text-muted-foreground">
               Se cargan una vez y los heredan los elementos del proyecto. Evita el error de calcular

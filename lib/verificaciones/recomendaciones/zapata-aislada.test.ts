@@ -25,6 +25,22 @@ describe("recomendaciones de la zapata aislada", () => {
     for (const p of r.tension ?? []) expect(p.utilizacion).toBeLessThanOrEqual(1);
   });
 
+  it("vuelco: propone agrandar la zapata y cada propuesta cumple", () => {
+    // Mdst = 60 + 60·0,4 = 84; Mstb = 100·0,8 + 25,6·0,8 = 100,5 → 151 > 90 kN·m.
+    const r = recomendarZapataAislada({
+      ...BASE,
+      datos: { ...BASE.datos, cargas: { Nk: 400, MkA: 60, MkB: 0, HkA: 60, NkPermanente: 100 } },
+    });
+    expect(r.vuelcoA?.length).toBeGreaterThan(0);
+    for (const p of r.vuelcoA ?? []) expect(p.utilizacion).toBeLessThanOrEqual(1);
+    expect(r.vuelcoB).toBeUndefined();
+  });
+
+  it("sin horizontal no propone nada de deslizamiento", () => {
+    const r = recomendarZapataAislada({ ...BASE, datos: { ...BASE.datos, phiGrados: 30 } });
+    expect(r.deslizamiento).toBeUndefined();
+  });
+
   it("armadura corta: más barras del mismo diámetro primero", () => {
     const r = recomendarZapataAislada({
       ...BASE,

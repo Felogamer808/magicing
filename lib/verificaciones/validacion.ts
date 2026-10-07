@@ -75,7 +75,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     // Ahora todo el módulo sigue el Anejo 19, pero se programó y revisó en la
     // misma sesión, sin repaso independiente (AUDITORIA.md, hallazgo 6).
     nivel: "probada",
-    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Falta contrastar un caso propio. Vuelco y deslizamiento no se comprueban.",
+    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Vuelco y deslizamiento por el CTE DB SE-C (tabla 2.1). Falta contrastar un caso propio.",
   },
   fisuracion: {
     nivel: "auditada",

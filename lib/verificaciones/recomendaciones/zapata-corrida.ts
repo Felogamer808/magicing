@@ -32,7 +32,7 @@ export interface EntradaZapataCorrida {
 /** Con el muro centrado se muestra un vuelo; descentrado, los dos. */
 export type LadoCorrida = "gobernante" | "inicio" | "fin";
 type ClaveVuelo = `${LadoCorrida}.${"as" | "anclaje" | "corte"}`;
-export type ClaveCorrida = "tension" | "deslizamiento" | "reparto" | ClaveVuelo;
+export type ClaveCorrida = "tension" | "deslizamiento" | "vuelco" | "reparto" | ClaveVuelo;
 export type RecomendacionesCorrida = Partial<Record<ClaveCorrida, Recomendacion[]>>;
 
 const NOMBRE_LADO: Record<LadoCorrida, string> = { gobernante: "del vuelo", inicio: "del vuelo izquierdo", fin: "del vuelo derecho" };
@@ -40,6 +40,7 @@ const TIPO = { as: "armadura", anclaje: "anclaje", corte: "cortante" } as const;
 const NOMBRES = {
   tension: "tensión del terreno",
   deslizamiento: "deslizamiento",
+  vuelco: "vuelco",
   reparto: "armadura de reparto",
   ...Object.fromEntries(
     (["gobernante", "inicio", "fin"] as const).flatMap((l) =>
@@ -65,7 +66,8 @@ function utilizaciones(e: EntradaZapataCorrida) {
   return (z: ResultadoZapataCorrida): Partial<Record<ClaveCorrida, number>> => ({
     tension: z.geotecnico.sigmaKPa / e.sigmaAdmisibleKPa,
     reparto: z.secundario.asNecCm2 / z.secundario.asRealCm2,
-    ...(z.tirante ? { deslizamiento: Math.abs(z.tirante.tkKN) / z.tirante.rozamientoResistenteKN } : {}),
+    ...(z.deslizamiento && z.deslizamiento.horizontalKN > 0 ? { deslizamiento: z.deslizamiento.aprovechamiento } : {}),
+    ...(z.vuelco && z.vuelco.borde !== "ninguno" ? { vuelco: z.vuelco.aprovechamiento } : {}),
     ...(z.muroCentrado
       ? utilizacionesVuelo("gobernante", z.principal)
       : { ...utilizacionesVuelo("inicio", z.vuelos.inicio), ...utilizacionesVuelo("fin", z.vuelos.fin) }),
@@ -166,7 +168,9 @@ const BRAZO = palancaValor<E>(
 
 function palancasPorClave(clave: ClaveCorrida): readonly Palanca<E>[] {
   if (clave === "tension") return [ANCHO];
-  if (clave === "deslizamiento") return [BRAZO];
+  // Más zapata es más peso que frena y estabiliza.
+  if (clave === "deslizamiento") return [BRAZO, ANCHO, H];
+  if (clave === "vuelco") return [ANCHO, H];
   if (clave === "reparto") return [REPARTO_MAS_BARRAS, REPARTO_DIAMETRO];
   if (clave.endsWith(".as")) return [SEPARACION, DIAMETRO_MAYOR, H];
   if (clave.endsWith(".anclaje")) return [PATILLA, DIAMETRO_MENOR, H];

@@ -8,6 +8,12 @@ import {
   type VuelosDireccion,
 } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
 import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
+import {
+  calcularDeslizamiento,
+  calcularVuelco,
+  type ResultadoDeslizamiento,
+  type ResultadoVuelco,
+} from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
  * Zapata corrida bajo muro, por metro corrido, según el Anejo 19.
@@ -47,6 +53,10 @@ export interface CargaZapataCorrida {
   Nk: number;
   /** Momento característico por metro corrido, positivo hacia el borde final (kN·m/m) */
   MkA: number;
+  /** Horizontal característica por metro en el arranque del muro, + hacia el borde final (kN/m). Si falta, 0. */
+  HkA?: number;
+  /** Parte permanente de Nk, la que estabiliza (kN/m). Si falta, Nk entero. */
+  NkPermanente?: number;
 }
 
 export interface ArmadoPrincipalCorrida {
@@ -69,6 +79,8 @@ export interface DatosZapataCorrida {
   formaAnclaje?: FormaAnclaje;
   /** Par tirante–terreno: la losa tira del muro arriba y el rozamiento lo frena en la base. */
   tirante?: { brazoM: number; phiGrados: number };
+  /** φ′ del terreno para el deslizamiento; con tirante se usa el del tirante. Si no hay, no se comprueba. */
+  phiGrados?: number;
 }
 
 export interface ResultadoGeotecnicoCorrida {
@@ -106,6 +118,10 @@ export interface ResultadoZapataCorrida {
   secundario: ResultadoArmadoSecundarioCorrida;
   /** Sólo con tirante. */
   tirante?: ResultadoTiranteRozamiento;
+  /** Vuelco por el DB SE-C, por metro. Null con tirante: el par impide el giro. */
+  vuelco: ResultadoVuelco | null;
+  /** Deslizamiento por el DB SE-C, por metro. Null si no hay φ′. */
+  deslizamiento: ResultadoDeslizamiento | null;
 }
 
 export function calcularZapataCorrida(
@@ -117,6 +133,10 @@ export function calcularZapataCorrida(
   const { A, H, anchoPilar, recubrimiento } = geometria;
   const { carga, armadoPrincipal, armadoSecundario } = datos;
   const { Nk, MkA } = carga;
+  const HkA = carga.HkA ?? 0;
+  const nkPermanenteKN = carga.NkPermanente ?? Nk;
+  // La horizontal llega a la base con brazo H: corre la resultante como un momento.
+  const mBase = MkA + HkA * H;
 
   const borde = geometria.distanciaBorde ?? (A - anchoPilar) / 2;
   const e0 = borde + anchoPilar / 2 - A / 2;
@@ -132,11 +152,12 @@ export function calcularZapataCorrida(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0 + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN,
       })
     : undefined;
 
   // Con tirante el par toma todo el momento y la resultante queda centrada.
-  const excentricidadM = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0 + MkA) / cargaTotalKN : 0;
+  const excentricidadM = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0 + mBase) / cargaTotalKN : 0;
   const dentroDelNucleo = Math.abs(excentricidadM) <= A / 6;
   const anchoEficazM = A - 2 * Math.abs(excentricidadM);
   const sigmaKPa = anchoEficazM > 0 ? cargaTotalKN / (anchoEficazM * ANCHO_REFERENCIA_M) : Infinity;
@@ -153,7 +174,7 @@ export function calcularZapataCorrida(
   const d = H - recubrimiento - armadoPrincipal.diametroMm / 2000;
   const vuelos = calcularVuelosDireccion(
     materiales, A, ANCHO_REFERENCIA_M, H, anchoPilar, borde, d, recubrimiento,
-    Nk, tirante ? -Nk * e0 : MkA, armado, datos.formaAnclaje ?? "recta"
+    Nk, tirante ? -Nk * e0 : mBase, armado, datos.formaAnclaje ?? "recta"
   );
   const principal = vuelos.fin.momentoKNm >= vuelos.inicio.momentoKNm ? vuelos.fin : vuelos.inicio;
   const asRealPrincipalCm2PorM = principal.asRealCm2;
@@ -163,7 +184,28 @@ export function calcularZapataCorrida(
   const asNecSecundarioCm2 = 0.2 * asRealPrincipalCm2PorM * A;
   const asRealSecundarioCm2 = (armadoSecundario.numero * Math.PI * (armadoSecundario.diametroMm / 10) ** 2) / 4;
 
+  // Vuelco y deslizamiento por metro, DB SE-C (ver estabilidad-zapata.ts).
+  const vuelco = tirante
+    ? null
+    : calcularVuelco({
+        nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H,
+        direccion: { dimM: A, posicionPilarM: borde + anchoPilar / 2, mkKNm: MkA, hkKN: HkA },
+      });
+  const phiGrados = datos.tirante?.phiGrados ?? datos.phiGrados;
+  const deslizamiento =
+    phiGrados === undefined
+      ? null
+      : calcularDeslizamiento({
+          horizontalAKN: tirante ? tirante.horizontalBaseKN : HkA,
+          horizontalBKN: 0,
+          nkPermanenteKN,
+          pesoZapataKN: pesoPropioKN,
+          phiGrados,
+        });
+
   return {
+    vuelco,
+    deslizamiento,
     vueloMaxM,
     esRigida,
     muroCentrado,

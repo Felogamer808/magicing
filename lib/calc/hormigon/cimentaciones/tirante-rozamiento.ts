@@ -1,6 +1,7 @@
 import { calcularAnclaje, type FormaAnclaje, type SituacionAdherencia } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { GAMMA_R_DESLIZAMIENTO } from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
  * Par tirante–terreno: otra forma de equilibrar la zapata con el pilar
@@ -20,8 +21,7 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  * (criterio del Jiménez Montoya, decidido por el usuario el 2026-10-06).
  */
 
-/** Coeficiente de resistencia al deslizamiento, situación persistente (DB SE-C, tabla 2.1). */
-export const GAMMA_R_DESLIZAMIENTO = 1.5;
+export { GAMMA_R_DESLIZAMIENTO };
 
 export interface DatosTiranteRozamiento {
   /** Carga vertical característica del pilar (kN). */
@@ -42,6 +42,18 @@ export interface DatosTiranteRozamiento {
   cantoZapataM: number;
   /** Ángulo de rozamiento interno efectivo del terreno, φ' (grados). */
   phiGrados: number;
+  /**
+   * Horizontal característica en el arranque del pilar, en la dirección del
+   * tirante, + hacia el borde final (kN). Tiene brazo H hasta la base, así que
+   * entra en el momento que toma el par, y la base tiene que frenarla junto con
+   * el tirante. Si falta, 0.
+   */
+  hkKN?: number;
+  /**
+   * Carga vertical que se cuenta para el rozamiento: la permanente del pilar
+   * (kN). Lo que puede faltar no frena. Si falta, `nkKN`.
+   */
+  nkEstabilizanteKN?: number;
 }
 
 export interface ResultadoTiranteRozamiento {
@@ -55,6 +67,8 @@ export interface ResultadoTiranteRozamiento {
   deltaGrados: number;
   /** Rozamiento resistente de cálculo, (Nk + peso)·tan δ / γR (kN). */
   rozamientoResistenteKN: number;
+  /** Horizontal que la base tiene que frenar en esta dirección, Tk + Hk (kN). */
+  horizontalBaseKN: number;
   verificaDeslizamiento: boolean;
   /** Cortante característico en el pilar entre el tirante y la zapata, |Tk| (kN). */
   vPilarKN: number;
@@ -73,18 +87,23 @@ export function calcularTiranteRozamiento(
   datos: DatosTiranteRozamiento
 ): ResultadoTiranteRozamiento {
   const { nkKN, pesoZapataKN, momentoCentroKNm, mkPilarKNm, brazoM, cantoZapataM, phiGrados } = datos;
+  const hkKN = datos.hkKN ?? 0;
+  const nkEstabilizanteKN = datos.nkEstabilizanteKN ?? nkKN;
   const geometriaValida = brazoM > cantoZapataM;
 
   // Momentos respecto del centro de la base: el rozamiento está en la base y no
-  // tiene brazo, así que el tirante solo anula todo el momento.
-  //   momentoCentro + Tk·h = 0
-  const tkKN = geometriaValida ? -momentoCentroKNm / brazoM : 0;
+  // tiene brazo, así que el tirante solo anula todo el momento, incluido el de
+  // la horizontal del pilar, que llega con brazo H.
+  //   momentoCentro + Hk·H + Tk·h = 0
+  const tkKN = geometriaValida ? -(momentoCentroKNm + hkKN * cantoZapataM) / brazoM : 0;
   const tdKN = GAMMA_F * Math.abs(tkKN);
   const asTiranteCm2 = (tdKN * 1000) / materiales.fyd / 100;
 
   const deltaGrados = 0.75 * phiGrados;
   const rozamientoResistenteKN =
-    ((nkKN + pesoZapataKN) * Math.tan((deltaGrados * Math.PI) / 180)) / GAMMA_R_DESLIZAMIENTO;
+    ((nkEstabilizanteKN + pesoZapataKN) * Math.tan((deltaGrados * Math.PI) / 180)) / GAMMA_R_DESLIZAMIENTO;
+  // Equilibrio horizontal: la base frena al tirante y a la horizontal juntos.
+  const horizontalBaseKN = tkKN + hkKN;
 
   return {
     tkKN,
@@ -92,8 +111,10 @@ export function calcularTiranteRozamiento(
     asTiranteCm2,
     deltaGrados,
     rozamientoResistenteKN,
-    verificaDeslizamiento: geometriaValida && Math.abs(tkKN) <= rozamientoResistenteKN,
-    vPilarKN: Math.abs(tkKN),
+    horizontalBaseKN,
+    verificaDeslizamiento: geometriaValida && Math.abs(horizontalBaseKN) <= rozamientoResistenteKN,
+    // Entre el tirante y la zapata el pilar lleva el tirante y la horizontal.
+    vPilarKN: Math.abs(horizontalBaseKN),
     // El pilar va del tirante a la cara superior de la zapata: la fuerza del
     // tirante tiene brazo h − H sobre el arranque.
     mPilarArranqueKNm: mkPilarKNm + tkKN * (brazoM - cantoZapataM),

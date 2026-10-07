@@ -20,6 +20,14 @@ import type { ArmaduraElegida, MaterialesDerivados } from "@/lib/calc/hormigon/c
  * los dos métodos, y cuál aplica lo decide la relación luz/canto y la distancia
  * de la carga al apoyo. El resultado dice cuál corresponde.
  *
+ * Todo por el Anejo 19 (decidido por el usuario el 2026-10-07). Antes se
+ * comprobaba también por Montoya —fyd topado en 400 MPa, z = 0,6·l, nudo de
+ * apoyo contra 0,7·fcd, anclaje desde el eje del apoyo y el 65 % colgado en
+ * apoyo indirecto— y se armaba por el peor: mezclaba normas y se sacó. Dos
+ * reglas de detalle sin equivalente en el Anejo —el tirante repartido en
+ * 0,12·l y h ≥ 1,2·a en la carga colgada— quedan como avisos que no entran en
+ * el cumple.
+ *
  * Referencias:
  * - Anejo 19 (RD 470/2021), art. 5.3.1(3) pág. 45 — definición de viga de gran canto.
  * - Anejo 19, art. 5.6.4 pág. 54 — extensión de la región D.
@@ -35,12 +43,16 @@ import type { ArmaduraElegida, MaterialesDerivados } from "@/lib/calc/hormigon/c
  * - Anejo 19, art. 9.7(3), pág. 152 — anclaje completo del tirante: doblado,
  *   cercos en U o dispositivos, salvo que quepa lbd recto.
  * - Anejo 19, art. 9.9, pág. 155 — regiones D, anclaje del tirante.
- * - Montoya 15.ª ed., cap. 24 §24.7, pág. 391 (impresa 357) — vigas pared.
- * - Montoya, §24.9.1 y §24.9.2, págs. 396-397 (impresas 362-363) — cargas
- *   colgadas e indirectas, vigas cortas.
+ * - Anejo 19, art. 6.2.2(6), pág. 77 — cargas a menos de 2·d del apoyo.
+ * - Anejo 19, art. 9.2.5, pág. 145 — apoyos indirectos: armadura para toda la
+ *   reacción mutua.
+ * - Sólo como aviso, sin número: Montoya 15.ª ed., §24.7.3.e y §24.9.1.
  */
 
-/** Cómo llega a la viga la carga del pilar apeado (Montoya §24.9.1, pág. 396). */
+/**
+ * Cómo llega a la viga la carga del pilar apeado. Indirecta o colgada, hay que
+ * colgarla entera con armadura (art. 9.2.5(1)).
+ */
 export type TransmisionCarga = "directa" | "indirecta" | "colgada";
 
 /** Condición de adherencia de la barra al hormigonar (art. 8.4.2(2), fig. A19.8.2). */
@@ -81,7 +93,7 @@ export interface CuelgueVigaApeo {
   separacionM: number;
   /** Ramas por estribo */
   numeroRamas: number;
-  /** Canto del elemento que cuelga (m). 0 = no se comprueba h ≥ 1,2·a. */
+  /** Canto del elemento que cuelga (m), para el aviso h ≥ 1,2·a. 0 = sin aviso. */
   cantoElementoColgadoM: number;
 }
 
@@ -116,8 +128,8 @@ export interface DatosVigaApeo {
   mallaVertical: MallaVigaApeo;
   cuelgue?: CuelgueVigaApeo;
   /**
-   * Brazo mecánico impuesto (m). Si se omite sale del modelo: el menor entre el
-   * que permite la cabeza comprimida y el de Montoya para viga pared.
+   * Brazo mecánico impuesto (m). Si se omite sale del modelo: el que permite la
+   * cabeza comprimida.
    */
   brazoMecanicoM?: number;
   /**
@@ -131,17 +143,16 @@ export interface DatosVigaApeo {
 export interface ResultadoRegionVigaApeo {
   /** Luz libre entre caras de apoyo (m) */
   luzLibreM: number;
-  /** Luz de cálculo de Montoya: mín(entre ejes, 1,15·luz libre) (m) */
-  luzMontoyaM: number;
   relacionLuzCanto: number;
   /** Anejo 19 art. 5.3.1(3): es viga si luz > 3·h; si no, viga de gran canto */
   esGranCantoAnejo19: boolean;
-  /** Montoya §24.7.1: viga pared si luz/canto < 2 (simplemente apoyada) */
-  esGranCantoMontoya: boolean;
   /** Distancias de la carga a cada apoyo, en cantos útiles */
   aIzqSobreD: number;
   aDerSobreD: number;
-  /** Montoya §24.9.3: la carga está a menos de 2·d de algún apoyo */
+  /**
+   * La carga está a menos de 2·d de algún apoyo: es el límite del art.
+   * 6.2.2(6), dentro del cual la carga baja por biela directa.
+   */
   cargaProximaAlApoyo: boolean;
   esRegionD: boolean;
 }
@@ -159,8 +170,6 @@ export interface ResultadoModeloVigaApeo {
   momentoKNm: number;
   /** Brazo que permite la cabeza comprimida, art. 6.5.4(4)a (m) */
   zNudoM: number;
-  /** Brazo de Montoya para viga pared, 0,6·luz (m). null si no clasifica. */
-  zMontoyaM: number | null;
   zAdoptadoM: number;
   /** Canto de la cabeza comprimida, 2·(d − z) (m) */
   cantoNudoSuperiorM: number;
@@ -209,27 +218,24 @@ export interface ResultadoCapasTirante {
   verificaSeparacionVertical: boolean;
   /** Art. 8.2(3): las barras de las dos capas van en la misma vertical */
   mismasBarrasPorCapa: boolean;
-  /** Montoya §24.7.3.e: las dos capas tienen que caber en la altura de reparto */
   alturaOcupadaM: number;
-  verificaDentroDelReparto: boolean;
+  /**
+   * Aviso, no comprobación: Montoya §24.7.3.e reparte el tirante en 0,12·l. El
+   * Anejo 19 no lo pide, así que no entra en el cumple.
+   */
+  cumpleAvisoReparto: boolean;
 }
 
 /** Paso 3: armadura del tirante. */
 export interface ResultadoTiranteVigaApeo {
-  /** fyd pleno = fyk/γs (MPa) */
+  /** fyk/γs (MPa) */
   fydMPa: number;
-  /** fyd topado en 400 MPa, Montoya §24.7.3.c (MPa) */
-  fydTopadoMPa: number;
-  /** El tope de Montoya está aplicado porque la pieza clasifica como viga pared */
-  topeAplicado: boolean;
-  asNecEc2Cm2: number;
-  asNecMontoyaCm2: number;
-  /** El mayor de los dos, que es por el que hay que armar */
+  /** T/fyd (cm²) */
   asNecCm2: number;
   asRealCm2: number;
   aprovechamiento: number;
   verificaAs: boolean;
-  /** Altura en que se reparte el tirante, 0,12·luz — Montoya §24.7.3.e (m) */
+  /** Altura del aviso de reparto, 0,12·l con la luz de Montoya, mín(l; 1,15·luz libre) (m) */
   alturaRepartoM: number;
   /** Separación libre entre barras de la capa más apretada (mm) */
   separacionMm: number;
@@ -258,18 +264,16 @@ export interface FormaAnclajeTirante {
   desarrolloNecesarioMm: number;
   verificaIzq: boolean;
   verificaDer: boolean;
-  /** Los mismos dos, midiendo desde el eje del apoyo como pide Montoya §24.7.3.e */
-  verificaIzqMontoya: boolean;
-  verificaDerMontoya: boolean;
 }
 
 /**
  * Geometría de la horquilla —gancho en U de la figura A19.8.1c— con la que se
  * cierra el tirante cuando el anclaje recto no entra en el apoyo.
  *
- * Montoya la dibuja doblada en planta (fig. 24.25b, pág. 392): la barra entra,
- * gira 180° en el plano horizontal y vuelve paralela a sí misma. Doblada así el
- * codo no invade la biela comprimida, que es lo que pasaría girando en vertical.
+ * Se dobla en planta: la barra entra, gira 180° en el plano horizontal y vuelve
+ * paralela a sí misma. Doblada así el codo no invade la biela comprimida, que
+ * es lo que pasaría girando en vertical. Es una decisión de despiece, no un
+ * número: el desarrollo se mide desde la cara del nudo, como pide el Anejo.
  */
 export interface ResultadoHorquillaTirante {
   /** Tabla A19.8.1: 4φ si φ ≤ 16 mm, 7φ si φ > 16 mm (mm) */
@@ -326,10 +330,7 @@ export interface ResultadoAnclajeVigaApeo {
   /** Desde la cara interior del apoyo, que es donde empieza el nudo — art. 6.5.4(7) (m) */
   disponibleIzqM: number;
   disponibleDerM: number;
-  /** Desde el eje del apoyo, criterio de Montoya §24.7.3.e: media placa menos (m) */
-  disponibleMontoyaIzqM: number;
-  disponibleMontoyaDerM: number;
-  /** El recto entra en los dos apoyos por los dos criterios */
+  /** El recto entra en los dos apoyos */
   verificaRecto: boolean;
   /** Si el recto no entra, ¿alcanza doblando en horquilla? */
   bastaConHorquilla: boolean;
@@ -360,11 +361,6 @@ export interface ResultadoBielasVigaApeo {
   /** Nudos de apoyo: compresión con tirante anclado, k2 = 0,85 (ec. 6.61) */
   nudoApoyoIzq: ComprobacionCompresion;
   nudoApoyoDer: ComprobacionCompresion;
-  /** Mismo nudo de apoyo por Montoya §24.7.3.d: σ ≤ 0,7·fcd */
-  nudoApoyoIzqMontoya: ComprobacionCompresion;
-  nudoApoyoDerMontoya: ComprobacionCompresion;
-  /** El criterio que gobierna el nudo de apoyo: el de menor tope */
-  gobiernaMontoyaEnNudos: boolean;
 }
 
 /** Paso 6: tracción transversal del campo de compresiones — art. 6.5.3(3). */
@@ -395,9 +391,9 @@ export interface ResultadoMallaVigaApeo {
   verificaSeparacionVertical: boolean;
 }
 
-/** Paso 8: cuelgue, sólo si la carga no llega directa — Montoya §24.9.1. */
+/** Paso 8: cuelgue, sólo si la carga no llega directa — art. 9.2.5. */
 export interface ResultadoCuelgueVigaApeo {
-  /** Fracción de Nd que hay que colgar: 0 directa, 0,65 indirecta, 1,00 colgada */
+  /** Fracción de Nd que hay que colgar: 0 directa, 1,00 indirecta o colgada (art. 9.2.5(1)) */
   fraccionColgada: number;
   cargaColgadaKN: number;
   /** Ancho a cada lado del pilar en que se reparten los estribos de cuelgue (m) */
@@ -405,8 +401,11 @@ export interface ResultadoCuelgueVigaApeo {
   asNecCm2: number;
   asRealCm2: number;
   verificaAs: boolean;
-  /** Montoya §24.9.1: h ≥ 1,2·a para que las bielas lleguen a formarse */
-  verificaCantoMinimo: boolean;
+  /**
+   * Aviso, no comprobación: Montoya §24.9.1 pide h ≥ 1,2·a para que las bielas
+   * lleguen a formarse. El Anejo 19 no lo trae, así que no entra en el cumple.
+   */
+  cumpleAvisoCantoMinimo: boolean;
   cantoMinimoM: number;
 }
 
@@ -473,14 +472,13 @@ function resolverCapa(
   };
 }
 
-/** Fracción de la carga que hay que colgar de la cabeza opuesta (Montoya §24.9.1). */
+/**
+ * Fracción de la carga que hay que colgar de la cabeza opuesta. Art. 9.2.5(1):
+ * la armadura tiene que resistir toda la reacción mutua, así que indirecta o
+ * colgada es el 100 %.
+ */
 function fraccionColgada(transmision: TransmisionCarga): number {
-  // Para el apoyo indirecto Montoya recomienda considerar el 45 % de la fuerza
-  // como directa y el 65 % como colgada: suman 110 % a propósito, "por razones
-  // de seguridad". Acá interesa la parte colgada.
-  if (transmision === "colgada") return 1;
-  if (transmision === "indirecta") return 0.65;
-  return 0;
+  return transmision === "directa" ? 0 : 1;
 }
 
 export function calcularVigaApeoBielas(
@@ -533,26 +531,21 @@ export function calcularVigaApeoBielas(
 
   // ---------------------------------------------------------------- región
   const luzLibreM = luzM - (anchoApoyoIzqM + anchoApoyoDerM) / 2;
-  // Montoya §24.7.1: como luz se toma la menor entre la distancia entre ejes y
-  // 1,15 veces la luz libre.
-  const luzMontoyaM = Math.min(luzM, 1.15 * luzLibreM);
 
   const aIzqM = posicionCargaM;
   const aDerM = luzM - posicionCargaM;
 
   const region: ResultadoRegionVigaApeo = {
     luzLibreM,
-    luzMontoyaM,
     relacionLuzCanto: luzM / hM,
     // Art. 5.3.1(3): "una viga es un elemento cuya luz es mayor que 3 veces el
     // canto total de la sección, de lo contrario, será considerada como viga de
     // gran canto".
     esGranCantoAnejo19: luzM <= 3 * hM,
-    esGranCantoMontoya: luzMontoyaM / hM < 2,
     aIzqSobreD: aIzqM / dM,
     aDerSobreD: aDerM / dM,
-    // Montoya §24.9.3: por debajo de 2·d la carga se lleva por biela directa al
-    // apoyo y el cálculo por cortante deja de representar el mecanismo.
+    // Art. 6.2.2(6): por debajo de 2·d la carga baja por biela directa al apoyo
+    // y el cálculo por cortante deja de representar el mecanismo.
     cargaProximaAlApoyo: Math.min(aIzqM, aDerM) <= 2 * dM,
     esRegionD: luzM <= 3 * hM || Math.min(aIzqM, aDerM) <= 2 * dM,
   };
@@ -576,12 +569,7 @@ export function calcularVigaApeoBielas(
   const verificaCabezaComprimida = discriminante >= 0;
   const zNudoM = verificaCabezaComprimida ? (dM / 2) * (1 + Math.sqrt(discriminante)) : dM / 2;
 
-  // Montoya §24.7.3.a toma z = 0,6·l en viga pared bajo carga repartida. Da
-  // distinto que la geometría del nudo, así que se arma por el más
-  // desfavorable —el menor brazo— en vez de elegir el cómodo.
-  const zMontoyaM = region.esGranCantoMontoya ? 0.6 * luzMontoyaM : null;
-  const zAdoptadoM =
-    datos.brazoMecanicoM ?? (zMontoyaM === null ? zNudoM : Math.min(zNudoM, zMontoyaM));
+  const zAdoptadoM = datos.brazoMecanicoM ?? zNudoM;
 
   const anguloBielaIzq = Math.atan(zAdoptadoM / aIzqM);
   const anguloBielaDer = Math.atan(zAdoptadoM / aDerM);
@@ -606,7 +594,6 @@ export function calcularVigaApeoBielas(
     reaccionDerKN,
     momentoKNm,
     zNudoM,
-    zMontoyaM,
     zAdoptadoM,
     cantoNudoSuperiorM: 2 * (dM - zAdoptadoM),
     verificaCabezaComprimida,
@@ -618,15 +605,7 @@ export function calcularVigaApeoBielas(
   };
 
   // --------------------------------------------------------------- tirante
-  // Montoya limita fyd a 400 MPa en el tirante de viga pared (§24.7.3.c, pág.
-  // 391, impresa 357: "con fyd ≯ 400 N/mm²"). Es el mismo tope que en ménsulas
-  // cortas y con B500S encarece la armadura un 9 %. El Anejo 19 no lo trae, así
-  // que se calculan los dos y se arma por el mayor.
-  const fydTopadoMPa = Math.min(fyd, 400);
-  const asNecEc2Cm2 = areaNecesariaCm2(traccionTiranteKN, fyd);
-  const asNecMontoyaCm2 = areaNecesariaCm2(traccionTiranteKN, fydTopadoMPa);
-  const topeAplicado = region.esGranCantoMontoya;
-  const asNecCm2 = topeAplicado ? Math.max(asNecEc2Cm2, asNecMontoyaCm2) : asNecEc2Cm2;
+  const asNecCm2 = areaNecesariaCm2(traccionTiranteKN, fyd);
   const asRealCm2 = areaTotalTiranteCm2;
 
   const capasResueltas: CapaTirante[] = [
@@ -652,7 +631,8 @@ export function calcularVigaApeoBielas(
     );
   }
 
-  const alturaRepartoM = 0.12 * luzMontoyaM;
+  // Aviso de Montoya §24.7.3.e, con su luz de cálculo, mín(l; 1,15·luz libre).
+  const alturaRepartoM = 0.12 * Math.min(luzM, 1.15 * luzLibreM);
   // Lo que ocupa el tirante, del borde inferior al techo de la última capa.
   const alturaOcupadaM = segunda
     ? brazoCapa2M + segunda.diametroMm / 2000 - recubrimientoM
@@ -670,9 +650,7 @@ export function calcularVigaApeoBielas(
     // entre el vibrador. Con el mismo número por capa sale solo.
     mismasBarrasPorCapa: !segunda || segunda.numero === tirante.numero,
     alturaOcupadaM,
-    // Montoya §24.7.3.e reparte el tirante en 0,12·l: las dos capas tienen que
-    // entrar en esa franja o el modelo deja de ser el que se calculó.
-    verificaDentroDelReparto: alturaOcupadaM <= alturaRepartoM,
+    cumpleAvisoReparto: alturaOcupadaM <= alturaRepartoM,
   };
 
   const bNecM = Math.max(...capasResueltas.map((c) => c.bNecM));
@@ -680,16 +658,10 @@ export function calcularVigaApeoBielas(
 
   const resultadoTirante: ResultadoTiranteVigaApeo = {
     fydMPa: fyd,
-    fydTopadoMPa,
-    topeAplicado,
-    asNecEc2Cm2,
-    asNecMontoyaCm2,
     asNecCm2,
     asRealCm2,
     aprovechamiento: asNecCm2 / asRealCm2,
     verificaAs: asRealCm2 >= asNecCm2,
-    // Montoya §24.7.3.e: el tirante se reparte en una altura de 0,12·l, no
-    // concentrado en una fila pegada al borde.
     alturaRepartoM,
     separacionMm,
     bNecM,
@@ -760,8 +732,6 @@ export function calcularVigaApeoBielas(
       desarrolloNecesarioMm: lbdMm,
       verificaIzq: false,
       verificaDer: false,
-      verificaIzqMontoya: false,
-      verificaDerMontoya: false,
     };
   }
 
@@ -769,18 +739,10 @@ export function calcularVigaApeoBielas(
   // en la cara interior del apoyo, y puede usar el nudo entero y el voladizo.
   const disponibleIzqM = anchoApoyoIzqM / 2 + voladizoIzqM - recubrimientoM;
   const disponibleDerM = anchoApoyoDerM / 2 + voladizoDerM - recubrimientoM;
-  // Montoya §24.7.3.e es más exigente: manda anclar "a partir del eje de apoyo"
-  // (fig. 24.25b, pág. 392), con lo cual pierde medio ancho de placa. No es el
-  // mismo criterio con otro número, así que se comprueban los dos y se dibuja
-  // por el peor.
-  const disponibleMontoyaIzqM = voladizoIzqM - recubrimientoM;
-  const disponibleMontoyaDerM = voladizoDerM - recubrimientoM;
 
   const recto = formaAnclaje(false);
   recto.verificaIzq = disponibleIzqM * 1000 >= recto.lbdMm;
   recto.verificaDer = disponibleDerM * 1000 >= recto.lbdMm;
-  recto.verificaIzqMontoya = disponibleMontoyaIzqM * 1000 >= recto.lbdMm;
-  recto.verificaDerMontoya = disponibleMontoyaDerM * 1000 >= recto.lbdMm;
 
   const horquilla = formaAnclaje(true);
 
@@ -803,20 +765,19 @@ export function calcularVigaApeoBielas(
   const radioEjeMm = (mandrilMinimoTablaMm + phiT) / 2;
   const desarrolloCodoMm = Math.PI * radioEjeMm;
 
-  // Montoya dobla el lazo en planta (fig. 24.25b): la barra entra, gira 180° en
-  // horizontal y vuelve sobre sí misma. Así el desarrollo que se aloja en el
-  // apoyo es casi el doble del hueco recto, que es exactamente el motivo por el
-  // que la horquilla salva un anclaje que recto no entra.
+  // El lazo se dobla en planta: la barra entra, gira 180° en horizontal y
+  // vuelve sobre sí misma. Así el desarrollo que se aloja en el apoyo es casi el
+  // doble del hueco recto, que es el motivo por el que la horquilla salva un
+  // anclaje que recto no entra. Las ramas se miden desde la cara del nudo
+  // (art. 6.5.4(7)), descontando el radio del codo.
   const ramaIda = (disponibleM: number) => Math.max(disponibleM * 1000 - radioEjeMm, 0);
-  const ramaIdaIzqMm = ramaIda(disponibleMontoyaIzqM);
-  const ramaIdaDerMm = ramaIda(disponibleMontoyaDerM);
+  const ramaIdaIzqMm = ramaIda(disponibleIzqM);
+  const ramaIdaDerMm = ramaIda(disponibleDerM);
   const desarrolloDisponibleIzqMm = 2 * ramaIdaIzqMm + desarrolloCodoMm;
   const desarrolloDisponibleDerMm = 2 * ramaIdaDerMm + desarrolloCodoMm;
 
-  horquilla.verificaIzq = disponibleIzqM * 1000 * 2 + desarrolloCodoMm >= horquilla.lbdMm;
-  horquilla.verificaDer = disponibleDerM * 1000 * 2 + desarrolloCodoMm >= horquilla.lbdMm;
-  horquilla.verificaIzqMontoya = desarrolloDisponibleIzqMm >= horquilla.lbdMm;
-  horquilla.verificaDerMontoya = desarrolloDisponibleDerMm >= horquilla.lbdMm;
+  horquilla.verificaIzq = desarrolloDisponibleIzqMm >= horquilla.lbdMm;
+  horquilla.verificaDer = desarrolloDisponibleDerMm >= horquilla.lbdMm;
 
   const ramaVuelta = (idaMm: number) =>
     Math.max(horquilla.lbdMm - idaMm - desarrolloCodoMm, 0);
@@ -854,15 +815,8 @@ export function calcularVigaApeoBielas(
     numeroHorquillas: Math.ceil(tirante.numero / 2),
   };
 
-  // Se exige por los dos criterios: el del Anejo y el más corto de Montoya.
-  const verificaRecto =
-    recto.verificaIzq && recto.verificaDer && recto.verificaIzqMontoya && recto.verificaDerMontoya;
-  const bastaConHorquilla =
-    horquilla.verificaIzq &&
-    horquilla.verificaDer &&
-    horquilla.verificaIzqMontoya &&
-    horquilla.verificaDerMontoya &&
-    geometriaHorquilla.cabeEnElAncho;
+  const verificaRecto = recto.verificaIzq && recto.verificaDer;
+  const bastaConHorquilla = horquilla.verificaIzq && horquilla.verificaDer && geometriaHorquilla.cabeEnElAncho;
 
   const anclaje: ResultadoAnclajeVigaApeo = {
     sigmaSdMPa,
@@ -877,8 +831,6 @@ export function calcularVigaApeoBielas(
     geometriaHorquilla,
     disponibleIzqM,
     disponibleDerM,
-    disponibleMontoyaIzqM,
-    disponibleMontoyaDerM,
     verificaRecto,
     bastaConHorquilla,
     // Art. 9.7(3): si no entra recto ni doblado, la salida es el dispositivo de
@@ -897,13 +849,10 @@ export function calcularVigaApeoBielas(
   const sigmaBielaMax = 0.6 * nuPrima * fcd;
   // Nudo de apoyo: compresión con tirante anclado en una dirección, k2 = 0,85.
   const sigmaNudoApoyoMax = 0.85 * nuPrima * fcd;
-  // Montoya §24.7.3.d comprueba el mismo nudo contra 0,7·fcd. No es el mismo
-  // número: con fck bajo manda Montoya y por encima de fck ≈ 44 manda el Anejo.
-  const sigmaNudoMontoyaMax = 0.7 * fcd;
 
   // Ancho de la biela en el nudo de apoyo: la biela apoya sobre la placa y sobre
   // el canto del nudo inferior (figura A19.6.27). Es el extremo estrecho, que es
-  // donde se agota; Montoya §24.7.2 dice lo mismo, que gobierna el nudo de apoyo.
+  // donde se agota.
   const anchoBielaIzqM =
     anchoApoyoIzqM * Math.sin(anguloBielaIzq) + cantoNudoInferiorM * Math.cos(anguloBielaIzq);
   const anchoBielaDerM =
@@ -921,15 +870,6 @@ export function calcularVigaApeoBielas(
     ),
     nudoApoyoIzq: comprobar(reaccionIzqKN / aKNPorM2(anchoApoyoIzqM * bM), sigmaNudoApoyoMax),
     nudoApoyoDer: comprobar(reaccionDerKN / aKNPorM2(anchoApoyoDerM * bM), sigmaNudoApoyoMax),
-    nudoApoyoIzqMontoya: comprobar(
-      reaccionIzqKN / aKNPorM2(anchoApoyoIzqM * bM),
-      sigmaNudoMontoyaMax
-    ),
-    nudoApoyoDerMontoya: comprobar(
-      reaccionDerKN / aKNPorM2(anchoApoyoDerM * bM),
-      sigmaNudoMontoyaMax
-    ),
-    gobiernaMontoyaEnNudos: sigmaNudoMontoyaMax < sigmaNudoApoyoMax,
   };
 
   // ------------------------------------------- tracción transversal (6.5.3)
@@ -997,7 +937,7 @@ export function calcularVigaApeoBielas(
       ? (datos.cuelgue.numeroRamas * areaBarraCm2(datos.cuelgue.diametroMm) * anchoZonaM) /
         datos.cuelgue.separacionM
       : 0;
-    // Montoya §24.9.1: el canto tiene que dar para que las bielas se formen.
+    // Aviso de Montoya §24.9.1: el canto tiene que dar para que las bielas se formen.
     const cantoMinimoM = 1.2 * (datos.cuelgue?.cantoElementoColgadoM ?? 0);
 
     cuelgue = {
@@ -1007,7 +947,7 @@ export function calcularVigaApeoBielas(
       asNecCm2: asNecCuelgueCm2,
       asRealCm2: asRealCuelgueCm2,
       verificaAs: asRealCuelgueCm2 >= asNecCuelgueCm2,
-      verificaCantoMinimo: hM >= cantoMinimoM,
+      cumpleAvisoCantoMinimo: hM >= cantoMinimoM,
       cantoMinimoM,
     };
   }

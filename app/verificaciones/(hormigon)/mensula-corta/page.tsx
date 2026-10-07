@@ -201,7 +201,7 @@ export default function Page() {
               "Tope del cortante, ec. (6.5): F_Ed ≤ 0,5·b·d·ν·f_cd (art. 6.2.2(6)).",
               "Dos reglas de detalle de Montoya, sin equivalente en el Anejo, quedan como avisos que no entran en el cumple: d₀ ≥ d/2 en el borde (degollamiento) y cercos en los 2/3 superiores de d.",
               "El marco es un lazo cerrado y el anclaje se mide sobre el eje de la barra (art. 8.4.3(3)).",
-              "No calcula V_Rd,c en la sección de arranque contra el pilar: esa comprobación va aparte.",
+              "V_Rd,c se calcula sólo para decidir los cercos verticales (art. J.3(3)); el cortante de la sección de arranque contra el pilar se comprueba aparte.",
             ]}
             avisos={avisos}
           />

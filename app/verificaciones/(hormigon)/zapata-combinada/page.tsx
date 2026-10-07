@@ -74,6 +74,18 @@ export default function ZapataCombinadaPage() {
   const [Nk2, setNk2] = useCampo("Nk2", "76");
   const [cL2, setCL2] = useCampo("cL2", "0.6");
   const [cB2, setCB2] = useCampo("cB2", "0.15");
+  // Momentos y horizontales de cada pilar, positivos hacia el borde derecho (L)
+  // o inferior (B). Nk permanente vacío = Nk: es la parte que estabiliza y frena.
+  const [MkL1, setMkL1] = useCampo("MkL1", "0");
+  const [MkB1, setMkB1] = useCampo("MkB1", "0");
+  const [HkL1, setHkL1] = useCampo("HkL1", "0");
+  const [HkB1, setHkB1] = useCampo("HkB1", "0");
+  const [NkPerm1, setNkPerm1] = useCampo("NkPermanente1", "");
+  const [MkL2, setMkL2] = useCampo("MkL2", "0");
+  const [MkB2, setMkB2] = useCampo("MkB2", "0");
+  const [HkL2, setHkL2] = useCampo("HkL2", "0");
+  const [HkB2, setHkB2] = useCampo("HkB2", "0");
+  const [NkPerm2, setNkPerm2] = useCampo("NkPermanente2", "");
 
   const [numeroInferior, setNumeroInferior] = useCampo("numeroInferior", "6");
   const [diametroInferior, setDiametroInferior] = useCampo("diametroInferior", "10");
@@ -96,6 +108,8 @@ export default function ZapataCombinadaPage() {
       L: aNumero(A), B: aNumero(B), H: aNumero(H), rec: aNumero(recubrimiento),
       pos1: aNumero(pos1), Nk1: aNumero(Nk1), cL1: aNumero(cL1), cB1: aNumero(cB1),
       pos2: aNumero(pos2), Nk2: aNumero(Nk2), cL2: aNumero(cL2), cB2: aNumero(cB2),
+      MkL1: aNumero(MkL1), MkB1: aNumero(MkB1), HkL1: aNumero(HkL1), HkB1: aNumero(HkB1),
+      MkL2: aNumero(MkL2), MkB2: aNumero(MkB2), HkL2: aNumero(HkL2), HkB2: aNumero(HkB2),
       nInf: aNumero(numeroInferior), fInf: aNumero(diametroInferior),
       nSup: aNumero(numeroSuperior), fSup: aNumero(diametroSuperior),
       fT: aNumero(diametroTransversal), sT: aNumero(separacionTransversal),
@@ -107,20 +121,36 @@ export default function ZapataCombinadaPage() {
     if (descentrado && !(borde >= 0)) return null;
     const brazo = aNumero(brazoTirante);
     const phi = aNumero(phiTerreno);
-    if (conTirante && !(brazo > 0 && phi > 0 && phi < 90)) return null;
+    const phiValido = phi > 0 && phi < 90;
+    if (conTirante && !(brazo > 0 && phiValido)) return null;
+    const permanente = (texto: string) => (texto.trim() === "" ? undefined : aNumero(texto));
+    const nPerm1 = permanente(NkPerm1);
+    const nPerm2 = permanente(NkPerm2);
+    if (nPerm1 !== undefined && !(nPerm1 >= 0 && nPerm1 <= v.Nk1)) return null;
+    if (nPerm2 !== undefined && !(nPerm2 >= 0 && nPerm2 <= v.Nk2)) return null;
 
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = { L: v.L, B: v.B, H: v.H, recubrimiento: v.rec, ...(descentrado ? { distanciaBordeB: borde } : {}) };
     const datos = {
       pilares: [
-        { posicionM: v.pos1, Nk: v.Nk1, anchoLargoM: v.cL1, anchoAnchoM: v.cB1 },
-        { posicionM: v.pos2, Nk: v.Nk2, anchoLargoM: v.cL2, anchoAnchoM: v.cB2 },
+        {
+          posicionM: v.pos1, Nk: v.Nk1, anchoLargoM: v.cL1, anchoAnchoM: v.cB1,
+          MkL: v.MkL1, MkB: v.MkB1, HkL: v.HkL1, HkB: v.HkB1,
+          ...(nPerm1 !== undefined ? { NkPermanente: nPerm1 } : {}),
+        },
+        {
+          posicionM: v.pos2, Nk: v.Nk2, anchoLargoM: v.cL2, anchoAnchoM: v.cB2,
+          MkL: v.MkL2, MkB: v.MkB2, HkL: v.HkL2, HkB: v.HkB2,
+          ...(nPerm2 !== undefined ? { NkPermanente: nPerm2 } : {}),
+        },
       ] as const,
       inferior: { numero: v.nInf, diametroMm: v.fInf },
       superior: { numero: v.nSup, diametroMm: v.fSup },
       transversal: { diametroMm: v.fT, separacionM: v.sT },
       formaAnclaje,
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
+      // Sin φ′ válido el deslizamiento queda sin evaluar, no se inventa.
+      ...(phiValido ? { phiGrados: phi } : {}),
     };
     const zapata = calcularZapataCombinada(materiales, geometria, v.sigmaAdmisible, datos);
     const recomendaciones = recomendarZapataCombinada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos });
@@ -150,6 +180,7 @@ export default function ZapataCombinadaPage() {
   }, [
     fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, descentrado, distanciaBordeB, conTirante, brazoTirante, phiTerreno,
     pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2,
+    MkL1, MkB1, HkL1, HkB1, NkPerm1, MkL2, MkB2, HkL2, HkB2, NkPerm2,
     numeroInferior, diametroInferior, numeroSuperior, diametroSuperior, diametroTransversal, separacionTransversal, formaAnclaje,
     diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
   ]);
@@ -257,6 +288,7 @@ export default function ZapataCombinadaPage() {
                       <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                       <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
                       <CampoNumerico id="sigmaAdmisible" etiqueta="σ adm. suelo" sufijo="kN/m²" valor={sigmaAdmisible} onChange={setSigmaAdmisible} />
+                      <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
                     </div>
                   </Subgrupo>
                   <Subgrupo titulo="Zapata">
@@ -285,7 +317,6 @@ export default function ZapataCombinadaPage() {
                           {conTirante && (
                             <>
                               <CampoNumerico id="brazoTirante" etiqueta="h: tirante → base" sufijo="m" valor={brazoTirante} onChange={setBrazoTirante} />
-                              <CampoNumerico id="phiTerreno" etiqueta="φ' del terreno" sufijo="°" valor={phiTerreno} onChange={setPhiTerreno} />
                               <div className="col-span-2 max-w-sm">
                                 <DiagramaTiranteTerreno elemento="pilar" hM={aNumero(brazoTirante)} HM={aNumero(H)} />
                               </div>
@@ -301,23 +332,41 @@ export default function ZapataCombinadaPage() {
             />
           </Etapa>
 
-          <Etapa id="cargas" numero={2} titulo="Pilares" descripcion="Posición a lo largo, medida desde el borde izquierdo, carga característica y sección.">
+          <Etapa id="cargas" numero={2} titulo="Pilares" descripcion="Posición a lo largo, medida desde el borde izquierdo, esfuerzos característicos y sección.">
             <DatosConDibujo
               datos={
                 <div className="flex flex-col gap-6">
                   {([
-                    [1, pos1, setPos1, Nk1, setNk1, cL1, setCL1, cB1, setCB1],
-                    [2, pos2, setPos2, Nk2, setNk2, cL2, setCL2, cB2, setCB2],
-                  ] as const).map(([n, pos, setPos, nk, setNk, cl, setCl, cb, setCb]) => (
+                    {
+                      n: 1, pos: [pos1, setPos1], nk: [Nk1, setNk1], cl: [cL1, setCL1], cb: [cB1, setCB1], perm: [NkPerm1, setNkPerm1],
+                      mkL: [MkL1, setMkL1], mkB: [MkB1, setMkB1], hkL: [HkL1, setHkL1], hkB: [HkB1, setHkB1],
+                    },
+                    {
+                      n: 2, pos: [pos2, setPos2], nk: [Nk2, setNk2], cl: [cL2, setCL2], cb: [cB2, setCB2], perm: [NkPerm2, setNkPerm2],
+                      mkL: [MkL2, setMkL2], mkB: [MkB2, setMkB2], hkL: [HkL2, setHkL2], hkB: [HkB2, setHkB2],
+                    },
+                  ] as const).map(({ n, pos, nk, cl, cb, perm, mkL, mkB, hkL, hkB }) => (
                     <Subgrupo key={n} titulo={`Pilar ${n}`}>
                       <div className="grid grid-cols-2 gap-4">
-                        <CampoNumerico id={`pos${n}`} etiqueta="x: eje desde el borde" sufijo="m" valor={pos} onChange={setPos} />
-                        <CampoNumerico id={`Nk${n}`} etiqueta="Nk" sufijo="kN" valor={nk} onChange={setNk} />
-                        <CampoNumerico id={`cL${n}`} etiqueta="Lado a lo largo" sufijo="m" valor={cl} onChange={setCl} />
-                        <CampoNumerico id={`cB${n}`} etiqueta="Lado a lo ancho" sufijo="m" valor={cb} onChange={setCb} />
+                        <CampoNumerico id={`pos${n}`} etiqueta="x: eje desde el borde" sufijo="m" valor={pos[0]} onChange={pos[1]} />
+                        <CampoNumerico id={`Nk${n}`} etiqueta="Nk" sufijo="kN" valor={nk[0]} onChange={nk[1]} />
+                        <CampoNumerico id={`cL${n}`} etiqueta="Lado a lo largo" sufijo="m" valor={cl[0]} onChange={cl[1]} />
+                        <CampoNumerico id={`cB${n}`} etiqueta="Lado a lo ancho" sufijo="m" valor={cb[0]} onChange={cb[1]} />
+                        <CampoNumerico id={`NkPermanente${n}`} etiqueta="Nk permanente" sufijo="kN" valor={perm[0]} onChange={perm[1]} />
+                        <div />
+                        <CampoNumerico id={`MkL${n}`} etiqueta="Mk a lo largo" sufijo="kN·m" valor={mkL[0]} onChange={mkL[1]} />
+                        <CampoNumerico id={`MkB${n}`} etiqueta="Mk a lo ancho" sufijo="kN·m" valor={mkB[0]} onChange={mkB[1]} />
+                        <CampoNumerico id={`HkL${n}`} etiqueta="Hk a lo largo" sufijo="kN" valor={hkL[0]} onChange={hkL[1]} />
+                        <CampoNumerico id={`HkB${n}`} etiqueta="Hk a lo ancho" sufijo="kN" valor={hkB[0]} onChange={hkB[1]} />
                       </div>
                     </Subgrupo>
                   ))}
+                  <p className="text-xs text-muted-foreground">
+                    Mk es el momento que baja por el pilar y Hk la horizontal en su arranque, positivos hacia
+                    el borde derecho (a lo largo) o inferior (a lo ancho).{descentrado ? " El del descentramiento se suma solo." : ""}{" "}
+                    Nk permanente es la parte de Nk que siempre está: la única que estabiliza al vuelco y frena el
+                    deslizamiento. Vacío, se toma Nk entero.
+                  </p>
                 </div>
               }
               dibujo={planta}
@@ -387,6 +436,10 @@ export default function ZapataCombinadaPage() {
                 { etiqueta: "L × B × H", valor: `${A} × ${B} × ${H} m` },
                 { etiqueta: "σ adm. suelo", valor: `${sigmaAdmisible} kN/m²` },
                 { etiqueta: "Pilares", valor: `P1 ${Nk1} kN en x = ${pos1} · P2 ${Nk2} kN en x = ${pos2}` },
+                { etiqueta: "Mk L · B", valor: `P1 ${MkL1} · ${MkB1} · P2 ${MkL2} · ${MkB2} kN·m` },
+                { etiqueta: "Hk L · B", valor: `P1 ${HkL1} · ${HkB1} · P2 ${HkL2} · ${HkB2} kN` },
+                { etiqueta: "Nk permanente", valor: `P1 ${NkPerm1.trim() || Nk1} · P2 ${NkPerm2.trim() || Nk2} kN` },
+                { etiqueta: "φ' del terreno", valor: `${phiTerreno}°` },
                 ...(z
                   ? [
                       { etiqueta: "Peso propio", valor: `${fmt(z.geotecnico.pesoPropioKN)} kN`, derivado: true },
@@ -396,11 +449,13 @@ export default function ZapataCombinadaPage() {
               ]}
               hipotesis={[
                 "Zapata rígida: presión lineal en las dos direcciones, con el peso propio incluido en la tensión y en la excentricidad. La resultante tiene que caer dentro del núcleo central en las dos direcciones.",
+                "Mk + Hk·H de cada pilar es el momento en la base: corre la resultante del terreno y, a lo largo, entra en la viga como un momento concentrado en el pilar (mayorado con 1,5, como Nk).",
                 "A lo largo es una viga sobre el terreno con los pilares como cargas puntuales. Cada cara se arma con el motor de flexión de vigas del Anejo 19 (art. 6.1) y la mínima del art. 9.2.1.1: la inferior siempre, la superior donde el momento la tracciona.",
                 "Cortante sin estribos (art. 6.2.2) a d de cada cara de pilar, con el d y el ρl de la cara traccionada en esa sección.",
                 "A lo ancho, por metro en todo el largo, con el modelo de vuelos del art. 9.8.2.2 bajo la sección más cargada. Las transversales van sobre la longitudinal inferior.",
                 "Punzonamiento de cada pilar (art. 6.4): perímetro recortado por los bordes cercanos y β de borde o esquina, descontando la presión que generan los dos pilares.",
-                "Con par tirante–terreno: cada pilar tiene su tirante Tk = N·e/h; el deslizamiento se verifica con toda la zapata (DB SE-C) y las barras del tirante con el pilar que más tira.",
+                "Con par tirante–terreno: cada pilar tiene su tirante Tk = (N·e + Mk + Hk·H)/h a lo ancho, la presión queda uniforme en esa dirección y las barras del tirante se verifican con el pilar que más tira.",
+                "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12): vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan los Mk + Hk·H; deslizamiento con √(ΣHkL² + ΣHkB²) ≤ (ΣNk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)); con tirante, la base frena el tirante más la horizontal. Estabiliza y frena sólo la parte permanente de cada pilar. Sin empuje pasivo ni peso de tierras.",
               ]}
               avisos={avisos}
             />
@@ -442,23 +497,79 @@ export default function ZapataCombinadaPage() {
                       <DiagramaPresionSuelo distribucion={z.geotecnico.distribucionL} lM={aNumero(A)} sigmaAdmisibleKPa={aNumero(sigmaAdmisible)} etiqueta="A lo largo" />
                       <DiagramaPresionSuelo distribucion={z.geotecnico.distribucionB} lM={aNumero(B)} sigmaAdmisibleKPa={aNumero(sigmaAdmisible)} etiqueta="A lo ancho" />
                     </div>
+                    <ResultadoCheck
+                      etiqueta="Vuelco a lo largo"
+                      verifica={z.vuelcoL.verifica}
+                      detalle={
+                        z.vuelcoL.borde === "ninguno"
+                          ? "Sin momentos ni horizontales a lo largo: no hay vuelco que comprobar."
+                          : `CTE DB SE-C, ec. (2.1) y tabla 2.1: 1,8·Mdst ≤ 0,9·Mstb respecto del borde ${z.vuelcoL.borde === "fin" ? "derecho" : "izquierdo"}. Mdst = ${fmt(z.vuelcoL.momentoDesestabilizadorKNm)} kN·m, Mstb = ${fmt(z.vuelcoL.momentoEstabilizadorKNm)} kN·m.`
+                      }
+                      comparacion={
+                        z.vuelcoL.borde === "ninguno"
+                          ? undefined
+                          : {
+                              real: { etiqueta: "1,8·Mdst", valor: z.vuelcoL.efectoDesestabilizadorKNm },
+                              limite: { etiqueta: "0,9·Mstb", valor: z.vuelcoL.efectoEstabilizadorKNm },
+                              unidad: "kN·m", exige: "≤",
+                            }
+                      }
+                      recomendaciones={rec.vuelcoL}
+                    />
+                    {z.vuelcoB ? (
+                      <>
+                        <ResultadoCheck
+                          etiqueta="Vuelco a lo ancho"
+                          verifica={z.vuelcoB.verifica}
+                          detalle={
+                            z.vuelcoB.borde === "ninguno"
+                              ? "Sin momentos ni horizontales a lo ancho: no hay vuelco que comprobar."
+                              : `CTE DB SE-C, ec. (2.1) y tabla 2.1: 1,8·Mdst ≤ 0,9·Mstb respecto del borde ${z.vuelcoB.borde === "fin" ? "inferior" : "superior"}. Mdst = ${fmt(z.vuelcoB.momentoDesestabilizadorKNm)} kN·m, Mstb = ${fmt(z.vuelcoB.momentoEstabilizadorKNm)} kN·m.`
+                          }
+                          comparacion={
+                            z.vuelcoB.borde === "ninguno"
+                              ? undefined
+                              : {
+                                  real: { etiqueta: "1,8·Mdst", valor: z.vuelcoB.efectoDesestabilizadorKNm },
+                                  limite: { etiqueta: "0,9·Mstb", valor: z.vuelcoB.efectoEstabilizadorKNm },
+                                  unidad: "kN·m", exige: "≤",
+                                }
+                          }
+                          recomendaciones={rec.vuelcoB}
+                        />
+                      </>
+                    ) : (
+                      <ResultadoCheck etiqueta="Vuelco a lo ancho" verifica detalle="Con tirante, el par tirante–terreno impide el giro a lo ancho." />
+                    )}
+                    {z.deslizamiento ? (
+                      <ResultadoCheck
+                        etiqueta="Deslizamiento"
+                        verifica={z.deslizamiento.verifica}
+                        detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(z.deslizamiento.deltaGrados, 1)}° (art. 4.2.3.1 (4)), sin adherencia, cargas sin mayorar y γR = 1,5 (tabla 2.1). Frena sólo la carga permanente de los dos pilares más el peso propio.${z.tirante ? " Con tirante, la base frena los dos tirantes más la horizontal." : ""}`}
+                        comparacion={{
+                          real: { etiqueta: "H", valor: z.deslizamiento.horizontalKN },
+                          limite: { etiqueta: "(Nperm+P)·tan δ/γR", valor: z.deslizamiento.rozamientoCalculoKN },
+                          unidad: "kN", exige: "≤",
+                        }}
+                        recomendaciones={rec.deslizamiento}
+                      />
+                    ) : (
+                      <ResultadoCheck
+                        etiqueta="Deslizamiento"
+                        verifica={false}
+                        estado="no-evaluado"
+                        detalle="Falta φ' del terreno: sin él no se puede comprobar."
+                      />
+                    )}
                   </div>
                 </Subgrupo>
 
                 {z.tirante && (
                   <Subgrupo titulo="Par tirante–terreno">
                     <div>
-                      <ResultadoCheck
-                        etiqueta="Deslizamiento de la zapata"
-                        verifica={z.tirante.global.verificaDeslizamiento}
-                        detalle={`CTE DB SE-C: δ = 3/4·φ' = ${fmt(z.tirante.global.deltaGrados, 1)}° (art. 4.2.3.1 (4)), cargas sin mayorar y γR = 1,5 (tabla 2.1). Los dos tirantes juntos.`}
-                        comparacion={{
-                          real: { etiqueta: "ΣTk", valor: Math.abs(z.tirante.global.tkKN) },
-                          limite: { etiqueta: "(N+P)·tan δ/γR", valor: z.tirante.global.rozamientoResistenteKN },
-                          unidad: "kN", exige: "≤",
-                        }}
-                        recomendaciones={rec.deslizamiento}
-                      />
+                      <p className="text-xs text-muted-foreground">
+                        El deslizamiento de la base, con los tirantes incluidos, está en Geotecnia.
+                      </p>
                       <PanelMetricas
                         horizontal
                         metricas={z.tirante.porPilar.flatMap((t, i) => [

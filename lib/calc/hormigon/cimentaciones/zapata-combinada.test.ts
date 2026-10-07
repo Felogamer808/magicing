@@ -148,9 +148,9 @@ describe("zapata combinada: momentos, horizontales, vuelco y deslizamiento", () 
   });
 
   it("sin φ′ el deslizamiento no se evalúa", () => {
-    const { phiGrados: _phi, ...sinPhi } = armado;
     const s = calcularZapataCombinada(materiales, geometria, 300, {
-      ...sinPhi,
+      ...armado,
+      phiGrados: undefined,
       pilares: [{ ...pilar, posicionM: 1 }, { ...pilar, posicionM: 5 }],
     });
     expect(s.deslizamiento).toBeNull();

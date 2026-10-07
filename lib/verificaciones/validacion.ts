@@ -100,7 +100,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
   "zapata-combinada": {
     nivel: "probada",
-    nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
+    nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Mk y Hk por pilar, con vuelco y deslizamiento por el CTE DB SE-C. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
   },
   "losa-fundacion": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   pilotes: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },

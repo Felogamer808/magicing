@@ -75,7 +75,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     // Ahora todo el módulo sigue el Anejo 19, pero se programó y revisó en la
     // misma sesión, sin repaso independiente (AUDITORIA.md, hallazgo 6).
     nivel: "probada",
-    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Vuelco y deslizamiento por el CTE DB SE-C (tabla 2.1). Falta contrastar un caso propio.",
+    nota: "Todo según el Anejo 19: terreno, flexión por el art. 9.8.2.2, cuantía mínima, anclaje, cortante y punzonamiento con momento. Vuelco y deslizamiento por el CTE DB SE-C (tabla 2.1), también en situación extraordinaria. Falta contrastar un caso propio.",
   },
   fisuracion: {
     nivel: "auditada",
@@ -92,7 +92,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
 
   "zapata-corrida": {
     nivel: "probada",
-    nota: "Anejo 19 con el modelo de la zapata aislada, por metro: los resultados cambiaron respecto de la planilla (EHE-08). Muro en cualquier posición y par tirante–terreno por el DB SE-C. Sin auditoría independiente.",
+    nota: "Anejo 19 con el modelo de la zapata aislada, por metro: los resultados cambiaron respecto de la planilla (EHE-08). Muro en cualquier posición y par tirante–terreno por el DB SE-C, con vuelco y deslizamiento también en situación extraordinaria. Sin auditoría independiente.",
   },
   "zapata-viga-centradora": {
     nivel: "probada",
@@ -100,7 +100,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
   "zapata-combinada": {
     nivel: "probada",
-    nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Mk y Hk por pilar, con vuelco y deslizamiento por el CTE DB SE-C. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
+    nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Mk y Hk por pilar, con vuelco y deslizamiento por el CTE DB SE-C, también en situación extraordinaria. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
   },
   "losa-fundacion": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   pilotes: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },

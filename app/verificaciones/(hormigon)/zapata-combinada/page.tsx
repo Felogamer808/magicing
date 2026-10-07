@@ -20,6 +20,8 @@ import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaL
 import { PlantaZapataCombinada } from "@/components/verificaciones/hormigon/PlantaZapataCombinada";
 import { CorteLongitudinalCombinada } from "@/components/verificaciones/hormigon/CorteLongitudinalCombinada";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
+import { ComprobacionVuelco } from "@/components/verificaciones/hormigon/ComprobacionVuelco";
+import { ComprobacionDeslizamiento } from "@/components/verificaciones/hormigon/ComprobacionDeslizamiento";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
@@ -86,6 +88,21 @@ export default function ZapataCombinadaPage() {
   const [HkL2, setHkL2] = useCampo("HkL2", "0");
   const [HkB2, setHkB2] = useCampo("HkB2", "0");
   const [NkPerm2, setNkPerm2] = useCampo("NkPermanente2", "");
+  // Situación extraordinaria (sismo, impacto): otro juego de cargas, sólo para el terreno.
+  const [conExtraordinaria, setConExtraordinaria] = useCampo("conExtraordinaria", "No");
+  const extraordinariaActiva = conExtraordinaria === "Sí";
+  const [NkExt1, setNkExt1] = useCampo("NkExt1", "65");
+  const [NkPermExt1, setNkPermExt1] = useCampo("NkPermanenteExt1", "");
+  const [MkLExt1, setMkLExt1] = useCampo("MkLExt1", "0");
+  const [MkBExt1, setMkBExt1] = useCampo("MkBExt1", "0");
+  const [HkLExt1, setHkLExt1] = useCampo("HkLExt1", "0");
+  const [HkBExt1, setHkBExt1] = useCampo("HkBExt1", "0");
+  const [NkExt2, setNkExt2] = useCampo("NkExt2", "76");
+  const [NkPermExt2, setNkPermExt2] = useCampo("NkPermanenteExt2", "");
+  const [MkLExt2, setMkLExt2] = useCampo("MkLExt2", "0");
+  const [MkBExt2, setMkBExt2] = useCampo("MkBExt2", "0");
+  const [HkLExt2, setHkLExt2] = useCampo("HkLExt2", "0");
+  const [HkBExt2, setHkBExt2] = useCampo("HkBExt2", "0");
 
   const [numeroInferior, setNumeroInferior] = useCampo("numeroInferior", "6");
   const [diametroInferior, setDiametroInferior] = useCampo("diametroInferior", "10");
@@ -129,6 +146,18 @@ export default function ZapataCombinadaPage() {
     if (nPerm1 !== undefined && !(nPerm1 >= 0 && nPerm1 <= v.Nk1)) return null;
     if (nPerm2 !== undefined && !(nPerm2 >= 0 && nPerm2 <= v.Nk2)) return null;
 
+    // Cargas extraordinarias de cada pilar; null si alguna no es válida.
+    const cargasExt = (nk: string, perm: string, mkL: string, mkB: string, hkL: string, hkB: string) => {
+      const c = { Nk: aNumero(nk), MkL: aNumero(mkL), MkB: aNumero(mkB), HkL: aNumero(hkL), HkB: aNumero(hkB) };
+      const p = permanente(perm);
+      if (!(c.Nk > 0) || ![c.MkL, c.MkB, c.HkL, c.HkB].every(Number.isFinite)) return null;
+      if (p !== undefined && !(p >= 0 && p <= c.Nk)) return null;
+      return { ...c, ...(p !== undefined ? { NkPermanente: p } : {}) };
+    };
+    const ext1 = extraordinariaActiva ? cargasExt(NkExt1, NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1) : undefined;
+    const ext2 = extraordinariaActiva ? cargasExt(NkExt2, NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2) : undefined;
+    if (ext1 === null || ext2 === null) return null;
+
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = { L: v.L, B: v.B, H: v.H, recubrimiento: v.rec, ...(descentrado ? { distanciaBordeB: borde } : {}) };
     const datos = {
@@ -151,6 +180,7 @@ export default function ZapataCombinadaPage() {
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
       // Sin φ′ válido el deslizamiento queda sin evaluar, no se inventa.
       ...(phiValido ? { phiGrados: phi } : {}),
+      ...(ext1 && ext2 ? { extraordinaria: [ext1, ext2] as const } : {}),
     };
     const zapata = calcularZapataCombinada(materiales, geometria, v.sigmaAdmisible, datos);
     const recomendaciones = recomendarZapataCombinada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos });
@@ -181,6 +211,8 @@ export default function ZapataCombinadaPage() {
     fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, descentrado, distanciaBordeB, conTirante, brazoTirante, phiTerreno,
     pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2,
     MkL1, MkB1, HkL1, HkB1, NkPerm1, MkL2, MkB2, HkL2, HkB2, NkPerm2,
+    extraordinariaActiva, NkExt1, NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1,
+    NkExt2, NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2,
     numeroInferior, diametroInferior, numeroSuperior, diametroSuperior, diametroTransversal, separacionTransversal, formaAnclaje,
     diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
   ]);
@@ -367,6 +399,44 @@ export default function ZapataCombinadaPage() {
                     Nk permanente es la parte de Nk que siempre está: la única que estabiliza al vuelco y frena el
                     deslizamiento. Vacío, se toma Nk entero.
                   </p>
+                  <div className="max-w-xs">
+                    <CampoSeleccion
+                      id="conExtraordinaria"
+                      etiqueta="Situación extraordinaria (sismo, impacto)"
+                      valor={conExtraordinaria}
+                      opciones={["No", "Sí"]}
+                      onChange={setConExtraordinaria}
+                    />
+                  </div>
+                  {extraordinariaActiva && (
+                    <>
+                      {([
+                        {
+                          n: 1, nk: [NkExt1, setNkExt1], perm: [NkPermExt1, setNkPermExt1],
+                          mkL: [MkLExt1, setMkLExt1], mkB: [MkBExt1, setMkBExt1], hkL: [HkLExt1, setHkLExt1], hkB: [HkBExt1, setHkBExt1],
+                        },
+                        {
+                          n: 2, nk: [NkExt2, setNkExt2], perm: [NkPermExt2, setNkPermExt2],
+                          mkL: [MkLExt2, setMkLExt2], mkB: [MkBExt2, setMkBExt2], hkL: [HkLExt2, setHkLExt2], hkB: [HkBExt2, setHkBExt2],
+                        },
+                      ] as const).map(({ n, nk, perm, mkL, mkB, hkL, hkB }) => (
+                        <Subgrupo key={n} titulo={`Pilar ${n}: situación extraordinaria`}>
+                          <div className="grid grid-cols-2 gap-4">
+                            <CampoNumerico id={`NkExt${n}`} etiqueta="Nk extr." sufijo="kN" valor={nk[0]} onChange={nk[1]} />
+                            <CampoNumerico id={`NkPermanenteExt${n}`} etiqueta="Nk perm. extr." sufijo="kN" valor={perm[0]} onChange={perm[1]} />
+                            <CampoNumerico id={`MkLExt${n}`} etiqueta="Mk a lo largo extr." sufijo="kN·m" valor={mkL[0]} onChange={mkL[1]} />
+                            <CampoNumerico id={`MkBExt${n}`} etiqueta="Mk a lo ancho extr." sufijo="kN·m" valor={mkB[0]} onChange={mkB[1]} />
+                            <CampoNumerico id={`HkLExt${n}`} etiqueta="Hk a lo largo extr." sufijo="kN" valor={hkL[0]} onChange={hkL[1]} />
+                            <CampoNumerico id={`HkBExt${n}`} etiqueta="Hk a lo ancho extr." sufijo="kN" valor={hkB[0]} onChange={hkB[1]} />
+                          </div>
+                        </Subgrupo>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        Las cargas características de la combinación extraordinaria, con los mismos signos. Sólo se
+                        comprueba el terreno con ellas: el armado sigue con la persistente.
+                      </p>
+                    </>
+                  )}
                 </div>
               }
               dibujo={planta}
@@ -455,6 +525,11 @@ export default function ZapataCombinadaPage() {
                 "A lo ancho, por metro en todo el largo, con el modelo de vuelos del art. 9.8.2.2 bajo la sección más cargada. Las transversales van sobre la longitudinal inferior.",
                 "Punzonamiento de cada pilar (art. 6.4): perímetro recortado por los bordes cercanos y β de borde o esquina, descontando la presión que generan los dos pilares.",
                 "Con par tirante–terreno: cada pilar tiene su tirante Tk = (N·e + Mk + Hk·H)/h a lo ancho, la presión queda uniforme en esa dirección y las barras del tirante se verifican con el pilar que más tira.",
+                ...(extraordinariaActiva
+                  ? [
+                      "Situación extraordinaria, sólo para el terreno (DB SE-C, tabla 2.1): tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El armado sigue con la persistente.",
+                    ]
+                  : []),
                 "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12): vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan los Mk + Hk·H; deslizamiento con √(ΣHkL² + ΣHkB²) ≤ (ΣNk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)); con tirante, la base frena el tirante más la horizontal. Estabiliza y frena sólo la parte permanente de cada pilar. Sin empuje pasivo ni peso de tierras.",
               ]}
               avisos={avisos}
@@ -563,6 +638,44 @@ export default function ZapataCombinadaPage() {
                     )}
                   </div>
                 </Subgrupo>
+
+                {z.extraordinaria && (
+                  <Subgrupo titulo="Situación extraordinaria: terreno">
+                    <div>
+                      <ResultadoCheck
+                        etiqueta="Tensión del terreno (extraordinaria)"
+                        verifica={z.extraordinaria.verificaTension}
+                        detalle={`DB SE-C, tabla 2.1: hundimiento con γR = 2,0 en vez de 3,0, así que se admite 1,5·σadm. Se admite despegue parcial: la resultante sólo tiene que caer dentro de la base (e L = ${fmt(z.extraordinaria.excentricidadLM, 3)} m, e B = ${fmt(z.extraordinaria.excentricidadBM, 3)} m).`}
+                        comparacion={{
+                          real: { etiqueta: "σ", valor: z.extraordinaria.sigmaKPa },
+                          limite: { etiqueta: "1,5·σ adm", valor: z.extraordinaria.sigmaAdmisibleKPa },
+                          unidad: "kN/m²", exige: "≤",
+                        }}
+                        recomendaciones={rec["ext.tension"]}
+                      />
+                      <ComprobacionVuelco
+                        etiqueta="Vuelco a lo largo (extraordinaria)"
+                        resultado={z.extraordinaria.vuelcoL}
+                        bordes={{ inicio: "izquierdo", fin: "derecho" }}
+                        direccion="a lo largo"
+                        recomendaciones={rec["ext.vuelcoL"]}
+                      />
+                      <ComprobacionVuelco
+                        etiqueta="Vuelco a lo ancho (extraordinaria)"
+                        resultado={z.extraordinaria.vuelcoB}
+                        bordes={{ inicio: "superior", fin: "inferior" }}
+                        direccion="a lo ancho"
+                        recomendaciones={rec["ext.vuelcoB"]}
+                      />
+                      <ComprobacionDeslizamiento
+                        etiqueta="Deslizamiento (extraordinaria)"
+                        resultado={z.extraordinaria.deslizamiento}
+                        nota={z.tirante ? "Con tirante, la base frena los dos tirantes más la horizontal." : undefined}
+                        recomendaciones={rec["ext.deslizamiento"]}
+                      />
+                    </div>
+                  </Subgrupo>
+                )}
 
                 {z.tirante && (
                   <Subgrupo titulo="Par tirante–terreno">

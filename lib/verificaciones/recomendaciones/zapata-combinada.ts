@@ -30,11 +30,12 @@ export interface EntradaZapataCombinada {
 
 type Lado = "inicio" | "fin" | "gobernante";
 type ClaveVuelo = `${Lado}.${"as" | "anclaje" | "corte"}`;
+type ClaveTerreno = "tension" | "deslizamiento" | "vuelcoL" | "vuelcoB";
+/** Las del terreno con las cargas de la situación extraordinaria. */
+type ClaveExtraordinaria = `ext.${ClaveTerreno}`;
 export type ClaveCombinada =
-  | "tension"
-  | "deslizamiento"
-  | "vuelcoL"
-  | "vuelcoB"
+  | ClaveTerreno
+  | ClaveExtraordinaria
   | "inferior"
   | "superior"
   | "cortante"
@@ -55,6 +56,10 @@ const NOMBRES: Record<ClaveCombinada, string> = {
   deslizamiento: "deslizamiento",
   vuelcoL: "vuelco a lo largo",
   vuelcoB: "vuelco a lo ancho",
+  "ext.tension": "tensión del terreno (extraordinaria)",
+  "ext.deslizamiento": "deslizamiento (extraordinaria)",
+  "ext.vuelcoL": "vuelco a lo largo (extraordinaria)",
+  "ext.vuelcoB": "vuelco a lo ancho (extraordinaria)",
   inferior: "armadura inferior",
   superior: "armadura superior",
   cortante: "cortante a lo largo",
@@ -106,6 +111,13 @@ function utilizaciones(e: EntradaZapataCombinada) {
     if (z.deslizamiento && z.deslizamiento.horizontalKN > 0) u.deslizamiento = z.deslizamiento.aprovechamiento;
     if (z.vuelcoL.borde !== "ninguno") u.vuelcoL = z.vuelcoL.aprovechamiento;
     if (z.vuelcoB && z.vuelcoB.borde !== "ninguno") u.vuelcoB = z.vuelcoB.aprovechamiento;
+    const x = z.extraordinaria;
+    if (x) {
+      u["ext.tension"] = x.sigmaKPa / x.sigmaAdmisibleKPa;
+      if (x.deslizamiento && x.deslizamiento.horizontalKN > 0) u["ext.deslizamiento"] = x.deslizamiento.aprovechamiento;
+      if (x.vuelcoL.borde !== "ninguno") u["ext.vuelcoL"] = x.vuelcoL.aprovechamiento;
+      if (x.vuelcoB && x.vuelcoB.borde !== "ninguno") u["ext.vuelcoB"] = x.vuelcoB.aprovechamiento;
+    }
     z.punzonamiento.forEach((p, i) => {
       const n = (i + 1) as 1 | 2;
       if (!p.motivoNoEvaluado) u[`punzonamiento${n}`] = p.vEdKN / p.vRdCKN;
@@ -277,6 +289,8 @@ function palancaPilar(i: 0 | 1, campo: "anchoAnchoM" | "anchoLargoM"): Palanca<E
 }
 
 function palancasPorClave(clave: ClaveCombinada): Palanca<EntradaZapataCombinada>[] {
+  // La extraordinaria se resuelve con las mismas palancas que la persistente.
+  if (clave.startsWith("ext.")) return palancasPorClave(clave.slice(4) as ClaveTerreno);
   if (clave === "tension") return [PALANCA_B, PALANCA_L];
   // Más zapata es más peso que frena y estabiliza; más ancho o más largo, además, más brazo.
   if (clave === "deslizamiento") return [PALANCA_BRAZO_TIRANTE, PALANCA_B, PALANCA_L, PALANCA_H];

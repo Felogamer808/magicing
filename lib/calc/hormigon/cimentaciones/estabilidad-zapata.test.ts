@@ -131,3 +131,99 @@ describe("en la zapata corrida", () => {
     expect(r.deslizamiento?.verifica).toBe(true);
   });
 });
+
+describe("situación extraordinaria (tabla 2.1: vuelco 0,9 / 1,2; deslizamiento γR = 1,1)", () => {
+  const materiales = derivarMateriales({ fck: 25, fyk: 500 });
+
+  it("vuelco: el mismo caso con 1,2 sobre lo que vuelca", () => {
+    const r = calcularVuelco({
+      nkPermanenteKN: 300, pesoZapataKN: 37.5, cantoM: 0.5, situacion: "extraordinaria",
+      direccion: { dimM: 2, posicionPilarM: 1, mkKNm: 50, hkKN: 40 },
+    });
+    expect(r.gammaDesestabilizadoras).toBe(1.2);
+    expect(r.efectoDesestabilizadorKNm).toBeCloseTo(1.2 * 70, 9);
+    expect(r.efectoEstabilizadorKNm).toBeCloseTo(0.9 * 337.5, 9);
+  });
+
+  it("deslizamiento: rozamiento de cálculo con γR = 1,1", () => {
+    const r = calcularDeslizamiento({
+      horizontalAKN: 30, horizontalBKN: 40, nkPermanenteKN: 300, pesoZapataKN: 37.5, phiGrados: 30,
+      situacion: "extraordinaria",
+    });
+    expect(r.gammaR).toBe(1.1);
+    expect(r.rozamientoCalculoKN).toBeCloseTo((337.5 * Math.tan((22.5 * Math.PI) / 180)) / 1.1, 9);
+  });
+
+  describe("en la zapata aislada", () => {
+    const geometria = { A: 2, B: 1.5, H: 0.5, anchoPilarA: 0.4, anchoPilarB: 0.3, recubrimiento: 0.05 };
+    const datos = {
+      cargas: { Nk: 500, MkA: 0, MkB: 0 },
+      armadoA: { numero: 8, diametroMm: 16 },
+      armadoB: { numero: 8, diametroMm: 16 },
+      phiGrados: 30,
+    };
+    // Sismo: Mdst = 150 + 100·0,5 = 200; Mstb = 300·1 + 37,5·1 = 337,5.
+    const sismo = { Nk: 400, NkPermanente: 300, MkA: 150, MkB: 0, HkA: 100 };
+    const r = calcularZapataAislada(materiales, geometria, 300, { ...datos, extraordinaria: sismo });
+
+    it("sin cargas extraordinarias no se comprueba", () => {
+      expect(calcularZapataAislada(materiales, geometria, 300, datos).extraordinaria).toBeNull();
+    });
+
+    it("la persistente no cambia por agregar la extraordinaria", () => {
+      const sola = calcularZapataAislada(materiales, geometria, 300, datos);
+      expect(r.geotecnico.sigmaKPa).toBeCloseTo(sola.geotecnico.sigmaKPa, 9);
+      expect(r.vuelcoA?.borde).toBe("ninguno");
+    });
+
+    it("vuelco: 1,2·200 = 240 ≤ 0,9·337,5 = 303,75 (con 1,8 serían 360 y no verificaría)", () => {
+      expect(r.extraordinaria?.vuelcoA?.efectoDesestabilizadorKNm).toBeCloseTo(240, 9);
+      expect(r.extraordinaria?.vuelcoA?.efectoEstabilizadorKNm).toBeCloseTo(303.75, 9);
+      expect(r.extraordinaria?.vuelcoA?.verifica).toBe(true);
+    });
+
+    it("deslizamiento: 100 contra 337,5·tan 22,5° / 1,1 = 127,1", () => {
+      expect(r.extraordinaria?.deslizamiento?.horizontalKN).toBeCloseTo(100, 9);
+      expect(r.extraordinaria?.deslizamiento?.rozamientoCalculoKN).toBeCloseTo(
+        (337.5 * Math.tan((22.5 * Math.PI) / 180)) / 1.1, 9
+      );
+      expect(r.extraordinaria?.deslizamiento?.verifica).toBe(true);
+    });
+
+    it("tensión contra 1,5·σadm, con despegue admitido", () => {
+      // e = 200 / 437,5 = 0,457 > 2/6: fuera del núcleo, pero dentro de la base.
+      const e = 200 / 437.5;
+      expect(r.extraordinaria?.excentricidadA).toBeCloseTo(e, 9);
+      expect(r.extraordinaria?.sigmaAdmisibleKPa).toBeCloseTo(450, 9);
+      expect(r.extraordinaria?.sigmaKPa).toBeCloseTo(437.5 / ((2 - 2 * e) * 1.5), 9);
+      expect(r.extraordinaria?.verificaTension).toBe(true);
+    });
+
+    it("si la resultante sale de la base, no verifica", () => {
+      const fuera = calcularZapataAislada(materiales, geometria, 300, {
+        ...datos, extraordinaria: { Nk: 100, MkA: 300, MkB: 0 },
+      });
+      expect(fuera.extraordinaria?.sigmaKPa).toBe(Infinity);
+      expect(fuera.extraordinaria?.verificaTension).toBe(false);
+    });
+  });
+
+  it("en la zapata corrida, por metro", () => {
+    const r = calcularZapataCorrida(
+      materiales,
+      { A: 1.6, H: 0.4, anchoPilar: 0.3, recubrimiento: 0.05 },
+      200,
+      {
+        carga: { Nk: 150, MkA: 0 },
+        extraordinaria: { Nk: 150, MkA: 10, HkA: 15 },
+        armadoPrincipal: { diametroMm: 12, separacionM: 0.2 },
+        armadoSecundario: { numero: 8, diametroMm: 10 },
+        phiGrados: 28,
+      }
+    );
+    expect(r.vuelco?.borde).toBe("ninguno");
+    expect(r.extraordinaria?.vuelco?.efectoDesestabilizadorKNm).toBeCloseTo(1.2 * 16, 9);
+    expect(r.extraordinaria?.deslizamiento?.gammaR).toBe(1.1);
+    expect(r.extraordinaria?.sigmaAdmisibleKPa).toBeCloseTo(300, 9);
+  });
+});

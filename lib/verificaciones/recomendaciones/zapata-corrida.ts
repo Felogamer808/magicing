@@ -32,7 +32,10 @@ export interface EntradaZapataCorrida {
 /** Con el muro centrado se muestra un vuelo; descentrado, los dos. */
 export type LadoCorrida = "gobernante" | "inicio" | "fin";
 type ClaveVuelo = `${LadoCorrida}.${"as" | "anclaje" | "corte"}`;
-export type ClaveCorrida = "tension" | "deslizamiento" | "vuelco" | "reparto" | ClaveVuelo;
+type ClaveTerreno = "tension" | "deslizamiento" | "vuelco";
+/** Las del terreno con las cargas de la situación extraordinaria. */
+type ClaveExtraordinaria = `ext.${ClaveTerreno}`;
+export type ClaveCorrida = ClaveTerreno | ClaveExtraordinaria | "reparto" | ClaveVuelo;
 export type RecomendacionesCorrida = Partial<Record<ClaveCorrida, Recomendacion[]>>;
 
 const NOMBRE_LADO: Record<LadoCorrida, string> = { gobernante: "del vuelo", inicio: "del vuelo izquierdo", fin: "del vuelo derecho" };
@@ -41,6 +44,9 @@ const NOMBRES = {
   tension: "tensión del terreno",
   deslizamiento: "deslizamiento",
   vuelco: "vuelco",
+  "ext.tension": "tensión del terreno (extraordinaria)",
+  "ext.deslizamiento": "deslizamiento (extraordinaria)",
+  "ext.vuelco": "vuelco (extraordinaria)",
   reparto: "armadura de reparto",
   ...Object.fromEntries(
     (["gobernante", "inicio", "fin"] as const).flatMap((l) =>
@@ -68,6 +74,17 @@ function utilizaciones(e: EntradaZapataCorrida) {
     reparto: z.secundario.asNecCm2 / z.secundario.asRealCm2,
     ...(z.deslizamiento && z.deslizamiento.horizontalKN > 0 ? { deslizamiento: z.deslizamiento.aprovechamiento } : {}),
     ...(z.vuelco && z.vuelco.borde !== "ninguno" ? { vuelco: z.vuelco.aprovechamiento } : {}),
+    ...(z.extraordinaria
+      ? {
+          "ext.tension": z.extraordinaria.sigmaKPa / z.extraordinaria.sigmaAdmisibleKPa,
+          ...(z.extraordinaria.deslizamiento && z.extraordinaria.deslizamiento.horizontalKN > 0
+            ? { "ext.deslizamiento": z.extraordinaria.deslizamiento.aprovechamiento }
+            : {}),
+          ...(z.extraordinaria.vuelco && z.extraordinaria.vuelco.borde !== "ninguno"
+            ? { "ext.vuelco": z.extraordinaria.vuelco.aprovechamiento }
+            : {}),
+        }
+      : {}),
     ...(z.muroCentrado
       ? utilizacionesVuelo("gobernante", z.principal)
       : { ...utilizacionesVuelo("inicio", z.vuelos.inicio), ...utilizacionesVuelo("fin", z.vuelos.fin) }),
@@ -167,6 +184,8 @@ const BRAZO = palancaValor<E>(
 );
 
 function palancasPorClave(clave: ClaveCorrida): readonly Palanca<E>[] {
+  // La extraordinaria se resuelve con las mismas palancas que la persistente.
+  if (clave.startsWith("ext.")) return palancasPorClave(clave.slice(4) as ClaveTerreno);
   if (clave === "tension") return [ANCHO];
   // Más zapata es más peso que frena y estabiliza.
   if (clave === "deslizamiento") return [BRAZO, ANCHO, H];

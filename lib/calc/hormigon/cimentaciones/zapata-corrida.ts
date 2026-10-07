@@ -11,8 +11,11 @@ import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/li
 import {
   calcularDeslizamiento,
   calcularVuelco,
+  tensionExtraordinaria,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
+  type SituacionDimensionado,
+  type TensionExtraordinaria,
 } from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
@@ -81,6 +84,20 @@ export interface DatosZapataCorrida {
   tirante?: { brazoM: number; phiGrados: number };
   /** φ′ del terreno para el deslizamiento; con tirante se usa el del tirante. Si no hay, no se comprueba. */
   phiGrados?: number;
+  /** Cargas por metro de la situación extraordinaria: sólo se comprueba el terreno. */
+  extraordinaria?: CargaZapataCorrida;
+  /**
+   * Situación de dimensionado para los coeficientes del terreno (vuelco y
+   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   */
+  situacion?: SituacionDimensionado;
+}
+
+/** El terreno con las cargas de la situación extraordinaria, por metro. */
+export interface TerrenoExtraordinarioCorrida extends TensionExtraordinaria {
+  excentricidadM: number;
+  vuelco: ResultadoVuelco | null;
+  deslizamiento: ResultadoDeslizamiento | null;
 }
 
 export interface ResultadoGeotecnicoCorrida {
@@ -122,6 +139,8 @@ export interface ResultadoZapataCorrida {
   vuelco: ResultadoVuelco | null;
   /** Deslizamiento por el DB SE-C, por metro. Null si no hay φ′. */
   deslizamiento: ResultadoDeslizamiento | null;
+  /** Null si no se cargó la situación extraordinaria. */
+  extraordinaria: TerrenoExtraordinarioCorrida | null;
 }
 
 export function calcularZapataCorrida(
@@ -188,7 +207,7 @@ export function calcularZapataCorrida(
   const vuelco = tirante
     ? null
     : calcularVuelco({
-        nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H,
+        nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H, situacion: datos.situacion,
         direccion: { dimM: A, posicionPilarM: borde + anchoPilar / 2, mkKNm: MkA, hkKN: HkA },
       });
   const phiGrados = datos.tirante?.phiGrados ?? datos.phiGrados;
@@ -201,9 +220,26 @@ export function calcularZapataCorrida(
           nkPermanenteKN,
           pesoZapataKN: pesoPropioKN,
           phiGrados,
+          situacion: datos.situacion,
         });
 
+  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  const extraordinaria = datos.extraordinaria
+    ? (() => {
+        const r = calcularZapataCorrida(materiales, geometria, sigmaAdmisibleKPa, {
+          ...datos, carga: datos.extraordinaria, extraordinaria: undefined, situacion: "extraordinaria",
+        });
+        return {
+          ...tensionExtraordinaria(r.geotecnico.sigmaKPa, sigmaAdmisibleKPa),
+          excentricidadM: r.geotecnico.excentricidadM,
+          vuelco: r.vuelco,
+          deslizamiento: r.deslizamiento,
+        };
+      })()
+    : null;
+
   return {
+    extraordinaria,
     vuelco,
     deslizamiento,
     vueloMaxM,

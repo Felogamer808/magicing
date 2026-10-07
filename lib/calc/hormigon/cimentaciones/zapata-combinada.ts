@@ -19,8 +19,11 @@ import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/li
 import {
   calcularDeslizamiento,
   calcularVuelcoGeneral,
+  tensionExtraordinaria,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
+  type SituacionDimensionado,
+  type TensionExtraordinaria,
 } from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
@@ -109,6 +112,28 @@ export interface DatosZapataCombinada {
    * el deslizamiento no se evalúa.
    */
   phiGrados?: number;
+  /**
+   * Cargas de cada pilar en la situación extraordinaria; la posición y la
+   * sección son las de `pilares`. Sólo se comprueba el terreno.
+   */
+  extraordinaria?: readonly [CargasPilarCombinada, CargasPilarCombinada];
+  /**
+   * Situación de dimensionado para los coeficientes del terreno (vuelco y
+   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   */
+  situacion?: SituacionDimensionado;
+}
+
+/** Lo que cambia de un pilar entre situaciones: sus cargas. */
+export type CargasPilarCombinada = Pick<PilarCombinada, "Nk" | "MkL" | "MkB" | "HkL" | "HkB" | "NkPermanente">;
+
+/** El terreno con las cargas de la situación extraordinaria. */
+export interface TerrenoExtraordinarioCombinada extends TensionExtraordinaria {
+  excentricidadLM: number;
+  excentricidadBM: number;
+  vuelcoL: ResultadoVuelco;
+  vuelcoB: ResultadoVuelco | null;
+  deslizamiento: ResultadoDeslizamiento | null;
 }
 
 export interface PuntoDiagramaCombinada {
@@ -168,6 +193,8 @@ export interface ResultadoZapataCombinada {
   vuelcoB: ResultadoVuelco | null;
   /** Null sin φ′. */
   deslizamiento: ResultadoDeslizamiento | null;
+  /** Null si no se cargó la situación extraordinaria. */
+  extraordinaria: TerrenoExtraordinarioCombinada | null;
   /** Sólo con tirante: el par de toda la zapata y el tirante de cada pilar. */
   tirante?: { global: ResultadoTiranteRozamiento; porPilar: readonly [TirantePilarCombinada, TirantePilarCombinada] };
 }
@@ -364,13 +391,13 @@ export function calcularZapataCombinada(
     pilares.map((p, i) => ({ posicionM: posicion(p), nkPermanenteKN: nPermanente[i] }));
   const vuelcoL = calcularVuelcoGeneral({
     dimM: L, momentoBaseKNm: mBaseL[0] + mBaseL[1],
-    cargas: estabilizantes((p) => p.posicionM), pesoZapataKN: pesoPropioKN,
+    cargas: estabilizantes((p) => p.posicionM), pesoZapataKN: pesoPropioKN, situacion: datos.situacion,
   });
   const vuelcoB = global
     ? null
     : calcularVuelcoGeneral({
         dimM: B, momentoBaseKNm: mBaseB[0] + mBaseB[1],
-        cargas: estabilizantes(() => bordeB + cB / 2), pesoZapataKN: pesoPropioKN,
+        cargas: estabilizantes(() => bordeB + cB / 2), pesoZapataKN: pesoPropioKN, situacion: datos.situacion,
       });
   const phiGrados = datos.tirante?.phiGrados ?? datos.phiGrados;
   const deslizamiento =
@@ -383,7 +410,33 @@ export function calcularZapataCombinada(
           nkPermanenteKN: nPermanente[0] + nPermanente[1],
           pesoZapataKN: pesoPropioKN,
           phiGrados,
+          situacion: datos.situacion,
         });
+
+  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  const ext = datos.extraordinaria;
+  const extraordinaria = ext
+    ? (() => {
+        const r = calcularZapataCombinada(materiales, geometria, sigmaAdmisibleKPa, {
+          ...datos,
+          // Sin el ?? 0, un dato persistente que falte en la extraordinaria se colaría.
+          pilares: pilares.map((p, i) => ({
+            ...p, Nk: ext[i].Nk, MkL: ext[i].MkL ?? 0, MkB: ext[i].MkB ?? 0, HkL: ext[i].HkL ?? 0, HkB: ext[i].HkB ?? 0,
+            NkPermanente: ext[i].NkPermanente,
+          })) as unknown as readonly [PilarCombinada, PilarCombinada],
+          extraordinaria: undefined,
+          situacion: "extraordinaria",
+        });
+        return {
+          ...tensionExtraordinaria(r.geotecnico.sigmaKPa, sigmaAdmisibleKPa),
+          excentricidadLM: r.geotecnico.excentricidadLM,
+          excentricidadBM: r.geotecnico.excentricidadBM,
+          vuelcoL: r.vuelcoL,
+          vuelcoB: r.vuelcoB,
+          deslizamiento: r.deslizamiento,
+        };
+      })()
+    : null;
 
   // Diagrama aliviado para dibujar: no hacen falta 2000 puntos.
   const paso = Math.max(1, Math.floor(puntos.length / 200));
@@ -405,6 +458,7 @@ export function calcularZapataCombinada(
     vuelcoL,
     vuelcoB,
     deslizamiento,
+    extraordinaria,
     ...(global && porPilar ? { tirante: { global, porPilar } } : {}),
   };
 }

@@ -2,26 +2,36 @@ import { resolverLosaFundacion, type ResueltoLosaFundacion } from "@/lib/calc/ho
 import { recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { EFECTO_H, campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
-export type ClaveLosaFundacion = "inferior" | "superior" | "cortante" | "reparto";
+export type ClaveLosaFundacion = "inferior" | "superior" | "cortante" | `punzonamiento${1 | 2 | 3}`;
 export type RecomendacionesLosaFundacion = Partial<Record<ClaveLosaFundacion, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveLosaFundacion, string> = {
   inferior: "armadura inferior",
   superior: "armadura superior",
   cortante: "cortante",
-  reparto: "armadura de reparto",
+  punzonamiento1: "punzonamiento P1",
+  punzonamiento2: "punzonamiento P2",
+  punzonamiento3: "punzonamiento P3",
 };
 
 /**
  * Sin la tensión del terreno: en una losa de fundación el ancho tributario lo
  * fija la separación entre pilares, no es un dato que se elija.
  */
-const utilizaciones = ({ franja }: ResueltoLosaFundacion): Record<ClaveLosaFundacion, number> => ({
-  inferior: franja.inferior.asNecCm2PorM / franja.inferior.asRealCm2PorM,
-  superior: franja.superior.asNecCm2PorM / franja.superior.asRealCm2PorM,
-  cortante: franja.cortante.vEdKN / franja.cortante.vRdCKN,
-  reparto: franja.secundario.asNecCm2 / franja.secundario.asRealCm2,
-});
+const utilizaciones = ({ franja }: ResueltoLosaFundacion): Record<ClaveLosaFundacion, number> => {
+  const punz = (i: number) => {
+    const p = franja.punzonamiento[i];
+    return p.motivoNoEvaluado ? 0 : p.vEdKN / p.vRdCKN;
+  };
+  return {
+    inferior: franja.inferior.flexion.aprovechamiento,
+    superior: franja.superior.necesaria ? franja.superior.flexion.aprovechamiento : 0,
+    cortante: franja.cortante.vEdKN / franja.cortante.vRdCKN,
+    punzonamiento1: punz(0),
+    punzonamiento2: punz(1),
+    punzonamiento3: punz(2),
+  };
+};
 
 const H = palancaValor(campo("H"), { paso: 0.05, tope: (h) => h + 1, decimales: 2, rotulo: "H = ", texto: m, efectoColateral: EFECTO_H });
 const FCK = palancaFck(campo("fck"));
@@ -42,24 +52,12 @@ function malla(cara: "Inferior" | "Superior"): Palanca<Campos>[] {
   ];
 }
 
-const REPARTO: Palanca<Campos>[] = [
-  palancaValor(campo("numeroSecundario"), {
-    paso: 1,
-    tope: (n) => n + 20,
-    decimales: 0,
-    rotulo: "Reparto: ",
-    texto: (n, e) => `${n} Ø${campo("diametroSecundario").leer(e)}`,
-  }),
-  palancaDiametro(campo("diametroSecundario"), "mayor", (e, d) => `${campo("numeroSecundario").leer(e)} Ø${d}`, {
-    rotulo: "Reparto: ",
-  }),
-];
 
 function palancasPorClave(clave: ClaveLosaFundacion): readonly Palanca<Campos>[] {
   if (clave === "inferior") return [...malla("Inferior"), H];
   if (clave === "superior") return [...malla("Superior"), H];
-  if (clave === "cortante") return [H, FCK];
-  return REPARTO;
+  // Cortante y punzonamiento: canto y hormigón; más armadura inferior sube el ρl.
+  return [H, FCK, ...malla("Inferior")];
 }
 
 /** Propuestas para cada comprobación de la franja de losa que no cumple o queda justa. */

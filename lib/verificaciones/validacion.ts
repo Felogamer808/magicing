@@ -102,7 +102,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nivel: "probada",
     nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Mk y Hk por pilar, con vuelco y deslizamiento por el CTE DB SE-C, también en situación extraordinaria. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
   },
-  "losa-fundacion": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
+  "losa-fundacion": {
+    nivel: "probada",
+    nota: "Anejo 19 desde el 2026-10-07: flexión por metro, cortante a d de la cara y punzonamiento de cada pilar. Ya no exige armadura de reparto. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",
+  },
   pilotes: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   deformaciones: { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
   "longitudes-anclaje": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },

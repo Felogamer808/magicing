@@ -23,7 +23,10 @@ export function resolverMensulaCorta(campos: Record<string, string>) {
     recubrimientoM: num("rec"),
   };
   const fEdKN = num("fEd");
-  const hEdKN = (campos.modoH ?? "").startsWith("H = 0,15") ? 0.15 * fEdKN : num("hEd");
+  // H se carga siempre a mano: el Anejo 19 no fija un mínimo, y el 0,15·F
+  // automático era una hipótesis de la Instrucción española (decidido por el
+  // usuario el 2026-10-07).
+  const hEdKN = num("hEd");
   const fckMPa = num("fck");
   const fykMPa = num("fyk");
 

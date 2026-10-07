@@ -5,12 +5,9 @@ import { CITA_LBD_DIAMETRO, campo, m, palancaDiametro, palancaFck, palancaValor,
 export type ClaveMensula =
   | "nudo"
   | "biela"
-  | "tangencial"
+  | "cortanteMaximo"
   | "tirante"
-  | "cuantiaMecanica"
   | "cercos"
-  | "cercosH"
-  | "degollamiento"
   | "anclajeMensula"
   | "anclajePilar";
 export type RecomendacionesMensula = Partial<Record<ClaveMensula, Recomendacion[]>>;
@@ -18,12 +15,9 @@ export type RecomendacionesMensula = Partial<Record<ClaveMensula, Recomendacion[
 const NOMBRES: Record<ClaveMensula, string> = {
   nudo: "nudo bajo la placa",
   biela: "biela comprimida",
-  tangencial: "tensión tangencial",
+  cortanteMaximo: "tope del cortante",
   tirante: "armadura del tirante",
-  cuantiaMecanica: "cuantía mecánica mínima",
   cercos: "cercos",
-  cercosH: "cercos horizontales",
-  degollamiento: "canto útil en el borde",
   anclajeMensula: "anclaje en la ménsula",
   anclajePilar: "anclaje en el pilar",
 };
@@ -33,12 +27,10 @@ function utilizaciones({ r }: ResueltoMensulaCorta): Partial<Record<ClaveMensula
   return {
     nudo: h.nudo.sigmaMPa / h.nudo.sigmaMaxMPa,
     biela: h.biela.sigmaMPa / h.biela.sigmaMaxMPa,
-    tangencial: h.tangencial.sigmaMPa / h.tangencial.sigmaMaxMPa,
+    cortanteMaximo: h.cortanteMaximo.sigmaMPa / h.cortanteMaximo.sigmaMaxMPa,
     tirante: r.tirante.asNecCm2 / r.tirante.asRealCm2,
-    cuantiaMecanica: r.tirante.asMecanicaAciCm2 / r.tirante.asRealCm2,
-    cercos: r.cercos.asNecCm2 / r.cercos.asRealCm2,
-    ...(r.cercos.horizontales ? { cercosH: r.cercos.horizontales.asNecCm2 / r.cercos.horizontales.asRealCm2 } : {}),
-    degollamiento: h.d0MinM / h.d0M,
+    // Sin cercos exigidos (art. J.3(3)) no hay nada que proponer.
+    ...(r.cercos.requeridos ? { cercos: r.cercos.asNecCm2 / r.cercos.asRealCm2 } : {}),
     anclajeMensula: r.anclaje.lbdMensulaMm / r.anclaje.disponibleMensulaMm,
     anclajePilar: r.anclaje.lbdPilarMm / r.anclaje.disponiblePilarMm,
   };
@@ -51,7 +43,6 @@ const metros = (nombre: string, rotulo: string, extra: number, efectoColateral?:
 
 const ANCHO = metros("b", "b = ", 0.6, "Ménsula más ancha: el pilar tiene que acompañar.");
 const CANTO = metros("hc", "hc = ", 0.6, "Más canto en el arranque.");
-const CANTO_BORDE = metros("h1", "h1 = ", 0.5, "Más canto en el borde libre.");
 const PLACA_A = metros("ap", "Placa a = ", 0.4, "Placa de apoyo más grande.");
 const PLACA_B = metros("bp", "Placa b = ", 0.4, "Placa de apoyo más grande.");
 const PILAR = metros("hcol", "Pilar = ", 0.5, "Pilar más grande: hay que revisarlo también.");
@@ -70,16 +61,12 @@ function palancasPorClave(clave: ClaveMensula): readonly Palanca<Campos>[] {
     case "nudo":
       return [PLACA_A, PLACA_B, FCK];
     case "biela":
-    case "tangencial":
+    case "cortanteMaximo":
       return [ANCHO, CANTO, FCK];
     case "tirante":
-    case "cuantiaMecanica":
       return [PRINCIPAL_MAYOR];
     case "cercos":
-    case "cercosH":
       return [CERCO_MAYOR];
-    case "degollamiento":
-      return [CANTO_BORDE];
     case "anclajeMensula":
       return [PRINCIPAL_MENOR];
     case "anclajePilar":

@@ -39,7 +39,7 @@ interface DiagramaVigaApeoArmadoProps {
  * escalonado como en una viga a flexión), las horquillas de extremo cuando el
  * apoyo no da longitud para anclar recto (art. 9.7(3)), los estribos de cuelgue
  * concentrados junto al pilar cuando la carga no entra por la cara superior
- * (Montoya §24.9.1), y la malla ortogonal de piel en las dos caras (art. 9.7(1)).
+ * (art. 9.2.5), y la malla ortogonal de piel en las dos caras (art. 9.7(1)).
  *
  * Es un croquis de disposición, no un plano: las cantidades dibujadas están
  * saturadas para que se lean, y los números de las etiquetas son los reales.
@@ -80,7 +80,7 @@ export function DiagramaVigaApeoArmado({
 
   const rec = Math.max(recubrimientoM * escalaV, 5);
   const yTiranteInf = yBase - rec;
-  // El tirante va repartido en 0,12·L (Montoya §24.7.3.e): se dibujan dos filas
+  // El tirante se dibuja repartido en 0,12·L (aviso de Montoya §24.7.3.e): dos filas
   // para que se entienda que no es una única capa pegada al borde.
   const altoRepartoPx = Math.min(alturaRepartoTiranteM * escalaV, hPx * 0.45);
   const yTiranteSup = yTiranteInf - Math.max(altoRepartoPx, 8);
@@ -202,7 +202,7 @@ export function DiagramaVigaApeoArmado({
       </li>
       <li>
         {requiereHorquillas
-          ? "Horquillas en los dos extremos: el anclaje recto no entra en el apoyo. Se dibujan en alzado para que se vean, pero se doblan en planta (Montoya fig. 24.25b), girando 180° en horizontal."
+          ? "Horquillas en los dos extremos: el anclaje recto no entra en el apoyo. Se dibujan en alzado para que se vean, pero se doblan en planta, girando 180° en horizontal."
           : "El anclaje recto entra en el apoyo: no hacen falta horquillas."}
       </li>
     </ul>

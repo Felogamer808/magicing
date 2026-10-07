@@ -15,8 +15,7 @@ export type ClaveApeoBielas =
   | "anclajeIzq"
   | "anclajeDer"
   | "mallaH"
-  | "mallaV"
-  | "cantoCuelgue";
+  | "mallaV";
 export type RecomendacionesApeoBielas = Partial<Record<ClaveApeoBielas, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveApeoBielas, string> = {
@@ -33,13 +32,10 @@ const NOMBRES: Record<ClaveApeoBielas, string> = {
   anclajeDer: "anclaje recto derecho",
   mallaH: "malla horizontal mínima",
   mallaV: "malla vertical mínima",
-  cantoCuelgue: "canto para las bielas de cuelgue",
 };
 
 type Tension = { sigmaMPa: number; sigmaMaxMPa: number };
 const tension = (x: Tension) => x.sigmaMPa / x.sigmaMaxMPa;
-/** El más desfavorable de los dos topes que muestra la página. */
-const dosTopes = (a: Tension, b: Tension) => a.sigmaMPa / Math.min(a.sigmaMaxMPa, b.sigmaMaxMPa);
 
 function utilizaciones({ r, n }: ResueltoApeoBielas): Partial<Record<ClaveApeoBielas, number>> {
   const bi = r.bielas;
@@ -49,15 +45,15 @@ function utilizaciones({ r, n }: ResueltoApeoBielas): Partial<Record<ClaveApeoBi
     bielaIzq: tension(bi.bielaIzq),
     bielaDer: tension(bi.bielaDer),
     nudoSuperior: tension(bi.nudoSuperior),
-    nudoApoyoIzq: dosTopes(bi.nudoApoyoIzq, bi.nudoApoyoIzqMontoya),
-    nudoApoyoDer: dosTopes(bi.nudoApoyoDer, bi.nudoApoyoDerMontoya),
+    nudoApoyoIzq: tension(bi.nudoApoyoIzq),
+    nudoApoyoDer: tension(bi.nudoApoyoDer),
     traccionTransversal: r.traccionTransversal.asNecCm2 / r.traccionTransversal.asRealCm2,
     ...(r.cuelgue
-      ? { cuelgue: r.cuelgue.asNecCm2 / r.cuelgue.asRealCm2, cantoCuelgue: r.cuelgue.cantoMinimoM / n.h }
+      ? { cuelgue: r.cuelgue.asNecCm2 / r.cuelgue.asRealCm2 }
       : {}),
     anchoTirante: r.tirante.bNecM / n.b,
-    anclajeIzq: a.recto.lbdMm / (Math.min(a.disponibleIzqM, a.disponibleMontoyaIzqM) * 1000),
-    anclajeDer: a.recto.lbdMm / (Math.min(a.disponibleDerM, a.disponibleMontoyaDerM) * 1000),
+    anclajeIzq: a.recto.lbdMm / (a.disponibleIzqM * 1000),
+    anclajeDer: a.recto.lbdMm / (a.disponibleDerM * 1000),
     mallaH: r.malla.asMinCm2PorM / r.malla.horizontalCm2PorM,
     mallaV: r.malla.asMinCm2PorM / r.malla.verticalCm2PorM,
   };
@@ -147,8 +143,6 @@ function palancasPorClave(clave: ClaveApeoBielas): readonly Palanca<Campos>[] {
         palancaValor(campo("ramasCuelgue"), { paso: 1, tope: (n) => n + 8, decimales: 0, rotulo: "Ramas de cuelgue: ", texto: String }),
         palancaDiametro(campo("phiCuelgue"), "mayor", (_, d) => `Ø${d}`, { rotulo: "Cuelgue " }),
       ];
-    case "cantoCuelgue":
-      return [CANTO];
     case "anchoTirante":
       return [TIRANTE_MAS_GRUESO, ANCHO];
     case "anclajeIzq":

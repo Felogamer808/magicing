@@ -59,13 +59,6 @@ describe("clasificación de la región", () => {
     expect(r.region.relacionLuzCanto).toBeCloseTo(2.5, 9);
   });
 
-  it("pero no lo es para Montoya, que corta en luz/canto < 2", () => {
-    // §24.7.1. Los dos criterios discrepan a propósito y el resultado los
-    // muestra por separado en vez de elegir uno.
-    expect(r.region.esGranCantoMontoya).toBe(false);
-    expect(r.region.luzMontoyaM).toBeCloseTo(5, 9);
-  });
-
   it("la carga está a menos de 2·d del apoyo, así que igual es región D", () => {
     expect(r.region.aIzqSobreD).toBeCloseTo(2.5 / 1.9255, 6);
     expect(r.region.cargaProximaAlApoyo).toBe(true);
@@ -96,8 +89,6 @@ describe("modelo de bielas y tirantes", () => {
     expect(r.bielas.nuPrima).toBeCloseTo(0.88, 9);
     expect(r.modelo.zNudoM).toBeCloseTo(1.8457, 3);
     expect(r.modelo.verificaCabezaComprimida).toBe(true);
-    // No clasifica como viga pared de Montoya, así que no hay z alternativo.
-    expect(r.modelo.zMontoyaM).toBeNull();
     expect(r.modelo.zAdoptadoM).toBeCloseTo(r.modelo.zNudoM, 9);
   });
 
@@ -139,14 +130,9 @@ describe("modelo de bielas y tirantes", () => {
 });
 
 describe("tirante", () => {
-  it("As necesario con fyd pleno", () => {
+  it("As necesario con fyd = fyk/γs", () => {
     expect(r.tirante.fydMPa).toBeCloseTo(500 / 1.15, 9);
-    expect(r.tirante.asNecEc2Cm2).toBeCloseTo(33.49, 1);
-  });
-
-  it("no aplica el tope de 400 MPa porque no clasifica como viga pared", () => {
-    expect(r.tirante.topeAplicado).toBe(false);
-    expect(r.tirante.asNecCm2).toBeCloseTo(r.tirante.asNecEc2Cm2, 9);
+    expect(r.tirante.asNecCm2).toBeCloseTo(33.49, 1);
   });
 
   it("8Ø25 verifican y entran en los 0,50 m de ancho", () => {
@@ -160,38 +146,19 @@ describe("tirante", () => {
     expect(r.tirante.separacionMm).toBeCloseTo(25.14, 1);
   });
 
-  it("el tirante se reparte en 0,12·luz", () => {
-    // Montoya §24.7.3.e: no va concentrado en una fila pegada al borde.
+  it("aviso de Montoya: altura de reparto 0,12·l, con l = mín(5; 1,15·4,60)", () => {
     expect(r.tirante.alturaRepartoM).toBeCloseTo(0.6, 9);
   });
 
-  it("en viga pared el tope de Montoya encarece la armadura", () => {
-    // Con luz/canto = 1,5 sí clasifica, así que manda fyd ≯ 400 MPa
-    // (§24.7.3.c, pág. 391 / impresa 357, contrastado contra el PDF).
+  it("en viga muy corta, fyd y z siguen siendo los del Anejo (sin 400 MPa ni 0,6·l)", () => {
     const pared = calcularVigaApeoBielas(
       materiales,
       { ...geometria, luzM: 3, posicionCargaM: 1.5 },
       datos
     );
-    expect(pared.region.esGranCantoMontoya).toBe(true);
-    expect(pared.tirante.topeAplicado).toBe(true);
-    expect(pared.tirante.fydTopadoMPa).toBe(400);
-    expect(pared.tirante.asNecCm2).toBeCloseTo(pared.tirante.asNecMontoyaCm2, 9);
-    // 434,78/400 − 1 ≈ 8,7 % más de acero por el mismo esfuerzo.
-    expect(pared.tirante.asNecCm2 / pared.tirante.asNecEc2Cm2).toBeCloseTo(500 / 1.15 / 400, 6);
-  });
-
-  it("en viga pared el brazo lo gobierna el menor de los dos criterios", () => {
-    const pared = calcularVigaApeoBielas(
-      materiales,
-      { ...geometria, luzM: 3, posicionCargaM: 1.5 },
-      datos
-    );
-    expect(pared.modelo.zMontoyaM).not.toBeNull();
-    expect(pared.modelo.zAdoptadoM).toBeCloseTo(
-      Math.min(pared.modelo.zNudoM, pared.modelo.zMontoyaM ?? Infinity),
-      9
-    );
+    expect(pared.tirante.fydMPa).toBeCloseTo(500 / 1.15, 9);
+    expect(pared.modelo.zAdoptadoM).toBeCloseTo(pared.modelo.zNudoM, 9);
+    expect(pared.tirante.asNecCm2).toBeCloseTo((pared.modelo.traccionTiranteKN / (500 / 1.15)) * 10, 6);
   });
 });
 
@@ -237,29 +204,33 @@ describe("anclaje del tirante", () => {
     expect(r.anclaje.recto.lbdMm).toBeCloseTo(r.anclaje.recto.lbdBrutaMm, 9);
   });
 
-  it("los dos criterios de arranque dan longitudes distintas", () => {
-    // Anejo 19 art. 6.5.4(7): desde la cara interior del apoyo → b/2 + voladizo.
+  it("el anclaje arranca en la cara interior del apoyo (art. 6.5.4(7)) y recto no entra", () => {
+    // b/2 + voladizo − rec = 0,20 + 0,30 − 0,05 = 0,45 m < 761,8 mm.
     expect(r.anclaje.disponibleIzqM).toBeCloseTo(0.45, 9);
-    // Montoya §24.7.3.e: desde el EJE de apoyo → medio ancho de placa menos.
-    expect(r.anclaje.disponibleMontoyaIzqM).toBeCloseTo(0.25, 9);
     expect(r.anclaje.recto.verificaIzq).toBe(false);
-    expect(r.anclaje.recto.verificaIzqMontoya).toBe(false);
   });
 
-  it("la horquilla casi triplica el desarrollo, pero no alcanza en este caso", () => {
-    // Mandril de tabla 7φ = 175 mm (φ25 > 16), radio del eje (175+25)/2 = 100 mm,
-    // codo de 180° = π·100 = 314,2 mm. Con 250 mm desde el eje de apoyo:
-    // 2·(250 − 100) + 314,2 = 614,2 mm < 761,8 mm.
+  it("doblada en horquilla sí entra: 2·(450 − 100) + π·100 = 1014,2 mm", () => {
+    // Mandril de tabla 7φ = 175 mm (φ25 > 16), radio del eje (175+25)/2 = 100 mm.
     expect(r.anclaje.geometriaHorquilla.mandrilMinimoTablaMm).toBe(175);
     expect(r.anclaje.geometriaHorquilla.desarrolloCodoMm).toBeCloseTo(314.16, 2);
-    expect(r.anclaje.geometriaHorquilla.ramaIdaIzqMm).toBeCloseTo(150, 9);
-    expect(r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm).toBeCloseTo(614.16, 2);
-    expect(r.anclaje.horquilla.verificaIzq).toBe(true); // por el Anejo sí entra
-    expect(r.anclaje.horquilla.verificaIzqMontoya).toBe(false); // por Montoya no
-    expect(r.anclaje.bastaConHorquilla).toBe(false);
-    // Art. 9.7(3): si no entra ni recto ni doblado, queda el dispositivo.
-    expect(r.anclaje.requiereAnclajeMecanico).toBe(true);
-    expect(r.anclaje.formaRecomendada).toBe("dispositivo mecánico");
+    expect(r.anclaje.geometriaHorquilla.ramaIdaIzqMm).toBeCloseTo(350, 9);
+    expect(r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm).toBeCloseTo(1014.16, 2);
+    expect(r.anclaje.horquilla.verificaIzq).toBe(true);
+    expect(r.anclaje.bastaConHorquilla).toBe(true);
+    expect(r.anclaje.requiereAnclajeMecanico).toBe(false);
+    expect(r.anclaje.formaRecomendada).toBe("horquilla");
+  });
+
+  it("con poco voladizo no entra ni doblada y queda el dispositivo (art. 9.7(3))", () => {
+    const corto = calcularVigaApeoBielas(
+      materiales,
+      { ...geometria, voladizoIzqM: 0.05, voladizoDerM: 0.05 },
+      datos
+    );
+    // 2·(200 − 100) + 314,2 = 514,2 mm < 761,8 mm.
+    expect(corto.anclaje.bastaConHorquilla).toBe(false);
+    expect(corto.anclaje.formaRecomendada).toBe("dispositivo mecánico");
   });
 
   it("la horquilla cabe en el ancho de la viga", () => {
@@ -270,10 +241,11 @@ describe("anclaje del tirante", () => {
     expect(r.anclaje.geometriaHorquilla.numeroHorquillas).toBe(4);
   });
 
-  it("con la rama de vuelta larga hay que comprobar el hormigón del codo", () => {
-    // Art. 8.3(3): la exención vale sólo si tras el codo quedan ≤ 5φ.
-    expect(r.anclaje.geometriaHorquilla.exentaDeComprobarMandril).toBe(false);
-    expect(r.anclaje.geometriaHorquilla.mandrilAdoptadoMm).toBeGreaterThan(175);
+  it("con la rama de vuelta corta no hace falta comprobar el hormigón del codo", () => {
+    // Art. 8.3(3): tras el codo quedan 761,8 − 350 − 314,2 = 97,6 mm ≤ 5φ = 125.
+    expect(r.anclaje.geometriaHorquilla.ramaVueltaIzqMm).toBeCloseTo(r.anclaje.horquilla.lbdMm - 350 - 314.159265, 3);
+    expect(r.anclaje.geometriaHorquilla.exentaDeComprobarMandril).toBe(true);
+    expect(r.anclaje.geometriaHorquilla.mandrilAdoptadoMm).toBe(175);
   });
 
   it("con voladizos generosos el anclaje recto entra y no hacen falta horquillas", () => {
@@ -328,10 +300,10 @@ describe("segunda capa del tirante", () => {
     expect(conSegunda.tirante.verificaAs).toBe(true);
   });
 
-  it("las dos capas tienen que entrar en la franja de reparto de Montoya", () => {
+  it("aviso de Montoya: las dos capas entran en la franja de reparto", () => {
     // 0,12·5,00 = 0,60 m: con 0,087 m ocupados sobra de sobra.
     expect(dosCapas.tirante.capas.alturaOcupadaM).toBeCloseTo(0.087, 9);
-    expect(dosCapas.tirante.capas.verificaDentroDelReparto).toBe(true);
+    expect(dosCapas.tirante.capas.cumpleAvisoReparto).toBe(true);
   });
 
   it("la separación que se comprueba es la libre, no la de ejes", () => {
@@ -365,18 +337,9 @@ describe("bielas y nudos", () => {
     expect(r.bielas.nudoSuperior.verifica).toBe(true);
   });
 
-  it("el nudo de apoyo es CCT, k2 = 0,85, y Montoya lo topa más bajo", () => {
+  it("el nudo de apoyo es CCT, k2 = 0,85 (ec. 6.61): 0,85·0,88·20 = 14,96 MPa", () => {
     expect(r.bielas.nudoApoyoIzq.sigmaMaxMPa).toBeCloseTo(14.96, 9);
-    expect(r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa).toBeCloseTo(14, 9);
     expect(r.bielas.nudoApoyoIzq.sigmaMPa).toBeCloseTo(5.375, 9);
-    // Con fck = 30 manda Montoya; los dos criterios se cruzan en fck ≈ 44 MPa.
-    expect(r.bielas.gobiernaMontoyaEnNudos).toBe(true);
-  });
-
-  it("por encima de fck ≈ 44 MPa el que manda pasa a ser el Anejo 19", () => {
-    const alta = calcularVigaApeoBielas(derivarMateriales({ fck: 50, fyk: 500 }), geometria, datos);
-    // 0,85·(1 − 50/250) = 0,68 < 0,70.
-    expect(alta.bielas.gobiernaMontoyaEnNudos).toBe(false);
   });
 
   it("la biela se agota antes que el nudo de apoyo al crecer la carga", () => {
@@ -444,7 +407,6 @@ describe("cuelgue", () => {
   });
 
   it("con carga colgada hay que colgar el 100 % de Nd", () => {
-    // Montoya §24.9.1: es la hipótesis más desfavorable y la que más se olvida.
     const colgada = calcularVigaApeoBielas(materiales, geometria, {
       ...datos,
       transmision: "colgada",
@@ -454,26 +416,26 @@ describe("cuelgue", () => {
     expect(colgada.cuelgue?.cargaColgadaKN).toBeCloseTo(2000, 9);
     // As = 2000/400·10 = 50 cm², con fyd de estribos topado en 400 MPa.
     expect(colgada.cuelgue?.asNecCm2).toBeCloseTo(50, 9);
-    expect(colgada.cuelgue?.verificaCantoMinimo).toBe(true);
+    expect(colgada.cuelgue?.cumpleAvisoCantoMinimo).toBe(true);
   });
 
-  it("con apoyo indirecto se cuelga el 65 %", () => {
+  it("con apoyo indirecto se cuelga toda la reacción mutua, art. 9.2.5(1)", () => {
     const indirecta = calcularVigaApeoBielas(materiales, geometria, {
       ...datos,
       transmision: "indirecta",
       cuelgue: { diametroMm: 12, separacionM: 0.1, numeroRamas: 4, cantoElementoColgadoM: 0 },
     });
-    expect(indirecta.cuelgue?.fraccionColgada).toBeCloseTo(0.65, 9);
-    expect(indirecta.cuelgue?.cargaColgadaKN).toBeCloseTo(1300, 9);
+    expect(indirecta.cuelgue?.fraccionColgada).toBe(1);
+    expect(indirecta.cuelgue?.cargaColgadaKN).toBeCloseTo(2000, 9);
   });
 
-  it("h ≥ 1,2·a: si el elemento colgado es muy alto, no se forman las bielas", () => {
+  it("aviso de Montoya h ≥ 1,2·a: si el elemento colgado es muy alto, avisa", () => {
     const alta = calcularVigaApeoBielas(materiales, geometria, {
       ...datos,
       transmision: "colgada",
       cuelgue: { diametroMm: 12, separacionM: 0.1, numeroRamas: 4, cantoElementoColgadoM: 1.8 },
     });
     expect(alta.cuelgue?.cantoMinimoM).toBeCloseTo(2.16, 9);
-    expect(alta.cuelgue?.verificaCantoMinimo).toBe(false);
+    expect(alta.cuelgue?.cumpleAvisoCantoMinimo).toBe(false);
   });
 });

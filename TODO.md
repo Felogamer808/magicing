@@ -51,9 +51,12 @@ Independientes, contra `main`:
   juego de cargas aparte que sólo comprueba el terreno: 1,5·σadm con despegue
   parcial, vuelco 0,9 / 1,2, deslizamiento γR = 1,1. El hormigón con la
   combinación accidental del Anejo 19 (γc = 1,2, γs = 1,0) no está hecho.
-- **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
-  el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
-  mezclan normas. Hay una tarea preparada con el detalle.
+- **Viga de apeo y ménsula corta, sin Montoya** (hecho, 2026-10-07): todo por
+  el Anejo 19. Quedan como avisos que no entran en el cumple d0 ≥ d/2 y los
+  cercos en 2/3·d (ménsula), el tirante en 0,12·l y h ≥ 1,2·a (apeo). La
+  carga colgada indirecta pasó del 65 % al 100 % (art. 9.2.5(1)) y la ménsula
+  ya no ofrece H = 0,15·F automático. "Carga colgada" (`cuelgue.ts`) todavía
+  cita a Montoya: falta revisarla con el mismo criterio.
 - **Losa de fundación** sigue con el modelo de la planilla (brazo 0,85·d,
   mínimos de la EHE) en `lib/calc/hormigon/losas/franja-sobre-terreno.ts`: la combinada ya no
   lo usa y conviene pasarla al Anejo 19 con el mismo criterio.

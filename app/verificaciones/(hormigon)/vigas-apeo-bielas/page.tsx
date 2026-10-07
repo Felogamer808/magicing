@@ -96,6 +96,16 @@ export default function VigaApeoBielasPage() {
       avisos.push({ tipo: "aviso", texto: "La pieza no es región D por ninguno de los dos criterios: corresponde verificarla a flexión y cortante (Vigas de apeo), no con bielas y tirantes." });
     if (resultado.r.anclaje.formaRecomendada === "dispositivo mecánico")
       avisos.push({ tipo: "aviso", texto: "El tirante no se ancla ni recto ni con horquilla: hacen falta dispositivos de anclaje o placas soldadas (art. 9.7(3)), o agrandar el apoyo o el voladizo." });
+    if (resultado.r.tirante.capas.capas.length > 1 && !resultado.r.tirante.capas.cumpleAvisoReparto)
+      avisos.push({
+        tipo: "aviso",
+        texto: `Criterio de Montoya (§24.7.3.e), no del Anejo 19: las capas del tirante ocupan ${fmt(resultado.r.tirante.capas.alturaOcupadaM, 3)} m, más que la franja de 0,12·l = ${fmt(resultado.r.tirante.alturaRepartoM, 3)} m. No entra en el cumple.`,
+      });
+    if (resultado.r.cuelgue && resultado.r.cuelgue.cantoMinimoM > 0 && !resultado.r.cuelgue.cumpleAvisoCantoMinimo)
+      avisos.push({
+        tipo: "aviso",
+        texto: `Criterio de Montoya (§24.9.1), no del Anejo 19: h = ${fmt(resultado.n.h)} m < 1,2·a = ${fmt(resultado.r.cuelgue.cantoMinimoM)} m; las bielas de cuelgue pueden no llegar a formarse. No entra en el cumple.`,
+      });
   }
 
   const modelo = resultado ? (
@@ -276,13 +286,13 @@ export default function VigaApeoBielasPage() {
             ]}
             hipotesis={[
               "ELU con solicitaciones mayoradas, γc = 1,5 y γs = 1,15; hormigón sin tracción y acero birrectilíneo sin endurecimiento. El modelo es del lado seguro sólo si la armadura va donde el modelo pone el tirante y se ancla de verdad.",
-              "Región D por dos criterios que se muestran separados: viga de gran canto si L ≤ 3h (Anejo 19, art. 5.3.1(3)) y carga a menos de 2d del apoyo (Montoya §24.9.3).",
-              "z adoptado: el menor entre el tope del nudo superior (ec. 6.60) y 0,6·L (Montoya §24.7.3.a). Tirante corrido de apoyo a apoyo, sin escalonar.",
-              "Si clasifica como viga pared se topa fyd en 400 MPa (Montoya §24.7.3.c).",
-              "Nudos de apoyo con los dos topes, 0,85·ν′·fcd (Anejo 19) y 0,7·fcd (Montoya): se cruzan en fck ≈ 44 MPa y se exige el peor.",
-              "Anclaje con α3 = α4 = α5 = 1,00, desde la cara del apoyo (Anejo 19, art. 6.5.4(7)) y desde el eje (Montoya §24.7.3.e); manda el peor. La geometría de la horquilla es una lectura de la fig. 24.25b de Montoya: VERIFICAR antes de acotar un plano.",
+              "Todo por el Anejo 19. Región D por dos criterios que se muestran separados: viga de gran canto si L ≤ 3h (art. 5.3.1(3)) y carga a menos de 2d del apoyo (art. 6.2.2(6)).",
+              "z sale del tope del nudo superior (ec. 6.60); fyd = fyk/γs. Tirante corrido de apoyo a apoyo, sin escalonar.",
+              "Nudos de apoyo CCT con 0,85·ν′·fcd (ec. 6.61).",
+              "Anclaje con α3 = α4 = α5 = 1,00, desde la cara interior del apoyo (art. 6.5.4(7)). La horquilla se dobla en planta: es una decisión de despiece, VERIFICAR antes de acotar un plano.",
               "Ancho de reparto de la tracción transversal mín(h; L/2): criterio, no valor de norma. VERIFICAR contra la fig. A19.6.25.",
-              "Carga colgada: 100 % suspendida; apoyo indirecto: 45 % directa y 65 % colgada (Montoya §24.9.1).",
+              "Carga colgada o apoyo indirecto: se cuelga toda la reacción mutua (art. 9.2.5(1)).",
+              "Dos reglas de detalle de Montoya, sin equivalente en el Anejo, quedan como avisos que no entran en el cumple: el tirante repartido en 0,12·l (§24.7.3.e) y h ≥ 1,2·a en la carga colgada (§24.9.1).",
             ]}
             avisos={avisos}
           />
@@ -321,9 +331,7 @@ export default function VigaApeoBielasPage() {
                     titulo="Ver los dos criterios de región D"
                     filas={[
                       { etiqueta: "Anejo 19 art. 5.3.1(3): viga de gran canto si L ≤ 3·h", valor: resultado.r.region.esGranCantoAnejo19 ? "Sí, viga de gran canto" : "No, es viga" },
-                      { etiqueta: "Montoya §24.7.1: viga pared si L/h < 2", valor: resultado.r.region.esGranCantoMontoya ? "Sí, viga pared" : "No" },
-                      { etiqueta: "Luz de cálculo de Montoya, mín(ejes; 1,15·luz libre)", valor: `${fmt(resultado.r.region.luzMontoyaM)} m` },
-                      { etiqueta: "Montoya §24.9.3: carga a menos de 2·d del apoyo", valor: resultado.r.region.cargaProximaAlApoyo ? "Sí, biela directa al apoyo" : "No" },
+                      { etiqueta: "Art. 6.2.2(6): carga a menos de 2·d del apoyo", valor: resultado.r.region.cargaProximaAlApoyo ? "Sí, biela directa al apoyo" : "No" },
                     ]}
                   />
                 </div>
@@ -334,7 +342,7 @@ export default function VigaApeoBielasPage() {
                   <ResultadoCheck
                     etiqueta="Tirante · armadura suficiente"
                     verifica={resultado.r.tirante.verificaAs}
-                    detalle={resultado.r.tirante.topeAplicado ? "Viga pared: se aplica el tope fyd ≯ 400 MPa de Montoya." : "No es viga pared: fyd pleno."}
+                    detalle="As = T/fyd, con fyd = fyk/γs."
                     comparacion={{ real: { etiqueta: "As real", valor: resultado.r.tirante.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
                     recomendaciones={propuestas.tirante}
                   />
@@ -344,12 +352,10 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "Reacción izquierda / derecha", valor: `${fmt(resultado.r.modelo.reaccionIzqKN, 0)} / ${fmt(resultado.r.modelo.reaccionDerKN, 0)} kN` },
                       { etiqueta: "Momento bajo el pilar", valor: `${fmt(resultado.r.modelo.momentoKNm, 0)} kN·m` },
                       { etiqueta: "z por tope del nudo superior (ec. 6.60)", valor: `${fmt(resultado.r.modelo.zNudoM, 3)} m` },
-                      { etiqueta: "z por Montoya §24.7.3.a (0,6·L)", valor: resultado.r.modelo.zMontoyaM === null ? "no aplica" : `${fmt(resultado.r.modelo.zMontoyaM, 3)} m` },
-                      { etiqueta: "z adoptado (el menor)", valor: `${fmt(resultado.r.modelo.zAdoptadoM, 3)} m` },
+                      { etiqueta: "z adoptado", valor: `${fmt(resultado.r.modelo.zAdoptadoM, 3)} m` },
                       { etiqueta: "Tracción del tirante T = R/tg θ", valor: `${fmt(resultado.r.modelo.traccionTiranteKN, 0)} kN` },
-                      { etiqueta: "As con fyd = fyk/γs", valor: `${fmt(resultado.r.tirante.asNecEc2Cm2)} cm²` },
-                      { etiqueta: "As con fyd ≯ 400 MPa (Montoya §24.7.3.c)", valor: `${fmt(resultado.r.tirante.asNecMontoyaCm2)} cm²` },
-                      { etiqueta: "Altura de reparto del tirante (0,12·L)", valor: `${fmt(resultado.r.tirante.alturaRepartoM)} m` },
+                      { etiqueta: "As = T/fyd", valor: `${fmt(resultado.r.tirante.asNecCm2)} cm²` },
+                      { etiqueta: "Franja de reparto 0,12·l (aviso de Montoya)", valor: `${fmt(resultado.r.tirante.alturaRepartoM)} m` },
                       { etiqueta: "Separación libre mínima, art. 8.2(2)", valor: `${fmt(resultado.r.tirante.capas.separacionLibreMinimaMm, 0)} mm` },
                       ...resultado.r.tirante.capas.capas.map((c, i) => ({
                         etiqueta: `Capa ${i + 1} — ${c.numero}Ø${fmt(c.diametroMm, 0)} a ${fmt(c.brazoDesdeElBordeM, 4)} m del borde`,
@@ -377,25 +383,15 @@ export default function VigaApeoBielasPage() {
                     recomendaciones={propuestas.nudoSuperior}
                   />
                   <ResultadoCheck
-                    etiqueta="Nudo de apoyo izquierdo · Anejo 19 (CCT, k2 = 0,85)"
+                    etiqueta="Nudo de apoyo izquierdo (CCT, k2 = 0,85)"
                     verifica={resultado.r.bielas.nudoApoyoIzq.verifica}
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzq.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
                     recomendaciones={propuestas.nudoApoyoIzq}
                   />
                   <ResultadoCheck
-                    etiqueta="Nudo de apoyo izquierdo · Montoya (0,7·fcd)"
-                    verifica={resultado.r.bielas.nudoApoyoIzqMontoya.verifica}
-                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoIzqMontoya.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
-                  />
-                  <ResultadoCheck
-                    etiqueta="Nudo de apoyo derecho · el más desfavorable de los dos topes"
-                    verifica={resultado.r.bielas.nudoApoyoDer.verifica && resultado.r.bielas.nudoApoyoDerMontoya.verifica}
-                    detalle={`topes ${fmt(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa)} (Anejo 19) y ${fmt(resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa)} (Montoya) MPa`}
-                    comparacion={{
-                      real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoDer.sigmaMPa },
-                      limite: { etiqueta: "σ máx", valor: Math.min(resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa, resultado.r.bielas.nudoApoyoDerMontoya.sigmaMaxMPa) },
-                      unidad: "MPa", exige: "≤",
-                    }}
+                    etiqueta="Nudo de apoyo derecho (CCT, k2 = 0,85)"
+                    verifica={resultado.r.bielas.nudoApoyoDer.verifica}
+                    comparacion={{ real: { etiqueta: "σ", valor: resultado.r.bielas.nudoApoyoDer.sigmaMPa }, limite: { etiqueta: "σ máx", valor: resultado.r.bielas.nudoApoyoDer.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
                     recomendaciones={propuestas.nudoApoyoDer}
                   />
                   <PanelFormulas
@@ -405,7 +401,6 @@ export default function VigaApeoBielasPage() {
                       { etiqueta: "Inclinación θ izq. / der.", valor: `${fmt(resultado.r.modelo.anguloBielaIzqGrados, 1)}° / ${fmt(resultado.r.modelo.anguloBielaDerGrados, 1)}°` },
                       { etiqueta: "Compresión en biela izq. / der.", valor: `${fmt(resultado.r.modelo.compresionBielaIzqKN, 0)} / ${fmt(resultado.r.modelo.compresionBielaDerKN, 0)} kN` },
                       { etiqueta: "Ancho de biela en el nudo izq. / der.", valor: `${fmt(resultado.r.bielas.anchoBielaIzqM, 3)} / ${fmt(resultado.r.bielas.anchoBielaDerM, 3)} m` },
-                      { etiqueta: "Nudo de apoyo: criterio que gobierna", valor: resultado.r.bielas.gobiernaMontoyaEnNudos ? "Montoya, 0,7·fcd" : "Anejo 19, 0,85·ν′·fcd" },
                     ]}
                   />
                   <ResultadoCheck
@@ -420,7 +415,7 @@ export default function VigaApeoBielasPage() {
                       <ResultadoCheck
                         etiqueta="Estribos de cuelgue suficientes"
                         verifica={resultado.r.cuelgue.verificaAs}
-                        detalle={`Se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
+                        detalle={`Art. 9.2.5(1): se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
                         comparacion={{ real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 }, unidad: "cm²", exige: "≥" }}
                         recomendaciones={propuestas.cuelgue}
                       />
@@ -446,11 +441,6 @@ export default function VigaApeoBielasPage() {
                   {resultado.r.tirante.capas.capas.length > 1 && (
                     <>
                       <ResultadoCheck
-                        etiqueta="Las dos capas entran en la franja de reparto"
-                        verifica={resultado.r.tirante.capas.verificaDentroDelReparto}
-                        comparacion={{ real: { etiqueta: "ocupan", valor: resultado.r.tirante.capas.alturaOcupadaM }, limite: { etiqueta: "0,12·L", valor: resultado.r.tirante.alturaRepartoM }, unidad: "m", exige: "≤", decimales: 3 }}
-                      />
-                      <ResultadoCheck
                         etiqueta="Mismo número de barras por capa (pasa el vibrador)"
                         verifica={resultado.r.tirante.capas.mismasBarrasPorCapa}
                         detalle="art. 8.2(3): las barras de las dos capas, en la misma vertical"
@@ -459,28 +449,28 @@ export default function VigaApeoBielasPage() {
                   )}
                   <ResultadoCheck
                     etiqueta="Anclaje recto · apoyo izquierdo"
-                    verifica={resultado.r.anclaje.recto.verificaIzq && resultado.r.anclaje.recto.verificaIzqMontoya}
-                    detalle={`${fmt(resultado.r.anclaje.disponibleIzqM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaIzqM * 1000, 0)} mm desde el eje (Montoya)`}
-                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleIzqM, resultado.r.anclaje.disponibleMontoyaIzqM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
+                    verifica={resultado.r.anclaje.recto.verificaIzq}
+                    detalle="Desde la cara interior del apoyo, art. 6.5.4(7)."
+                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: resultado.r.anclaje.disponibleIzqM * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
                     recomendaciones={propuestas.anclajeIzq}
                   />
                   <ResultadoCheck
                     etiqueta="Anclaje recto · apoyo derecho"
-                    verifica={resultado.r.anclaje.recto.verificaDer && resultado.r.anclaje.recto.verificaDerMontoya}
-                    detalle={`${fmt(resultado.r.anclaje.disponibleDerM * 1000, 0)} mm desde la cara (Anejo 19) y ${fmt(resultado.r.anclaje.disponibleMontoyaDerM * 1000, 0)} mm desde el eje (Montoya)`}
-                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: Math.min(resultado.r.anclaje.disponibleDerM, resultado.r.anclaje.disponibleMontoyaDerM) * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
+                    verifica={resultado.r.anclaje.recto.verificaDer}
+                    detalle="Desde la cara interior del apoyo, art. 6.5.4(7)."
+                    comparacion={{ real: { etiqueta: "lbd", valor: resultado.r.anclaje.recto.lbdMm }, limite: { etiqueta: "disponible", valor: resultado.r.anclaje.disponibleDerM * 1000 }, unidad: "mm", exige: "≤", decimales: 0 }}
                     recomendaciones={propuestas.anclajeDer}
                   />
                   {!resultado.r.anclaje.verificaRecto && (
                     <>
                       <ResultadoCheck
                         etiqueta="Anclaje con horquilla · apoyo izquierdo"
-                        verifica={resultado.r.anclaje.horquilla.verificaIzq && resultado.r.anclaje.horquilla.verificaIzqMontoya}
+                        verifica={resultado.r.anclaje.horquilla.verificaIzq}
                         detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleIzqMm, 0)} mm`}
                       />
                       <ResultadoCheck
                         etiqueta="Anclaje con horquilla · apoyo derecho"
-                        verifica={resultado.r.anclaje.horquilla.verificaDer && resultado.r.anclaje.horquilla.verificaDerMontoya}
+                        verifica={resultado.r.anclaje.horquilla.verificaDer}
                         detalle={`lbd ${fmt(resultado.r.anclaje.horquilla.lbdMm, 0)} mm · desarrollo ${fmt(resultado.r.anclaje.geometriaHorquilla.desarrolloDisponibleDerMm, 0)} mm`}
                       />
                       <ResultadoCheck
@@ -525,9 +515,9 @@ export default function VigaApeoBielasPage() {
                   <PanelAyuda titulo="Por qué la horquilla sirve por geometría y no por coeficiente">
                     <p>
                       Doblar la barra sólo bonifica (α1 = 0,7) si cd &gt; 3Ø; con recubrimientos normales
-                      la horquilla exige la misma lbd que la recta. Sirve porque, doblada en planta
-                      (Montoya fig. 24.25b), en el mismo hueco desarrolla 2·ida + el arco del codo,
-                      casi el triple, sin invadir la biela.
+                      la horquilla exige la misma lbd que la recta. Sirve porque, doblada en planta,
+                      en el mismo hueco desarrolla 2·ida + el arco del codo, casi el triple, sin
+                      invadir la biela. Las ramas se miden desde la cara interior del apoyo.
                     </p>
                     <p>
                       El mandril es el mayor entre el de tabla y el de la ec. (8.1); el segundo sólo se
@@ -551,13 +541,13 @@ export default function VigaApeoBielasPage() {
                     verifica={resultado.r.malla.verificaSeparacionHorizontal && resultado.r.malla.verificaSeparacionVertical}
                     comparacion={{ real: { etiqueta: "máx dispuesta", valor: resultado.r.malla.separacionMaxM * 100 }, limite: { etiqueta: "tope", valor: Math.min(30, resultado.n.b * 200) }, unidad: "cm", exige: "≤", decimales: 0 }}
                   />
-                  {resultado.r.cuelgue && (
-                    <ResultadoCheck
-                      etiqueta="Canto suficiente para que se formen las bielas de cuelgue (h ≥ 1,2·a)"
-                      verifica={resultado.r.cuelgue.verificaCantoMinimo}
-                      comparacion={{ real: { etiqueta: "h", valor: resultado.n.h }, limite: { etiqueta: "1,2·a", valor: resultado.r.cuelgue.cantoMinimoM }, unidad: "m", exige: "≥" }}
-                      recomendaciones={propuestas.cantoCuelgue}
-                    />
+                  {resultado.r.cuelgue && resultado.r.cuelgue.cantoMinimoM > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Aviso de buena práctica, criterio de Montoya (§24.9.1) y no del Anejo 19, que no
+                      entra en el cumple: h = {fmt(resultado.n.h)} m{" "}
+                      {resultado.r.cuelgue.cumpleAvisoCantoMinimo ? "≥" : "<"} 1,2·a ={" "}
+                      {fmt(resultado.r.cuelgue.cantoMinimoM)} m para que se formen las bielas de cuelgue.
+                    </p>
                   )}
                 </div>
               </Subgrupo>

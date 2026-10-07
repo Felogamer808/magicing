@@ -15,39 +15,51 @@ import { useCallback, useSyncExternalStore } from "react";
  * una copia desactualizada del proyecto entero.
  */
 
-const CLAVE = "magicing:proyecto-activo:v1";
-const EVENTO_CAMBIO = "magicing:proyecto-activo";
-
-function leer(): string | null {
-  try {
-    return window.localStorage.getItem(CLAVE);
-  } catch {
-    return null;
-  }
-}
-
-function suscribir(alCambiar: () => void) {
-  window.addEventListener(EVENTO_CAMBIO, alCambiar);
-  window.addEventListener("storage", alCambiar);
-  return () => {
-    window.removeEventListener(EVENTO_CAMBIO, alCambiar);
-    window.removeEventListener("storage", alCambiar);
-  };
-}
-
-export function useProyectoActivo(): [string | null, (id: string | null) => void] {
-  const id = useSyncExternalStore(suscribir, leer, () => null);
-
-  const elegir = useCallback((nuevo: string | null) => {
+/**
+ * Un id guardado en localStorage, con su hook. Lo comparten el proyecto activo
+ * y el elemento de destino, que funcionan igual.
+ */
+function hookDeId(clave: string, evento: string) {
+  const leer = (): string | null => {
     try {
-      if (nuevo) window.localStorage.setItem(CLAVE, nuevo);
-      else window.localStorage.removeItem(CLAVE);
+      return window.localStorage.getItem(clave);
+    } catch {
+      return null;
+    }
+  };
+
+  const suscribir = (alCambiar: () => void) => {
+    window.addEventListener(evento, alCambiar);
+    window.addEventListener("storage", alCambiar);
+    return () => {
+      window.removeEventListener(evento, alCambiar);
+      window.removeEventListener("storage", alCambiar);
+    };
+  };
+
+  const elegir = (nuevo: string | null) => {
+    try {
+      if (nuevo) window.localStorage.setItem(clave, nuevo);
+      else window.localStorage.removeItem(clave);
     } catch {
       // Sin almacenamiento la elección no sobrevive a la recarga, pero la
       // pantalla igual responde.
     }
-    window.dispatchEvent(new Event(EVENTO_CAMBIO));
-  }, []);
+    window.dispatchEvent(new Event(evento));
+  };
 
-  return [id, elegir];
+  return function useId(): [string | null, (id: string | null) => void] {
+    const id = useSyncExternalStore(suscribir, leer, () => null);
+    return [id, useCallback(elegir, [])];
+  };
 }
+
+export const useProyectoActivo = hookDeId("magicing:proyecto-activo:v1", "magicing:proyecto-activo");
+
+/**
+ * Elemento de destino: el que la barra de las verificaciones propone para
+ * guardar. Lo fija el botón "Calcular" de cada elemento, para que al llegar a
+ * la verificación no haya que volver a elegirlo, y cada guardado lo actualiza.
+ * Si el elemento ya no está en el proyecto activo, la barra no lo usa.
+ */
+export const useElementoDestino = hookDeId("magicing:elemento-destino:v1", "magicing:elemento-destino");

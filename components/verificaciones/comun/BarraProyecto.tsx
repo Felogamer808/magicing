@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Check, FolderOpen, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { leerCamposDeRuta } from "@/lib/hooks/useCampo";
-import { useProyectoActivo } from "@/lib/proyectos/activo";
+import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import { useProyectos } from "@/lib/proyectos/almacen";
 import {
   agregarElemento,
@@ -35,8 +35,13 @@ export function BarraProyecto() {
   const [idActivo] = useProyectoActivo();
   const { proyectos, guardar } = useProyectos();
   const proyecto = proyectos.find((p) => p.id === idActivo) ?? null;
+  const [idDestinoGuardado, elegirDestino] = useElementoDestino();
 
-  const [idElemento, setIdElemento] = useState("");
+  // null: todavía no se tocó el desplegable y se propone el elemento de
+  // destino, el que se eligió con "Calcular" o el último donde se guardó.
+  const [elegido, setIdElemento] = useState<string | null>(null);
+  const destinoValido = proyecto?.elementos.some((e) => e.id === idDestinoGuardado) ? idDestinoGuardado! : "";
+  const idElemento = elegido ?? destinoValido;
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [guardado, setGuardado] = useState<string | null>(null);
 
@@ -60,6 +65,7 @@ export function BarraProyecto() {
     if (!idDestino) return;
 
     guardar(guardarCalculoEnElemento(destino, idDestino, calculo));
+    elegirDestino(idDestino);
     const nombre =
       destino.elementos.find((e) => e.id === idDestino)?.nombre ?? "el elemento";
     setGuardado(nombre);

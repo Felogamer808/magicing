@@ -16,6 +16,12 @@ import {
   type ResultadoPunzonamientoDescentrado,
 } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
 import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
+import {
+  calcularDeslizamiento,
+  calcularVuelcoGeneral,
+  type ResultadoDeslizamiento,
+  type ResultadoVuelco,
+} from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
  * Zapata combinada de dos pilares, según el Anejo 19.
@@ -34,6 +40,14 @@ import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/li
  * - **Punzonamiento** de cada pilar como pilar de borde: perímetro recortado,
  *   β de borde y la presión real de los dos pilares descontada.
  *
+ * Criterios del 2026-10-07:
+ * - Cada pilar puede bajar Mk y Hk en los dos ejes. Mk + Hk·H es el momento en
+ *   la base: corre la resultante del terreno y, a lo largo, entra en la viga
+ *   como un momento concentrado en el pilar, como en la aislada.
+ * - **Vuelco y deslizamiento** por el DB SE-C (estabilidad-zapata.ts):
+ *   estabiliza sólo la parte permanente de cada pilar, sin tierras, situación
+ *   persistente.
+ *
  * x se mide a lo largo desde el borde izquierdo; y a lo ancho desde el borde de
  * la medianera.
  */
@@ -47,6 +61,16 @@ export interface PilarCombinada {
   anchoLargoM: number;
   /** Lado del pilar a lo ancho (m). */
   anchoAnchoM: number;
+  /** Momento característico a lo largo, + hacia el borde derecho (kN·m). Si falta, 0. */
+  MkL?: number;
+  /** Momento característico a lo ancho, + alejándose del borde de inicio (kN·m). Si falta, 0. */
+  MkB?: number;
+  /** Horizontal característica en el arranque, a lo largo, mismo signo que MkL (kN). Si falta, 0. */
+  HkL?: number;
+  /** Horizontal característica en el arranque, a lo ancho, mismo signo que MkB (kN). Si falta, 0. */
+  HkB?: number;
+  /** Parte permanente de Nk: la que estabiliza y frena (kN). Si falta, Nk. */
+  NkPermanente?: number;
 }
 
 export interface GeometriaZapataCombinada {
@@ -79,6 +103,12 @@ export interface DatosZapataCombinada {
   /** Extremo de las barras transversales. Recta si falta. */
   formaAnclaje?: FormaAnclaje;
   tirante?: { brazoM: number; phiGrados: number };
+  /**
+   * Ángulo de rozamiento interno efectivo del terreno, φ′ (grados), para el
+   * deslizamiento. Con tirante manda el del tirante. Sin ninguno de los dos,
+   * el deslizamiento no se evalúa.
+   */
+  phiGrados?: number;
 }
 
 export interface PuntoDiagramaCombinada {
@@ -132,7 +162,13 @@ export interface ResultadoZapataCombinada {
   /** Rebanada de 1 m bajo la sección más cargada. */
   transversal: VuelosDireccion & { gobernante: ResultadoDireccionZapata; cargaPorMetroKN: number };
   punzonamiento: readonly [ResultadoPunzonamientoDescentrado, ResultadoPunzonamientoDescentrado];
-  /** Sólo con tirante: el deslizamiento de toda la zapata y el tirante de cada pilar. */
+  /** Vuelco a lo largo, respecto del extremo hacia el que empujan los momentos. */
+  vuelcoL: ResultadoVuelco;
+  /** Vuelco a lo ancho. Null con tirante: el par impide el giro. */
+  vuelcoB: ResultadoVuelco | null;
+  /** Null sin φ′. */
+  deslizamiento: ResultadoDeslizamiento | null;
+  /** Sólo con tirante: el par de toda la zapata y el tirante de cada pilar. */
   tirante?: { global: ResultadoTiranteRozamiento; porPilar: readonly [TirantePilarCombinada, TirantePilarCombinada] };
 }
 
@@ -156,22 +192,32 @@ export function calcularZapataCombinada(
   ) && bordeB >= 0 && bordeB + cB <= B + 1e-9;
 
   const nTotal = pilares[0].Nk + pilares[1].Nk;
-  const momentoL = pilares.reduce((a, p) => a + p.Nk * (p.posicionM - L / 2), 0);
-  const momentoB = nTotal * e0B;
+  // Momento de cada pilar en la base: el que baja más el de la horizontal, que
+  // tiene brazo H.
+  const mBaseL = pilares.map((p) => (p.MkL ?? 0) + (p.HkL ?? 0) * H);
+  const mBaseB = pilares.map((p) => (p.MkB ?? 0) + (p.HkB ?? 0) * H);
+  const momentoL = pilares.reduce((a, p, i) => a + p.Nk * (p.posicionM - L / 2) + mBaseL[i], 0);
+  const momentoB = nTotal * e0B + mBaseB[0] + mBaseB[1];
+  const nPermanente = pilares.map((p) => p.NkPermanente ?? p.Nk);
+  const hkLTotal = (pilares[0].HkL ?? 0) + (pilares[1].HkL ?? 0);
+  const hkBTotal = (pilares[0].HkB ?? 0) + (pilares[1].HkB ?? 0);
+  const mkBTotal = (pilares[0].MkB ?? 0) + (pilares[1].MkB ?? 0);
 
   // ------------------------------------------------------------- tirante
   const pesoPropioKN = 25 * L * B * H;
   const global = datos.tirante
     ? calcularTiranteRozamiento(materiales, {
-        nkKN: nTotal, pesoZapataKN: pesoPropioKN, momentoCentroKNm: momentoB, mkPilarKNm: 0,
+        nkKN: nTotal, pesoZapataKN: pesoPropioKN, momentoCentroKNm: nTotal * e0B + mkBTotal, mkPilarKNm: 0,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
+        hkKN: hkBTotal, nkEstabilizanteKN: nPermanente[0] + nPermanente[1],
       })
     : undefined;
   const porPilar = global
     ? (pilares.map((p) => {
         const r = calcularTiranteRozamiento(materiales, {
-          nkKN: p.Nk, pesoZapataKN: 0, momentoCentroKNm: p.Nk * e0B, mkPilarKNm: 0,
+          nkKN: p.Nk, pesoZapataKN: 0, momentoCentroKNm: p.Nk * e0B + (p.MkB ?? 0), mkPilarKNm: p.MkB ?? 0,
           brazoM: datos.tirante!.brazoM, cantoZapataM: H, phiGrados: datos.tirante!.phiGrados,
+          hkKN: p.HkB ?? 0,
         });
         return { tkKN: r.tkKN, tdKN: r.tdKN, asTiranteCm2: r.asTiranteCm2, mPilarArranqueKNm: r.mPilarArranqueKNm, vPilarKN: r.vPilarKN };
       }) as unknown as readonly [TirantePilarCombinada, TirantePilarCombinada])
@@ -194,7 +240,9 @@ export function calcularZapataCombinada(
   const sDe = (x: number) => (excCalculoL >= 0 ? x : L - x);
   const w = (x: number) => B * presionEn(distL, L, sDe(x));
 
-  const cargas = pilares.map((p) => ({ x: p.posicionM, nd: GAMMA_F * p.Nk }));
+  // Un momento en la base que empuja hacia el extremo derecho gira la viga en
+  // sentido horario: suma al momento de las secciones a su derecha.
+  const cargas = pilares.map((p, i) => ({ x: p.posicionM, nd: GAMMA_F * p.Nk, md: GAMMA_F * mBaseL[i] }));
   const xs = new Set<number>();
   for (let i = 0; i <= PASOS; i++) xs.add((L * i) / PASOS);
   for (const c of cargas) xs.add(c.x);
@@ -208,10 +256,15 @@ export function calcularZapataCombinada(
     const dV = ((w(x0) + w(x1)) / 2) * (x1 - x0);
     M += (V + dV / 2) * (x1 - x0);
     V += dV;
-    for (const c of cargas) if (Math.abs(c.x - x1) < 1e-9) V -= c.nd;
+    for (const c of cargas) {
+      if (Math.abs(c.x - x1) < 1e-9) {
+        V -= c.nd;
+        M += c.md;
+      }
+    }
     puntos.push({ xM: x1, vKN: V, mKNm: M });
   }
-  /** Valor interpolado en x. Las secciones que se piden nunca caen sobre un pilar, donde V salta. */
+  /** Valor interpolado en x. Las secciones que se piden nunca caen sobre un pilar, donde V y M saltan. */
   const valorEn = (x: number, campo: "vKN" | "mKNm") => {
     const j = puntos.findIndex((p) => p.xM >= x);
     if (j <= 0) return puntos[Math.max(j, 0)][campo];
@@ -281,9 +334,14 @@ export function calcularZapataCombinada(
   };
   // La transversal va sobre la longitudinal inferior.
   const dT = H - recubrimiento - datos.inferior.diametroMm / 1000 - datos.transversal.diametroMm / 2000;
+  // El momento a lo ancho se reparte con la carga: la rebanada tiene la misma
+  // excentricidad que toda la zapata. Con tirante, el par lo toma entero y la
+  // presión queda uniforme.
   const vuelosT = calcularVuelosDireccion(
     materiales, B, 1, H, cB, bordeB, dT, recubrimiento,
-    cargaPorMetroKN, global ? -cargaPorMetroKN * e0B : 0, armadoT, datos.formaAnclaje ?? "recta"
+    cargaPorMetroKN,
+    global ? -cargaPorMetroKN * e0B : (cargaPorMetroKN * (mBaseB[0] + mBaseB[1])) / nTotal,
+    armadoT, datos.formaAnclaje ?? "recta"
   );
   const gobernante = vuelosT.fin.momentoKNm >= vuelosT.inicio.momentoKNm ? vuelosT.fin : vuelosT.inicio;
 
@@ -295,11 +353,37 @@ export function calcularZapataCombinada(
       bordeA: p.posicionM - p.anchoLargoM / 2, bordeB,
       dA: dInf, dB: dT,
       nk: p.Nk, nkPresiones: nTotal,
-      mkA: 0, mkB: porPilar ? porPilar[i].mPilarArranqueKNm : 0,
-      excCalculoA: excCalculoL, excCalculoB: global ? 0 : e0B,
+      mkA: p.MkL ?? 0, mkB: porPilar ? porPilar[i].mPilarArranqueKNm : p.MkB ?? 0,
+      excCalculoA: excCalculoL, excCalculoB: global ? 0 : momentoB / nTotal,
       asRealACm2: inferior.flexion.asRealCm2, asRealBCm2: asTransversalTotalCm2,
     })
   ) as unknown as readonly [ResultadoPunzonamientoDescentrado, ResultadoPunzonamientoDescentrado];
+
+  // ------------------------------------------- vuelco y deslizamiento
+  const estabilizantes = (posicion: (p: PilarCombinada) => number) =>
+    pilares.map((p, i) => ({ posicionM: posicion(p), nkPermanenteKN: nPermanente[i] }));
+  const vuelcoL = calcularVuelcoGeneral({
+    dimM: L, momentoBaseKNm: mBaseL[0] + mBaseL[1],
+    cargas: estabilizantes((p) => p.posicionM), pesoZapataKN: pesoPropioKN,
+  });
+  const vuelcoB = global
+    ? null
+    : calcularVuelcoGeneral({
+        dimM: B, momentoBaseKNm: mBaseB[0] + mBaseB[1],
+        cargas: estabilizantes(() => bordeB + cB / 2), pesoZapataKN: pesoPropioKN,
+      });
+  const phiGrados = datos.tirante?.phiGrados ?? datos.phiGrados;
+  const deslizamiento =
+    phiGrados === undefined
+      ? null
+      : calcularDeslizamiento({
+          horizontalAKN: hkLTotal,
+          // Con tirante, lo que la base frena a lo ancho es el tirante más la horizontal.
+          horizontalBKN: global ? global.horizontalBaseKN : hkBTotal,
+          nkPermanenteKN: nPermanente[0] + nPermanente[1],
+          pesoZapataKN: pesoPropioKN,
+          phiGrados,
+        });
 
   // Diagrama aliviado para dibujar: no hacen falta 2000 puntos.
   const paso = Math.max(1, Math.floor(puntos.length / 200));
@@ -318,6 +402,9 @@ export function calcularZapataCombinada(
     cortante,
     transversal: { ...vuelosT, gobernante, cargaPorMetroKN },
     punzonamiento,
+    vuelcoL,
+    vuelcoB,
+    deslizamiento,
     ...(global && porPilar ? { tirante: { global, porPilar } } : {}),
   };
 }

@@ -95,3 +95,84 @@ describe("zapata combinada de medianera (caso Z.5: 0,80 × 3,10 × 0,30)", () =>
     for (const p of con.punzonamiento) expect(p.situacion).not.toBe("interior");
   });
 });
+
+describe("zapata combinada: momentos, horizontales, vuelco y deslizamiento", () => {
+  const geometria = { L: 6, B: 1, H: 0.6, recubrimiento: 0.05 };
+  const pilar = { Nk: 200, NkPermanente: 150, anchoLargoM: 0.4, anchoAnchoM: 0.4 };
+  const armado = {
+    inferior: { numero: 6, diametroMm: 16 },
+    superior: { numero: 6, diametroMm: 12 },
+    transversal: { diametroMm: 12, separacionM: 0.2 },
+    phiGrados: 30,
+  };
+  // Mk 30 en P1 y Hk 50 en P2: en la base, 30 + 50·0,6 = 60 kN·m hacia la derecha.
+  const r = calcularZapataCombinada(materiales, geometria, 300, {
+    ...armado,
+    pilares: [{ ...pilar, posicionM: 1, MkL: 30 }, { ...pilar, posicionM: 5, HkL: 50 }],
+  });
+
+  it("el momento en la base corre la resultante: e = 60 / (400 + 90)", () => {
+    expect(r.geotecnico.excentricidadLM).toBeCloseTo(60 / 490, 9);
+  });
+
+  it("la viga cierra en equilibrio: V y M vuelven a cero en el extremo derecho", () => {
+    const ultimo = r.diagrama[r.diagrama.length - 1];
+    expect(ultimo.xM).toBeCloseTo(6, 9);
+    expect(ultimo.vKN).toBeCloseTo(0, 6);
+    expect(ultimo.mKNm).toBeCloseTo(0, 2);
+  });
+
+  it("vuelco a lo largo: Mstb = 150·5 + 150·1 + 90·3 = 1170, Mdst = 60", () => {
+    expect(r.vuelcoL.borde).toBe("fin");
+    expect(r.vuelcoL.momentoDesestabilizadorKNm).toBeCloseTo(60, 9);
+    expect(r.vuelcoL.momentoEstabilizadorKNm).toBeCloseTo(1170, 9);
+    expect(r.vuelcoL.verifica).toBe(true);
+    expect(r.vuelcoB?.borde).toBe("ninguno");
+  });
+
+  it("deslizamiento: 50 kN contra (300 + 90)·tan 22,5° / 1,5", () => {
+    expect(r.deslizamiento?.horizontalKN).toBeCloseTo(50, 9);
+    expect(r.deslizamiento?.rozamientoCalculoKN).toBeCloseTo((390 * Math.tan((22.5 * Math.PI) / 180)) / 1.5, 9);
+    expect(r.deslizamiento?.verifica).toBe(true);
+  });
+
+  it("vuelco a lo ancho: Hk 100 en cada pilar no verifica (1,8·120 > 0,9·195)", () => {
+    const v = calcularZapataCombinada(materiales, geometria, 300, {
+      ...armado,
+      pilares: [{ ...pilar, posicionM: 1, HkB: 100 }, { ...pilar, posicionM: 5, HkB: 100 }],
+    });
+    expect(v.vuelcoB?.momentoDesestabilizadorKNm).toBeCloseTo(120, 9);
+    expect(v.vuelcoB?.momentoEstabilizadorKNm).toBeCloseTo(150 * 0.5 * 2 + 90 * 0.5, 9);
+    expect(v.vuelcoB?.verifica).toBe(false);
+    expect(v.deslizamiento?.horizontalKN).toBeCloseTo(200, 9);
+  });
+
+  it("sin φ′ el deslizamiento no se evalúa", () => {
+    const { phiGrados: _phi, ...sinPhi } = armado;
+    const s = calcularZapataCombinada(materiales, geometria, 300, {
+      ...sinPhi,
+      pilares: [{ ...pilar, posicionM: 1 }, { ...pilar, posicionM: 5 }],
+    });
+    expect(s.deslizamiento).toBeNull();
+  });
+
+  it("con tirante: no hay vuelco a lo ancho y la base frena Tk + Hk", () => {
+    // Caso Z.5 con Hk 10 en cada pilar: Tk = (141·0,325 − 20·0,3)/3 = 13,275.
+    const t = calcularZapataCombinada(
+      materiales,
+      { L: 3.1, B: 0.8, H: 0.3, recubrimiento: 0.04, distanciaBordeB: 0 },
+      150,
+      {
+        ...armado,
+        pilares: [
+          { posicionM: 0.3, Nk: 65, anchoLargoM: 0.6, anchoAnchoM: 0.15, HkB: 10 },
+          { posicionM: 2.8, Nk: 76, anchoLargoM: 0.6, anchoAnchoM: 0.15, HkB: 10 },
+        ],
+        tirante: { brazoM: 3, phiGrados: 30 },
+      }
+    );
+    expect(t.vuelcoB).toBeNull();
+    expect(t.tirante?.global.tkKN).toBeCloseTo((141 * 0.325 - 20 * 0.3) / 3, 9);
+    expect(t.deslizamiento?.horizontalKN).toBeCloseTo((141 * 0.325 - 20 * 0.3) / 3 + 20, 9);
+  });
+});

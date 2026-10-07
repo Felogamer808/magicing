@@ -65,14 +65,31 @@ export interface ResultadoVuelco {
   verifica: boolean;
 }
 
+/** Una carga vertical permanente sobre la zapata, para el vuelco. */
+export interface CargaEstabilizante {
+  /** Posición del eje del pilar, medida desde el borde de inicio (m) */
+  posicionM: number;
+  /** Carga permanente característica: la que estabiliza (kN) */
+  nkPermanenteKN: number;
+}
+
+export interface DatosVuelcoGeneral {
+  /** Lado de la zapata en esta dirección (m) */
+  dimM: number;
+  /** Momento característico en la base, Σ(Mk + Hk·H), + hacia el borde final (kN·m) */
+  momentoBaseKNm: number;
+  cargas: readonly CargaEstabilizante[];
+  pesoZapataKN: number;
+}
+
 /**
- * Vuelco en una dirección. Todas las cargas verticales caen dentro de la base,
- * así que respecto de un borde todas estabilizan, también la del pilar
- * descentrado: su brazo es la distancia del eje del pilar a ese borde.
+ * Vuelco en una dirección con cualquier número de pilares. Todas las cargas
+ * verticales caen dentro de la base, así que respecto de un borde todas
+ * estabilizan, también la de un pilar descentrado: su brazo es la distancia de
+ * su eje a ese borde. Lo que vuelca son los momentos y las horizontales.
  */
-export function calcularVuelco(datos: DatosVuelco): ResultadoVuelco {
-  const { direccion: d, nkPermanenteKN, pesoZapataKN, cantoM } = datos;
-  const momentoBaseKNm = d.mkKNm + d.hkKN * cantoM;
+export function calcularVuelcoGeneral(datos: DatosVuelcoGeneral): ResultadoVuelco {
+  const { dimM, momentoBaseKNm, cargas, pesoZapataKN } = datos;
 
   if (momentoBaseKNm === 0) {
     return {
@@ -82,8 +99,9 @@ export function calcularVuelco(datos: DatosVuelco): ResultadoVuelco {
   }
 
   const borde = momentoBaseKNm > 0 ? "fin" : "inicio";
-  const brazoPilarM = borde === "fin" ? d.dimM - d.posicionPilarM : d.posicionPilarM;
-  const momentoEstabilizadorKNm = nkPermanenteKN * brazoPilarM + (pesoZapataKN * d.dimM) / 2;
+  const brazo = (posicionM: number) => (borde === "fin" ? dimM - posicionM : posicionM);
+  const momentoEstabilizadorKNm =
+    cargas.reduce((a, c) => a + c.nkPermanenteKN * brazo(c.posicionM), 0) + (pesoZapataKN * dimM) / 2;
   const momentoDesestabilizadorKNm = Math.abs(momentoBaseKNm);
 
   const efectoEstabilizadorKNm = GAMMA_E_VUELCO_ESTABILIZADORAS * momentoEstabilizadorKNm;
@@ -98,6 +116,17 @@ export function calcularVuelco(datos: DatosVuelco): ResultadoVuelco {
     aprovechamiento: efectoEstabilizadorKNm > 0 ? efectoDesestabilizadorKNm / efectoEstabilizadorKNm : Infinity,
     verifica: efectoDesestabilizadorKNm <= efectoEstabilizadorKNm,
   };
+}
+
+/** Vuelco en una dirección de una zapata con un solo pilar. */
+export function calcularVuelco(datos: DatosVuelco): ResultadoVuelco {
+  const { direccion: d, nkPermanenteKN, pesoZapataKN, cantoM } = datos;
+  return calcularVuelcoGeneral({
+    dimM: d.dimM,
+    momentoBaseKNm: d.mkKNm + d.hkKN * cantoM,
+    cargas: [{ posicionM: d.posicionPilarM, nkPermanenteKN }],
+    pesoZapataKN,
+  });
 }
 
 export interface DatosDeslizamiento {

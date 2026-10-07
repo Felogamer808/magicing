@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
+import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { useProyectoActivo } from "@/lib/proyectos/activo";
@@ -235,8 +236,9 @@ export default function ProyectoPage() {
 
           {proyecto.elementos.length === 0 ? (
             <p className="rounded-md border p-3 text-xs text-muted-foreground">
-              Todavía no hay elementos. Agregá el primero —una viga, un pilar, una zapata— y después
-              vas a poder guardarle cálculos desde cada verificación.
+              Todavía no hay elementos. Agregá el primero —una viga, un pilar, una zapata— y con
+              su botón Calcular elegís la verificación: el cálculo se guarda en el elemento desde la
+              barra de arriba de la página.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -289,6 +291,8 @@ export default function ProyectoPage() {
                       </div>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                  <CalcularElemento idProyecto={proyecto.id} elemento={elemento} />
                   <button
                     type="button"
                     onClick={() => guardar(eliminarElemento(proyecto, elemento.id))}
@@ -298,6 +302,7 @@ export default function ProyectoPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                     Eliminar
                   </button>
+                  </div>
                 </li>
               ))}
             </ul>

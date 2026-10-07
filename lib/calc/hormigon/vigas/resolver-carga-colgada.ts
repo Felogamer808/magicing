@@ -17,13 +17,14 @@ export function resolverCargaColgada(campos: Record<string, string>) {
     diametroEstribo: num("diametroEstribo"),
     numeroRamas: num("numeroRamas"),
     h: num("h"),
+    h2: num("h2"),
     a: num("a"),
   };
   if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) return null;
 
   const r = calcularCuelgue(
     { fykMPa: v.fyk },
-    { hM: v.h, aM: v.a },
+    { hM: v.h, h2M: v.h2, aM: v.a },
     { reaccionKN: v.reaccion, diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas }
   );
   return { v, r };

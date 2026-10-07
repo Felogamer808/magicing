@@ -204,7 +204,7 @@ export function CroquisCargaColgada() {
     <Croquis
       viewBox="0 0 258 136"
       ancho="max-w-[17rem]"
-      nota="Rd se cuelga con estribos que suben hasta la cara comprimida opuesta a la carga. h es el canto de la viga que cuelga; a, el ancho de la pieza colgada."
+      nota="Rd se cuelga con cercos que suben hasta la cara comprimida opuesta a la carga. h1 es el canto de la viga que recibe; h2, el de la que llega; a, su ancho."
     >
       <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
       <rect x={xColgH0} y={yBot} width={xColgH1 - xColgH0} height={yColgB - yBot} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
@@ -218,7 +218,8 @@ export function CroquisCargaColgada() {
         Rd
       </text>
 
-      <CotaV x={44} y0={yTop} y1={yBot} texto="h" />
+      <CotaV x={44} y0={yTop} y1={yBot} texto="h1" />
+      <CotaV x={80} y0={yBot} y1={yColgB} texto="h2" />
       <CotaH x0={xColgH0} x1={xColgH1} y={yColgB + 10} texto="a" />
       <Referencia x={182} y={yTop + 10} hacia={[x1, yTop + 4]} texto="compresión" />
       <Referencia x={182} y={60} hacia={[124, 60]} texto="cuelgue" />

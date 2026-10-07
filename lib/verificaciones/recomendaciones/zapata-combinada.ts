@@ -33,6 +33,8 @@ type ClaveVuelo = `${Lado}.${"as" | "anclaje" | "corte"}`;
 export type ClaveCombinada =
   | "tension"
   | "deslizamiento"
+  | "vuelcoL"
+  | "vuelcoB"
   | "inferior"
   | "superior"
   | "cortante"
@@ -51,6 +53,8 @@ const NOMBRE_LADO: Record<Lado, string> = {
 const NOMBRES: Record<ClaveCombinada, string> = {
   tension: "tensión del terreno",
   deslizamiento: "deslizamiento",
+  vuelcoL: "vuelco a lo largo",
+  vuelcoB: "vuelco a lo ancho",
   inferior: "armadura inferior",
   superior: "armadura superior",
   cortante: "cortante a lo largo",
@@ -98,7 +102,10 @@ function utilizaciones(e: EntradaZapataCombinada) {
         : utilizacionesVuelo("gobernante", z.transversal.gobernante)),
     };
     if (z.superior.necesaria) u.superior = z.superior.flexion.asNecCm2 / z.superior.flexion.asRealCm2;
-    if (z.tirante) u.deslizamiento = Math.abs(z.tirante.global.tkKN) / z.tirante.global.rozamientoResistenteKN;
+    // Sin horizontal no hay deslizamiento que proponer, y sin momentos no hay vuelco.
+    if (z.deslizamiento && z.deslizamiento.horizontalKN > 0) u.deslizamiento = z.deslizamiento.aprovechamiento;
+    if (z.vuelcoL.borde !== "ninguno") u.vuelcoL = z.vuelcoL.aprovechamiento;
+    if (z.vuelcoB && z.vuelcoB.borde !== "ninguno") u.vuelcoB = z.vuelcoB.aprovechamiento;
     z.punzonamiento.forEach((p, i) => {
       const n = (i + 1) as 1 | 2;
       if (!p.motivoNoEvaluado) u[`punzonamiento${n}`] = p.vEdKN / p.vRdCKN;
@@ -271,7 +278,10 @@ function palancaPilar(i: 0 | 1, campo: "anchoAnchoM" | "anchoLargoM"): Palanca<E
 
 function palancasPorClave(clave: ClaveCombinada): Palanca<EntradaZapataCombinada>[] {
   if (clave === "tension") return [PALANCA_B, PALANCA_L];
-  if (clave === "deslizamiento") return [PALANCA_BRAZO_TIRANTE];
+  // Más zapata es más peso que frena y estabiliza; más ancho o más largo, además, más brazo.
+  if (clave === "deslizamiento") return [PALANCA_BRAZO_TIRANTE, PALANCA_B, PALANCA_L, PALANCA_H];
+  if (clave === "vuelcoL") return [PALANCA_L, PALANCA_H];
+  if (clave === "vuelcoB") return [PALANCA_B, PALANCA_H];
   if (clave === "inferior" || clave === "superior") return [...palancasArmadura(clave), PALANCA_H];
   if (clave === "cortante") return [PALANCA_H, PALANCA_FCK];
   if (clave.endsWith(".as")) return [PALANCA_SEPARACION, PALANCA_DIAMETRO_TRANSVERSAL, PALANCA_H];

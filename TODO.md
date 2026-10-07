@@ -43,11 +43,12 @@ Independientes, contra `main`:
   crea al guardar desde la página o desde la vista del proyecto, y si se piensa
   vincular otros casos (pilar → zapata, viga → viga que la apea) para hacerlo
   genérico.
-- **Vuelco y deslizamiento** (hecho en aislada y corrida, 2026-10-07, por el
-  CTE DB SE-C). Falta en la **zapata combinada**, que tiene su propio tirante,
-  y la situación **extraordinaria** (γR = 1,1; 0,9 / 1,2), que se dejó afuera a
-  propósito. Criterios decididos: estabiliza sólo "Nk permanente" (campo
-  aparte, vacío = Nk), sin tierras ni pasivo, sólo situación persistente.
+- **Vuelco y deslizamiento** (hecho en aislada, corrida y combinada,
+  2026-10-07, por el CTE DB SE-C). Falta la situación **extraordinaria**
+  (γR = 1,1; 0,9 / 1,2), que se dejó afuera a propósito. Criterios decididos:
+  estabiliza sólo "Nk permanente" (campo aparte, vacío = Nk), sin tierras ni
+  pasivo, sólo situación persistente. En la combinada cada pilar baja Mk y Hk
+  en los dos ejes, y a lo largo entran en la viga como momento concentrado.
 - **Sacar Montoya/EHE de "viga de apeo" y "ménsula corta".** Las dos arman por
   el mayor entre Anejo 19 y Montoya, y la ménsula topa fyd en 400 MPa:
   mezclan normas. Hay una tarea preparada con el detalle.

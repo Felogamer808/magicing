@@ -20,7 +20,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import {
   type ResultadoMensulaCorta,
 } from "@/lib/calc/hormigon/mensula-corta";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverMensulaCorta } from "@/lib/calc/hormigon/resolver-mensula-corta";
 import { recomendarMensulaCorta, type RecomendacionesMensula } from "@/lib/verificaciones/recomendaciones/mensula-corta";
@@ -52,7 +52,6 @@ export default function Page() {
 
   const [fEd, setFEd] = useCampo("fEd", "450");
   const [hEd, setHEd] = useCampo("hEd", "67,5");
-  const [modoH, setModoH] = useCampo("modoH", "H = 0,15·F automático");
 
   const [fck, setFck] = useCampo("fck", "30");
   const [fyk, setFyk] = useCampo("fyk", "500");
@@ -62,11 +61,9 @@ export default function Page() {
   const [adherencia, setAdherencia] = useCampo("adherencia", "Buena");
   const [soldada, setSoldada] = useCampo("soldada", "No");
 
-  const hAutomatico = modoH.startsWith("H = 0,15");
-
   const campos = useMemo(
-    () => ({ ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada, modoH }),
-    [ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada, modoH]
+    () => ({ ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada }),
+    [ac, hc, h1, b, hcol, ap, bp, rec, fEd, hEd, fck, fyk, phiP, phiE, adherencia, soldada]
   );
   const resultado = useMemo(() => resolverMensulaCorta(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -80,8 +77,16 @@ export default function Page() {
       avisos.push({ tipo: "aviso", texto: "a꜀ supera el canto: no es una ménsula corta y el modelo de bielas y tirantes de esta página deja de aplicar." });
     if (!resultado.r.modelo.tanEnRango)
       avisos.push({ tipo: "aviso", texto: `tg θ = ${fmt(resultado.r.modelo.tanTheta)} queda fuera del rango 1,0–2,5 que pide el §J.3(1).` });
-    if (resultado.r.materiales.topeFydAplicado)
-      avisos.push({ tipo: "aviso", texto: `f_yd topado en 400 MPa: encarece la armadura un ${fmt(resultado.r.materiales.sobrecostoPorTope * 100, 1)} %.` });
+    if (!resultado.r.hormigon.cumpleAvisoD0)
+      avisos.push({
+        tipo: "aviso",
+        texto: `Criterio de Montoya (§24.8.1), no del Anejo 19: d₀ = ${fmt(resultado.r.hormigon.d0M, 3)} m < d/2 = ${fmt(resultado.r.hormigon.d0MinM, 3)} m en el borde de la placa, con riesgo de degollamiento. No entra en el cumple.`,
+      });
+    if (resultado.r.cercos.cercosBajo2d3 > 0)
+      avisos.push({
+        tipo: "aviso",
+        texto: `Criterio de Montoya (§24.8.3.c), no del Anejo 19: ${resultado.r.cercos.cercosBajo2d3} cerco(s) quedan por debajo de 2·d/3 y él no los contaría. El Anejo los cuenta a todos.`,
+      });
   }
 
   return (
@@ -101,9 +106,8 @@ export default function Page() {
 
       <p className="text-sm text-muted-foreground">
         La ménsula corta es una región D: la carga entra concentrada a pocos centímetros de la cara
-        del pilar y no vale Bernoulli. Se resuelve con bielas y tirantes, y el tirante se calcula por
-        los dos métodos que dan la norma y la Instrucción española, que no coinciden: se arma por el
-        más desfavorable.
+        del pilar y no vale Bernoulli. Se resuelve con bielas y tirantes, entera por el Anejo 19
+        (art. J.3 y apartado 6.5).
       </p>
 
       <div className="flex flex-col gap-12">
@@ -137,7 +141,7 @@ export default function Page() {
                   d0MinM={resultado.r.hormigon.d0MinM}
                   fEdKN={resultado.fEdKN}
                   hEdKN={resultado.hEdKN}
-                  traccionTiranteKN={Math.max(resultado.r.tirante.ftdAnejoKN, resultado.r.tirante.ftdInstruccionKN)}
+                  traccionTiranteKN={resultado.r.tirante.ftdKN}
                   compresionBielaKN={resultado.r.hormigon.compresionBielaKN}
                   esMensulaCorta={resultado.r.modelo.esMensulaCorta}
                   tanEnRango={resultado.r.modelo.tanEnRango}
@@ -156,13 +160,13 @@ export default function Page() {
               id="hEd"
               etiqueta="H_Ed — horizontal"
               sufijo="kN"
-              valor={hAutomatico ? fmt(0.15 * aNumero(fEd), 1) : hEd}
+              valor={hEd}
               onChange={setHEd}
-              advertencia={hAutomatico ? "Calculado como 0,15·F_Ed; pasá a manual para editarlo." : undefined}
             />
-            <div className="col-span-2">
-              <CampoSeleccion id="modoH" etiqueta="Acción horizontal" valor={modoH} opciones={["H = 0,15·F automático", "H manual"]} onChange={setModoH} />
-            </div>
+            <p className="col-span-2 text-xs text-muted-foreground">
+              El Anejo 19 no fija un H mínimo: se carga el que corresponda. Es habitual considerar una
+              horizontal por retracción, temperatura o rozamiento del apoyo.
+            </p>
           </div>
         </Etapa>
 
@@ -182,7 +186,7 @@ export default function Page() {
             norma={norma}
             datos={[
               { etiqueta: "a꜀ / h꜀ / b", valor: `${ac} / ${hc} / ${b} m` },
-              { etiqueta: "F_Ed / H_Ed", valor: `${fEd} / ${hAutomatico ? fmt(0.15 * aNumero(fEd), 1) : hEd} kN` },
+              { etiqueta: "F_Ed / H_Ed", valor: `${fEd} / ${hEd} kN` },
               { etiqueta: "f_ck / f_yk", valor: `${fck} / ${fyk} MPa` },
               ...(resultado
                 ? [
@@ -192,10 +196,10 @@ export default function Page() {
                 : []),
             ]}
             hipotesis={[
-              "Modelo de bielas y tirantes con z = 0,8·d. El tirante es el mayor entre el Anejo 19 (§J.3, crece con el vuelo) y la Instrucción española (§24.8.3.b, cotg θ = μ = 1,4): son métodos distintos.",
-              "f_yd topado en 400 MPa en ménsulas cortas (Montoya §24.8.2.d y §24.8.3), además de γ꜀ = 1,50 y γ_s = 1,15 de situación persistente.",
-              "Cuantía mecánica mínima del ACI que recoge Montoya (§24.8.2.c), además de la del art. 9.2.1.1.",
-              "Cercos verticales y horizontales: los verticales solos son inoperantes (Montoya §24.8.1). Mínimo 3 cercos y separación de 150 mm.",
+              "Todo por el Anejo 19: modelo de bielas y tirantes con z = 0,8·d y tirante F_td = F·a꜀/z + H (art. J.3 y 6.5), f_yd = f_yk/γ_s con γ꜀ = 1,50 y γ_s = 1,15, cuantía mínima del art. 9.2.1.1.",
+              "Cercos (art. J.3): con a꜀ ≤ 0,5·h꜀, horizontales con A_s ≥ 0,25·A_s,main; con a꜀ > 0,5·h꜀, verticales con A_s ≥ 0,5·F_Ed/f_yd sólo si F_Ed > V_Rd,c. Mínimo 3 cercos y separación de 150 mm.",
+              "Tope del cortante, ec. (6.5): F_Ed ≤ 0,5·b·d·ν·f_cd (art. 6.2.2(6)).",
+              "Dos reglas de detalle de Montoya, sin equivalente en el Anejo, quedan como avisos que no entran en el cumple: d₀ ≥ d/2 en el borde (degollamiento) y cercos en los 2/3 superiores de d.",
               "El marco es un lazo cerrado y el anclaje se mide sobre el eje de la barra (art. 8.4.3(3)).",
               "No calcula V_Rd,c en la sección de arranque contra el pilar: esa comprobación va aparte.",
             ]}
@@ -245,9 +249,9 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
         horizontal
         metricas={[
           { etiqueta: "θ biela", valor: `${fmt(r.modelo.thetaGrados, 1)}°`, nota: `tg θ ${fmt(r.modelo.tanTheta)}` },
-          { etiqueta: "F_td tirante", valor: `${fmt(Math.max(r.tirante.ftdAnejoKN, r.tirante.ftdInstruccionKN), 1)} kN`, nota: r.tirante.mandaInstruccion ? "manda la Instrucción" : "manda el Anejo 19" },
+          { etiqueta: "F_td tirante", valor: `${fmt(r.tirante.ftdKN, 1)} kN`, nota: "F·a꜀/z + H" },
           { etiqueta: "A_s tirante", valor: `${fmt(r.tirante.asNecCm2)} cm²`, nota: `${r.tirante.numeroBarras}ø${phiP} = ${fmt(r.tirante.asRealCm2)} cm²` },
-          { etiqueta: "Cercos", valor: `${r.cercos.numeroCercos} ø${phiE}`, nota: r.cercos.caso },
+          { etiqueta: "Cercos", valor: r.cercos.requeridos ? `${r.cercos.numeroCercos} ø${phiE}` : "no hacen falta", nota: r.cercos.caso },
         ]}
       />
 
@@ -263,7 +267,6 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
           diametroPrincipalMm={phiP}
           diametroCercoMm={phiE}
           numeroCercos={r.cercos.numeroCercos}
-          numeroCercosHorizontales={r.cercos.horizontales?.numeroCercos ?? 0}
           caso={r.cercos.caso}
           lbdMensulaMm={r.anclaje.lbdMensulaMm}
           disponibleMensulaMm={r.anclaje.disponibleMensulaMm}
@@ -303,11 +306,11 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
             recomendaciones={propuestas.biela}
           />
           <ResultadoCheck
-            etiqueta="Tensión tangencial"
-            verifica={r.hormigon.tangencial.verifica}
-            detalle="Montoya §24.8.2.e: τ_d ≤ 0,25·f_cd y nunca más de 5 MPa."
-            comparacion={{ real: { etiqueta: "τ_d", valor: r.hormigon.tangencial.sigmaMPa }, limite: { etiqueta: "τ_lím", valor: r.hormigon.tangencial.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
-            recomendaciones={propuestas.tangencial}
+            etiqueta="Tope del cortante"
+            verifica={r.hormigon.cortanteMaximo.verifica}
+            detalle="Art. 6.2.2(6), ec. (6.5) y (6.6): F_Ed/(b·d) ≤ 0,5·ν·f_cd, con ν = 0,6·(1 − f_ck/250). Es el tope del Anejo para cargas cerca del apoyo, y la fig. A19.6.4(b) es una ménsula."
+            comparacion={{ real: { etiqueta: "F/(b·d)", valor: r.hormigon.cortanteMaximo.sigmaMPa }, limite: { etiqueta: "0,5·ν·f_cd", valor: r.hormigon.cortanteMaximo.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
+            recomendaciones={propuestas.cortanteMaximo}
           />
         </div>
       </Subgrupo>
@@ -317,31 +320,24 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
           <ResultadoCheck
             etiqueta="Armadura principal del tirante"
             verifica={r.tirante.verificaAs}
-            detalle={`${r.tirante.numeroBarras}ø${phiP}. Gobierna ${r.tirante.mandaCuantiaMinima ? "una cuantía mínima" : r.tirante.mandaInstruccion ? "la Instrucción española (§24.8.3.b)" : "el Anejo 19 (§J.3)"}.`}
+            detalle={`${r.tirante.numeroBarras}ø${phiP}. Gobierna ${r.tirante.mandaCuantiaMinima ? "la cuantía mínima del art. 9.2.1.1" : "el tirante del art. J.3"}.`}
             comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.tirante.asNecCm2 }, unidad: "cm²", exige: "≥" }}
             recomendaciones={propuestas.tirante}
           />
-          <ResultadoCheck
-            etiqueta="Cuantía mecánica mínima del tirante"
-            verifica={r.tirante.asRealCm2 >= r.tirante.asMecanicaAciCm2}
-            detalle="Montoya §24.8.2.c: 0,04·b·d·f_cd/f_yd (ACI), a menudo determinante."
-            comparacion={{ real: { etiqueta: "A_s real", valor: r.tirante.asRealCm2 }, limite: { etiqueta: "A_s,mec", valor: r.tirante.asMecanicaAciCm2 }, unidad: "cm²", exige: "≥" }}
-            recomendaciones={propuestas.cuantiaMecanica}
-          />
-          <ResultadoCheck
-            etiqueta={`Cercos ${r.cercos.caso}`}
-            verifica={r.cercos.verificaAs}
-            detalle={`${r.cercos.numeroCercos} cercos cerrados ø${phiE} de ${fmt(cercoCm2)} cm² cada uno (dos ramas). El área pedía ${r.cercos.numeroPorArea}; el resto sale del mínimo de 3 y de la separación de 150 mm.`}
-            comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.asNecCm2 }, unidad: "cm²", exige: "≥" }}
-            recomendaciones={propuestas.cercos}
-          />
-          {r.cercos.horizontales && (
+          {r.cercos.requeridos ? (
             <ResultadoCheck
-              etiqueta="Cercos horizontales A₂"
-              verifica={r.cercos.horizontales.verificaAs}
-              detalle="Montoya §24.8.3.c: 0,2·F_vd en los 2/3 superiores de d, además de los verticales."
-              comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.horizontales.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.horizontales.asNecCm2 }, unidad: "cm²", exige: "≥" }}
-              recomendaciones={propuestas.cercosH}
+              etiqueta={`Cercos ${r.cercos.caso}`}
+              verifica={r.cercos.verificaAs}
+              detalle={`${r.cercos.caso === "horizontales" ? "Art. J.3(2): 0,25·A_s,main." : "Art. J.3(3): 0,5·F_Ed/f_yd, porque F_Ed > V_Rd,c."} ${r.cercos.numeroCercos} cercos cerrados ø${phiE} de ${fmt(cercoCm2)} cm² cada uno (dos ramas). El área pedía ${r.cercos.numeroPorArea}; el resto sale del mínimo de 3 y de la separación de 150 mm.`}
+              comparacion={{ real: { etiqueta: "A_s real", valor: r.cercos.asRealCm2 }, limite: { etiqueta: "A_s nec", valor: r.cercos.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+              recomendaciones={propuestas.cercos}
+            />
+          ) : (
+            <ResultadoCheck
+              etiqueta="Cercos verticales"
+              verifica
+              estado="no-aplica"
+              detalle={`Art. J.3(3): con a꜀ > 0,5·h꜀ sólo hacen falta si F_Ed > V_Rd,c, y la carga no pasa de V_Rd,c = ${fmt(r.cercos.vRdCKN, 1)} kN.`}
             />
           )}
           <PanelFormulas
@@ -350,10 +346,9 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
               { etiqueta: "Canto útil", valor: `${fmt(r.modelo.dM, 3)} m`, formula: "d = h꜀ − c − ø_cerco − ø/2" },
               { etiqueta: "Brazo mecánico", valor: `${fmt(r.modelo.zM, 3)} m`, formula: "z = 0,8·d" },
               { etiqueta: "Ángulo de la biela", valor: `${fmt(r.modelo.thetaGrados, 1)}°`, formula: "tg θ = z/a꜀", sustitucion: `tg θ = ${fmt(r.modelo.tanTheta)} — el §J.3(1) pide entre 1,0 y 2,5` },
-              { etiqueta: "Tirante — Anejo 19 §J.3", valor: `${fmt(r.tirante.ftdAnejoKN, 1)} kN`, formula: "F_td = F_Ed·a꜀/z + H_Ed", sustitucion: `A_s = ${fmt(r.tirante.asAnejoCm2)} cm²` },
-              { etiqueta: "Tirante — Instrucción, §24.8.3.b", valor: `${fmt(r.tirante.ftdInstruccionKN, 1)} kN`, formula: "F_td = F_Ed·tg θ + H_Ed, con cotg θ = μ = 1,4", sustitucion: `A_s = ${fmt(r.tirante.asInstruccionCm2)} cm² — no depende del vuelo` },
+              { etiqueta: "Tirante — art. J.3", valor: `${fmt(r.tirante.ftdKN, 1)} kN`, formula: "F_td = F_Ed·a꜀/z + H_Ed", sustitucion: `A_s = F_td/f_yd = ${fmt(r.tirante.asTiranteCm2)} cm²` },
               { etiqueta: "Cuantía mínima", valor: `${fmt(r.tirante.asMinimaCm2)} cm²`, formula: "máx(0,26·f_ctm/f_yk·b·d ; 0,0013·b·d) — art. 9.2.1.1" },
-              { etiqueta: "Cuantía mecánica mínima", valor: `${fmt(r.tirante.asMecanicaAciCm2)} cm²`, formula: "0,04·b·d·f_cd/f_yd — Montoya §24.8.2.c" },
+              { etiqueta: "V_Rd,c en el arranque", valor: `${fmt(r.cercos.vRdCKN, 1)} kN`, formula: "ec. (6.2.a) — decide los cercos verticales del art. J.3(3)" },
               { etiqueta: "Armadura adoptada", valor: `${r.tirante.numeroBarras}ø${phiP} = ${fmt(r.tirante.asRealCm2)} cm²`, sustitucion: `Necesaria ${fmt(r.tirante.asNecCm2)} cm² — aprovechamiento ${fmt(r.tirante.aprovechamiento * 100, 0)} %` },
             ]}
           />
@@ -362,13 +357,15 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
 
       <Subgrupo titulo="Condiciones constructivas" detalle="geometría del borde y anclajes">
         <div>
-          <ResultadoCheck
-            etiqueta="Canto útil en el borde (degollamiento)"
-            verifica={r.hormigon.verificaD0}
-            detalle="Montoya §24.8.1: con d₀ < d/2 puede abrirse una fisura oblicua entre la carga y la cara inclinada. El fallo es repentino."
-            comparacion={{ real: { etiqueta: "d₀", valor: r.hormigon.d0M }, limite: { etiqueta: "d/2", valor: r.hormigon.d0MinM }, unidad: "m", exige: "≥", decimales: 3 }}
-            recomendaciones={propuestas.degollamiento}
-          />
+          <p className="text-xs text-muted-foreground">
+            Avisos de buena práctica, criterio de Montoya y no del Anejo 19, que no entran en el cumple:
+            d₀ = {fmt(r.hormigon.d0M, 3)} m {r.hormigon.cumpleAvisoD0 ? "≥" : "<"} d/2 = {fmt(r.hormigon.d0MinM, 3)} m
+            en el borde de la placa (degollamiento, §24.8.1)
+            {r.cercos.requeridos && r.cercos.caso === "horizontales"
+              ? `; ${r.cercos.cercosBajo2d3} cerco(s) por debajo de 2·d/3 = ${fmt(r.cercos.limite2d3M, 3)} m (§24.8.3.c)`
+              : ""}
+            .
+          </p>
           <ResultadoCheck
             etiqueta="Anclaje del marco en la ménsula"
             verifica={r.anclaje.verificaMensula}
@@ -387,14 +384,7 @@ function Resultados({ r, geometria, phiP, phiE, propuestas }: ResultadosProps) {
             titulo="Ver desarrollo de materiales y anclaje"
             filas={[
               { etiqueta: "f_cd", valor: `${fmt(r.materiales.fcdMPa)} MPa`, formula: "f_ck/γ꜀" },
-              {
-                etiqueta: "f_yd de cálculo",
-                valor: `${fmt(r.materiales.fydMPa)} MPa`,
-                formula: "mín(f_yk/γ_s ; 400 MPa)",
-                sustitucion: r.materiales.topeFydAplicado
-                  ? `Sin el tope daría ${fmt(r.materiales.fydCalculadoMPa)} MPa: el tope encarece la armadura un ${fmt(r.materiales.sobrecostoPorTope * 100, 1)} %`
-                  : "El tope de 400 MPa no muerde con este acero",
-              },
+              { etiqueta: "f_yd", valor: `${fmt(r.materiales.fydMPa)} MPa`, formula: "f_yk/γ_s" },
               { etiqueta: "ν′", valor: fmt(r.materiales.nuPrima, 3), formula: "1 − f_ck/250" },
               { etiqueta: "f_ctm", valor: `${fmt(r.materiales.fctmMPa)} MPa`, formula: "tabla A19.3.1" },
               {

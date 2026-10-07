@@ -7,10 +7,10 @@ import {
 } from "@/lib/calc/hormigon/mensula-corta";
 
 /**
- * Caso de referencia: la ménsula que resuelve la planilla original
- * (`web/mensula-corta/index.html`), que trabaja en mm y N. Los valores esperados
- * salen de ejecutar aquel motor tal cual, no de recalcularlos acá: si el port
- * cambia un número, el test lo dice.
+ * Caso de referencia: la ménsula de la planilla original, ahora resuelta sólo
+ * con el Anejo 19 (2026-10-07). La planilla armaba por el mayor entre el Anejo
+ * y la Instrucción según Montoya, con fyd topado en 400 MPa: los valores que
+ * dependían de eso se recalcularon a mano y quedan escritos en cada test.
  *
  * HM-30 / B500S, γc = 1,5 y γs = 1,15 (art. 2.4.2.4, tabla A19.2.1).
  * ac = 200, hc = 500, h1 = 250, b = 400, pilar 400, placa 150 × 300, cnom = 35
@@ -20,10 +20,9 @@ import {
  *   d   = 500 − 35 − 10 − 20/2               = 445 mm    = 0,445 m
  *   z   = 0,8·445                            = 356 mm
  *   tgθ = 356/200                            = 1,78      → θ = 60,67°
- *   fyd = mín(500/1,15; 400)                 = 400 MPa   (tope de ménsula corta)
+ *   fyd = 500/1,15                           = 434,78 MPa
  *   Ftd = 450·200/356 + 67,5                 = 320,31 kN (Anejo 19 §J.3)
- *   FtdM= 450/1,4 + 67,5                     = 388,93 kN (Instrucción, §24.8.3.b)
- *   As  = 388,93/400·10                      = 9,72 cm²  → 4ø20 = 12,57 cm²
+ *   As  = 320,31/434,78·10                   = 7,37 cm²  → 3ø20 = 9,42 cm²
  */
 const materiales = derivarMateriales({ fck: 30, fyk: 500 });
 
@@ -48,27 +47,18 @@ const datos: DatosMensulaCorta = {
 const r = calcularMensulaCorta(materiales, geometria, datos);
 
 describe("materiales", () => {
-  it("topa fyd en 400 MPa aunque B500S dé 434,8", () => {
-    // Montoya §24.8.2.d y §24.8.3.b, c y e, págs. 394-395. Es un tope del
-    // elemento, no del material: no sale de γs.
-    expect(r.materiales.fydCalculadoMPa).toBeCloseTo(434.782609, 6);
-    expect(r.materiales.fydMPa).toBe(400);
-    expect(r.materiales.topeFydAplicado).toBe(true);
-    // El tope encarece toda la armadura de la ménsula un 8,7 %.
-    expect(r.materiales.sobrecostoPorTope).toBeCloseTo(0.0869565, 6);
+  it("fyd es fyk/γs, sin el tope de 400 MPa de la Instrucción", () => {
+    expect(r.materiales.fydMPa).toBeCloseTo(434.782609, 6);
   });
 
-  it("con B400S el tope no muerde y fyd es fyk/γs", () => {
+  it("con B400S, menos fyd y más acero: 320,31/347,83", () => {
     const b400 = calcularMensulaCorta(
       derivarMateriales({ fck: 30, fyk: 400 }),
       geometria,
       datos
     );
     expect(b400.materiales.fydMPa).toBeCloseTo(347.826087, 6);
-    expect(b400.materiales.topeFydAplicado).toBe(false);
-    expect(b400.materiales.sobrecostoPorTope).toBe(0);
-    // Menos fyd, más acero: 11,18 cm² contra 9,72.
-    expect(b400.tirante.asNecCm2).toBeCloseTo(11.1816964, 6);
+    expect(b400.tirante.asNecCm2).toBeCloseTo((320.308989 / 347.826087) * 10, 5);
   });
 
   it("ν′ = 1 − fck/250", () => {
@@ -86,7 +76,8 @@ describe("materiales", () => {
     expect(c60.materiales.fctmMPa).toBeCloseTo(4.354742, 6);
     expect(c60.tirante.asMinimaCm2).toBeCloseTo(4.03074949, 6);
     expect(c60.anclaje.fbdMPa).toBeCloseTo(4.572479, 6);
-    expect(c60.anclaje.lbRqdMm).toBeCloseTo(338.437305, 6);
+    // σsd = 339,86 MPa con 3ø20: lb,rqd = 5·339,86/4,5725.
+    expect(c60.anclaje.lbRqdMm).toBeCloseTo((20 / 4) * (339.858393 / 4.572479), 3);
   });
 });
 
@@ -115,71 +106,45 @@ describe("modelo de bielas y tirantes", () => {
     expect(larga.modelo.esMensulaCorta).toBe(false);
     expect(larga.modelo.tanEnRango).toBe(false);
   });
-
-  it("acepta H = 0,15·F y rechaza más", () => {
-    expect(r.modelo.relacionHF).toBeCloseTo(0.15, 9);
-    expect(r.modelo.hDentroDeRango).toBe(true);
-    const conMasH = calcularMensulaCorta(materiales, geometria, {
-      ...datos,
-      hEdKN: 135,
-    });
-    expect(conMasH.modelo.hDentroDeRango).toBe(false);
-  });
 });
 
-describe("tirante principal, por los dos métodos", () => {
-  it("Anejo 19 §J.3 da 320,3 kN y la Instrucción 388,9 kN", () => {
-    expect(r.tirante.ftdAnejoKN).toBeCloseTo(320.308989, 6);
-    expect(r.tirante.ftdInstruccionKN).toBeCloseTo(388.928571, 6);
-    expect(r.tirante.asAnejoCm2).toBeCloseTo(8.00772472, 6);
-    expect(r.tirante.asInstruccionCm2).toBeCloseTo(9.72321429, 6);
+describe("tirante principal", () => {
+  it("Anejo 19 §J.3: Ftd = F·ac/z + H = 320,3 kN y As = Ftd/fyd", () => {
+    expect(r.tirante.ftdKN).toBeCloseTo(320.308989, 6);
+    expect(r.tirante.asTiranteCm2).toBeCloseTo(7.36710674, 6);
+    expect(r.tirante.asNecCm2).toBeCloseTo(7.36710674, 6);
   });
 
-  it("con vuelo corto gobierna la Instrucción, que no depende de ac", () => {
-    expect(r.tirante.mandaInstruccion).toBe(true);
-    expect(r.tirante.asNecCm2).toBeCloseTo(9.72321429, 6);
-  });
-
-  it("con vuelo largo se da vuelta y gobierna el Anejo", () => {
-    // ac = 0,30 sobre hc = 0,45: la lectura geométrica crece con el vuelo, la de
-    // la Instrucción no. Por eso se calculan las dos y se arma por la mayor.
+  it("con vuelo largo el tirante crece con ac: 450·0,3/0,2528 + 67,5", () => {
     const larga = calcularMensulaCorta(
       materiales,
       { ...geometria, acM: 0.3, hcM: 0.45, h1M: 0.3 },
       datos
     );
-    expect(larga.tirante.ftdAnejoKN).toBeCloseTo(494.71519, 5);
-    expect(larga.tirante.ftdInstruccionKN).toBeCloseTo(388.928571, 6);
-    expect(larga.tirante.mandaInstruccion).toBe(false);
-    expect(larga.tirante.asNecCm2).toBeCloseTo(12.3678797, 6);
+    expect(larga.tirante.ftdKN).toBeCloseTo(494.71519, 5);
+    expect(larga.tirante.asNecCm2).toBeCloseTo((494.71519 / 434.782609) * 10, 5);
   });
 
-  it("el tirante gana a las dos cuantías mínimas", () => {
+  it("el tirante gana a la cuantía mínima del art. 9.2.1.1", () => {
     expect(r.tirante.asMinimaCm2).toBeCloseTo(2.68097092, 6);
-    expect(r.tirante.asMecanicaAciCm2).toBeCloseTo(3.56, 9);
     expect(r.tirante.mandaCuantiaMinima).toBe(false);
   });
 
-  it("con carga chica manda la cuantía mecánica del ACI", () => {
-    // §24.8.2.c: "más bien severa, no figura en la Instrucción española y es
-    // determinante en muchos casos". Con FEd = 60 kN el tirante pide 1,72 cm² y
-    // la cuantía mecánica 3,56.
+  it("con carga chica manda la cuantía mínima, ya no la mecánica del ACI", () => {
     const chica = calcularMensulaCorta(materiales, geometria, {
       ...datos,
       fEdKN: 60,
       hEdKN: 9,
     });
-    expect(chica.tirante.asInstruccionCm2).toBeCloseTo(1.29642857, 6);
-    expect(chica.tirante.asMecanicaAciCm2).toBeCloseTo(3.56, 9);
     expect(chica.tirante.mandaCuantiaMinima).toBe(true);
-    expect(chica.tirante.asNecCm2).toBeCloseTo(3.56, 9);
+    expect(chica.tirante.asNecCm2).toBeCloseTo(2.68097092, 6);
   });
 
-  it("resuelve 4ø20 y verifica", () => {
-    expect(r.tirante.numeroBarras).toBe(4);
-    expect(r.tirante.asRealCm2).toBeCloseTo(12.5663706, 6);
+  it("resuelve 3ø20 y verifica", () => {
+    expect(r.tirante.numeroBarras).toBe(3);
+    expect(r.tirante.asRealCm2).toBeCloseTo(9.42477796, 6);
     expect(r.tirante.verificaAs).toBe(true);
-    expect(r.tirante.aprovechamiento).toBeCloseTo(0.773751, 5);
+    expect(r.tirante.aprovechamiento).toBeCloseTo(7.36710674 / 9.42477796, 6);
   });
 
   it("nunca baja de dos barras", () => {
@@ -221,45 +186,36 @@ describe("hormigón", () => {
     expect(larga.hormigon.biela.verifica).toBe(false);
   });
 
-  it("topa la tensión tangencial en 0,25·fcd y nunca en más de 5 MPa", () => {
-    // Montoya §24.8.2.e: con C30, 0,25·20 = 5,0, justo el tope absoluto.
-    expect(r.hormigon.tangencial.sigmaMPa).toBeCloseTo(2.52809, 5);
-    expect(r.hormigon.tangencial.sigmaMaxMPa).toBe(5);
-    const c60 = calcularMensulaCorta(
-      derivarMateriales({ fck: 60, fyk: 500 }),
-      geometria,
-      datos
-    );
-    expect(c60.hormigon.tangencial.sigmaMaxMPa).toBe(5);
+  it("tope del cortante, ec. (6.5): F/(b·d) ≤ 0,5·ν·fcd con ν = 0,6·(1 − fck/250)", () => {
+    // 450/(0,4·0,445) = 2,53 MPa contra 0,5·0,6·0,88·20 = 5,28 MPa.
+    expect(r.hormigon.cortanteMaximo.sigmaMPa).toBeCloseTo(2.52809, 5);
+    expect(r.hormigon.cortanteMaximo.sigmaMaxMPa).toBeCloseTo(5.28, 9);
+    expect(r.hormigon.cortanteMaximo.verifica).toBe(true);
   });
 
-  it("comprueba el degollamiento en el borde del área cargada", () => {
-    // Montoya §24.8.1: d0 ≥ d/2 o puede abrirse una fisura oblicua.
+  it("aviso de degollamiento (Montoya §24.8.1): d0 ≥ d/2, sin entrar en el cumple", () => {
     expect(r.hormigon.d0M).toBeCloseTo(0.239776119, 9);
     expect(r.hormigon.d0MinM).toBeCloseTo(0.2225, 9);
-    expect(r.hormigon.verificaD0).toBe(true);
+    expect(r.hormigon.cumpleAvisoD0).toBe(true);
   });
 
-  it("detecta el canto de borde insuficiente", () => {
+  it("avisa del canto de borde insuficiente", () => {
     const flaca = calcularMensulaCorta(
       materiales,
       { ...geometria, h1M: 0.12 },
       datos
     );
-    expect(flaca.hormigon.verificaD0).toBe(false);
+    expect(flaca.hormigon.cumpleAvisoD0).toBe(false);
     // Con 120 mm de borde ya no cabe el doblado del marco.
     expect(flaca.modelo.cabeElDoblado).toBe(false);
   });
 });
 
 describe("cercos", () => {
-  it("con ac ≤ hc/2 pide cercos horizontales", () => {
+  it("con ac ≤ hc/2 pide cercos horizontales: 0,25·As,main (§J.3(2))", () => {
     expect(r.cercos.caso).toBe("horizontales");
-    // §J.3(2): 0,25·As,princ = 2,43 cm². §24.8.3.c: 0,2·Fvd/fyd = 2,25 cm².
-    expect(r.cercos.asAnejoCm2).toBeCloseTo(2.43080357, 6);
-    expect(r.cercos.asInstruccionCm2).toBeCloseTo(2.25, 9);
-    expect(r.cercos.asNecCm2).toBeCloseTo(2.43080357, 6);
-    expect(r.cercos.mandaInstruccion).toBe(false);
+    expect(r.cercos.requeridos).toBe(true);
+    expect(r.cercos.asNecCm2).toBeCloseTo(0.25 * 7.36710674, 6);
   });
 
   it("el área pide 2 cercos pero el despiece pone 3", () => {
@@ -268,31 +224,43 @@ describe("cercos", () => {
     expect(r.cercos.numeroCercos).toBe(3);
     expect(r.cercos.asRealCm2).toBeCloseTo(4.71238898, 6);
     expect(r.cercos.verificaAs).toBe(true);
-    expect(r.cercos.horizontales).toBeNull();
   });
 
-  it("con ac > hc/2 pide verticales y además la familia horizontal", () => {
-    // El articulado cuantifica los verticales (§J.3(3): 0,5·FEd/fyd) pero su
-    // propia fig. A19.J.6(b) dibuja además horizontales sin ponerles número.
-    // Montoya §24.8.1, pág. 393: cercos verticales solos son "inoperantes,
-    // error grave que se comete con alguna frecuencia". Van las dos familias.
+  it("con ac > hc/2 y F > VRd,c pide verticales, 0,5·FEd/fyd (§J.3(3))", () => {
     const larga = calcularMensulaCorta(
       materiales,
       { ...geometria, acM: 0.3, hcM: 0.45, h1M: 0.3 },
       datos
     );
     expect(larga.cercos.caso).toBe("verticales");
-    expect(larga.cercos.asNecCm2).toBeCloseTo(5.625, 9);
-    expect(larga.cercos.numeroPorArea).toBe(4);
+    expect(larga.cercos.requeridos).toBe(true);
+    expect(larga.cercos.asNecCm2).toBeCloseTo((0.5 * 450 / 434.782609) * 10, 6);
     expect(larga.cercos.numeroCercos).toBe(4);
-    expect(larga.cercos.horizontales).not.toBeNull();
-    expect(larga.cercos.horizontales?.asNecCm2).toBeCloseTo(2.25, 9);
-    expect(larga.cercos.horizontales?.numeroCercos).toBe(3);
-    expect(larga.cercos.horizontales?.verificaAs).toBe(true);
   });
 
-  it("acredita como A₂ sólo los 2/3 superiores del canto útil", () => {
+  it("con ac > hc/2 y F ≤ VRd,c no hacen falta cercos (§J.3(3))", () => {
+    const liviana = calcularMensulaCorta(
+      materiales,
+      { ...geometria, acM: 0.3, hcM: 0.45, h1M: 0.3 },
+      { ...datos, fEdKN: 50, hEdKN: 0 }
+    );
+    expect(liviana.cercos.vRdCKN).toBeGreaterThan(50);
+    expect(liviana.cercos.requeridos).toBe(false);
+    expect(liviana.cercos.numeroCercos).toBe(0);
+    expect(liviana.cercos.verificaAs).toBe(true);
+  });
+
+  it("VRd,c de la ec. (6.2.a) con la cuantía real del marco", () => {
+    // k = 1 + √(200/445) = 1,670; ρ = 9,425/(40·44,5) = 0,00529.
+    const k = 1 + Math.sqrt(200 / 445);
+    const rho = 9.42477796 / (40 * 44.5);
+    const v = (0.18 / 1.5) * k * (100 * rho * 30) ** (1 / 3);
+    expect(r.cercos.vRdCKN).toBeCloseTo(v * 0.4 * 0.445 * 1000, 6);
+  });
+
+  it("aviso de Montoya: cuenta los cercos por debajo de 2·d/3, sin quitarlos", () => {
     expect(r.cercos.limite2d3M).toBeCloseTo(0.296666667, 9);
+    expect(r.cercos.cercosBajo2d3).toBe(1);
   });
 });
 
@@ -304,8 +272,9 @@ describe("anclaje del marco", () => {
     expect(r.anclaje.eta1).toBe(1);
     expect(r.anclaje.eta2).toBe(1);
     expect(r.anclaje.fbdMPa).toBeCloseTo(3.041292, 6);
-    expect(r.anclaje.sigmaSdMPa).toBeCloseTo(309.499523, 6);
-    expect(r.anclaje.lbRqdMm).toBeCloseTo(508.82909, 5);
+    // σsd = 3203,09/9,425 = 339,86 MPa con el acero realmente puesto.
+    expect(r.anclaje.sigmaSdMPa).toBeCloseTo(3203.08989 / 9.42477796, 4);
+    expect(r.anclaje.lbRqdMm).toBeCloseTo((20 / 4) * (339.858393 / 3.041292), 3);
   });
 
   it("baja fbd un 30 % con adherencia mala", () => {
@@ -315,11 +284,12 @@ describe("anclaje del marco", () => {
     });
     expect(mala.anclaje.eta1).toBe(0.7);
     expect(mala.anclaje.fbdMPa).toBeCloseTo(2.128904, 6);
-    expect(mala.anclaje.lbRqdMm).toBeCloseTo(726.898699, 5);
+    expect(mala.anclaje.lbRqdMm).toBeCloseTo(558.740235 / 0.7, 3);
   });
 
   it("aplica α5 sólo del lado de la ménsula, donde hay presión transversal", () => {
-    expect(r.anclaje.cdMm).toBeCloseTo(38.333333, 6);
+    // Con 3 barras la luz libre es (330 − 60)/2 = 135: cd lo da el recubrimiento.
+    expect(r.anclaje.cdMm).toBeCloseTo(45, 6);
     expect(r.anclaje.alfa1).toBe(1);
     expect(r.anclaje.alfa2).toBe(1);
     expect(r.anclaje.alfa3).toBe(1);
@@ -327,8 +297,8 @@ describe("anclaje del marco", () => {
     expect(r.anclaje.presionTransversalMPa).toBeCloseTo(10, 9);
     expect(r.anclaje.alfa5).toBeCloseTo(0.7, 9);
     // Ec. (8.5): el producto α2·α3·α5 no baja de 0,7, y acá lo toca justo.
-    expect(r.anclaje.lbdMensulaMm).toBeCloseTo(356.180363, 5);
-    expect(r.anclaje.lbdPilarMm).toBeCloseTo(508.82909, 5);
+    expect(r.anclaje.lbdMensulaMm).toBeCloseTo(0.7 * 558.740235, 3);
+    expect(r.anclaje.lbdPilarMm).toBeCloseTo(558.740235, 3);
   });
 
   it("cuenta lo disponible sobre el eje de la barra y verifica los dos lados", () => {
@@ -346,14 +316,16 @@ describe("anclaje del marco", () => {
       ...datos,
       condicionAdherencia: "mala",
     });
-    expect(mala.anclaje.lbdPilarMm).toBeCloseTo(726.898699, 5);
-    expect(mala.anclaje.pataPilarMm).toBe(420);
+    expect(mala.anclaje.lbdPilarMm).toBeCloseTo(558.740235 / 0.7, 3);
+    // 798,2 − 310 de tramo recto = 488,2 → 490 mm.
+    expect(mala.anclaje.pataPilarMm).toBe(490);
     expect(mala.anclaje.verificaPilar).toBe(true);
   });
 
   it("nunca baja de la longitud mínima del art. 8.4.4(1)", () => {
     // lb,mín = máx(0,3·lb,rqd; 10ø; 100 mm).
     expect(r.anclaje.lbMinMm).toBeCloseTo(200, 9);
+    expect(r.anclaje.lbMinMm).toBeGreaterThanOrEqual(0.3 * r.anclaje.lbRqdMm);
   });
 });
 
@@ -373,18 +345,20 @@ describe("despiece", () => {
   it("ubica los tres cercos y les da su luz", () => {
     expect(r.despiece.cercos).toHaveLength(3);
     expect(r.despiece.cercos.every((c) => c.tipo === "horizontal")).toBe(true);
+    // Sin el límite de 2·d/3 el paquete baja hasta donde queda vuelo para
+    // cerrar el cerco, y el último se acorta siguiendo el intradós.
     expect(r.despiece.cercos.map((c) => c.luzM)).toEqual([
       expect.closeTo(0.615, 6),
       expect.closeTo(0.615, 6),
-      expect.closeTo(0.537167, 5),
+      expect.closeTo(0.44, 6),
     ]);
     // El cerco cerrado desarrolla dos veces la luz más dos veces el ancho.
     expect(r.despiece.cercos[0].desarrolloM).toBeCloseTo(1.89, 9);
     expect(r.despiece.luzCercoMaximaM).toBeCloseTo(0.615, 6);
-    expect(r.despiece.luzCercoMinimaM).toBeCloseTo(0.537167, 5);
+    expect(r.despiece.luzCercoMinimaM).toBeCloseTo(0.44, 6);
   });
 
-  it("en el caso vertical devuelve las dos familias", () => {
+  it("en el caso vertical sólo van los verticales", () => {
     const larga = calcularMensulaCorta(
       materiales,
       { ...geometria, acM: 0.3, hcM: 0.45, h1M: 0.3 },
@@ -393,7 +367,8 @@ describe("despiece", () => {
     const verticales = larga.despiece.cercos.filter((c) => c.tipo === "vertical");
     const horizontales = larga.despiece.cercos.filter((c) => c.tipo === "horizontal");
     expect(verticales).toHaveLength(4);
-    expect(horizontales).toHaveLength(3);
+    // La familia horizontal que cuantificaba Montoya ya no se agrega.
+    expect(horizontales).toHaveLength(0);
     // Los verticales se acortan siguiendo el intradós inclinado.
     expect(verticales.map((c) => c.luzM)).toEqual([
       expect.closeTo(0.321310345, 8),
@@ -401,6 +376,5 @@ describe("despiece", () => {
       expect.closeTo(0.279931034, 8),
       expect.closeTo(0.259241379, 8),
     ]);
-    expect(horizontales.every((c) => Math.abs(c.luzM - 0.715) < 1e-6)).toBe(true);
   });
 });

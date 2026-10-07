@@ -14,7 +14,6 @@ interface DiagramaMensulaArmadoProps {
   diametroPrincipalMm: number;
   diametroCercoMm: number;
   numeroCercos: number;
-  numeroCercosHorizontales: number;
   caso: "horizontales" | "verticales";
   lbdMensulaMm: number;
   disponibleMensulaMm: number;
@@ -45,7 +44,6 @@ export function DiagramaMensulaArmado({
   diametroPrincipalMm,
   diametroCercoMm,
   numeroCercos,
-  numeroCercosHorizontales,
   caso,
   lbdMensulaMm,
   disponibleMensulaMm,
@@ -143,9 +141,9 @@ export function DiagramaMensulaArmado({
         className="fill-current font-mono"
         fontSize="10"
       >
-        {caso === "horizontales"
-          ? `${numeroCercos} cercos ø${diametroCercoMm} horizontales`
-          : `${numeroCercos} cercos ø${diametroCercoMm} verticales + ${numeroCercosHorizontales} horizontales`}
+        {numeroCercos === 0
+          ? "Sin cercos: F_Ed ≤ V_Rd,c (art. J.3(3))"
+          : `${numeroCercos} cercos ø${diametroCercoMm} ${caso}`}
       </text>
       <text
         x={X(0)}

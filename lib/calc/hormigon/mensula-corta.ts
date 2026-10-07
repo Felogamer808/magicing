@@ -1,5 +1,6 @@
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
 import { GAMMA_C } from "@/lib/calc/hormigon/comun/coeficientes";
+import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
 /**
@@ -12,17 +13,12 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  * 5.6.4(1), pág. 54, y art. 6.5). El modelo es una biela comprimida que baja de
  * la placa al pilar y un tirante horizontal arriba que cierra el equilibrio.
  *
- * Dos cosas separan este cálculo del de una viga de apeo, y son las que hay que
- * mirar antes de creerle un número:
- *
- * 1. **fyd está topado en 400 MPa.** No sale de γs: es un tope propio del
- *    elemento. Con B500S el cálculo daría 435 MPa, así que el tope pesa un 9 %
- *    sobre TODA la armadura de la ménsula, principal y cercos.
- * 2. **El tirante tiene dos lecturas incompatibles a propósito.** El Anejo 19 lo
- *    saca de la geometría del modelo; la Instrucción española, tal como la
- *    desarrolla Montoya, fija la cotangente de la biela en el coeficiente de
- *    rozamiento y da un valor independiente del vuelo. No es el mismo método con
- *    otro número: se calculan los dos y se arma por el mayor.
+ * Todo por el Anejo 19 (decidido por el usuario el 2026-10-07). Antes se armaba
+ * por el mayor entre el Anejo y la Instrucción española según Montoya: fyd
+ * topado en 400 MPa, tirante con cotg θ = 1,4, cuantía mecánica del ACI y
+ * cercos 0,2·F/fyd. Eso mezclaba normas y se sacó. Dos reglas de detalle de
+ * Montoya sin equivalente en el Anejo —d0 ≥ d/2 y los cercos en los 2/3
+ * superiores de d— quedan como avisos que no entran en el cumple.
  *
  * Referencias:
  * - Anejo 19 (RD 470/2021), art. 5.6.4, pág. 54 — extensión de la región D.
@@ -33,10 +29,12 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  *   medida a lo largo del eje de la barra.
  * - Anejo 19, art. 8.4.4 ec. (8.4) y (8.5), tabla A19.8.2, págs. 124-125 — lbd.
  * - Anejo 19, art. 9.2.1.1 ec. (9.1N), pág. 140 — cuantía mínima de tracción.
+ * - Anejo 19, art. 6.2.2(1) ec. (6.2), pág. 76 — VRd,c, para decidir los cercos
+ *   verticales (art. J.3(3)).
+ * - Anejo 19, art. 6.2.2(6) ec. (6.5) y (6.6), pág. 77 — tope del cortante.
  * - Anejo 19, apéndice J, art. J.3 y fig. A19.J.6, págs. 205-206 — ménsulas
  *   cortas: rango de aplicación, tirante, cercos y anclaje.
- * - Montoya 15.ª ed., cap. 24 §24.8, págs. 393-395 (impresas 359-361) —
- *   ménsulas cortas por la Instrucción española.
+ * - Sólo como aviso, sin número: Montoya 15.ª ed., §24.8.1 y §24.8.3.c.
  */
 
 /** Condición de adherencia de la barra al hormigonar (art. 8.4.2(2), fig. A19.8.2). */
@@ -91,17 +89,11 @@ export interface ComprobacionMensula {
   verifica: boolean;
 }
 
-/** Paso 1: materiales, con el tope de fyd propio del elemento. */
+/** Paso 1: materiales. */
 export interface ResultadoMaterialesMensula {
   fcdMPa: number;
-  /** fyk/γs, sin topar (MPa) */
-  fydCalculadoMPa: number;
-  /** El que se usa: mín(fyk/γs; 400 MPa) — Montoya §24.8.2.d y §24.8.3.b, c, e */
+  /** fyk/γs (MPa) */
   fydMPa: number;
-  /** El tope está mordiendo: fyk/γs pasaba de 400 MPa */
-  topeFydAplicado: boolean;
-  /** Sobrecosto de armadura que introduce el tope, en tanto por uno */
-  sobrecostoPorTope: number;
   /** ν′ = 1 − fck/250, factor de reducción por fisuración */
   nuPrima: number;
   /** fctm (MPa), con la rama logarítmica por encima de C50 */
@@ -122,31 +114,17 @@ export interface ResultadoModeloMensula {
   tanEnRango: boolean;
   /** Queda canto en el borde para doblar la pata exterior del marco */
   cabeElDoblado: boolean;
-  /** Montoya §24.8.3.d: la comprobación simplificada del nudo pide H ≤ 0,15·F */
-  relacionHF: number;
-  hDentroDeRango: boolean;
 }
 
-/** Paso 3: el tirante, por los dos métodos que no coinciden. */
+/** Paso 3: el tirante. */
 export interface ResultadoTiranteMensula {
-  /** Anejo 19 §J.3 + §6.5: Ftd = F·ac/z + H (kN) */
-  ftdAnejoKN: number;
-  /** cotg θ = μ = 1,4 para ménsula hormigonada monolítica — Montoya §24.8.3.a */
-  cotgInstruccion: number;
-  /** Instrucción española: Ftd = F·tg θ + H, independiente del vuelo (kN) */
-  ftdInstruccionKN: number;
-  /** Montoya §24.8.3.a: d ≥ (a/0,85)·cotg θ (m) */
-  dMinInstruccionM: number;
-  verificaDMinInstruccion: boolean;
-  asAnejoCm2: number;
-  asInstruccionCm2: number;
-  /** Gobierna la Instrucción, no el Anejo */
-  mandaInstruccion: boolean;
+  /** Art. J.3 + §6.5: Ftd = F·ac/z + H (kN) */
+  ftdKN: number;
+  /** Ftd/fyd (cm²) */
+  asTiranteCm2: number;
   /** Art. 9.2.1.1: máx(0,26·fctm/fyk·b·d; 0,0013·b·d) (cm²) */
   asMinimaCm2: number;
-  /** Montoya §24.8.2.c, cuantía mecánica del ACI: 0,04·b·d·fcd/fyd (cm²) */
-  asMecanicaAciCm2: number;
-  /** El mayor de los cuatro (cm²) */
+  /** El mayor de los dos (cm²) */
   asNecCm2: number;
   /** Manda una cuantía mínima y no el tirante */
   mandaCuantiaMinima: boolean;
@@ -156,7 +134,7 @@ export interface ResultadoTiranteMensula {
   verificaAs: boolean;
 }
 
-/** Paso 4: hormigón — nudo, biela y tensión tangencial. */
+/** Paso 4: hormigón — nudo, biela y tope del cortante. */
 export interface ResultadoHormigonMensula {
   /** Nudo bajo la placa, CCT con k2 = 0,85 — ec. (6.61) */
   nudo: ComprobacionMensula;
@@ -168,43 +146,45 @@ export interface ResultadoHormigonMensula {
   cantoNudoM: number;
   /** Compresión de la biela (kN) */
   compresionBielaKN: number;
-  /** Montoya §24.8.2.e: τd ≤ 0,25·fcd y nunca más de 5 MPa */
-  tangencial: ComprobacionMensula;
+  /**
+   * Art. 6.2.2(6), ec. (6.5): FEd ≤ 0,5·b·d·ν·fcd, con ν = 0,6·(1 − fck/250)
+   * (ec. (6.6)). Expresado como tensión: FEd/(b·d) ≤ 0,5·ν·fcd.
+   */
+  cortanteMaximo: ComprobacionMensula;
   /** Canto útil en el borde exterior del área cargada (m) */
   d0M: number;
-  /** Montoya §24.8.1: d0 ≥ d/2 o hay riesgo de degollamiento (m) */
+  /**
+   * Aviso, no comprobación: Montoya §24.8.1 pide d0 ≥ d/2 contra el
+   * degollamiento. El Anejo 19 no lo trae, así que no entra en el cumple (m).
+   */
   d0MinM: number;
-  verificaD0: boolean;
+  cumpleAvisoD0: boolean;
 }
 
 /** Paso 5: cercos. */
 export interface ResultadoCercosMensula {
   caso: CasoCercos;
-  /** Art. J.3(2) k1 = 0,25·As,main, o J.3(3) k2 = 0,5·FEd/fyd (cm²) */
-  asAnejoCm2: number;
-  /** Montoya §24.8.3.c: 0,2·Fvd/fyd, sólo en el caso de vuelo corto (cm²) */
-  asInstruccionCm2: number;
+  /** VRd,c de la sección de arranque, art. 6.2.2(1) (kN) */
+  vRdCKN: number;
+  /**
+   * Con vuelo corto, siempre (art. J.3(2)). Con vuelo largo, sólo si
+   * FEd > VRd,c (art. J.3(3)).
+   */
+  requeridos: boolean;
+  /** Art. J.3(2) k1 = 0,25·As,main, o J.3(3) k2 = 0,5·FEd/fyd; 0 si no se requieren (cm²) */
   asNecCm2: number;
-  mandaInstruccion: boolean;
   numeroCercos: number;
   asRealCm2: number;
   verificaAs: boolean;
   /** Los cercos que salen por área, antes del mínimo de 3 y del de separación */
   numeroPorArea: number;
   /**
-   * Segunda familia, sólo en el caso de vuelo largo: el articulado cuantifica
-   * los verticales pero su propia fig. A19.J.6(b) dibuja además horizontales sin
-   * ponerles número. Los cuantifica Montoya §24.8.3.c, en los 2/3 superiores de
-   * d. Van las dos familias, no una en vez de otra.
+   * Aviso, no comprobación: Montoya §24.8.3.c sólo acredita los cercos
+   * horizontales de los 2/3 superiores de d. El Anejo 19 los cuenta todos (m).
    */
-  horizontales: {
-    asNecCm2: number;
-    numeroCercos: number;
-    asRealCm2: number;
-    verificaAs: boolean;
-  } | null;
-  /** Profundidad hasta la que se acreditan como A2: 2·d/3 — §24.8.3.c (m) */
   limite2d3M: number;
+  /** Cercos horizontales por debajo de 2·d/3: los que Montoya no contaría. */
+  cercosBajo2d3: number;
 }
 
 /** Paso 6: anclaje del marco, §8.4 medido sobre el eje de la barra. */
@@ -328,12 +308,6 @@ export function calcularMensulaCorta(
   const phiE = diametroCercoMm;
 
   // ------------------------------------------------------------- materiales
-  // El tope de fyd es de la Instrucción española y es del elemento, no del
-  // material: en ménsulas cortas no se toma fyd mayor que 400 N/mm². Montoya lo
-  // repite en las cuatro fórmulas del capítulo (§24.8.2.d y §24.8.3.b, c y e,
-  // págs. 394-395), así que se aplica al marco principal y también a los cercos.
-  const fydTopadoMPa = Math.min(fyd, 400);
-  const topeFydAplicado = fyd > 400;
   const nuPrima = 1 - fck / 250;
 
   // derivarMateriales sólo trae la rama de la tabla A19.3.1 hasta C50. Por
@@ -345,10 +319,7 @@ export function calcularMensulaCorta(
 
   const resultadoMateriales: ResultadoMaterialesMensula = {
     fcdMPa: fcd,
-    fydCalculadoMPa: fyd,
-    fydMPa: fydTopadoMPa,
-    topeFydAplicado,
-    sobrecostoPorTope: topeFydAplicado ? fyd / 400 - 1 : 0,
+    fydMPa: fyd,
     nuPrima,
     fctmMPa,
   };
@@ -372,58 +343,28 @@ export function calcularMensulaCorta(
     tanEnRango: tanTheta >= 1.0 && tanTheta <= 2.5,
     // Sin canto en el borde no hay dónde alojar la pata exterior del marco.
     cabeElDoblado: h1M - 2 * (recubrimientoM + phiE / 1000) > (4 * phiP) / 1000,
-    relacionHF: fEdKN > 0 ? hEdKN / fEdKN : 0,
-    // Montoya §24.8.3.d: por encima del 15 % el nudo deja de estar dominado por
-    // la presión vertical bajo la placa y hay que ir al modelo general del
-    // §24.6. La tolerancia absorbe el redondeo de quien carga 0,15·F a mano.
-    hDentroDeRango: hEdKN <= 0.15 * fEdKN + 0.05,
   };
 
   // ---------------------------------------------------------------- tirante
-  // Dos lecturas del mismo modelo, incompatibles a propósito:
-  //  · Anejo 19 §J.3 + §6.5: manda la geometría, Ftd = F·ac/z + H.
-  //  · Instrucción española (Montoya §24.8.3.a-b, pág. 395): la cotangente de la
-  //    biela se fija en el μ del rozamiento —1,4 si la ménsula se hormigona
-  //    monolítica con el pilar— y sale Ftd = F·tg θ + H, independiente de ac.
-  // cotg 1,4 equivale a tan θ = 0,71, fuera del rango 1,0-2,5 del §J.3(1): son
-  // métodos distintos, no el mismo con otro número. Se arma por el mayor.
-  const ftdAnejoKN = (fEdKN * acM) / zM + hEdKN;
-  const cotgInstruccion = 1.4;
-  const ftdInstruccionKN = fEdKN / cotgInstruccion + hEdKN;
-  const dMinInstruccionM = (acM * cotgInstruccion) / 0.85;
-
-  const asAnejoCm2 = areaNecesariaCm2(ftdAnejoKN, fydTopadoMPa);
-  const asInstruccionCm2 = areaNecesariaCm2(ftdInstruccionKN, fydTopadoMPa);
-  const mandaInstruccion = asInstruccionCm2 > asAnejoCm2;
+  // Art. J.3 + §6.5: manda la geometría del modelo, Ftd = F·ac/z + H.
+  const ftdKN = (fEdKN * acM) / zM + hEdKN;
+  const asTiranteCm2 = areaNecesariaCm2(ftdKN, fyd);
 
   // Art. 9.2.1.1, cuantía mínima de tracción. Las áreas van en cm²: b y d en m
   // dan m², que multiplicados por 10 000 pasan a cm².
   const areaBrutaCm2 = bM * dM * 100 ** 2;
   const asMinimaCm2 = Math.max((0.26 * fctmMPa * areaBrutaCm2) / fyk, 0.0013 * areaBrutaCm2);
-  // Cuantía mecánica mínima del ACI que recoge Montoya en §24.8.2.c: evita la
-  // rotura frágil por fisuración de la cabeza superior. "Más bien severa, no
-  // figura en la Instrucción española y es determinante en muchos casos."
-  const asMecanicaAciCm2 = (0.04 * areaBrutaCm2 * fcd) / fydTopadoMPa;
-
-  const asPorTiranteCm2 = Math.max(asAnejoCm2, asInstruccionCm2);
-  const asNecCm2 = Math.max(asPorTiranteCm2, asMinimaCm2, asMecanicaAciCm2);
+  const asNecCm2 = Math.max(asTiranteCm2, asMinimaCm2);
   const areaUnaBarraCm2 = areaBarraCm2(phiP);
   const numeroBarras = Math.max(2, Math.ceil(asNecCm2 / areaUnaBarraCm2));
   const asRealCm2 = numeroBarras * areaUnaBarraCm2;
 
   const tirante: ResultadoTiranteMensula = {
-    ftdAnejoKN,
-    cotgInstruccion,
-    ftdInstruccionKN,
-    dMinInstruccionM,
-    verificaDMinInstruccion: dM >= dMinInstruccionM,
-    asAnejoCm2,
-    asInstruccionCm2,
-    mandaInstruccion,
+    ftdKN,
+    asTiranteCm2,
     asMinimaCm2,
-    asMecanicaAciCm2,
     asNecCm2,
-    mandaCuantiaMinima: asNecCm2 > asPorTiranteCm2,
+    mandaCuantiaMinima: asNecCm2 > asTiranteCm2,
     numeroBarras,
     asRealCm2,
     aprovechamiento: asNecCm2 / asRealCm2,
@@ -448,16 +389,19 @@ export function calcularMensulaCorta(
     0.6 * nuPrima * fcd
   );
 
-  // Montoya §24.8.2.e, pág. 394: τd ≤ 0,25·fcd y en ningún caso mayor de 5 MPa.
-  const tangencial = comprobar(fEdKN / aKNPorM2(bM * dM), Math.min(0.25 * fcd, 5));
+  // Art. 6.2.2(6), ec. (6.5) y (6.6): el cortante, sin la reducción β, no pasa
+  // de 0,5·b·d·ν·fcd. Es el tope que el Anejo pone a las cargas cerca del apoyo,
+  // y la fig. A19.6.4(b) es justamente una ménsula.
+  const nuCortante = 0.6 * (1 - fck / 250);
+  const cortanteMaximo = comprobar(fEdKN / aKNPorM2(bM * dM), 0.5 * nuCortante * fcd);
 
   // Intradós inclinado: el canto pasa de hc en el arranque a h1 en el borde.
   const vueloTotalM = acM + apM / 2 + 0.06;
   const cantoEn = (xDesdeLaCaraM: number) =>
     hcM - acotar(xDesdeLaCaraM / vueloTotalM, 0, 1) * (hcM - h1M);
-  // Canto útil en el borde exterior del área cargada — Montoya §24.8.1, pág.
-  // 393. Con d0 < d/2 puede abrirse una fisura oblicua entre el punto de
-  // aplicación de la carga y la cara inclinada: degollamiento, fallo repentino.
+  // Canto útil en el borde exterior del área cargada. Aviso de Montoya §24.8.1,
+  // pág. 393, que el Anejo no trae: con d0 < d/2 puede abrirse una fisura
+  // oblicua entre la carga y la cara inclinada (degollamiento).
   const recubrimientoBarraM = recubrimientoM + phiE / 1000;
   const d0M = cantoEn(acM + apM / 2) - recubrimientoBarraM - phiP / 2000;
   const d0MinM = dM / 2;
@@ -468,23 +412,26 @@ export function calcularMensulaCorta(
     anchoBielaM,
     cantoNudoM,
     compresionBielaKN,
-    tangencial,
+    cortanteMaximo,
     d0M,
     d0MinM,
-    verificaD0: d0M >= d0MinM,
+    cumpleAvisoD0: d0M >= d0MinM,
   };
 
   // ---------------------------------------------------------------- cercos
   const caso: CasoCercos = acM <= 0.5 * hcM ? "horizontales" : "verticales";
-  // Mismo desacuerdo que en el tirante: el Anejo ata los cercos a la armadura
-  // principal, la Instrucción los ata a la carga (§24.8.3.c: A2·fyd = 0,2·Fvd).
-  const asCercosAnejoCm2 =
-    caso === "horizontales"
+  // Art. J.3(3): con vuelo largo los verticales sólo hacen falta si la carga
+  // supera lo que el hormigón toma sin armadura, VRd,c (art. 6.2.2(1)).
+  const vRdCKN =
+    tensionCortanteResistente(factorEscalaK(dM), asRealCm2 / areaBrutaCm2, fck) * bM * dM * 1000;
+  const requeridos = caso === "horizontales" || fEdKN > vRdCKN;
+  // Art. J.3(2) y (3): los horizontales se atan a la armadura principal, los
+  // verticales a la carga.
+  const asCercosNecCm2 = !requeridos
+    ? 0
+    : caso === "horizontales"
       ? 0.25 * asNecCm2
-      : areaNecesariaCm2(0.5 * fEdKN, fydTopadoMPa);
-  const asCercosInstruccionCm2 =
-    caso === "horizontales" ? areaNecesariaCm2(0.2 * fEdKN, fydTopadoMPa) : 0;
-  const asCercosNecCm2 = Math.max(asCercosAnejoCm2, asCercosInstruccionCm2);
+      : areaNecesariaCm2(0.5 * fEdKN, fyd);
 
   // Cercos cerrados: dos ramas por cerco.
   const areaCercoCm2 = 2 * areaBarraCm2(phiE);
@@ -493,19 +440,17 @@ export function calcularMensulaCorta(
   // Banda que ocupa el paquete horizontal, en profundidad desde la cara superior.
   const yTiranteM = hcM - dM;
   const yPrimerCercoM = yTiranteM + Math.max(0.04, (3 * phiE) / 1000);
-  // §24.8.3.c sólo acredita como A2 los cercos alojados en los dos tercios
-  // superiores del canto útil: más abajo la biela ya no pasa por ellos.
+  // Aviso de Montoya §24.8.3.c: sólo acredita los cercos de los dos tercios
+  // superiores del canto útil. El Anejo los cuenta a todos, así que no limita
+  // dónde se ponen: sólo se informa cuántos quedan por debajo.
   const limite2d3M = (2 / 3) * dM;
   // Y por vuelo: por debajo de cierto vuelo remanente el cerco está
   // prácticamente entero dentro del pilar y no confina nada.
   const vueloMinimoCercoM = Math.max(0.1, (6 * phiE) / 1000);
   const yUltimoCercoM = acotar(
-    Math.min(
-      hcM -
-        recubrimientoBarraM -
-        ((hcM - h1M) * (vueloMinimoCercoM + (phiP + phiE) / 2000)) / (vueloTotalM || 1),
-      limite2d3M
-    ),
+    hcM -
+      recubrimientoBarraM -
+      ((hcM - h1M) * (vueloMinimoCercoM + (phiP + phiE) / 2000)) / (vueloTotalM || 1),
     yPrimerCercoM + 0.01,
     hcM - recubrimientoBarraM
   );
@@ -513,44 +458,10 @@ export function calcularMensulaCorta(
   // Además del área, un criterio de despiece: separación ≤ 150 mm, para que el
   // paquete cosa realmente la biela y no queden dos cercos sueltos.
   const bandaM = caso === "horizontales" ? yUltimoCercoM - yPrimerCercoM : acM;
-  const numeroCercos = Math.max(
-    3,
-    numeroPorArea,
-    Math.ceil(bandaM / 0.15) + (caso === "horizontales" ? 1 : 0)
-  );
+  const numeroCercos = requeridos
+    ? Math.max(3, numeroPorArea, Math.ceil(bandaM / 0.15) + (caso === "horizontales" ? 1 : 0))
+    : 0;
 
-  const asCercosHorizCm2 =
-    caso === "verticales" ? areaNecesariaCm2(0.2 * fEdKN, fydTopadoMPa) : 0;
-  const numeroCercosHoriz =
-    caso === "verticales"
-      ? Math.max(
-          3,
-          Math.ceil(asCercosHorizCm2 / areaCercoCm2),
-          Math.ceil((yUltimoCercoM - yPrimerCercoM) / 0.15) + 1
-        )
-      : 0;
-
-  const cercos: ResultadoCercosMensula = {
-    caso,
-    asAnejoCm2: asCercosAnejoCm2,
-    asInstruccionCm2: asCercosInstruccionCm2,
-    asNecCm2: asCercosNecCm2,
-    mandaInstruccion: asCercosInstruccionCm2 > asCercosAnejoCm2,
-    numeroCercos,
-    asRealCm2: numeroCercos * areaCercoCm2,
-    verificaAs: numeroCercos * areaCercoCm2 >= asCercosNecCm2,
-    numeroPorArea,
-    horizontales:
-      caso === "verticales"
-        ? {
-            asNecCm2: asCercosHorizCm2,
-            numeroCercos: numeroCercosHoriz,
-            asRealCm2: numeroCercosHoriz * areaCercoCm2,
-            verificaAs: numeroCercosHoriz * areaCercoCm2 >= asCercosHorizCm2,
-          }
-        : null,
-    limite2d3M,
-  };
 
   // ------------------------------------------ geometría del marco y despiece
   // Ejes: x desde la cara del pilar alejada de la ménsula, y desde la cara
@@ -582,10 +493,7 @@ export function calcularMensulaCorta(
 
   // σsd es la tensión real en el arranque con el acero realmente puesto: armar
   // de más no sólo baja el aprovechamiento, acorta el anclaje.
-  const sigmaSdMPa = Math.min(
-    fydTopadoMPa,
-    (10 * Math.max(ftdAnejoKN, ftdInstruccionKN)) / asRealCm2
-  );
+  const sigmaSdMPa = Math.min(fyd, (10 * ftdKN) / asRealCm2);
   const lbRqdMm = (phiP / 4) * (sigmaSdMPa / fbdMPa);
 
   // cd = mín(a/2; c1; c) — fig. A19.8.3, forma acodada.
@@ -712,8 +620,20 @@ export function calcularMensulaCorta(
         abrazaLaPata: false,
       });
     }
-    agregarHorizontales(numeroCercosHoriz);
   }
+
+  const cercos: ResultadoCercosMensula = {
+    caso,
+    vRdCKN,
+    requeridos,
+    asNecCm2: asCercosNecCm2,
+    numeroCercos,
+    asRealCm2: numeroCercos * areaCercoCm2,
+    verificaAs: numeroCercos * areaCercoCm2 >= asCercosNecCm2,
+    numeroPorArea,
+    limite2d3M,
+    cercosBajo2d3: cercosDispuestos.filter((c) => c.tipo === "horizontal" && c.y1M > limite2d3M).length,
+  };
 
   const luces = cercosDispuestos.filter((c) => c.tipo === "horizontal").map((c) => c.luzM);
 

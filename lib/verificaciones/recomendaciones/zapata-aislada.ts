@@ -33,7 +33,10 @@ type Dir = "A" | "B";
 /** Con el pilar centrado se muestra un vuelo por dirección; descentrado, los dos. */
 export type LadoAislada = "gobernante" | "inicio" | "fin";
 type ClaveVuelo = `${Dir}.${LadoAislada}.${"as" | "anclaje" | "corte"}`;
-export type ClaveAislada = "tension" | "deslizamiento" | "vuelcoA" | "vuelcoB" | "punzonamiento" | "bielas" | ClaveVuelo;
+type ClaveTerreno = "tension" | "deslizamiento" | "vuelcoA" | "vuelcoB";
+/** Las del terreno con las cargas de la situación extraordinaria. */
+type ClaveExtraordinaria = `ext.${ClaveTerreno}`;
+export type ClaveAislada = ClaveTerreno | ClaveExtraordinaria | "punzonamiento" | "bielas" | ClaveVuelo;
 export type RecomendacionesAislada = Partial<Record<ClaveAislada, Recomendacion[]>>;
 
 const NOMBRE_LADO: Record<LadoAislada, string> = { gobernante: "", inicio: " (vuelo de inicio)", fin: " (vuelo final)" };
@@ -44,6 +47,10 @@ const NOMBRES = {
   deslizamiento: "deslizamiento",
   vuelcoA: "vuelco en A",
   vuelcoB: "vuelco en B",
+  "ext.tension": "tensión del terreno (extraordinaria)",
+  "ext.deslizamiento": "deslizamiento (extraordinaria)",
+  "ext.vuelcoA": "vuelco en A (extraordinaria)",
+  "ext.vuelcoB": "vuelco en B (extraordinaria)",
   punzonamiento: "punzonamiento",
   bielas: "bielas en la cara del pilar",
   ...Object.fromEntries(
@@ -79,6 +86,18 @@ function utilizaciones(e: EntradaZapataAislada) {
     ...(z.deslizamiento && z.deslizamiento.horizontalKN > 0 ? { deslizamiento: z.deslizamiento.aprovechamiento } : {}),
     ...(z.vuelcoA && z.vuelcoA.borde !== "ninguno" ? { vuelcoA: z.vuelcoA.aprovechamiento } : {}),
     ...(z.vuelcoB.borde !== "ninguno" ? { vuelcoB: z.vuelcoB.aprovechamiento } : {}),
+    ...(z.extraordinaria
+      ? {
+          "ext.tension": z.extraordinaria.sigmaKPa / z.extraordinaria.sigmaAdmisibleKPa,
+          ...(z.extraordinaria.deslizamiento && z.extraordinaria.deslizamiento.horizontalKN > 0
+            ? { "ext.deslizamiento": z.extraordinaria.deslizamiento.aprovechamiento }
+            : {}),
+          ...(z.extraordinaria.vuelcoA && z.extraordinaria.vuelcoA.borde !== "ninguno"
+            ? { "ext.vuelcoA": z.extraordinaria.vuelcoA.aprovechamiento }
+            : {}),
+          ...(z.extraordinaria.vuelcoB.borde !== "ninguno" ? { "ext.vuelcoB": z.extraordinaria.vuelcoB.aprovechamiento } : {}),
+        }
+      : {}),
     ...(desc
       ? {
           ...utilizacionesVuelo("A.inicio", z.vuelosA.inicio),
@@ -212,6 +231,8 @@ const BRAZO: Palanca<E> = palancaValor<E>(
 );
 
 function palancasPorClave(clave: ClaveAislada): readonly Palanca<E>[] {
+  // La extraordinaria se resuelve con las mismas palancas que la persistente.
+  if (clave.startsWith("ext.")) return palancasPorClave(clave.slice(4) as ClaveTerreno);
   if (clave === "tension") return [AMBOS_LADOS, lado("A"), lado("B")];
   // Más zapata es más peso que frena y estabiliza; el brazo del tirante sólo
   // existe con tirante (con brazoM 0 la palanca no propone nada).

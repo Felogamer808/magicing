@@ -176,3 +176,28 @@ describe("zapata combinada: momentos, horizontales, vuelco y deslizamiento", () 
     expect(t.deslizamiento?.horizontalKN).toBeCloseTo((141 * 0.325 - 20 * 0.3) / 3 + 20, 9);
   });
 });
+
+describe("zapata combinada: situación extraordinaria", () => {
+  const pilar = { Nk: 200, NkPermanente: 150, anchoLargoM: 0.4, anchoAnchoM: 0.4 };
+  const sismo = { Nk: 200, NkPermanente: 150, HkB: 100 };
+  const r = calcularZapataCombinada(materiales, { L: 6, B: 1, H: 0.6, recubrimiento: 0.05 }, 300, {
+    pilares: [{ ...pilar, posicionM: 1 }, { ...pilar, posicionM: 5 }],
+    inferior: { numero: 6, diametroMm: 16 },
+    superior: { numero: 6, diametroMm: 12 },
+    transversal: { diametroMm: 12, separacionM: 0.2 },
+    phiGrados: 30,
+    extraordinaria: [sismo, sismo],
+  });
+
+  it("el vuelco a lo ancho que no verificaba con 1,8 verifica con 1,2: 144 ≤ 175,5", () => {
+    expect(r.extraordinaria?.vuelcoB?.efectoDesestabilizadorKNm).toBeCloseTo(1.2 * 120, 9);
+    expect(r.extraordinaria?.vuelcoB?.efectoEstabilizadorKNm).toBeCloseTo(0.9 * 195, 9);
+    expect(r.extraordinaria?.vuelcoB?.verifica).toBe(true);
+  });
+
+  it("la persistente sigue sin horizontales y la tensión admisible sube a 450", () => {
+    expect(r.vuelcoB?.borde).toBe("ninguno");
+    expect(r.extraordinaria?.sigmaAdmisibleKPa).toBeCloseTo(450, 9);
+    expect(r.extraordinaria?.deslizamiento?.horizontalKN).toBeCloseTo(200, 9);
+  });
+});

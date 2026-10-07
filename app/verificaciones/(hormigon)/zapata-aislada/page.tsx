@@ -23,6 +23,8 @@ import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaci
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
+import { ComprobacionVuelco } from "@/components/verificaciones/hormigon/ComprobacionVuelco";
+import { ComprobacionDeslizamiento } from "@/components/verificaciones/hormigon/ComprobacionDeslizamiento";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import {
@@ -94,6 +96,15 @@ export default function ZapataAisladaPage() {
   const [HkB, setHkB] = useCampo("HkB", "0");
   // Vacío = igual a Nk. Es la parte que estabiliza al vuelco y frena el deslizamiento.
   const [NkPermanente, setNkPermanente] = useCampo("NkPermanente", "");
+  // Situación extraordinaria (sismo, impacto): otro juego de cargas, sólo para el terreno.
+  const [conExtraordinaria, setConExtraordinaria] = useCampo("conExtraordinaria", "No");
+  const [NkExt, setNkExt] = useCampo("NkExt", "500");
+  const [NkPermanenteExt, setNkPermanenteExt] = useCampo("NkPermanenteExt", "");
+  const [MkAExt, setMkAExt] = useCampo("MkAExt", "0");
+  const [MkBExt, setMkBExt] = useCampo("MkBExt", "0");
+  const [HkAExt, setHkAExt] = useCampo("HkAExt", "0");
+  const [HkBExt, setHkBExt] = useCampo("HkBExt", "0");
+  const extraordinariaActiva = conExtraordinaria === "Sí";
 
   const [numeroA, setNumeroA] = useCampo("numeroA", "8");
   const [diametroA, setDiametroA] = useCampo("diametroA", "16");
@@ -151,6 +162,17 @@ export default function ZapataAisladaPage() {
     const nkPermanente = NkPermanente.trim() === "" ? undefined : aNumero(NkPermanente);
     if (nkPermanente !== undefined && !(nkPermanente >= 0 && nkPermanente <= v.Nk)) return null;
 
+    const ext = extraordinariaActiva
+      ? {
+          Nk: aNumero(NkExt), MkA: aNumero(MkAExt), MkB: aNumero(MkBExt), HkA: aNumero(HkAExt), HkB: aNumero(HkBExt),
+          perm: NkPermanenteExt.trim() === "" ? undefined : aNumero(NkPermanenteExt),
+        }
+      : undefined;
+    if (ext) {
+      if (!(ext.Nk > 0) || ![ext.MkA, ext.MkB, ext.HkA, ext.HkB].every(Number.isFinite)) return null;
+      if (ext.perm !== undefined && !(ext.perm >= 0 && ext.perm <= ext.Nk)) return null;
+    }
+
     const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
     const geometria = {
       A: v.A,
@@ -173,6 +195,14 @@ export default function ZapataAisladaPage() {
       ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
       // Sin φ′ válido el deslizamiento queda sin evaluar, no se inventa.
       ...(phiValido ? { phiGrados: phi } : {}),
+      ...(ext
+        ? {
+            extraordinaria: {
+              Nk: ext.Nk, MkA: ext.MkA, MkB: ext.MkB, HkA: ext.HkA, HkB: ext.HkB,
+              ...(ext.perm !== undefined ? { NkPermanente: ext.perm } : {}),
+            },
+          }
+        : {}),
     };
     const zapata = calcularZapataAislada(materiales, geometria, v.sigmaAdmisible, datosZapata);
     const recomendaciones = recomendarZapataAislada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos: datosZapata });
@@ -206,6 +236,7 @@ export default function ZapataAisladaPage() {
     fck, fyk, A, B, H, recubrimiento, anchoPilarA, anchoPilarB, descentrado, distanciaBordeA, distanciaBordeB,
     sigmaAdmisible, Nk, MkA, MkB, HkA, HkB, NkPermanente, numeroA, diametroA, numeroB, diametroB, formaAnclaje,
     conTirante, brazoTirante, phiTerreno,
+    extraordinariaActiva, NkExt, NkPermanenteExt, MkAExt, MkBExt, HkAExt, HkBExt,
     diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
   ]);
 
@@ -489,6 +520,29 @@ export default function ZapataAisladaPage() {
                   Nk permanente es la parte de Nk que siempre está: la única que estabiliza al vuelco y frena el
                   deslizamiento. Vacío, se toma Nk entero.
                 </p>
+                <div className="col-span-3 max-w-xs">
+                  <CampoSeleccion
+                    id="conExtraordinaria"
+                    etiqueta="Situación extraordinaria (sismo, impacto)"
+                    valor={conExtraordinaria}
+                    opciones={["No", "Sí"]}
+                    onChange={setConExtraordinaria}
+                  />
+                </div>
+                {extraordinariaActiva && (
+                  <>
+                    <CampoNumerico id="NkExt" etiqueta="Nk extr." sufijo="kN" valor={NkExt} onChange={setNkExt} />
+                    <CampoNumerico id="MkAExt" etiqueta="Mk A extr." sufijo="kN·m" valor={MkAExt} onChange={setMkAExt} />
+                    <CampoNumerico id="MkBExt" etiqueta="Mk B extr." sufijo="kN·m" valor={MkBExt} onChange={setMkBExt} />
+                    <CampoNumerico id="NkPermanenteExt" etiqueta="Nk perm. extr." sufijo="kN" valor={NkPermanenteExt} onChange={setNkPermanenteExt} />
+                    <CampoNumerico id="HkAExt" etiqueta="Hk A extr." sufijo="kN" valor={HkAExt} onChange={setHkAExt} />
+                    <CampoNumerico id="HkBExt" etiqueta="Hk B extr." sufijo="kN" valor={HkBExt} onChange={setHkBExt} />
+                    <p className="col-span-3 text-xs text-muted-foreground">
+                      Las cargas características de la combinación extraordinaria, con los mismos signos. Sólo se
+                      comprueba el terreno con ellas: el armado sigue con la persistente.
+                    </p>
+                  </>
+                )}
               </div>
             }
             dibujo={
@@ -597,6 +651,11 @@ export default function ZapataAisladaPage() {
               "Con el pilar descentrado cada vuelo tiene su propio momento y se arma por separado con las mismas barras; la zapata de medianería es el caso con el pilar contra el borde.",
               "Con par tirante–terreno, el tirante a h de la base anula el momento en A: Tk = (Nk·e + Mk)/h, presión uniforme (DB SE-C, art. 4.3.1.3 (6)), deslizamiento Tk ≤ (N + P)·tan(3/4·φ')/1,5 (DB SE-C, art. 4.2.3.1 (4) y tabla 2.1) y armadura del tirante 1,5·Tk/fyd. Al pilar le queda Mk + Tk·(h − H) en el arranque.",
               "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12): vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan Mk + Hk·H; deslizamiento con √(HkA² + HkB²) ≤ (Nk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)). Estabiliza y frena sólo la parte permanente de Nk. Sin empuje pasivo ni peso de tierras.",
+              ...(extraordinariaActiva
+                ? [
+                    "Situación extraordinaria, sólo para el terreno (DB SE-C, tabla 2.1): tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El armado sigue con la persistente.",
+                  ]
+                : []),
               "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
               "Con el pilar descentrado, el punzonamiento descuenta la presión real bajo el perímetro (lineal en las dos direcciones) y el β usa sólo el momento propio del pilar. Cerca de un borde (a menos de 2d), el perímetro se recorta como en la fig. A19.6.15 y el β es el de pilar de borde o esquina (ecs. (6.44)-(6.46)).",
               "Flexión por el modelo del Anejo 19, art. 9.8.2.2: sección de cálculo a 0,15·c dentro de la cara del pilar, Fs = M/(0,9·d) y As = Fs/fyd.",
@@ -677,6 +736,30 @@ export default function ZapataAisladaPage() {
                       : undefined,
                     conPropuestas: !!rec.bielas,
                   },
+                  ...(resultado.zapata.extraordinaria
+                    ? (() => {
+                        const x = resultado.zapata.extraordinaria;
+                        const estado = (v: boolean) => (v ? ("cumple" as const) : ("no-cumple" as const));
+                        return [
+                          {
+                            etiqueta: "tensión del terreno (extraordinaria)",
+                            estado: estado(x.verificaTension),
+                            utilizacion: x.sigmaKPa / x.sigmaAdmisibleKPa,
+                            conPropuestas: !!rec["ext.tension"],
+                          },
+                          ...(x.vuelcoA
+                            ? [{ etiqueta: "vuelco en A (extraordinaria)", estado: estado(x.vuelcoA.verifica), utilizacion: x.vuelcoA.aprovechamiento, conPropuestas: !!rec["ext.vuelcoA"] }]
+                            : []),
+                          { etiqueta: "vuelco en B (extraordinaria)", estado: estado(x.vuelcoB.verifica), utilizacion: x.vuelcoB.aprovechamiento, conPropuestas: !!rec["ext.vuelcoB"] },
+                          {
+                            etiqueta: "deslizamiento (extraordinaria)",
+                            estado: x.deslizamiento ? estado(x.deslizamiento.verifica) : ("no-evaluado" as const),
+                            utilizacion: x.deslizamiento?.aprovechamiento,
+                            conPropuestas: !!rec["ext.deslizamiento"],
+                          },
+                        ];
+                      })()
+                    : []),
                 ]}
               />
 
@@ -799,6 +882,44 @@ export default function ZapataAisladaPage() {
                   )}
                 </div>
               </Subgrupo>
+
+              {resultado.zapata.extraordinaria && (
+                <Subgrupo titulo="Situación extraordinaria: terreno">
+                  <div>
+                    <ResultadoCheck
+                      etiqueta="Tensión del terreno"
+                      verifica={resultado.zapata.extraordinaria.verificaTension}
+                      detalle={`DB SE-C, tabla 2.1: hundimiento con γR = 2,0 en vez de 3,0, así que se admite 1,5·σadm. Se admite despegue parcial: la resultante sólo tiene que caer dentro de la base (e A = ${fmt(resultado.zapata.extraordinaria.excentricidadA, 3)} m, e B = ${fmt(resultado.zapata.extraordinaria.excentricidadB, 3)} m).`}
+                      comparacion={{
+                        real: { etiqueta: "σ", valor: resultado.zapata.extraordinaria.sigmaKPa },
+                        limite: { etiqueta: "1,5·σ adm", valor: resultado.zapata.extraordinaria.sigmaAdmisibleKPa },
+                        unidad: "kN/m²", exige: "≤",
+                      }}
+                      recomendaciones={rec["ext.tension"]}
+                    />
+                    <ComprobacionVuelco
+                      etiqueta="Vuelco en A"
+                      resultado={resultado.zapata.extraordinaria.vuelcoA}
+                      bordes={{ inicio: "izquierdo", fin: "derecho" }}
+                      direccion="en A"
+                      recomendaciones={rec["ext.vuelcoA"]}
+                    />
+                    <ComprobacionVuelco
+                      etiqueta="Vuelco en B"
+                      resultado={resultado.zapata.extraordinaria.vuelcoB}
+                      bordes={{ inicio: "superior", fin: "inferior" }}
+                      direccion="en B"
+                      recomendaciones={rec["ext.vuelcoB"]}
+                    />
+                    <ComprobacionDeslizamiento
+                      etiqueta="Deslizamiento"
+                      resultado={resultado.zapata.extraordinaria.deslizamiento}
+                      nota={conTirante ? "Con tirante, la base frena el tirante más la horizontal." : undefined}
+                      recomendaciones={rec["ext.deslizamiento"]}
+                    />
+                  </div>
+                </Subgrupo>
+              )}
 
               {resultado.zapata.tirante && (
                 <Subgrupo titulo="Par tirante–terreno">

@@ -8,8 +8,11 @@ import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/li
 import {
   calcularDeslizamiento,
   calcularVuelco,
+  tensionExtraordinaria,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
+  type SituacionDimensionado,
+  type TensionExtraordinaria,
 } from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 export interface GeometriaZapataAislada {
@@ -92,6 +95,25 @@ export interface DatosZapataAislada {
    * deslizamiento no se comprueba.
    */
   phiGrados?: number;
+  /**
+   * Cargas de la situación extraordinaria (sismo, impacto), características.
+   * Sólo se comprueba el terreno con ellas. Si falta, no se comprueba.
+   */
+  extraordinaria?: CargasZapata;
+  /**
+   * Situación de dimensionado para los coeficientes del terreno (vuelco y
+   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   */
+  situacion?: SituacionDimensionado;
+}
+
+/** El terreno con las cargas de la situación extraordinaria. */
+export interface TerrenoExtraordinarioAislada extends TensionExtraordinaria {
+  excentricidadA: number;
+  excentricidadB: number;
+  vuelcoA: ResultadoVuelco | null;
+  vuelcoB: ResultadoVuelco;
+  deslizamiento: ResultadoDeslizamiento | null;
 }
 
 /**
@@ -322,6 +344,8 @@ export interface ResultadoZapataAislada {
   vuelcoB: ResultadoVuelco;
   /** Deslizamiento por el DB SE-C. Null si no hay φ′ con qué calcularlo. */
   deslizamiento: ResultadoDeslizamiento | null;
+  /** Null si no se cargó la situación extraordinaria. */
+  extraordinaria: TerrenoExtraordinarioAislada | null;
 }
 
 /** Anclaje de la parrilla en la sección x que peor verifica, art. 9.8.2.2. */
@@ -760,7 +784,8 @@ export function calcularZapataAislada(
       });
 
   // Vuelco y deslizamiento, por el DB SE-C (ver estabilidad-zapata.ts).
-  const estabiliza = { nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H };
+  const situacion = datos.situacion;
+  const estabiliza = { nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H, situacion };
   const vuelcoA = tirante
     ? null
     : calcularVuelco({ ...estabiliza, direccion: { dimM: A, posicionPilarM: bordeA + anchoPilarA / 2, mkKNm: MkA, hkKN: HkA } });
@@ -776,9 +801,28 @@ export function calcularZapataAislada(
           nkPermanenteKN,
           pesoZapataKN: pesoPropioKN,
           phiGrados,
+          situacion,
         });
 
+  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  const extraordinaria = datos.extraordinaria
+    ? (() => {
+        const r = calcularZapataAislada(materiales, geometria, sigmaAdmisibleKPa, {
+          ...datos, cargas: datos.extraordinaria, extraordinaria: undefined, situacion: "extraordinaria",
+        });
+        return {
+          ...tensionExtraordinaria(r.geotecnico.sigmaKPa, sigmaAdmisibleKPa),
+          excentricidadA: r.excentricidadA,
+          excentricidadB: r.excentricidadB,
+          vuelcoA: r.vuelcoA,
+          vuelcoB: r.vuelcoB,
+          deslizamiento: r.deslizamiento,
+        };
+      })()
+    : null;
+
   return {
+    extraordinaria,
     vuelcoA,
     vuelcoB,
     deslizamiento,

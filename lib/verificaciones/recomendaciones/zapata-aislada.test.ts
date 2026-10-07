@@ -36,6 +36,17 @@ describe("recomendaciones de la zapata aislada", () => {
     expect(r.vuelcoB).toBeUndefined();
   });
 
+  it("vuelco extraordinario: propone con los coeficientes de esa situación", () => {
+    // Sismo: Mdst = 150 + 60·0,4 = 174; Mstb = 100·0,8 + 25,6·0,8 = 100,5 → 1,2·174 > 0,9·100,5.
+    const r = recomendarZapataAislada({
+      ...BASE,
+      datos: { ...BASE.datos, extraordinaria: { Nk: 400, MkA: 150, MkB: 0, HkA: 60, NkPermanente: 100 } },
+    });
+    expect(r.vuelcoA).toBeUndefined();
+    expect(r["ext.vuelcoA"]?.length).toBeGreaterThan(0);
+    for (const p of r["ext.vuelcoA"] ?? []) expect(p.utilizacion).toBeLessThanOrEqual(1);
+  });
+
   it("sin horizontal no propone nada de deslizamiento", () => {
     const r = recomendarZapataAislada({ ...BASE, datos: { ...BASE.datos, phiGrados: 30 } });
     expect(r.deslizamiento).toBeUndefined();

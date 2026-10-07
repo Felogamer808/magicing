@@ -5,6 +5,12 @@ import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/co
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 import { calcularPunzonamientoDescentrado } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
 import { calcularTiranteRozamiento, type ResultadoTiranteRozamiento } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
+import {
+  calcularDeslizamiento,
+  calcularVuelco,
+  type ResultadoDeslizamiento,
+  type ResultadoVuelco,
+} from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 export interface GeometriaZapataAislada {
   /** Dimensión de la zapata en dirección A (m) */
@@ -40,6 +46,17 @@ export interface CargasZapata {
   MkA: number;
   /** Igual que `MkA`, en la dirección B (kN·m). */
   MkB: number;
+  /**
+   * Horizontal característica en el arranque del pilar, + hacia el borde final
+   * (kN). Vuelca con brazo H y desliza. Si falta, 0.
+   */
+  HkA?: number;
+  HkB?: number;
+  /**
+   * Parte permanente de Nk (kN): la única que estabiliza al vuelco y frena el
+   * deslizamiento, porque la sobrecarga puede no estar. Si falta, Nk entero.
+   */
+  NkPermanente?: number;
 }
 
 export interface ArmadoDireccion {
@@ -69,6 +86,12 @@ export interface DatosZapataAislada {
     /** Ángulo de rozamiento interno efectivo del terreno (grados). */
     phiGrados: number;
   };
+  /**
+   * Ángulo de rozamiento interno efectivo del terreno, φ′ (grados), para el
+   * deslizamiento. Con tirante se usa el del tirante. Si no hay ninguno, el
+   * deslizamiento no se comprueba.
+   */
+  phiGrados?: number;
 }
 
 /**
@@ -291,6 +314,14 @@ export interface ResultadoZapataAislada {
   punzonamiento: ResultadoPunzonamiento;
   /** Sólo con tirante: su tracción, el deslizamiento y lo que le queda al pilar. */
   tirante?: ResultadoTiranteRozamiento;
+  /**
+   * Vuelco por el DB SE-C. Con tirante, en A no hay vuelco que comprobar: el
+   * tirante sujeta la zapata y el giro lo impide el par, así que es null.
+   */
+  vuelcoA: ResultadoVuelco | null;
+  vuelcoB: ResultadoVuelco;
+  /** Deslizamiento por el DB SE-C. Null si no hay φ′ con qué calcularlo. */
+  deslizamiento: ResultadoDeslizamiento | null;
 }
 
 /** Anclaje de la parrilla en la sección x que peor verifica, art. 9.8.2.2. */
@@ -652,6 +683,13 @@ export function calcularZapataAislada(
   const { A, B, H, anchoPilarA, anchoPilarB, recubrimiento } = geometria;
   const { cargas, armadoA, armadoB } = datos;
   const { Nk, MkA, MkB } = cargas;
+  const HkA = cargas.HkA ?? 0;
+  const HkB = cargas.HkB ?? 0;
+  const nkPermanenteKN = cargas.NkPermanente ?? Nk;
+  // La horizontal del arranque del pilar llega a la base con brazo H: corre la
+  // resultante igual que un momento. Lo que baja por el pilar sigue siendo Mk.
+  const mBaseA = MkA + HkA * H;
+  const mBaseB = MkB + HkB * H;
 
   // Posición del pilar: sin dato, centrado.
   const bordeA = geometria.distanciaBordeA ?? (A - anchoPilarA) / 2;
@@ -676,10 +714,11 @@ export function calcularZapataAislada(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0A + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN,
       })
     : undefined;
-  const excA = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0A + MkA) / cargaTotalKN : 0;
-  const excB = cargaTotalKN !== 0 ? (Nk * e0B + MkB) / cargaTotalKN : 0;
+  const excA = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0A + mBaseA) / cargaTotalKN : 0;
+  const excB = cargaTotalKN !== 0 ? (Nk * e0B + mBaseB) / cargaTotalKN : 0;
   const dentroDelNucleo = Math.abs(excA) <= A / 6 && Math.abs(excB) <= B / 6;
   // Con la resultante fuera de la base no hay área eficaz: los dos anchos
   // negativos multiplicados darían un área positiva y una tensión ínfima.
@@ -698,9 +737,9 @@ export function calcularZapataAislada(
   const forma = datos.formaAnclaje ?? "recta";
   // Con tirante, el momento que llega al terreno en A es nulo: se le pasa a los
   // vuelos el que anula el de la excentricidad, y la presión sale uniforme.
-  const mkVuelosA = tirante ? -Nk * e0A : MkA;
+  const mkVuelosA = tirante ? -Nk * e0A : mBaseA;
   const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, mkVuelosA, armadoA, forma);
-  const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, MkB, armadoB, forma);
+  const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, mBaseB, armadoB, forma);
   const direccionA = vueloGobernante(vuelosA);
   const direccionB = vueloGobernante(vuelosB);
 
@@ -714,13 +753,35 @@ export function calcularZapataAislada(
     : calcularPunzonamientoDescentrado(materiales, {
         A, B, anchoPilarA, anchoPilarB, bordeA, bordeB, dA, dB,
         nk: Nk, mkA: mkPunzonA, mkB: MkB,
-        excCalculoA: tirante ? 0 : vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + MkA),
-        excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + MkB),
+        excCalculoA: tirante ? 0 : vuelosA.distribucion.excentricidadM * Math.sign(Nk * e0A + mBaseA),
+        excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + mBaseB),
         asRealACm2: direccionA.asRealCm2,
         asRealBCm2: direccionB.asRealCm2,
       });
 
+  // Vuelco y deslizamiento, por el DB SE-C (ver estabilidad-zapata.ts).
+  const estabiliza = { nkPermanenteKN, pesoZapataKN: pesoPropioKN, cantoM: H };
+  const vuelcoA = tirante
+    ? null
+    : calcularVuelco({ ...estabiliza, direccion: { dimM: A, posicionPilarM: bordeA + anchoPilarA / 2, mkKNm: MkA, hkKN: HkA } });
+  const vuelcoB = calcularVuelco({ ...estabiliza, direccion: { dimM: B, posicionPilarM: bordeB + anchoPilarB / 2, mkKNm: MkB, hkKN: HkB } });
+  const phiGrados = datos.tirante?.phiGrados ?? datos.phiGrados;
+  const deslizamiento =
+    phiGrados === undefined
+      ? null
+      : calcularDeslizamiento({
+          // Con tirante, lo que la base frena en A es el tirante más la horizontal.
+          horizontalAKN: tirante ? tirante.horizontalBaseKN : HkA,
+          horizontalBKN: HkB,
+          nkPermanenteKN,
+          pesoZapataKN: pesoPropioKN,
+          phiGrados,
+        });
+
   return {
+    vuelcoA,
+    vuelcoB,
+    deslizamiento,
     vueloMaxM,
     esRigida: vueloMaxM <= 2 * H,
     geotecnico: {

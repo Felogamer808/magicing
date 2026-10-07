@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
-import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
+import { ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
@@ -11,13 +11,11 @@ import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/c
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
-import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisCargaColgada } from "@/components/verificaciones/croquis/CroquisVarios";
 import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverCargaColgada } from "@/lib/calc/hormigon/vigas/resolver-carga-colgada";
-import { recomendarCargaColgada } from "@/lib/verificaciones/recomendaciones/carga-colgada";
 
 const meta = registroVerificaciones.find((v) => v.id === "carga-colgada")!;
 
@@ -36,18 +34,29 @@ export default function CargaColgadaPage() {
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "2");
   const [h, setH] = useCampo("h", "0.5");
+  const [h2, setH2] = useCampo("h2", "0.4");
   const [a, setA] = useCampo("a", "0.3");
 
   const campos = useMemo(
-    () => ({ reaccion, fyk, diametroEstribo, numeroRamas, h, a }),
-    [reaccion, fyk, diametroEstribo, numeroRamas, h, a]
+    () => ({ reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a }),
+    [reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a]
   );
   const resultado = useMemo(() => resolverCargaColgada(campos), [campos]);
-  // Cambios recalculados para lo que no cumple o queda justo.
-  const rec = useMemo(() => recomendarCargaColgada(campos), [campos]);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: todos tienen que ser positivos." });
+  else {
+    if (!resultado.r.cantosComoLaFigura)
+      avisos.push({
+        tipo: "aviso",
+        texto: `h1 = ${fmt(resultado.v.h, 2)} m < h2 = ${fmt(resultado.v.h2, 2)} m: la figura A19.9.7 supone que la viga que recibe es la de más canto. La zona de reparto queda fuera de lo que dibuja la norma.`,
+      });
+    if (!resultado.r.cumpleAvisoCantoMinimo)
+      avisos.push({
+        tipo: "aviso",
+        texto: `Criterio de Montoya (§24.9.1), no del Anejo 19: h1 = ${fmt(resultado.v.h, 2)} m < 1,2·a = ${fmt(resultado.r.cantoMinimoM, 2)} m, poco canto para que se formen las bielas. No entra en el cumple.`,
+      });
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -65,14 +74,15 @@ export default function CargaColgadaPage() {
       <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12">
-        <Etapa id="geometria" numero={1} titulo="Geometría y carga" descripcion="La viga que cuelga y la reacción que hay que suspender.">
+        <Etapa id="geometria" numero={1} titulo="Geometría y carga" descripcion="Las dos vigas que se cruzan y la reacción que hay que colgar.">
           <DatosConDibujo
             datos={
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="reaccion" etiqueta="Rd (reacción colgada)" sufijo="kN" valor={reaccion} onChange={setReaccion} />
                 <div />
-                <CampoNumerico id="h" etiqueta="h (viga que cuelga)" sufijo="m" valor={h} onChange={setH} />
-                <CampoNumerico id="a" etiqueta="a (ancho colgado)" sufijo="m" valor={a} onChange={setA} />
+                <CampoNumerico id="h" etiqueta="h1 (viga que recibe)" sufijo="m" valor={h} onChange={setH} />
+                <CampoNumerico id="h2" etiqueta="h2 (viga que llega)" sufijo="m" valor={h2} onChange={setH2} />
+                <CampoNumerico id="a" etiqueta="a (ancho de la que llega)" sufijo="m" valor={a} onChange={setA} />
               </div>
             }
             dibujo={<CroquisCargaColgada />}
@@ -92,14 +102,16 @@ export default function CargaColgadaPage() {
             norma={norma}
             datos={[
               { etiqueta: "Rd", valor: `${reaccion} kN` },
-              { etiqueta: "h × a", valor: `${h} × ${a} m` },
+              { etiqueta: "h1 / h2", valor: `${h} / ${h2} m` },
+              { etiqueta: "a", valor: `${a} m` },
               { etiqueta: "Estribo", valor: `Ø${diametroEstribo}, ${numeroRamas} ramas` },
               ...(resultado ? [{ etiqueta: "fyd", valor: `${fmt(resultado.r.fydMPa)} MPa`, derivado: true }] : []),
             ]}
             hipotesis={[
-              "Carga totalmente colgada (Jiménez Montoya §24.9.1): actúa por debajo de la zona comprimida y se suspende con estribos anclados en la cara comprimida opuesta.",
-              "El Anejo 19 exige esta armadura (art. 9.2.5, apoyos indirectos) pero no fija el número: As·fyd ≥ Rd es el criterio del manual.",
-              "No contempla el apoyo indirecto con reparto entre fracción directa y colgada.",
+              "Apoyo indirecto, art. 9.2.5(1): se cuelga el 100 % de la reacción con cercos que envuelven la armadura principal de la viga que recibe, además de la armadura necesaria por otros motivos.",
+              "Los cercos son el tirante vertical del modelo de bielas: As·fyd ≥ Rd, con fyd = fyk/γs (art. 6.5.3(1)).",
+              "La zona de reparto de la figura A19.9.7 se informa y no entra en el cumple.",
+              "h1 ≥ 1,2·a es criterio de Montoya (§24.9.1), sin equivalente en el Anejo: queda como aviso.",
               "La cantidad de estribos es un dimensionamiento, no una verificación.",
             ]}
             avisos={avisos}
@@ -114,15 +126,13 @@ export default function CargaColgadaPage() {
             </div>
           ) : (
             <div className="space-y-10">
-              <ConclusionAutomatica />
-
               <PanelMetricas
                 horizontal
                 metricas={[
                   { etiqueta: "As necesaria", valor: `${fmt(resultado.r.asNecesariaCm2)} cm²` },
                   { etiqueta: "Área por estribo", valor: `${fmt(resultado.r.areaPorEstriboCm2)} cm²`, nota: `${fmt(resultado.v.numeroRamas, 0)} ramas Ø${fmt(resultado.v.diametroEstribo, 0)}` },
                   { etiqueta: "Estribos", valor: `${resultado.r.cantidadEstribos}`, nota: "dimensionado" },
-                  { etiqueta: "Canto mínimo", valor: `${fmt(resultado.r.cantoMinimoM, 2)} m`, nota: "1,2·a" },
+                  { etiqueta: "Zona en la que recibe", valor: `${fmt(resultado.r.zona.recibeDesdeCaraM, 2)} m`, nota: "h1/3 desde la cara" },
                 ]}
               />
 
@@ -141,14 +151,20 @@ export default function CargaColgadaPage() {
                 </div>
               </Subgrupo>
 
-              <Subgrupo titulo="Condiciones constructivas">
-                <div>
-                  <ResultadoCheck
-                    etiqueta="Canto suficiente para que se formen las bielas"
-                    verifica={resultado.r.verificaCanto}
-                    comparacion={{ real: { etiqueta: "h", valor: resultado.v.h }, limite: { etiqueta: "1,2·a", valor: resultado.r.cantoMinimoM }, unidad: "m", exige: "≥", decimales: 2 }}
-                    recomendaciones={rec.canto}
-                  />
+              <Subgrupo titulo="Zona de los cercos" detalle="figura A19.9.7, informativa">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    En la viga que recibe: hasta {fmt(resultado.r.zona.recibeDesdeCaraM, 2)} m (h1/3) desde la cara de la que llega, y no
+                    más de {fmt(resultado.r.zona.recibeDesdeEjeM, 2)} m (h1/2) desde su eje.
+                  </p>
+                  <p>
+                    En la viga que llega: hasta {fmt(resultado.r.zona.llegaDesdeCaraM, 2)} m (h2/3) desde la cara de la que recibe, y no
+                    más de {fmt(resultado.r.zona.llegaDesdeEjeM, 2)} m (h2/2) desde su eje.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Aviso de buena práctica, criterio de Montoya (§24.9.1) y no del Anejo 19, que no entra en el cumple: h1 ={" "}
+                    {fmt(resultado.v.h, 2)} m {resultado.r.cumpleAvisoCantoMinimo ? "≥" : "<"} 1,2·a = {fmt(resultado.r.cantoMinimoM, 2)} m.
+                  </p>
                 </div>
               </Subgrupo>
             </div>

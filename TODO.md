@@ -55,8 +55,9 @@ Independientes, contra `main`:
   el Anejo 19. Quedan como avisos que no entran en el cumple d0 ≥ d/2 y los
   cercos en 2/3·d (ménsula), el tirante en 0,12·l y h ≥ 1,2·a (apeo). La
   carga colgada indirecta pasó del 65 % al 100 % (art. 9.2.5(1)) y la ménsula
-  ya no ofrece H = 0,15·F automático. "Carga colgada" (`cuelgue.ts`) todavía
-  cita a Montoya: falta revisarla con el mismo criterio.
+  ya no ofrece H = 0,15·F automático. "Carga colgada" (`cuelgue.ts`) también:
+  As·fyd ≥ Rd por el art. 6.5.3(1), zona de la figura A19.9.7 informativa y
+  h ≥ 1,2·a como aviso.
 - **Losa de fundación** sigue con el modelo de la planilla (brazo 0,85·d,
   mínimos de la EHE) en `lib/calc/hormigon/losas/franja-sobre-terreno.ts`: la combinada ya no
   lo usa y conviene pasarla al Anejo 19 con el mismo criterio.

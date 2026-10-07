@@ -3,10 +3,10 @@ import { calcularCuelgue } from "@/lib/calc/hormigon/vigas/cuelgue";
 
 describe("calcularCuelgue", () => {
   const materiales = { fykMPa: 500 };
-  const geometria = { hM: 0.5, aM: 0.3 };
+  const geometria = { hM: 0.5, h2M: 0.4, aM: 0.3 };
   const datos = { reaccionKN: 200, diametroEstriboMm: 10, numeroRamas: 2 };
 
-  it("As necesaria sale de Rd·10/fyd", () => {
+  it("As necesaria sale de Rd/fyd, con fyd = fyk/γs sin tope (art. 6.5.3(1))", () => {
     const r = calcularCuelgue(materiales, geometria, datos);
     expect(r.fydMPa).toBeCloseTo(434.782608695652, 6);
     expect(r.asNecesariaCm2).toBeCloseTo(4.6, 4);
@@ -18,14 +18,26 @@ describe("calcularCuelgue", () => {
     expect(r.cantidadEstribos).toBe(3);
   });
 
-  it("verifica h ≥ 1,2·a", () => {
-    const r = calcularCuelgue(materiales, geometria, datos);
-    expect(r.cantoMinimoM).toBeCloseTo(0.36, 6);
-    expect(r.verificaCanto).toBe(true);
+  it("zona de reparto de la figura A19.9.7", () => {
+    const { zona } = calcularCuelgue(materiales, geometria, datos);
+    expect(zona.recibeDesdeCaraM).toBeCloseTo(0.5 / 3, 9);
+    expect(zona.recibeDesdeEjeM).toBeCloseTo(0.25, 9);
+    expect(zona.llegaDesdeCaraM).toBeCloseTo(0.4 / 3, 9);
+    expect(zona.llegaDesdeEjeM).toBeCloseTo(0.2, 9);
   });
 
-  it("no verifica si el canto queda por debajo de 1,2·a", () => {
-    const r = calcularCuelgue(materiales, { hM: 0.3, aM: 0.3 }, datos);
-    expect(r.verificaCanto).toBe(false);
+  it("marca si h1 < h2, fuera de lo que supone la figura", () => {
+    expect(calcularCuelgue(materiales, geometria, datos).cantosComoLaFigura).toBe(true);
+    expect(calcularCuelgue(materiales, { ...geometria, h2M: 0.6 }, datos).cantosComoLaFigura).toBe(false);
+  });
+
+  it("aviso de Montoya h ≥ 1,2·a, que no cambia la armadura", () => {
+    const bien = calcularCuelgue(materiales, geometria, datos);
+    expect(bien.cantoMinimoM).toBeCloseTo(0.36, 6);
+    expect(bien.cumpleAvisoCantoMinimo).toBe(true);
+
+    const corto = calcularCuelgue(materiales, { ...geometria, hM: 0.3 }, datos);
+    expect(corto.cumpleAvisoCantoMinimo).toBe(false);
+    expect(corto.asNecesariaCm2).toBeCloseTo(bien.asNecesariaCm2, 9);
   });
 });

@@ -79,6 +79,10 @@ Independientes, contra `main`:
   pretensado (se resuelven con la sección, que se carga como un juego de
   propiedades que no se pueden mover sueltas) y el rango del lado del cordón
   de soldadura (puede fallar por grande o por chico).
+- **Viga de atado: asiento diferencial.** La página toma el axil de atado (un %
+  del pilar más cargado, 10 % de Jiménez Montoya por defecto) y la q₁ de la
+  compactación, pero no el asiento diferencial entre las zapatas que une (CTE DB
+  SE-C, art. 4.1.1 (7)). Decidido dejarlo para después el 2026-10-09.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

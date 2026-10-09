@@ -98,6 +98,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nivel: "probada",
     nota: "Sin planilla de referencia: la palanca se contrasta a mano en los tests. La zapata usa el modelo del Anejo 19 de la aislada y la viga el de flexión y cortante. La zapata interior se calcula aparte, con su carga completa.",
   },
+  "viga-atado": {
+    nivel: "probada",
+    nota: "Sin planilla ni caso de referencia: se contrasta a mano en los tests. Resistencia por el Anejo 19; el axil de atado es un porcentaje del pilar más cargado (10 % por defecto, Jiménez Montoya § 25.10.2), hipótesis de quien proyecta. No considera el asiento diferencial entre zapatas.",
+  },
   "zapata-combinada": {
     nivel: "probada",
     nota: "Anejo 19 desde el 2026-10-06: a lo largo con el motor de vigas (armadura inferior y superior), a lo ancho con el modelo de la aislada, punzonamiento de borde y par tirante–terreno. Mk y Hk por pilar, con vuelco y deslizamiento por el CTE DB SE-C, también en situación extraordinaria. Los resultados cambiaron respecto de la planilla. Sin auditoría independiente.",

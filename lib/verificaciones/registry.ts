@@ -64,6 +64,7 @@ export type IdVerificacion =
   | "zapatas"
   | "zapata-corrida"
   | "zapata-viga-centradora"
+  | "viga-atado"
   | "zapata-combinada"
   | "losa-fundacion"
   | "pilotes"
@@ -369,6 +370,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Viga que une una zapata con el pilar descentrado (de medianería) con la interior: toma el momento y deja la zapata con presión centrada. Se llega con los datos desde la zapata aislada.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zapata-viga-centradora",
+    disponible: true,
+  },
+  {
+    id: "viga-atado",
+    nombre: "Viga de atado",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion:
+      "Viga riostra entre zapatas o encepados: trabaja a axil de tracción y de compresión, con la flexión de la compactación si la hay.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/viga-atado",
     disponible: true,
   },
   {

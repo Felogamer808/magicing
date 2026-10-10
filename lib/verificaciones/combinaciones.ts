@@ -51,6 +51,18 @@ const ZAPATAS: Combinacion = {
     "Nk y Mk se cargan sin mayorar. La verificación del terreno los usa tal cual, y el armado y el punzonamiento aplican γ = 1,5 internamente.",
 };
 
+/*
+ * El axil de atado sale de los axiles de cálculo de los pilares, como lo plantea
+ * Jiménez Montoya (§ 25.10.2). La q₁ del art. 9.8.3 (2) es una carga mínima de
+ * proyecto y entra tal cual.
+ */
+const VIGA_ATADO: Combinacion = {
+  regimen: "elu",
+  etiqueta: "ELU · axiles de los pilares mayorados",
+  detalle:
+    "N₁d y N₂d se cargan con los coeficientes ya aplicados. El axil de atado es un porcentaje del mayor, y q₁ = 10 kN/m entra sin volver a mayorar.",
+};
+
 const PILOTES: Combinacion = {
   regimen: "mixta",
   etiqueta: "Cargas características · sin mayorar",
@@ -231,6 +243,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
   "zapata-viga-centradora": ZAPATAS,
+  "viga-atado": VIGA_ATADO,
   "zapata-combinada": ZAPATAS,
   "losa-fundacion": ZAPATAS,
   pilotes: PILOTES,

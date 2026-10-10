@@ -1,5 +1,5 @@
 import { resolverPilote, type ResueltoPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-pilote";
-import { recomendarTodas, type Palanca, type Recomendacion } from "./motor";
+import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
 export type ClavePilote = "capacidad" | "fuste" | "asMin";
@@ -50,7 +50,14 @@ function palancasPorClave(clave: ClavePilote): readonly Palanca<Campos>[] {
   return [BARRAS, DIAMETRO_BARRA];
 }
 
+const problema = (campos: Campos) => ({ datos: campos, calcular: resolverPilote, utilizaciones, nombres: NOMBRES });
+
 /** Propuestas para cada comprobación del pilote que no cumple o queda justa. */
 export function recomendarPilote(campos: Campos): RecomendacionesPilote {
-  return recomendarTodas({ datos: campos, calcular: resolverPilote, utilizaciones, nombres: NOMBRES }, palancasPorClave);
+  return recomendarTodas(problema(campos), palancasPorClave);
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarPilote(campos: Campos) {
+  return evaluar(problema(campos));
 }

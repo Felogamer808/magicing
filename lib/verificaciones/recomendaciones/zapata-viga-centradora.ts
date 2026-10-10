@@ -2,7 +2,7 @@ import {
   resolverVigaCentradora,
   type ResueltoVigaCentradora,
 } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora";
-import { recomendarTodas, type Palanca, type Recomendacion } from "./motor";
+import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import {
   CITA_LBD_DIAMETRO,
   CITA_PATILLA,
@@ -116,7 +116,14 @@ function palancasPorClave(clave: ClaveVigaCentradora): readonly Palanca<Campos>[
   }
 }
 
+const problema = (campos: Campos) => ({ datos: campos, calcular: resolverVigaCentradora, utilizaciones, nombres: NOMBRES });
+
 /** Propuestas para cada comprobación de la zapata con viga centradora que no cumple o queda justa. */
 export function recomendarVigaCentradora(campos: Campos): RecomendacionesVigaCentradora {
-  return recomendarTodas({ datos: campos, calcular: resolverVigaCentradora, utilizaciones, nombres: NOMBRES }, palancasPorClave);
+  return recomendarTodas(problema(campos), palancasPorClave);
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarVigaCentradora(campos: Campos) {
+  return evaluar(problema(campos));
 }

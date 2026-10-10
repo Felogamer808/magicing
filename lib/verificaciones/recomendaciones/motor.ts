@@ -172,3 +172,35 @@ export function recomendarTodas<D, R, K extends string>(
   }
   return salida;
 }
+
+/** Una comprobación con su estado, para listarlas fuera de la página. */
+export interface Comprobacion {
+  clave: string;
+  nombre: string;
+  cumple: boolean;
+  /** Demanda sobre capacidad. No va en las de sí o no. */
+  utilizacion?: number;
+  /** Queda justa: cumple, pero por encima del umbral del aviso de poco margen. */
+  justa: boolean;
+}
+
+/**
+ * Todas las comprobaciones que aplican con estos datos, en el orden en que
+ * las declara la verificación. `null` si los datos no son válidos.
+ */
+export function evaluar<D, R, K extends string>(problema: Problema<D, R, K>): Comprobacion[] | null {
+  const actual = calcularSeguro(problema.calcular, problema.datos);
+  if (!actual) return null;
+  const us = problema.utilizaciones(actual);
+  return (Object.keys(us) as K[]).map((clave) => {
+    const u = us[clave] as number;
+    const binaria = problema.binarias?.includes(clave) ?? false;
+    return {
+      clave,
+      nombre: problema.nombres[clave],
+      cumple: u <= 1,
+      ...(binaria || !Number.isFinite(u) ? {} : { utilizacion: u }),
+      justa: !binaria && u <= 1 && u >= AL_LIMITE,
+    };
+  });
+}

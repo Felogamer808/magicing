@@ -83,6 +83,9 @@ Independientes, contra `main`:
   del pilar más cargado, 10 % de Jiménez Montoya por defecto) y la q₁ de la
   compactación, pero no el asiento diferencial entre las zapatas que une (CTE DB
   SE-C, art. 4.1.1 (7)). Decidido dejarlo para después el 2026-10-09.
+- **MCP para el resto de las familias.** El servidor (`mcp/servidor.ts`) cubre
+  sólo cimentaciones (2026-10-10). Sumar vigas, losas, muros, acero, madera y
+  pretensado sigue los pasos de `ARCHITECTURE.md` → "Servidor MCP".
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

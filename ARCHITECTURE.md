@@ -172,6 +172,28 @@ la barra lateral y el buscador. Tiene tres tablas:
 
 El índice, la barra lateral y el buscador salen solos del registry.
 
+## Servidor MCP
+
+`mcp/servidor.ts` expone las verificaciones a Claude (app de escritorio y
+Claude Code) por stdio, en la máquina local: `npm run mcp`. Se registra en
+`.mcp.json` (Claude Code, versionado) y en `claude_desktop_config.json` de la
+app de escritorio, con rutas absolutas. Corre el TypeScript con `tsx`, sin
+build: siempre usa el cálculo actual.
+
+Tres herramientas: `listar_verificaciones`, `campos_de` y `calcular`. No
+calcula nada propio: llama al mismo resolver que la página. Por eso una
+verificación entra al MCP sólo si su página calcula con un resolver por campos.
+
+Hoy cubre cimentaciones. Para sumar otra verificación:
+
+1. Que su página calcule con un resolver en `lib/calc/` (ya lo hacen casi todas).
+2. Declarar sus campos, como `lib/mcp/campos-cimentaciones.ts`. El test de
+   `lib/mcp/` los compara contra los `useCampo` de la página.
+3. Exportar `comprobarX()` desde su módulo de recomendaciones, con `evaluar()`
+   del motor, y agregarla a `lib/mcp/cimentaciones.ts` (o a un módulo hermano).
+
+No ve los proyectos guardados: viven en el localStorage del navegador.
+
 ## Decisiones que conviene conocer
 
 - **Un archivo de cálculo por verificación**, aunque compartan fórmulas. Cada

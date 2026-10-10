@@ -24,13 +24,11 @@ import { ComprobacionVuelco } from "@/components/verificaciones/hormigon/Comprob
 import { ComprobacionDeslizamiento } from "@/components/verificaciones/hormigon/ComprobacionDeslizamiento";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
-import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { calcularZapataCombinada } from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
-import { recomendarZapataCombinada } from "@/lib/verificaciones/recomendaciones/zapata-combinada";
-import { recomendarArmaduraTirante, verificarTirante, type EntradaArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
+import { resolverZapataCombinada } from "@/lib/calc/hormigon/cimentaciones/resolver-zapata-combinada";
+import { EQUILIBRIOS as ROTULOS_EQUILIBRIO, POSICIONES_COMBINADA } from "@/lib/calc/hormigon/cimentaciones/rotulos-zapatas";
 
 const meta = registroVerificaciones.find((v) => v.id === "zapata-combinada")!;
 
@@ -42,8 +40,8 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const POSICIONES = ["Centrados", "Ubicación libre", "Contra la medianera"] as const;
-const EQUILIBRIOS = ["Lo toma el terreno", "Par tirante–terreno"] as const;
+const POSICIONES = POSICIONES_COMBINADA;
+const EQUILIBRIOS = ROTULOS_EQUILIBRIO;
 const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
 const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
 
@@ -119,103 +117,12 @@ export default function ZapataCombinadaPage() {
   const [pataTirante, setPataTirante] = useCampo("pataTirante", "150");
   const [adherenciaTirante, setAdherenciaTirante] = useCampo("adherenciaTirante", "Buena");
 
-  const resultado = useMemo(() => {
-    const v = {
-      fck: aNumero(fck), fyk: aNumero(fyk), sigmaAdmisible: aNumero(sigmaAdmisible),
-      L: aNumero(A), B: aNumero(B), H: aNumero(H), rec: aNumero(recubrimiento),
-      pos1: aNumero(pos1), Nk1: aNumero(Nk1), cL1: aNumero(cL1), cB1: aNumero(cB1),
-      pos2: aNumero(pos2), Nk2: aNumero(Nk2), cL2: aNumero(cL2), cB2: aNumero(cB2),
-      MkL1: aNumero(MkL1), MkB1: aNumero(MkB1), HkL1: aNumero(HkL1), HkB1: aNumero(HkB1),
-      MkL2: aNumero(MkL2), MkB2: aNumero(MkB2), HkL2: aNumero(HkL2), HkB2: aNumero(HkB2),
-      nInf: aNumero(numeroInferior), fInf: aNumero(diametroInferior),
-      nSup: aNumero(numeroSuperior), fSup: aNumero(diametroSuperior),
-      fT: aNumero(diametroTransversal), sT: aNumero(separacionTransversal),
-    };
-    if (!Object.values(v).every((n) => Number.isFinite(n))) return null;
-    const positivos = [v.fck, v.fyk, v.sigmaAdmisible, v.L, v.B, v.H, v.Nk1, v.Nk2, v.cL1, v.cB1, v.cL2, v.cB2, v.nInf, v.fInf, v.nSup, v.fSup, v.fT, v.sT];
-    if (!positivos.every((n) => n > 0) || !(v.pos2 > v.pos1)) return null;
-    const borde = aNumero(distanciaBordeB);
-    if (descentrado && !(borde >= 0)) return null;
-    const brazo = aNumero(brazoTirante);
-    const phi = aNumero(phiTerreno);
-    const phiValido = phi > 0 && phi < 90;
-    if (conTirante && !(brazo > 0 && phiValido)) return null;
-    const permanente = (texto: string) => (texto.trim() === "" ? undefined : aNumero(texto));
-    const nPerm1 = permanente(NkPerm1);
-    const nPerm2 = permanente(NkPerm2);
-    if (nPerm1 !== undefined && !(nPerm1 >= 0 && nPerm1 <= v.Nk1)) return null;
-    if (nPerm2 !== undefined && !(nPerm2 >= 0 && nPerm2 <= v.Nk2)) return null;
-
-    // Cargas extraordinarias de cada pilar; null si alguna no es válida.
-    const cargasExt = (nk: string, perm: string, mkL: string, mkB: string, hkL: string, hkB: string) => {
-      const c = { Nk: aNumero(nk), MkL: aNumero(mkL), MkB: aNumero(mkB), HkL: aNumero(hkL), HkB: aNumero(hkB) };
-      const p = permanente(perm);
-      if (!(c.Nk > 0) || ![c.MkL, c.MkB, c.HkL, c.HkB].every(Number.isFinite)) return null;
-      if (p !== undefined && !(p >= 0 && p <= c.Nk)) return null;
-      return { ...c, ...(p !== undefined ? { NkPermanente: p } : {}) };
-    };
-    const ext1 = extraordinariaActiva ? cargasExt(NkExt1, NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1) : undefined;
-    const ext2 = extraordinariaActiva ? cargasExt(NkExt2, NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2) : undefined;
-    if (ext1 === null || ext2 === null) return null;
-
-    const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-    const geometria = { L: v.L, B: v.B, H: v.H, recubrimiento: v.rec, ...(descentrado ? { distanciaBordeB: borde } : {}) };
-    const datos = {
-      pilares: [
-        {
-          posicionM: v.pos1, Nk: v.Nk1, anchoLargoM: v.cL1, anchoAnchoM: v.cB1,
-          MkL: v.MkL1, MkB: v.MkB1, HkL: v.HkL1, HkB: v.HkB1,
-          ...(nPerm1 !== undefined ? { NkPermanente: nPerm1 } : {}),
-        },
-        {
-          posicionM: v.pos2, Nk: v.Nk2, anchoLargoM: v.cL2, anchoAnchoM: v.cB2,
-          MkL: v.MkL2, MkB: v.MkB2, HkL: v.HkL2, HkB: v.HkB2,
-          ...(nPerm2 !== undefined ? { NkPermanente: nPerm2 } : {}),
-        },
-      ] as const,
-      inferior: { numero: v.nInf, diametroMm: v.fInf },
-      superior: { numero: v.nSup, diametroMm: v.fSup },
-      transversal: { diametroMm: v.fT, separacionM: v.sT },
-      formaAnclaje,
-      ...(conTirante ? { tirante: { brazoM: brazo, phiGrados: phi } } : {}),
-      // Sin φ′ válido el deslizamiento queda sin evaluar, no se inventa.
-      ...(phiValido ? { phiGrados: phi } : {}),
-      ...(ext1 && ext2 ? { extraordinaria: [ext1, ext2] as const } : {}),
-    };
-    const zapata = calcularZapataCombinada(materiales, geometria, v.sigmaAdmisible, datos);
-    const recomendaciones = recomendarZapataCombinada({ fck: v.fck, fyk: v.fyk, geometria, sigmaAdmisibleKPa: v.sigmaAdmisible, datos });
-
-    // El tirante se verifica con el pilar que más tira; las mismas barras en los dos.
-    const t = { f: aNumero(diametroTirante), n: aNumero(numeroTirante), rec: aNumero(recubrimientoTirante), pata: aNumero(pataTirante) };
-    const patillaTirante = extremoTirante === EXTREMOS_TIRANTE[1];
-    const iMayor = zapata.tirante && Math.abs(zapata.tirante.porPilar[1].tkKN) > Math.abs(zapata.tirante.porPilar[0].tkKN) ? 1 : 0;
-    const entradaTirante: EntradaArmaduraTirante | undefined =
-      zapata.tirante && t.f > 0 && t.n > 0 && t.rec >= 0 && (!patillaTirante || t.pata >= 0)
-        ? {
-            fck: v.fck,
-            fyk: v.fyk,
-            tdKN: zapata.tirante.porPilar[iMayor].tdKN,
-            barras: { tipo: "numero", numero: t.n, diametroMm: t.f },
-            anchoApoyoM: iMayor === 0 ? v.cB1 : v.cB2,
-            recubrimientoM: t.rec,
-            forma: patillaTirante ? "gancho" : "recta",
-            pataMm: patillaTirante ? t.pata : 0,
-            situacion: adherenciaTirante === "Mala" ? "mala" : "buena",
-          }
-        : undefined;
-    const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
-    const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
-
-    return { zapata, armaduraTirante, recomendacionesTirante, iMayor, recomendaciones };
-  }, [
-    fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, descentrado, distanciaBordeB, conTirante, brazoTirante, phiTerreno,
-    pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2,
-    MkL1, MkB1, HkL1, HkB1, NkPerm1, MkL2, MkB2, HkL2, HkB2, NkPerm2,
-    extraordinariaActiva, NkExt1, NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1,
-    NkExt2, NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2,
-    numeroInferior, diametroInferior, numeroSuperior, diametroSuperior, diametroTransversal, separacionTransversal, formaAnclaje,
-    diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante,
-  ]);
+  // Los campos tal como se guardan: el resolver los lee igual que el servidor MCP.
+  const campos = useMemo(
+    () => ({ fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, posicionPilares, distanciaBordeB, equilibrio, brazoTirante, phiTerreno, pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2, MkL1, MkB1, HkL1, HkB1, NkPermanente1: NkPerm1, MkL2, MkB2, HkL2, HkB2, NkPermanente2: NkPerm2, conExtraordinaria, NkExt1, NkPermanenteExt1: NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1, NkExt2, NkPermanenteExt2: NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2, numeroInferior, diametroInferior, numeroSuperior, diametroSuperior, diametroTransversal, separacionTransversal, formaAnclaje, diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante }),
+    [fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, posicionPilares, distanciaBordeB, equilibrio, brazoTirante, phiTerreno, pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2, MkL1, MkB1, HkL1, HkB1, NkPerm1, MkL2, MkB2, HkL2, HkB2, NkPerm2, conExtraordinaria, NkExt1, NkPermExt1, MkLExt1, MkBExt1, HkLExt1, HkBExt1, NkExt2, NkPermExt2, MkLExt2, MkBExt2, HkLExt2, HkBExt2, numeroInferior, diametroInferior, numeroSuperior, diametroSuperior, diametroTransversal, separacionTransversal, formaAnclaje, diametroTirante, numeroTirante, recubrimientoTirante, extremoTirante, pataTirante, adherenciaTirante]
+  );
+  const resultado = useMemo(() => resolverZapataCombinada(campos), [campos]);
 
   const cambiarPosicion = (valor: string) => {
     if (valor === POSICIONES[2]) {

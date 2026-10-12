@@ -18,7 +18,7 @@ import { DiagramaVigaAtado } from "@/components/verificaciones/hormigon/Diagrama
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
 import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
-import { DIAMETRO_MINIMO_ATADO_MM } from "@/lib/calc/hormigon/cimentaciones/viga-atado";
+import { DIAMETRO_MINIMO_ATADO_MM, DISTORSIONES_LIMITE, type TipoEstructuraAsiento } from "@/lib/calc/hormigon/cimentaciones/viga-atado";
 import { resolverVigaAtado } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-atado";
 import { recomendarVigaAtado } from "@/lib/verificaciones/recomendaciones/viga-atado";
 
@@ -33,6 +33,7 @@ const ETAPAS = [
 ] as const;
 
 const COMPACTACION = { si: "Sí: q₁ = 10 kN/m", no: "No" } as const;
+const TIPOS_ESTRUCTURA = Object.entries(DISTORSIONES_LIMITE) as [TipoEstructuraAsiento, (typeof DISTORSIONES_LIMITE)[TipoEstructuraAsiento]][];
 
 export default function VigaAtadoPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -48,6 +49,10 @@ export default function VigaAtadoPage() {
   const [n2d, setN2d] = useCampo("n2d", "800");
   const [porcentaje, setPorcentaje] = useCampo("porcentaje", "10");
   const [compactacion, setCompactacion] = useCampo<"si" | "no">("compactacion", "no");
+  // Vacío: el asiento sale de la distorsión límite de la tabla 2.2.
+  const [asiento, setAsiento] = useCampo("asiento", "");
+  const [distanciaEjes, setDistanciaEjes] = useCampo("distanciaEjes", "5.4");
+  const [tipoEstructura, setTipoEstructura] = useCampo<TipoEstructuraAsiento>("tipoEstructura", "reticulada");
 
   const [numeroCara, setNumeroCara] = useCampo("numeroCara", "3");
   const [diametroCara, setDiametroCara] = useCampo("diametroCara", "16");
@@ -55,8 +60,8 @@ export default function VigaAtadoPage() {
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "2");
 
   const campos = useMemo(
-    () => ({ fck, fyk, b, h, recubrimiento, luz, n1d, n2d, porcentaje, compactacion, numeroCara, diametroCara, diametroEstribo, numeroRamas }),
-    [fck, fyk, b, h, recubrimiento, luz, n1d, n2d, porcentaje, compactacion, numeroCara, diametroCara, diametroEstribo, numeroRamas]
+    () => ({ fck, fyk, b, h, recubrimiento, luz, n1d, n2d, porcentaje, compactacion, asiento, distanciaEjes, tipoEstructura, numeroCara, diametroCara, diametroEstribo, numeroRamas }),
+    [fck, fyk, b, h, recubrimiento, luz, n1d, n2d, porcentaje, compactacion, asiento, distanciaEjes, tipoEstructura, numeroCara, diametroCara, diametroEstribo, numeroRamas]
   );
   const resultado = useMemo(() => resolverVigaAtado(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -165,6 +170,22 @@ export default function VigaAtadoPage() {
                 onChange={(x) => setCompactacion(x === COMPACTACION.si ? "si" : "no")}
               />
             </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <CampoNumerico id="asiento" etiqueta="Asiento diferencial δ" sufijo="mm" valor={asiento} onChange={setAsiento} />
+              <CampoNumerico id="distanciaEjes" etiqueta="Entre ejes de zapatas" sufijo="m" valor={distanciaEjes} onChange={setDistanciaEjes} />
+              <CampoSeleccion
+                id="tipoEstructura"
+                etiqueta="Estructura (tabla 2.2)"
+                valor={DISTORSIONES_LIMITE[tipoEstructura].texto}
+                opciones={TIPOS_ESTRUCTURA.map(([, t]) => t.texto)}
+                onChange={(x) => setTipoEstructura(TIPOS_ESTRUCTURA.find(([, t]) => t.texto === x)?.[0] ?? "reticulada")}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El CTE DB SE-C (art. 4.1.1 (7)) pide considerar el asiento de las zapatas que une la viga, sin decir
+              cómo. Cargá el δ del estudio geotécnico; vacío, se toma la distorsión límite de la tabla 2.2 por la
+              distancia entre ejes, que es el máximo admisible y no el previsto.
+            </p>
           </div>
         </Etapa>
 
@@ -185,17 +206,27 @@ export default function VigaAtadoPage() {
               { etiqueta: "Viga b × h, L", valor: `${b} × ${h} m, ${luz} m` },
               { etiqueta: "N₁d / N₂d", valor: `${n1d} / ${n2d} kN` },
               ...(r ? [{ etiqueta: "Axil de atado ± N", valor: `${fmt(r.axilAtadoKN)} kN`, derivado: true }] : []),
+              ...(r
+                ? [{
+                    etiqueta: "Asiento diferencial δ",
+                    valor: r.asientoDeTabla
+                      ? `${fmt(r.asientoM * 1000, 1)} mm (tabla 2.2: ${DISTORSIONES_LIMITE[tipoEstructura].texto.toLowerCase()})`
+                      : `${fmt(r.asientoM * 1000, 1)} mm`,
+                    derivado: r.asientoDeTabla,
+                  }]
+                : []),
             ]}
             hipotesis={[
               `Axil de atado = ${porcentaje} % del axil de cálculo del pilar más cargado, en tracción y en compresión.`,
               "La viga apoya en el terreno: su peso propio no la flecta.",
               compactacion === "si"
                 ? "Compactación: q₁ = 10 kN/m (Anejo 19, art. 9.8.3 (2)), biapoyada en la luz libre: M = q·L²/8, V = q·L/2."
-                : "Sin compactación sobre la viga: no hay flexión ni cortante de cálculo.",
+                : "Sin compactación sobre la viga: q₁ no la flecta.",
               "Tracción: sólo el acero; cada cara toma N/2 + M/z.",
               "Compresión: diagrama N–M de la sección, con la excentricidad mínima h/30 ≥ 20 mm (art. 6.1 (4)).",
               "Con tracción, el cortante va entero a los estribos (VRd,c baja con el axil y no se cuenta).",
-              "No se considera el asiento diferencial entre zapatas (CTE DB SE-C, art. 4.1.1 (7)).",
+              "Asiento diferencial (CTE DB SE-C, art. 4.1.1 (7)): viga empotrada en las dos zapatas, que no giran; M = γ·6·EI·δ/L² en los extremos y V = γ·12·EI·δ/L³, con EI = Ecm·I bruta y γ = 1,35.",
+              "El axil se combina con la sección que manda: el extremo (asiento) o el vano (q₁). Los cortantes de los dos se suman en el extremo.",
             ]}
             avisos={avisos}
           />
@@ -215,7 +246,7 @@ export default function VigaAtadoPage() {
                 horizontal
                 metricas={[
                   { etiqueta: "Axil de atado", valor: `± ${fmt(r.axilAtadoKN, 0)} kN` },
-                  { etiqueta: "Md / Vd", valor: `${fmt(r.momentoKNm, 1)} kN·m / ${fmt(r.cortanteKN, 1)} kN` },
+                  { etiqueta: "Md / Vd", valor: `${fmt(r.momentoDisenoKNm, 1)} kN·m (${r.seccionDeterminante}) / ${fmt(r.cortanteKN, 1)} kN` },
                   { etiqueta: "As por cara", valor: `${fmt(r.asCaraCm2)} cm²` },
                   { etiqueta: "Estribos", valor: `Ø${fmt(resultado.v.diametroEstribo, 0)} c/${fmt(r.separacionEstribosM * 100, 0)} cm` },
                 ]}
@@ -226,7 +257,7 @@ export default function VigaAtadoPage() {
                   <ResultadoCheck
                     etiqueta="Tracción"
                     verifica={r.verificaTraccion}
-                    detalle="La toma sólo el acero: cara más cargada, N/2 + M/z."
+                    detalle={`La toma sólo el acero: cara más cargada, N/2 + M/z, con el M del ${r.seccionDeterminante}.`}
                     comparacion={{
                       real: { etiqueta: "Fcara", valor: r.traccionCaraKN },
                       limite: { etiqueta: "As·fyd", valor: r.capacidadCaraKN },
@@ -251,8 +282,23 @@ export default function VigaAtadoPage() {
                       { etiqueta: `N = ${fmt(resultado.v.porcentaje, 0)} % · máx(N₁d, N₂d)`, valor: `${fmt(r.axilAtadoKN)} kN` },
                       { etiqueta: "d′ / d / z = d − d′", valor: `${fmt(r.dPrimaM, 3)} / ${fmt(r.dM, 3)} / ${fmt(r.brazoM, 3)} m` },
                       { etiqueta: "e₀ = máx(h/30; 20 mm)", valor: `${fmt(r.excentricidadMinimaM * 1000, 0)} mm` },
-                      { etiqueta: "MEd = máx(Md; N·e₀)", valor: `${fmt(r.momentoCompresionKNm)} kN·m` },
+                      { etiqueta: "MEd = máx(Md vano; Md extremo; N·e₀)", valor: `${fmt(r.momentoCompresionKNm)} kN·m` },
                       { etiqueta: "NRd,max (compresión centrada)", valor: `${fmt(r.nRdMaxKN)} kN` },
+                    ]}
+                  />
+                  <PanelFormulas
+                    titulo="Ver desarrollo del asiento"
+                    filas={[
+                      {
+                        etiqueta: "δ",
+                        formula: r.asientoDeTabla ? "distorsión límite · distancia entre ejes" : undefined,
+                        sustitucion: r.asientoDeTabla ? `1/${fmt(1 / DISTORSIONES_LIMITE[tipoEstructura].limite, 0)} · ${fmt(resultado.v.distanciaEjes, 2)}` : undefined,
+                        valor: `${fmt(r.asientoM * 1000, 1)} mm`,
+                      },
+                      { etiqueta: "EI = Ecm · b·h³/12", valor: `${fmt(r.rigidezKNm2, 0)} kN·m²` },
+                      { etiqueta: "Md extremo = 1,35 · 6·EI·δ/L²", valor: `${fmt(r.momentoAsientoKNm)} kN·m` },
+                      { etiqueta: "Vd = 1,35 · 12·EI·δ/L³", valor: `${fmt(r.cortanteAsientoKN)} kN` },
+                      { etiqueta: "Md vano = q₁·L²/8", valor: `${fmt(r.momentoKNm)} kN·m` },
                     ]}
                   />
                 </div>
@@ -281,7 +327,7 @@ export default function VigaAtadoPage() {
                     etiqueta="Compresión oblicua del alma"
                     verifica={r.cortante.verificaVRdMax}
                     estado={r.cortanteKN > 0 ? undefined : "no-aplica"}
-                    detalle={r.cortanteKN > 0 ? undefined : "Sin compactación no hay cortante de cálculo: estribos mínimos."}
+                    detalle={r.cortanteKN > 0 ? undefined : "Sin compactación ni asiento no hay cortante de cálculo: estribos mínimos."}
                     comparacion={
                       r.cortanteKN > 0
                         ? { real: { etiqueta: "Vd", valor: r.cortanteKN }, limite: { etiqueta: "VRd,max", valor: r.cortante.vRdMax }, unidad: "kN", exige: "≤" }

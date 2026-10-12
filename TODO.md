@@ -93,10 +93,11 @@ Independientes, contra `main`:
   pretensado (se resuelven con la sección, que se carga como un juego de
   propiedades que no se pueden mover sueltas) y el rango del lado del cordón
   de soldadura (puede fallar por grande o por chico).
-- **Viga de atado: asiento diferencial.** La página toma el axil de atado (un %
-  del pilar más cargado, 10 % de Jiménez Montoya por defecto) y la q₁ de la
-  compactación, pero no el asiento diferencial entre las zapatas que une (CTE DB
-  SE-C, art. 4.1.1 (7)). Decidido dejarlo para después el 2026-10-09.
+- **Viga de atado: asiento diferencial** (hecho, 2026-10-12): CTE DB SE-C,
+  art. 4.1.1 (7). δ es un dato; sin dato, la distorsión límite de la tabla 2.2
+  por la distancia entre ejes. Empotrada en las dos zapatas (6·EI·δ/L²), EI =
+  Ecm·I bruta, γ = 1,35, combinado con el axil por sección. Del lado seguro:
+  con la tabla, el ejemplo de 0,40 × 0,40 ya no cumple.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

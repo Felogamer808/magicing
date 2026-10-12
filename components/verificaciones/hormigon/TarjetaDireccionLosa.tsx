@@ -41,7 +41,7 @@ export function TarjetaDireccionLosa({
             !r.requerida
               ? "Sin momento en esta cara no se exige armadura: el mínimo de la ec. (9.1) es de la armadura de tracción."
               : r.gobiernaEmpotramiento
-                ? `Armada para el empotramiento parcial no considerado: ${fmt(r.momentoKNmPorM)} kN·m/m (art. 9.3.1.2 (2)).`
+                ? `Armada para el empotramiento parcial no considerado: ${fmt(r.momentoKNmPorM)} kN·m/m (art. 9.3.1.2 (2)). Se extiende al menos 0,2 veces la luz del vano adyacente desde la cara del apoyo.`
                 : undefined
           }
           comparacion={

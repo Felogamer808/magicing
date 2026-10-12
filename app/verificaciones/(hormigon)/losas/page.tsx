@@ -82,6 +82,14 @@ export default function LosasPage() {
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: el espesor, los materiales, los diámetros y las separaciones tienen que ser positivos." });
+  // La página no conoce la luz del vano adyacente: el largo no se puede comprobar.
+  const conEmpotramiento = [["X", empotramientoX], ["Y", empotramientoY]].filter(([, t]) => t !== "no").map(([d]) => d);
+  if (conEmpotramiento.length) {
+    avisos.push({
+      tipo: "aviso",
+      texto: `Empotramiento parcial en ${conEmpotramiento.join(" y ")}: la armadura superior tiene que extenderse al menos 0,2 veces la luz del vano adyacente desde la cara del apoyo, ser continua en los apoyos intermedios y anclarse en los extremos (Anejo 19, art. 9.3.1.2 (2), pág. 147). La página no conoce la luz: comprobarlo en el plano.`,
+    });
+  }
 
   const direcciones = resultado
     ? [

@@ -21,16 +21,20 @@
 /**
  * γc — coeficiente parcial del hormigón, situación permanente o transitoria.
  * Anejo 19, art. 2.4.2.4 (1), tabla A19.2.1, pág. 20.
- * (En situación accidental la tabla da 1,3, que el motor todavía no contempla.)
  */
 export const GAMMA_C = 1.5;
+
+/** γc en situación accidental, misma tabla: 1,3 (el EC2 recomienda 1,2; el Anejo 19 fija 1,3). */
+export const GAMMA_C_ACCIDENTAL = 1.3;
 
 /**
  * γs — coeficiente parcial del acero de armar, misma situación y tabla.
  * Anejo 19, art. 2.4.2.4 (1), tabla A19.2.1, pág. 20.
- * (Accidental: 1,0.)
  */
 export const GAMMA_S = 1.15;
+
+/** γs en situación accidental, tabla A19.2.1, pág. 20. */
+export const GAMMA_S_ACCIDENTAL = 1.0;
 
 /**
  * β1 — fracción del máximo momento del vano para la que se dimensiona la

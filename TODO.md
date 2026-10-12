@@ -50,7 +50,9 @@ Independientes, contra `main`:
   a lo largo entran en la viga como momento concentrado. La extraordinaria es un
   juego de cargas aparte que sólo comprueba el terreno: 1,5·σadm con despegue
   parcial, vuelco 0,9 / 1,2, deslizamiento γR = 1,1. El hormigón con la
-  combinación accidental del Anejo 19 (γc = 1,2, γs = 1,0) no está hecho.
+  combinación accidental (hecho, 2026-10-12): cargas sin mayorar, γc = 1,3 y
+  γs = 1,0 (tabla A19.2.1; el 1,2 de esta nota era el del EC2). Flexión sin la
+  mínima, cortante, punzonamiento, anclaje y tirante, en un bloque aparte.
 - **Viga de apeo y ménsula corta, sin Montoya** (hecho, 2026-10-07): todo por
   el Anejo 19. Quedan como avisos que no entran en el cumple d0 ≥ d/2 y los
   cercos en 2/3·d (ménsula), el tirante en 0,12·l y h ≥ 1,2·a (apeo). La

@@ -1,5 +1,6 @@
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { materialesAccidentales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   calcularVuelosDireccion,
   distribucionPresiones,
@@ -12,6 +13,7 @@ import {
   calcularDeslizamiento,
   calcularVuelco,
   tensionExtraordinaria,
+  GAMMA_F_SITUACION,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
   type SituacionDimensionado,
@@ -87,17 +89,19 @@ export interface DatosZapataCorrida {
   /** Cargas por metro de la situación extraordinaria: sólo se comprueba el terreno. */
   extraordinaria?: CargaZapataCorrida;
   /**
-   * Situación de dimensionado para los coeficientes del terreno (vuelco y
-   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   * Situación de dimensionado: coeficientes del terreno (vuelco y
+   * deslizamiento) y γ de las acciones del hormigón. Persistente si falta.
    */
   situacion?: SituacionDimensionado;
 }
 
-/** El terreno con las cargas de la situación extraordinaria, por metro. */
+/** El terreno y el hormigón con las cargas de la situación extraordinaria, por metro. */
 export interface TerrenoExtraordinarioCorrida extends TensionExtraordinaria {
   excentricidadM: number;
   vuelco: ResultadoVuelco | null;
   deslizamiento: ResultadoDeslizamiento | null;
+  /** Hormigón con la combinación accidental: γ = 1,0, γc = 1,3, γs = 1,0 (tabla A19.2.1). */
+  hormigon: { principal: ResultadoDireccionZapata; vuelos: VuelosDireccion; tdTiranteKN: number | null };
 }
 
 export interface ResultadoGeotecnicoCorrida {
@@ -167,11 +171,12 @@ export function calcularZapataCorrida(
   const pesoPropioKN = 25 * A * ANCHO_REFERENCIA_M * H;
   const cargaTotalKN = Nk + pesoPropioKN;
 
+  const gammaF = GAMMA_F_SITUACION[datos.situacion ?? "persistente"];
   const tirante = datos.tirante
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0 + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF,
       })
     : undefined;
 
@@ -193,7 +198,7 @@ export function calcularZapataCorrida(
   const d = H - recubrimiento - armadoPrincipal.diametroMm / 2000;
   const vuelos = calcularVuelosDireccion(
     materiales, A, ANCHO_REFERENCIA_M, H, anchoPilar, borde, d, recubrimiento,
-    Nk, tirante ? -Nk * e0 : mBase, armado, datos.formaAnclaje ?? "recta"
+    Nk, tirante ? -Nk * e0 : mBase, armado, datos.formaAnclaje ?? "recta", gammaF
   );
   const principal = vuelos.fin.momentoKNm >= vuelos.inicio.momentoKNm ? vuelos.fin : vuelos.inicio;
   const asRealPrincipalCm2PorM = principal.asRealCm2;
@@ -223,10 +228,11 @@ export function calcularZapataCorrida(
           situacion: datos.situacion,
         });
 
-  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  // La extraordinaria repite el cálculo con sus cargas y los materiales de la
+  // situación accidental: el terreno y el hormigón.
   const extraordinaria = datos.extraordinaria
     ? (() => {
-        const r = calcularZapataCorrida(materiales, geometria, sigmaAdmisibleKPa, {
+        const r = calcularZapataCorrida(materialesAccidentales(materiales), geometria, sigmaAdmisibleKPa, {
           ...datos, carga: datos.extraordinaria, extraordinaria: undefined, situacion: "extraordinaria",
         });
         return {
@@ -234,6 +240,7 @@ export function calcularZapataCorrida(
           excentricidadM: r.geotecnico.excentricidadM,
           vuelco: r.vuelco,
           deslizamiento: r.deslizamiento,
+          hormigon: { principal: r.principal, vuelos: r.vuelos, tdTiranteKN: r.tirante ? r.tirante.tdKN : null },
         };
       })()
     : null;

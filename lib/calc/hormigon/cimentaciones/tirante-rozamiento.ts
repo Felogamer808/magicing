@@ -54,6 +54,8 @@ export interface DatosTiranteRozamiento {
    * (kN). Lo que puede faltar no frena. Si falta, `nkKN`.
    */
   nkEstabilizanteKN?: number;
+  /** γ de las acciones para Td: 1,5 (persistente) si falta, 1,0 en accidental. */
+  gammaF?: number;
 }
 
 export interface ResultadoTiranteRozamiento {
@@ -96,7 +98,7 @@ export function calcularTiranteRozamiento(
   // la horizontal del pilar, que llega con brazo H.
   //   momentoCentro + Hk·H + Tk·h = 0
   const tkKN = geometriaValida ? -(momentoCentroKNm + hkKN * cantoZapataM) / brazoM : 0;
-  const tdKN = GAMMA_F * Math.abs(tkKN);
+  const tdKN = (datos.gammaF ?? GAMMA_F) * Math.abs(tkKN);
   const asTiranteCm2 = (tdKN * 1000) / materiales.fyd / 100;
 
   const deltaGrados = 0.75 * phiGrados;
@@ -178,7 +180,7 @@ export function verificarArmaduraTirante(
       ? Math.min(recubrimientoM * 1000, (separacionM * 1000 - diametroMm) / 2)
       : recubrimientoM * 1000;
   const { lbdMm } = calcularAnclaje(
-    { fckMPa: fck, fykMPa: fyk },
+    { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
     { diametroMm, situacion, forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
   );
 

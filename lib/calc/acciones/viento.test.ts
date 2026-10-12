@@ -136,9 +136,16 @@ describe("viento: factor de forma γ0 (fig. 8.2, ramas simples)", () => {
     expect(calcularFactorFormaGamma0(0.25, 0.1).ladoB).toBeCloseTo(0.925, 9);
   });
 
+  it("con 0,5 ≤ λa ≤ 2,5 γ0,a es 1,00, cualquiera sea a/b (recta inferior de la rama λa≥0,5)", () => {
+    // El edificio del usuario: h = 20,05, a = 17,27, b = 39,70 → λa = 1,16.
+    expect(calcularFactorFormaGamma0(20.05 / 17.27, 20.05 / 39.7).ladoA).toBe(1);
+    expect(calcularFactorFormaGamma0(0.5, 0.3).ladoA).toBe(1);
+    expect(calcularFactorFormaGamma0(2.5, 0.3).ladoA).toBe(1);
+  });
+
   it("devuelve null cuando λ sale del rango digitalizado: hay que leer la fig. 8.2", () => {
-    // λa≥0,5 y λb≥1 son los ábacos densos (edificios altos), no digitalizados.
-    expect(calcularFactorFormaGamma0(0.6, 0.3).ladoA).toBeNull();
+    // Las curvas λa = 3…10 (y el tramo 2,5 < λa < 3) y la rama λb≥1 no están digitalizadas.
+    expect(calcularFactorFormaGamma0(2.6, 0.3).ladoA).toBeNull();
     expect(calcularFactorFormaGamma0(0.1, 1.2).ladoB).toBeNull();
   });
 });

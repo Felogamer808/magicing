@@ -56,11 +56,13 @@ export const CASOS_APERTURA: { id: CasoApertura; nombre: string }[] = [
  * (77×35×14 m, λb=0,4 → γ0,a=0,94), que fijan el quiebre en λb=0,25 en vez
  * del 0,2 que parecía a simple vista en el escaneo.
  *
- * Las ramas "λa≥0,5" y "λb≥1" (ábacos de 8 curvas superpuestas, uno por cada
- * λ entero de 3 a 10) no están digitalizadas: son edificios altos en relación
- * a su planta, un caso que no se da en la práctica de obra en Uruguay. Para
- * esos casos la función devuelve null y hay que leer γ0 de la fig. 8.2
- * directamente.
+ * La rama "λa≥0,5" es un ábaco con a/b en abscisas y una curva por cada λa
+ * entero de 3 a 10, más una recta en γ0 = 1,00 rotulada "0,5 ≤ λa ≤ 2,5". Esa
+ * recta sí está acá (2026-10-12, leída de la figura que pasó el usuario): no
+ * depende de a/b y no tiene error de lectura. Las curvas de 3 a 10 —y el
+ * tramo 2,5 < λa < 3, que se interpola hasta la curva 3— no están
+ * digitalizadas, como tampoco la rama "λb≥1": la función devuelve null y hay
+ * que leer γ0 de la fig. 8.2 directamente.
  */
 function gammaOLadoA(lambdaB: number): number {
   if (lambdaB <= 0.25) return 0.85;
@@ -75,7 +77,7 @@ function gammaOLadoB(lambdaA: number): number {
 }
 
 export interface FactorFormaGamma0 {
-  /** γ0 para viento ⊥ Sa (usa λa<0,5, en función de λb). null si λa≥0,5: hay que leer la fig. 8.2. */
+  /** γ0 para viento ⊥ Sa: λa<0,5 en función de λb; 1,00 con 0,5≤λa≤2,5. null si λa>2,5: hay que leer la fig. 8.2. */
   ladoA: number | null;
   /** γ0 para viento ⊥ Sb (usa λb<1, en función de λa). null si λb≥1: hay que leer la fig. 8.2. */
   ladoB: number | null;
@@ -83,7 +85,7 @@ export interface FactorFormaGamma0 {
 
 export function calcularFactorFormaGamma0(lambdaA: number, lambdaB: number): FactorFormaGamma0 {
   return {
-    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : null,
+    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : lambdaA <= 2.5 ? 1 : null,
     ladoB: lambdaB < 1 ? gammaOLadoB(lambdaA) : null,
   };
 }

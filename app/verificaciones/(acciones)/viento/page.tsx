@@ -270,7 +270,7 @@ export default function VientoPage() {
   const avisos: AvisoRevision[] = [];
   if (!geometria) avisos.push({ tipo: "error", texto: "Completá cada nivel con altura de piso, a, b y repeticiones positivos." });
   else if (!resultado) avisos.push({ tipo: "error", texto: "γ0 tiene que ser positivo en los dos lados." });
-  if (geometria && factorForma && factorForma.ladoA === null) avisos.push({ tipo: "aviso", texto: "λa ≥ 0,5: γ0,a no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
+  if (geometria && factorForma && factorForma.ladoA === null) avisos.push({ tipo: "aviso", texto: "λa > 2,5: γ0,a no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
   if (geometria && factorForma && factorForma.ladoB === null) avisos.push({ tipo: "aviso", texto: "λb ≥ 1: γ0,b no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
   if (avisoCasoActual) avisos.push({ tipo: "aviso", texto: avisoCasoActual });
 
@@ -434,7 +434,7 @@ export default function VientoPage() {
                   etiqueta="γ0,a"
                   lambdaEtiqueta="λa"
                   lambdaValor={geometria ? geometria.alturaTotal / geometria.aEnvolvente : NaN}
-                  umbral="0,5"
+                  umbral="2,5"
                   gammaCalculado={factorForma?.ladoA ?? null}
                   valorManual={gammaA}
                   onChangeManual={setGammaA}
@@ -458,6 +458,17 @@ export default function VientoPage() {
               </div>
             </Subgrupo>
           </div>
+          <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
+            Cómo sale γ0 (UNIT 50-84, fig. 8.2, construcción apoyada en el suelo): con la planta envolvente a × b y la
+            altura total h se calculan λa = h/a y λb = h/b. Para el viento perpendicular al lado a, si λa &lt; 0,5,
+            γ0,a se lee en función de λb: vale 0,85 hasta λb = 0,25, sube en línea recta hasta 1,00 en λb = 0,5 y
+            queda en 1,00 después (ejemplo: 77 × 35 × 14 m da λb = 0,40 y γ0,a = 0,85 + (0,40 − 0,25)/0,25 · 0,15 =
+            0,94). Si λa ≥ 0,5 se usa la otra parte de la figura: con 0,5 ≤ λa ≤ 2,5 es la recta de abajo y γ0,a =
+            1,00 sea cual sea a/b; con λa de 3 a 10 se entra con a/b por abajo, se sube hasta la curva de ese λa
+            (interpolando entre curvas) y se lee γ0 a la derecha, entre 1,00 y 1,30. Ese tramo no está
+            digitalizado: se carga a mano. Para el lado b, si λb &lt; 1, γ0,b se lee en función de λa: 0,85 hasta
+            λa = 0,2 y 1,00 desde λa = 0,3; con λb ≥ 1 se lee el ábaco a mano.
+          </p>
         </Etapa>
 
         <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -477,7 +488,7 @@ export default function VientoPage() {
               ...(coeficientesSitio ? [{ etiqueta: "vk · Kt · Kk", valor: `${fmt(coeficientesSitio.vk, 1)} m/s · ${fmt(coeficientesSitio.kt, 2)} · ${fmt(coeficientesSitio.kk, 2)}`, derivado: true }] : []),
             ]}
             hipotesis={[
-              "γ0 por la fig. 8.2 con la envolvente en planta (el mayor a y el mayor b entre los niveles) y la altura total, para construcciones apoyadas en el suelo con λa < 0,5 o λb < 1; fuera de ese rango se carga a mano.",
+              "γ0 por la fig. 8.2 con la envolvente en planta (el mayor a y el mayor b entre los niveles) y la altura total, para construcciones apoyadas en el suelo: γ0,a con λa ≤ 2,5 y γ0,b con λb < 1; fuera de ese rango se carga a mano.",
               "Kd (fig. 6.2) por nivel, con el área de influencia propia (ancho expuesto × altura de influencia); entra en la resultante y en Pc por nivel, no en pc (art. 6.2.6.2).",
               "Ce de caras laterales y techo de la fig. 8.6 con α = 0°, a partir de γ.",
               "Con tensiones admisibles Kk = 1 (7.3.1).",

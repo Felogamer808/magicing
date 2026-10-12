@@ -21,16 +21,20 @@
 /**
  * γc — coeficiente parcial del hormigón, situación permanente o transitoria.
  * Anejo 19, art. 2.4.2.4 (1), tabla A19.2.1, pág. 20.
- * (En situación accidental la tabla da 1,3, que el motor todavía no contempla.)
  */
 export const GAMMA_C = 1.5;
+
+/** γc en situación accidental, misma tabla: 1,3 (el EC2 recomienda 1,2; el Anejo 19 fija 1,3). */
+export const GAMMA_C_ACCIDENTAL = 1.3;
 
 /**
  * γs — coeficiente parcial del acero de armar, misma situación y tabla.
  * Anejo 19, art. 2.4.2.4 (1), tabla A19.2.1, pág. 20.
- * (Accidental: 1,0.)
  */
 export const GAMMA_S = 1.15;
+
+/** γs en situación accidental, tabla A19.2.1, pág. 20. */
+export const GAMMA_S_ACCIDENTAL = 1.0;
 
 /**
  * β1 — fracción del máximo momento del vano para la que se dimensiona la
@@ -102,3 +106,12 @@ export const GAMMA_G = 1.35;
  * remite al Anejo 18 para las acciones, y ése no está entre las fuentes.
  */
 export const GAMMA_Q = 1.5;
+
+/**
+ * φef que se toma sin dato de fluencia en pilares y muros: el que da el A = 0,7
+ * que admite el art. 5.8.3.1, pág. 56, sin conocer φef, porque
+ * 1/(1 + 0,2·φef) = 0,7. Se usa el mismo en λlim y en Kφ de la ec. (5.37), así
+ * la curvatura no queda con menos fluencia que la esbeltez (decidido por el
+ * usuario el 2026-10-12).
+ */
+export const FLUENCIA_EFICAZ_SIN_DATO = (1 / 0.7 - 1) / 0.2;

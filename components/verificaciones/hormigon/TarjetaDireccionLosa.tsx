@@ -36,25 +36,41 @@ export function TarjetaDireccionLosa({
         <ResultadoCheck
           etiqueta={`Armado Ø${fmt(diametroMm, 0)}/${fmt(separacionM * 100, 0)} cm`}
           verifica={r.verificaAs}
-          comparacion={{
-            real: { etiqueta: "As real", valor: r.asRealCm2PorM },
-            limite: { etiqueta: "As nec", valor: r.asNecCm2PorM },
-            unidad: "cm²/m",
-            exige: "≥",
-          }}
+          estado={r.requerida ? undefined : "no-aplica"}
+          detalle={
+            !r.requerida
+              ? "Sin momento en esta cara no se exige armadura: el mínimo de la ec. (9.1) es de la armadura de tracción."
+              : r.gobiernaEmpotramiento
+                ? `Armada para el empotramiento parcial no considerado: ${fmt(r.momentoKNmPorM)} kN·m/m (art. 9.3.1.2 (2)).`
+                : undefined
+          }
+          comparacion={
+            r.requerida
+              ? {
+                  real: { etiqueta: "As real", valor: r.asRealCm2PorM },
+                  limite: { etiqueta: "As nec", valor: r.asNecCm2PorM },
+                  unidad: "cm²/m",
+                  exige: "≥",
+                }
+              : undefined
+          }
           recomendaciones={recomendaciones}
         />
         {nota && <p className="text-xs text-muted-foreground">{nota}</p>}
         <PanelFormulas
           titulo={`Ver desarrollo de ${titulo.toLowerCase()}`}
           filas={[
+            { etiqueta: "M de cálculo", valor: `${fmt(r.momentoKNmPorM)} kN·m/m` },
             { etiqueta: "d", valor: `${fmt(r.dM, 3)} m` },
             { etiqueta: "μ", valor: fmt(r.mu, 5) },
             { etiqueta: "ω = 1 − √(1 − 2μ)", valor: fmt(r.omega, 5) },
             { etiqueta: "As por momento", valor: `${fmt(r.asCalculadoCm2PorM)} cm²/m` },
             { etiqueta: "As,min (Anejo 19, 9.3.1.1 → ec. 9.1)", valor: `${fmt(r.asMinCm2PorM)} cm²/m` },
-            { etiqueta: "As nec = máx(As, As,min)", valor: `${fmt(r.asNecCm2PorM)} cm²/m` },
-            { etiqueta: "Separación necesaria", valor: `${fmt(r.separacionNecM * 100, 1)} cm` },
+            {
+              etiqueta: r.requerida ? "As nec = máx(As, As,min)" : "As nec (sin momento, sin mínimo)",
+              valor: `${fmt(r.asNecCm2PorM)} cm²/m`,
+            },
+            ...(r.requerida ? [{ etiqueta: "Separación necesaria", valor: `${fmt(r.separacionNecM * 100, 1)} cm` }] : []),
             { etiqueta: "Separación máxima", valor: `${fmt(r.separacionMaxM * 100, 0)} cm` },
             {
               etiqueta: "Adherencia (fig. A19.8.2)",

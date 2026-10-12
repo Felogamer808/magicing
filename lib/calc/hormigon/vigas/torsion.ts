@@ -49,7 +49,7 @@ export interface ResultadoTorsion {
   fctdMPa: number;
   /** TRd,c: torsor de fisuración, con τt = fctd (kN·m) */
   tRdCKNm: number;
-  /** Armadura transversal necesaria por torsión (cm²/m) */
+  /** Armadura transversal necesaria por torsión en cada rama del cerco, At/s (cm²/m) */
   atCm2PorM: number;
   /** Armadura longitudinal total necesaria por torsión, ec. (6.28) (cm²) */
   alCm2: number;
@@ -154,7 +154,7 @@ export function calcularVigaConTorsion(
     armaduraNegativa: ArmaduraElegida;
     momentoPositivo: number;
     momentoNegativo: number;
-    cortante: Omit<DatosCortante, "a90AdicionalCm2PorM" | "pasoSeparacionM">;
+    cortante: Omit<DatosCortante, "atPorRamaCm2PorM" | "pasoSeparacionM">;
   }
 ): ResultadoVigaTorsion {
   // Borde exterior → eje de la barra longitudinal más gruesa de las esquinas:
@@ -190,7 +190,7 @@ export function calcularVigaConTorsion(
 
   const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     ...datos.cortante,
-    a90AdicionalCm2PorM: torsion.atCm2PorM,
+    atPorRamaCm2PorM: torsion.atCm2PorM,
     pasoSeparacionM: PASO_SEPARACION_TORSION_M,
   });
 

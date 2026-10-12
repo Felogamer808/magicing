@@ -1,5 +1,5 @@
 import { aNumero } from "@/lib/verificaciones/formato";
-import { calcularLosa, calcularMomentoResistenteLosa } from "@/lib/calc/hormigon/losas/losa";
+import { calcularLosa, calcularMomentoResistenteLosa, type EmpotramientoParcial } from "@/lib/calc/hormigon/losas/losa";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 /**
@@ -36,6 +36,8 @@ export function resolverLosa(campos: Record<string, string>) {
     armadoNegativoX: { diametroMm: v.phiNegX, separacionM: v.sNegX },
     armadoNegativoY: { diametroMm: v.phiNegY, separacionM: v.sNegY },
     formaAnclaje: campos.formaAnclaje === "Patilla o gancho" ? "gancho" : "recta",
+    empotramientoParcialX: empotramientoDesdeCampo(campos.empotramientoX),
+    empotramientoParcialY: empotramientoDesdeCampo(campos.empotramientoY),
   });
 
   const resistente = calcularMomentoResistenteLosa(materiales, v.e, v.rgPos, {
@@ -43,6 +45,10 @@ export function resolverLosa(campos: Record<string, string>) {
   });
 
   return { losa, resistente, v };
+}
+
+function empotramientoDesdeCampo(valor: string | undefined): EmpotramientoParcial {
+  return valor === "intermedio" || valor === "extremo" ? valor : "no";
 }
 
 export type ResueltoLosa = NonNullable<ReturnType<typeof resolverLosa>>;

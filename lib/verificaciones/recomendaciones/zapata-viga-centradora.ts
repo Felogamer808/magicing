@@ -3,6 +3,7 @@ import {
   type ResueltoVigaCentradora,
 } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora";
 import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
+import { RAMAS } from "./vigas-flexion-cortante";
 import {
   CITA_LBD_DIAMETRO,
   CITA_PATILLA,
@@ -23,7 +24,8 @@ export type ClaveVigaCentradora =
   | "vueloCorte"
   | "reparto"
   | "vigaFlexion"
-  | "vigaBielas";
+  | "vigaBielas"
+  | "vigaRamas";
 export type RecomendacionesVigaCentradora = Partial<Record<ClaveVigaCentradora, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveVigaCentradora, string> = {
@@ -34,6 +36,7 @@ const NOMBRES: Record<ClaveVigaCentradora, string> = {
   reparto: "reparto",
   vigaFlexion: "armadura de la viga",
   vigaBielas: "bielas del alma de la viga",
+  vigaRamas: "separación transversal entre ramas de la viga",
 };
 
 function utilizaciones({ r, v }: ResueltoVigaCentradora): Partial<Record<ClaveVigaCentradora, number>> {
@@ -46,6 +49,7 @@ function utilizaciones({ r, v }: ResueltoVigaCentradora): Partial<Record<ClaveVi
     reparto: r.asRepartoNecCm2PorM / r.asRepartoRealCm2PorM,
     vigaFlexion: r.vigaFlexion.asNecCm2 / r.vigaFlexion.asRealCm2,
     vigaBielas: r.cortanteVigaKN / r.vigaCortante.vRdMax,
+    vigaRamas: r.vigaCortante.separacionTransversalM / r.vigaCortante.separacionTransversalMaxM,
   };
 }
 
@@ -113,6 +117,8 @@ function palancasPorClave(clave: ClaveVigaCentradora): readonly Palanca<Campos>[
       return [...barras("numeroViga", "diametroViga", "Viga: "), H_VIGA];
     case "vigaBielas":
       return [B_VIGA, H_VIGA, FCK];
+    case "vigaRamas":
+      return [RAMAS];
   }
 }
 

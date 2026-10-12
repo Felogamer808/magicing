@@ -25,6 +25,9 @@ export type TipoEsfuerzo = "traccion" | "compresion";
 export interface MaterialesAnclaje {
   fckMPa: number;
   fykMPa: number;
+  /** Coeficientes parciales; por defecto los de la situación persistente. */
+  gammaC?: number;
+  gammaS?: number;
 }
 
 export interface DatosAnclaje {
@@ -64,12 +67,12 @@ export function mandrilMinimoMm(diametroMm: number): number {
 }
 
 export function calcularAnclaje(materiales: MaterialesAnclaje, datos: DatosAnclaje): ResultadoAnclaje {
-  const { fckMPa, fykMPa } = materiales;
+  const { fckMPa, fykMPa, gammaC = GAMMA_C, gammaS } = materiales;
   const { diametroMm: phi, situacion, forma, esfuerzo, recubrimientoMm: cd } = datos;
 
-  const { fctm: fctmMPa, fyd: fydMPa } = derivarMateriales({ fck: fckMPa, fyk: fykMPa });
+  const { fctm: fctmMPa, fyd: fydMPa } = derivarMateriales({ fck: fckMPa, fyk: fykMPa, gammaC, gammaS });
   // fctk,0.05 = 0,7·fctm (tabla A19.3.1); fctd = fctk,0.05/γc (ec. 3.16, αct=1,0).
-  const fctdMPa = (0.7 * fctmMPa) / GAMMA_C;
+  const fctdMPa = (0.7 * fctmMPa) / gammaC;
 
   const eta1 = situacion === "buena" ? 1.0 : 0.7;
   const eta2 = phi <= 32 ? 1.0 : (132 - phi) / 100;

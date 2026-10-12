@@ -20,6 +20,12 @@ import { comprobarLosaFundacion, recomendarLosaFundacion } from "@/lib/verificac
 import { comprobarPilote, recomendarPilote } from "@/lib/verificaciones/recomendaciones/pilotes";
 import { comprobarCabezal, recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
 import { comprobarArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
+import {
+  comprobacionesExtraordinarias,
+  filasExtraordinariasAislada,
+  filasExtraordinariasCombinada,
+  filasExtraordinariasCorrida,
+} from "@/lib/verificaciones/hormigon-extraordinario";
 
 /**
  * Las verificaciones de cimentaciones vistas desde el servidor MCP.
@@ -52,7 +58,13 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
     const r = resolverZapataAislada(c);
     if (!r) return null;
     return {
-      comprobaciones: comprobarZapataAislada(r.entrada) ?? [],
+      // El hormigón de la extraordinaria no pasa por las recomendaciones: se suma acá.
+      comprobaciones: [
+        ...(comprobarZapataAislada(r.entrada) ?? []),
+        ...(r.zapata.extraordinaria
+          ? comprobacionesExtraordinarias(filasExtraordinariasAislada(r.zapata.extraordinaria.hormigon, r.armaduraTiranteExt))
+          : []),
+      ],
       recomendaciones: r.recomendaciones,
       resultado: r.zapata,
       ...tirante(r.entradaTirante, r.recomendacionesTirante),
@@ -62,7 +74,12 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
     const r = resolverZapataCorrida(c);
     if (!r) return null;
     return {
-      comprobaciones: comprobarZapataCorrida(r.entrada) ?? [],
+      comprobaciones: [
+        ...(comprobarZapataCorrida(r.entrada) ?? []),
+        ...(r.zapata.extraordinaria
+          ? comprobacionesExtraordinarias(filasExtraordinariasCorrida(r.zapata.extraordinaria.hormigon, r.armaduraTiranteExt))
+          : []),
+      ],
       recomendaciones: r.recomendaciones,
       resultado: r.zapata,
       ...tirante(r.entradaTirante, r.recomendacionesTirante),
@@ -72,7 +89,12 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
     const r = resolverZapataCombinada(c);
     if (!r) return null;
     return {
-      comprobaciones: comprobarZapataCombinada(r.entrada) ?? [],
+      comprobaciones: [
+        ...(comprobarZapataCombinada(r.entrada) ?? []),
+        ...(r.zapata.extraordinaria
+          ? comprobacionesExtraordinarias(filasExtraordinariasCombinada(r.zapata.extraordinaria.hormigon, r.armaduraTiranteExt))
+          : []),
+      ],
       recomendaciones: r.recomendaciones,
       resultado: r.zapata,
       ...tirante(r.entradaTirante, r.recomendacionesTirante),

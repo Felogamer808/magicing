@@ -23,6 +23,15 @@ export interface ArmadoLosa {
 }
 
 export interface ResultadoDireccionLosa {
+  /**
+   * Si esta cara lleva armadura exigida. El mínimo de la ec. (9.1) es de la
+   * armadura de tracción: una cara sin momento no tiene nada que exigir.
+   */
+  requerida: boolean;
+  /** Momento con el que se arma: el cargado o, si gobierna, el del empotramiento parcial (kN·m/m) */
+  momentoKNmPorM: number;
+  /** El momento sale del art. 9.3.1.2 (2) y no del cargado */
+  gobiernaEmpotramiento: boolean;
   /** Canto útil de esta dirección (m) */
   dM: number;
   mu: number;
@@ -86,7 +95,9 @@ function armarDireccion(
   armado: ArmadoLosa,
   contexto: ContextoAnclaje,
   /** Armadura de la malla general que también colabora en esta dirección (cm²/m) */
-  asMallaAdicionalCm2PorM = 0
+  asMallaAdicionalCm2PorM = 0,
+  /** Momento mínimo por empotramiento parcial no considerado, art. 9.3.1.2 (2) (kN·m/m) */
+  momentoEmpotramientoKNmPorM = 0
 ): ResultadoDireccionLosa {
   const { fck, fcd, fyd, fyk, fctm } = materiales;
 
@@ -95,13 +106,18 @@ function armarDireccion(
   // y 1,8 ‰·e, que son de la EHE‑08 (art. 42.3).
   const asMinCm2PorM = armaduraMinimaTraccionCm2(1, e, resistenciaFlexotraccionMPa(fctm, e), fyd);
 
-  const mu = momentoKNmPorM / (d ** 2 * fcd * 1000);
+  const gobiernaEmpotramiento = momentoEmpotramientoKNmPorM > momentoKNmPorM;
+  const momentoCalculoKNmPorM = Math.max(momentoKNmPorM, momentoEmpotramientoKNmPorM);
+  const requerida = momentoCalculoKNmPorM > 0;
+
+  const mu = momentoCalculoKNmPorM / (d ** 2 * fcd * 1000);
   const omega = 1 - Math.sqrt(1 - 2 * mu);
   const asCalculadoCm2PorM = ((omega * d * fcd) / fyd) * 100 ** 2;
-  const asNecCm2PorM = Math.max(asCalculadoCm2PorM, asMinCm2PorM);
+  // Sin momento no se exige nada: ni el cálculo ni el mínimo de tracción.
+  const asNecCm2PorM = requerida ? Math.max(asCalculadoCm2PorM, asMinCm2PorM) : 0;
 
   const area = areaBarraCm2(armado.diametroMm);
-  const separacionNecM = area / asNecCm2PorM;
+  const separacionNecM = requerida ? area / asNecCm2PorM : Infinity;
   const separacionMaxM = redondearSeparacionMaxM(
     separacionNecM <= 0.1 ? 0.1 : Math.min(separacionNecM, 3 * e, 0.3)
   );
@@ -131,6 +147,9 @@ function armarDireccion(
   );
 
   return {
+    requerida,
+    momentoKNmPorM: momentoCalculoKNmPorM,
+    gobiernaEmpotramiento,
     dM: d,
     mu,
     omega,
@@ -166,7 +185,25 @@ export interface DatosLosa {
   xIncluyeMallaEnY?: boolean;
   /** Forma del anclaje de las barras. Por defecto, recta. */
   formaAnclaje?: FormaAnclaje;
+  /**
+   * Borde parcialmente empotrado que el cálculo no tuvo en cuenta, en cada
+   * dirección: pide armadura superior aunque el momento negativo sea 0.
+   */
+  empotramientoParcialX?: EmpotramientoParcial;
+  empotramientoParcialY?: EmpotramientoParcial;
 }
+
+/**
+ * Empotramiento parcial no considerado en el cálculo, Anejo 19, art. 9.3.1.2
+ * (2), pág. 147: la armadura superior tiene que resistir el 25 % del momento
+ * máximo del vano adyacente, o el 15 % en un apoyo extremo.
+ */
+export type EmpotramientoParcial = "no" | "intermedio" | "extremo";
+export const FRACCION_EMPOTRAMIENTO: Record<EmpotramientoParcial, number> = {
+  no: 0,
+  intermedio: 0.25,
+  extremo: 0.15,
+};
 
 /**
  * Losa armada en dos direcciones. Las barras de una dirección se apoyan sobre
@@ -215,10 +252,14 @@ export function calcularLosa(
     xIncluyeMallaEnY ? posY.asRealCm2PorM : 0
   );
 
+  // El momento del vano adyacente es el positivo de la misma dirección.
+  const empotramiento = (tipo: EmpotramientoParcial | undefined, mVano: number) =>
+    FRACCION_EMPOTRAMIENTO[tipo ?? "no"] * mVano;
   const negY = armarDireccion(materiales, e, dNegY, datos.momentoNegativoY, datos.armadoNegativoY,
-    ctx("superior", recubrimientoNegativo));
+    ctx("superior", recubrimientoNegativo), 0, empotramiento(datos.empotramientoParcialY, datos.momentoPositivoY));
   const negX = armarDireccion(materiales, e, dNegX, datos.momentoNegativoX, datos.armadoNegativoX,
-    ctx("superior", recubrimientoNegativo + datos.armadoNegativoY.diametroMm / 1000));
+    ctx("superior", recubrimientoNegativo + datos.armadoNegativoY.diametroMm / 1000), 0,
+    empotramiento(datos.empotramientoParcialX, datos.momentoPositivoX));
 
   return {
     fctmFlMPa,

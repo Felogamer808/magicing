@@ -103,27 +103,31 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
   // art. 6.2.2 (ver la nota en vigas-flexion-cortante.test.ts). Acá la cuantía
   // es alta (ρl = 0,76 %), así que pasa a mandar el término principal en vez del
   // mínimo y el efecto neto es chico: VRd,c adoptado baja de 68,74 a 68,45 kN.
-  it("reproduce el cortante y suma At a la armadura transversal", () => {
+  it("reproduce el cortante y suma At en cada rama del cerco", () => {
     expect(r.cortante.k).toBeCloseTo(1.55619967815515, 9);
     expect(r.cortante.rhoL).toBeCloseTo(0.00759278966934888, 9);
     expect(r.cortante.vRdC).toBeCloseTo(68.4467187591506, 6);
     expect(r.cortante.vRdCMin).toBeCloseTo(48.1199512106189, 6);
-    expect(r.cortante.vEdEstribos).toBeCloseTo(336.553281240849, 6);
-    expect(r.cortante.a90NecCm2PorM).toBeCloseTo(14.4604829956539, 6);
-    expect(r.cortante.a90MinCm2PorM).toBeCloseTo(1.93097876921126, 6);
+    // Art. 6.2.3(3): los estribos toman Vd = 405 entero, con d⁻ = 0,6465 m.
+    expect(r.cortante.vEdEstribos).toBeCloseTo(405, 9);
+    expect(r.cortante.a90NecCm2PorM).toBeCloseTo((405 * 10) / (400 * 0.9 * 0.6465), 6);
+    // ρw,min·b = 0,08·√30/500·0,20·10⁴, art. 9.2.2(5).
+    expect(r.cortante.a90MinCm2PorM).toBeCloseTo(((0.08 * Math.sqrt(30)) / 500) * 0.2 * 1e4, 9);
     // At = 30/(2·0,055149·400 000)·10⁴ = 6,79976 cm²/m
-    // A90 = max(nec, min) + At = 14,46048 + 6,79976
+    // At es por rama (ec. 6.28): con 6 ramas iguales, A90 = max(nec, min) + 6·At
+    // = 17,40139 + 6·6,79976 = 58,19996. Antes se sumaba At una sola vez.
     expect(r.torsion.atCm2PorM).toBeCloseTo(6.799761, 5);
-    expect(r.cortante.a90Cm2PorM).toBeCloseTo(14.4604829956539 + 6.799761, 5);
+    expect(r.cortante.a90Cm2PorM).toBeCloseTo(17.401392 + 6 * 6.799761, 5);
   });
 
-  it("estribado adoptado (6 ramas φ8 cada 14 cm)", () => {
+  it("estribado adoptado (6 ramas φ8 cada 5 cm)", () => {
     expect(r.cortante.aEstriboCm2).toBeCloseTo(3.0159289474462, 6);
-    // s = 3,01593/21,26024 = 0,14186 m, redondeada al centímetro: 0,14
-    expect(r.cortante.separacionNecM).toBeCloseTo(3.0159289474462 / (14.4604829956539 + 6.799761), 5);
-    expect(r.cortante.separacionMaxM).toBeCloseTo(0.3879, 6);
-    expect(r.cortante.separacionAdoptadaM).toBeCloseTo(0.14, 9);
-    expect(r.cortante.areaRealCm2PorM).toBeCloseTo(3.0159289474462 / 0.14, 6);
+    // s = 3,01593/58,19996 = 0,05182 m, redondeada al centímetro: 0,05. Es lo
+    // mismo que pedir en cada rama 0,50265/(17,40139/6 + 6,79976).
+    expect(r.cortante.separacionNecM).toBeCloseTo(0.0518201, 6);
+    expect(r.cortante.separacionMaxM).toBeCloseTo(0.75 * 0.6465, 6);
+    expect(r.cortante.separacionAdoptadaM).toBeCloseTo(0.05, 9);
+    expect(r.cortante.areaRealCm2PorM).toBeCloseTo(3.0159289474462 / 0.05, 6);
   });
 
   // Este mismo caso es la mejor ilustración de por qué hacía falta la
@@ -188,6 +192,6 @@ describe("viga con torsión: interacción con flexión y cortante", () => {
     expect(sinTorsion.torsion.alCm2).toBeCloseTo(0, 9);
     // Sin el aporte de torsión, el As necesario vuelve al de flexión pura.
     expect(sinTorsion.flexionPositiva.asNecCm2).toBeCloseTo(8.38177231145141, 6);
-    expect(sinTorsion.cortante.a90Cm2PorM).toBeCloseTo(14.4604829956539, 6);
+    expect(sinTorsion.cortante.a90Cm2PorM).toBeCloseTo(17.401392, 5);
   });
 });

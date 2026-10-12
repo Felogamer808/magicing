@@ -18,6 +18,8 @@ interface Props {
   mEdKNm: number;
   mRdKNm: number;
   verifica: boolean;
+  /** Unidades por metro (muro) o de la pieza entera (pilar). */
+  porMetro?: boolean;
 }
 
 const ANCHO = 420;
@@ -46,7 +48,7 @@ function rotulo(xPunto: number, sep: number) {
     : { x: xPunto + sep, textAnchor: "start" as const };
 }
 
-export function DiagramaInteraccionMuro({ diagrama, nEdKN, mEdKNm, mRdKNm, verifica }: Props) {
+export function DiagramaInteraccionMuro({ diagrama, nEdKN, mEdKNm, mRdKNm, verifica, porMetro = true }: Props) {
   if (diagrama.length === 0) return null;
 
   const nMax = Math.max(...diagrama.map((p) => p.nRdKN), nEdKN) * 1.08;
@@ -71,10 +73,10 @@ export function DiagramaInteraccionMuro({ diagrama, nEdKN, mEdKNm, mRdKNm, verif
         <line x1={IZQ} y1={BASE} x2={DER} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
         <text x={IZQ - 6} y={BASE + 4} textAnchor="end" className="fill-muted-foreground text-[10.5px]">0</text>
         <text x={IZQ - 48} y={(TOP + BASE) / 2} className="fill-muted-foreground text-[10.5px]">
-          N (kN/m)
+          {porMetro ? "N (kN/m)" : "N (kN)"}
         </text>
         <text x={DER} y={ALTO - 8} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
-          M (kN·m/m)
+          {porMetro ? "M (kN·m/m)" : "M (kN·m)"}
         </text>
 
         {/* Par actuante y su margen hasta la curva. */}

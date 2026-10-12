@@ -150,19 +150,63 @@ describe("cortante (bloque VIGA)", () => {
     expect(r.vRdCMin).toBeCloseTo(217.152498327503, 3);
   });
 
-  it("reproduce el cortante a resistir por estribos y las áreas necesarias", () => {
-    expect(r.vEdEstribos).toBeCloseTo(858.847501672497, 3);
-    expect(r.a90NecCm2PorM).toBeCloseTo(36.7594376678864, 3);
-    expect(r.a90MinCm2PorM).toBeCloseTo(8.68940446145067, 3);
-    expect(r.a90Cm2PorM).toBeCloseTo(36.7594376678864, 3);
+  // Tampoco reproducen la planilla desde el 2026-10-12: la hoja restaba VRd,c a
+  // los estribos (Vsu = Vd − Vcu, EHE-08) y tomaba la mínima fctm·b/7,5. Con el
+  // art. 6.2.3(3) los estribos toman VEd entero, y la mínima es la del 9.2.2(5).
+  // d = 0,649 m; fywd = mín(fyd; 0,8·fyk) = 400 MPa.
+  it("los estribos toman VEd entero (ec. 6.8) y la mínima es ρw,min·b (ec. 9.5)", () => {
+    expect(r.requiereEstribos).toBe(true);
+    expect(r.vEdEstribos).toBeCloseTo(1076, 9);
+    expect(r.a90NecCm2PorM).toBeCloseTo((1076 * 10) / (400 * 0.9 * d), 6);
+    expect(r.a90NecCm2PorM).toBeCloseTo(46.0538, 3);
+    expect(r.a90MinCm2PorM).toBeCloseTo(((0.08 * Math.sqrt(30)) / 500) * 0.9 * 1e4, 9);
+    expect(r.a90Cm2PorM).toBeCloseTo(r.a90NecCm2PorM, 9);
   });
 
-  it("reproduce la separación adoptada y el área real (6 ramas φ10 cada 10 cm)", () => {
+  it("separación máxima 0,75·d (ec. 9.6) y adoptada 6 ramas φ10 cada 10 cm", () => {
     expect(r.aEstriboCm2).toBeCloseTo(4.71238898038469, 6);
-    expect(r.separacionNecM).toBeCloseTo(0.128195350074724, 6);
-    expect(r.separacionMaxM).toBeCloseTo(0.3894, 6);
+    expect(r.separacionNecM).toBeCloseTo(4.71238898038469 / r.a90NecCm2PorM, 9);
+    expect(r.separacionMaxM).toBeCloseTo(0.75 * d, 9);
     expect(r.separacionAdoptadaM).toBeCloseTo(0.1, 6);
     expect(r.areaRealCm2PorM).toBeCloseTo(47.1238898038469, 3);
+  });
+
+  // Ramas repartidas entre ejes: (b − 2·rec − Øe)/(n − 1) = (0,9 − 0,08 − 0,01)/5.
+  it("separación transversal entre ramas contra st,max = 0,75·d ≤ 600 mm (ec. 9.8)", () => {
+    expect(r.separacionTransversalM).toBeCloseTo(0.162, 9);
+    expect(r.separacionTransversalMaxM).toBeCloseTo(0.75 * d, 9);
+    expect(r.verificaSeparacionTransversal).toBe(true);
+
+    const dosRamas = calcularCortante(materiales, geometria, d, asNegativaRealCm2, {
+      vd: 1076,
+      diametroEstriboMm: 10,
+      numeroRamas: 2,
+    });
+    expect(dosRamas.separacionTransversalM).toBeCloseTo(0.81, 9);
+    expect(dosRamas.verificaSeparacionTransversal).toBe(false);
+
+    const canto = calcularCortante(materiales, geometria, 0.9, asNegativaRealCm2, {
+      vd: 1076,
+      diametroEstriboMm: 10,
+      numeroRamas: 6,
+    });
+    expect(canto.separacionTransversalMaxM).toBe(0.6);
+  });
+
+  it("sin VEd > VRd,c no hay armadura de cálculo: manda la mínima", () => {
+    const bajo = calcularCortante(materiales, geometria, d, asNegativaRealCm2, {
+      vd: 150,
+      diametroEstriboMm: 10,
+      numeroRamas: 6,
+    });
+    expect(bajo.requiereEstribos).toBe(false);
+    expect(bajo.vEdEstribos).toBe(0);
+    expect(bajo.a90NecCm2PorM).toBe(0);
+    expect(bajo.a90Cm2PorM).toBeCloseTo(bajo.a90MinCm2PorM, 9);
+  });
+
+  it("con fyk = 400 los estribos trabajan a 0,8·fyk = 320 MPa (nota del art. 6.2.3(3))", () => {
+    expect(derivarMateriales({ fck: 30, fyk: 400 }).fydEstribos).toBeCloseTo(320, 9);
   });
 
   it("el mínimo manda sólo con cuantías bajas, como pide el articulado", () => {

@@ -21,6 +21,8 @@ import { TarjetaLadoZapata } from "@/components/verificaciones/hormigon/TarjetaL
 import { CorteArmaduraZapata } from "@/components/verificaciones/hormigon/CorteArmaduraZapata";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
+import { HormigonExtraordinario } from "@/components/verificaciones/hormigon/HormigonExtraordinario";
+import { filasExtraordinariasAislada, resumenExtraordinario } from "@/lib/verificaciones/hormigon-extraordinario";
 import { DiagramaTiranteTerreno } from "@/components/verificaciones/hormigon/DiagramaTiranteTerreno";
 import { ZapataDiagrama } from "@/components/verificaciones/hormigon/ZapataDiagrama";
 import { ComprobacionVuelco } from "@/components/verificaciones/hormigon/ComprobacionVuelco";
@@ -192,6 +194,9 @@ export default function ZapataAisladaPage() {
   }
 
   const punzonamientoEvaluado = !resultado?.zapata.punzonamiento.motivoNoEvaluado;
+
+  const hormigonExt = resultado?.zapata.extraordinaria?.hormigon;
+  const filasExt = hormigonExt ? filasExtraordinariasAislada(hormigonExt, resultado?.armaduraTiranteExt) : [];
 
   /**
    * Vuelos que se muestran y se comprueban en cada dirección: con el pilar
@@ -416,8 +421,8 @@ export default function ZapataAisladaPage() {
                     <CampoNumerico id="HkAExt" etiqueta="Hk A extr." sufijo="kN" valor={HkAExt} onChange={setHkAExt} />
                     <CampoNumerico id="HkBExt" etiqueta="Hk B extr." sufijo="kN" valor={HkBExt} onChange={setHkBExt} />
                     <p className="col-span-3 text-xs text-muted-foreground">
-                      Las cargas características de la combinación extraordinaria, con los mismos signos. Sólo se
-                      comprueba el terreno con ellas: el armado sigue con la persistente.
+                      Las cargas de la combinación extraordinaria (accidental), con los mismos signos. Con ellas se
+                      comprueban el terreno y el hormigón, con las mismas barras de la persistente.
                     </p>
                   </>
                 )}
@@ -531,7 +536,7 @@ export default function ZapataAisladaPage() {
               "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12): vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan Mk + Hk·H; deslizamiento con √(HkA² + HkB²) ≤ (Nk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)). Estabiliza y frena sólo la parte permanente de Nk. Sin empuje pasivo ni peso de tierras.",
               ...(extraordinariaActiva
                 ? [
-                    "Situación extraordinaria, sólo para el terreno (DB SE-C, tabla 2.1): tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El armado sigue con la persistente.",
+                    "Situación extraordinaria. Terreno por el DB SE-C, tabla 2.1: tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El hormigón, con la combinación accidental sin mayorar (γ = 1,0) y γc = 1,3, γs = 1,0 (Anejo 19, tabla A19.2.1, pág. 20): flexión, cortante, punzonamiento, anclaje y tirante.",
                   ]
                 : []),
               "Punzonamiento según el Anejo 19, art. 6.4.4 (2): se barren los perímetros hasta 2d (o hasta el vuelo, si es menor) y se informa el que peor verifica. El momento entra por la ec. (6.51), con MEd = 1,5·Mk sin descontar el contramomento del terreno y los dos ejes sumados.",
@@ -635,6 +640,7 @@ export default function ZapataAisladaPage() {
                             utilizacion: x.deslizamiento?.aprovechamiento,
                             conPropuestas: !!rec["ext.deslizamiento"],
                           },
+                          ...resumenExtraordinario(filasExt),
                         ];
                       })()
                     : []),
@@ -891,6 +897,8 @@ export default function ZapataAisladaPage() {
                   />
                 </div>
               </Subgrupo>
+
+              {filasExt.length > 0 && <HormigonExtraordinario filas={filasExt} />}
             </div>
           )}
         </Etapa>

@@ -48,6 +48,8 @@ export interface EntradaPunzonamientoDescentrado {
   excCalculoB: number;
   asRealACm2: number;
   asRealBCm2: number;
+  /** γ de las acciones: 1,5 (persistente) si falta, 1,0 en accidental. */
+  gammaF?: number;
 }
 
 export interface ResultadoPunzonamientoDescentrado {
@@ -170,12 +172,13 @@ export function calcularPunzonamientoDescentrado(
     inf: B - e.bordeB - cB,
   };
 
-  const vEdPilarKN = GAMMA_F * nk;
-  const mA = GAMMA_F * e.mkA;
-  const mB = GAMMA_F * e.mkB;
+  const gammaF = e.gammaF ?? GAMMA_F;
+  const vEdPilarKN = gammaF * nk;
+  const mA = gammaF * e.mkA;
+  const mB = gammaF * e.mkB;
 
   // Presión de cálculo real, lineal en las dos direcciones; el terreno no tracciona.
-  const sigmaMedia = (GAMMA_F * (e.nkPresiones ?? nk)) / (A * B);
+  const sigmaMedia = (gammaF * (e.nkPresiones ?? nk)) / (A * B);
   const sigma = (x: number, y: number) =>
     sigmaMedia * Math.max(0, 1 + (12 * e.excCalculoA * (x - A / 2)) / A ** 2 + (12 * e.excCalculoB * (y - B / 2)) / B ** 2);
 
@@ -298,7 +301,7 @@ export function calcularPunzonamientoDescentrado(
     const vEdRedKN = Math.max(vEdPilarKN - reaccionDentro(a, elegido.rec), 0);
     const beta = betaEn(elegido.rec, elegido.p, vEdRedKN);
     const vEdKN = vEdRedKN * beta;
-    const vRdCKN = tensionCortanteResistente(k, rhoL, fck) * ((2 * d) / a) * elegido.p.u * d * 1000;
+    const vRdCKN = tensionCortanteResistente(k, rhoL, fck, materiales.gammaC) * ((2 * d) / a) * elegido.p.u * d * 1000;
     return {
       aM: a,
       u1M: elegido.p.u,

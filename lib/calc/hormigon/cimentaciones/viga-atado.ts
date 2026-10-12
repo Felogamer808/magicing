@@ -2,6 +2,8 @@ import type { ArmaduraElegida, MaterialesDerivados, ResultadoCortante } from "@/
 import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 import { calcularCortante } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { diagramaInteraccion, momentoResistente } from "@/lib/calc/hormigon/muros/portante";
+import { GAMMA_G } from "@/lib/calc/hormigon/comun/coeficientes";
+import { moduloSecanteGPa } from "@/lib/calc/hormigon/comun/materiales";
 
 /**
  * Viga de atado (riostra) entre dos zapatas o encepados.
@@ -21,8 +23,17 @@ import { diagramaInteraccion, momentoResistente } from "@/lib/calc/hormigon/muro
  * - La viga apoya en el terreno: su peso propio no la flecta. Sólo flecta si
  *   la maquinaria de compactación puede cargarla, con q₁ = 10 kN/m
  *   (art. 9.8.3 (2)), biapoyada en la luz libre entre zapatas.
- * - El asiento diferencial entre zapatas (CTE DB SE-C, art. 4.1.1 (7)) no se
- *   considera todavía.
+ * - Asiento diferencial entre zapatas (CTE DB SE-C, art. 4.1.1 (7), pág. 25,
+ *   que pide considerarlo sin decir cómo), decidido el 2026-10-12:
+ *   · δ es un dato; sin dato, la distorsión angular límite de la tabla 2.2
+ *     (pág. 14) por la distancia entre ejes de las zapatas;
+ *   · viga empotrada en las dos zapatas, que no giran: M = 6·EI·δ/L² en los
+ *     extremos y V = 12·EI·δ/L³;
+ *   · EI = Ecm·I bruta, del lado seguro (no se cuenta la relajación por
+ *     fisuración ni por fluencia);
+ *   · γ = 1,35, el de las acciones permanentes;
+ *   · se combina con todo por sección: en el extremo, M del asiento + axil;
+ *     en el vano, M de q₁ + axil. Los cortantes se suman en el extremo.
  * - Toda la resistencia sale del Anejo 19. Las dos reglas de Montoya
  *   (a ≥ l/20 y As·fyd ≥ 0,15·a²·fcd) se informan como predimensionado y no
  *   deciden si cumple: son práctica de la EHE-08.
@@ -36,6 +47,19 @@ export const Q1_COMPACTACION_KN_M = 10;
 
 /** Diámetro mínimo de la armadura longitudinal, art. 9.8.3 (1), pág. 154 (mm). */
 export const DIAMETRO_MINIMO_ATADO_MM = 12;
+
+/**
+ * Distorsiones angulares límite de la tabla 2.2 del CTE DB SE-C, pág. 14. Se
+ * usan sólo cuando no se carga el asiento diferencial previsto.
+ */
+export const DISTORSIONES_LIMITE = {
+  isostatica: { texto: "Estructuras isostáticas y muros de contención", limite: 1 / 300 },
+  reticulada: { texto: "Estructuras reticuladas con tabiquería de separación", limite: 1 / 500 },
+  prefabricada: { texto: "Estructuras de paneles prefabricados", limite: 1 / 700 },
+  muroConcavoArriba: { texto: "Muros de carga sin armar, flexión cóncava hacia arriba", limite: 1 / 1000 },
+  muroConcavoAbajo: { texto: "Muros de carga sin armar, flexión cóncava hacia abajo", limite: 1 / 2000 },
+} as const;
+export type TipoEstructuraAsiento = keyof typeof DISTORSIONES_LIMITE;
 
 export interface DatosVigaAtado {
   /** Ancho y canto de la viga (m) */
@@ -56,6 +80,11 @@ export interface DatosVigaAtado {
   porCara: ArmaduraElegida;
   diametroEstriboMm: number;
   numeroRamas: number;
+  /** Asiento diferencial previsto entre las zapatas (m). null: el de la tabla 2.2. */
+  asientoM: number | null;
+  /** Distancia entre ejes de las zapatas (m): con ella la distorsión da el asiento. */
+  distanciaEjesM: number;
+  tipoEstructura: TipoEstructuraAsiento;
 }
 
 export interface ResultadoVigaAtado {
@@ -63,9 +92,22 @@ export interface ResultadoVigaAtado {
   axilAtadoKN: number;
   /** q₁ si hay compactación, 0 si no (kN/m) */
   cargaKNPorM: number;
-  /** Md = q·L²/8 y Vd = q·L/2, biapoyada (kN·m, kN) */
+  /** Md = q·L²/8 en el vano, biapoyada (kN·m) */
   momentoKNm: number;
+  /** Vd en el extremo: q·L/2 más el del asiento (kN) */
   cortanteKN: number;
+
+  /** Asiento diferencial usado (m) y si salió de la tabla 2.2 */
+  asientoM: number;
+  asientoDeTabla: boolean;
+  /** EI = Ecm·b·h³/12 (kN·m²) */
+  rigidezKNm2: number;
+  /** γ·6·EI·δ/L² y γ·12·EI·δ/L³ en los extremos (kN·m, kN) */
+  momentoAsientoKNm: number;
+  cortanteAsientoKN: number;
+  /** Momento de la sección que manda (kN·m) y cuál es */
+  momentoDisenoKNm: number;
+  seccionDeterminante: "vano" | "extremo";
 
   /** d′: del borde al eje de las barras; d: canto útil; z = d − d′ (m) */
   dPrimaM: number;
@@ -113,7 +155,19 @@ export function calcularVigaAtado(materiales: MaterialesDerivados, datos: DatosV
   const axilAtadoKN = (datos.porcentaje / 100) * Math.max(datos.n1dKN, datos.n2dKN);
   const cargaKNPorM = datos.compactacion ? Q1_COMPACTACION_KN_M : 0;
   const momentoKNm = (cargaKNPorM * luzM ** 2) / 8;
-  const cortanteKN = (cargaKNPorM * luzM) / 2;
+
+  // Asiento impuesto con los extremos empotrados. Ecm en GPa → kN/m²: ×1e6.
+  const asientoDeTabla = datos.asientoM === null;
+  const asientoM = datos.asientoM ?? DISTORSIONES_LIMITE[datos.tipoEstructura].limite * datos.distanciaEjesM;
+  const rigidezKNm2 = moduloSecanteGPa(materiales.fck) * 1e6 * ((b * h ** 3) / 12);
+  const momentoAsientoKNm = (GAMMA_G * 6 * rigidezKNm2 * asientoM) / luzM ** 2;
+  const cortanteAsientoKN = (GAMMA_G * 12 * rigidezKNm2 * asientoM) / luzM ** 3;
+
+  // El axil es el mismo en toda la viga: entre el vano y el extremo manda el
+  // de más momento. Los cortantes sí coinciden en el extremo y se suman.
+  const seccionDeterminante = momentoAsientoKNm > momentoKNm ? "extremo" : "vano";
+  const momentoDisenoKNm = Math.max(momentoKNm, momentoAsientoKNm);
+  const cortanteKN = (cargaKNPorM * luzM) / 2 + cortanteAsientoKN;
 
   // ------------------------------------------------------------ sección
   const dPrimaM = recubrimiento + diametroEstriboMm / 1000 + porCara.diametroMm / 2000;
@@ -124,14 +178,14 @@ export function calcularVigaAtado(materiales: MaterialesDerivados, datos: DatosV
   // ------------------------------------------------------------ tracción
   // El hormigón traccionado no cuenta: cada cara toma la mitad del axil más el
   // par del momento, N/2 + M/z. 1 cm² × 1 MPa = 0,1 kN.
-  const traccionCaraKN = axilAtadoKN / 2 + (brazoM > 0 ? momentoKNm / brazoM : Infinity);
+  const traccionCaraKN = axilAtadoKN / 2 + (brazoM > 0 ? momentoDisenoKNm / brazoM : Infinity);
   const capacidadCaraKN = (asCaraCm2 * fyd) / 10;
 
   // ------------------------------------------------------------ compresión
   // Anejo 19, art. 6.1 (4), pág. 74: excentricidad mínima h/30, no menos de
-  // 20 mm. Es un mínimo, no se suma al momento de q₁.
+  // 20 mm. Es un mínimo, no se suma al momento de q₁ ni al del asiento.
   const excentricidadMinimaM = Math.max(h / 30, 0.02);
-  const momentoCompresionKNm = Math.max(momentoKNm, axilAtadoKN * excentricidadMinimaM);
+  const momentoCompresionKNm = Math.max(momentoDisenoKNm, axilAtadoKN * excentricidadMinimaM);
   // El diagrama del muro es por metro de ancho: se le pasa la cuantía por
   // metro y se escala por b, que es lineal en las dos resultantes.
   const diagrama = diagramaInteraccion(h, dPrimaM, asCaraCm2 / b, materiales);
@@ -171,6 +225,13 @@ export function calcularVigaAtado(materiales: MaterialesDerivados, datos: DatosV
     cargaKNPorM,
     momentoKNm,
     cortanteKN,
+    asientoM,
+    asientoDeTabla,
+    rigidezKNm2,
+    momentoAsientoKNm,
+    cortanteAsientoKN,
+    momentoDisenoKNm,
+    seccionDeterminante,
     dPrimaM,
     dM,
     brazoM,

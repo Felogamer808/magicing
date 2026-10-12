@@ -27,6 +27,16 @@ import { recomendarLosa } from "@/lib/verificaciones/recomendaciones/losas";
 
 const meta = registroVerificaciones.find((v) => v.id === "losas")!;
 
+/** Rótulos del borde parcialmente empotrado, art. 9.3.1.2 (2). */
+const EMPOTRAMIENTO = {
+  no: "No: el negativo es el cargado",
+  intermedio: "Sí, apoyo intermedio (25 % de M+)",
+  extremo: "Sí, apoyo extremo (15 % de M+)",
+} as const;
+type ClaveEmpotramiento = keyof typeof EMPOTRAMIENTO;
+const empotramientoPorRotulo = (rotulo: string): ClaveEmpotramiento =>
+  (Object.keys(EMPOTRAMIENTO) as ClaveEmpotramiento[]).find((k) => EMPOTRAMIENTO[k] === rotulo) ?? "no";
+
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría" },
   { id: "momentos", titulo: "Momentos" },
@@ -50,6 +60,8 @@ export default function LosasPage() {
   const [myPos, setMyPos] = useCampo("myPos", "30");
   const [mxNeg, setMxNeg] = useCampo("mxNeg", "40");
   const [myNeg, setMyNeg] = useCampo("myNeg", "20");
+  const [empotramientoX, setEmpotramientoX] = useCampo<ClaveEmpotramiento>("empotramientoX", "no");
+  const [empotramientoY, setEmpotramientoY] = useCampo<ClaveEmpotramiento>("empotramientoY", "no");
 
   const [phiPosX, setPhiPosX] = useCampo("phiPosX", "12");
   const [sPosX, setSPosX] = useCampo("sPosX", "0.1");
@@ -61,8 +73,8 @@ export default function LosasPage() {
   const [sNegY, setSNegY] = useCampo("sNegY", "0.15");
 
   const campos = useMemo(
-    () => ({ fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje }),
-    [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje]
+    () => ({ fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje, empotramientoX, empotramientoY }),
+    [fck, fyk, e, rgPos, rgNeg, mxPos, myPos, mxNeg, myNeg, phiPosX, sPosX, phiPosY, sPosY, phiNegX, sNegX, phiNegY, sNegY, formaAnclaje, empotramientoX, empotramientoY]
   );
   const resultado = useMemo(() => resolverLosa(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -133,6 +145,27 @@ export default function LosasPage() {
                 <CampoNumerico id="myPos" etiqueta="My +" sufijo="kN·m/m" valor={myPos} onChange={setMyPos} />
                 <CampoNumerico id="mxNeg" etiqueta="Mx −" sufijo="kN·m/m" valor={mxNeg} onChange={setMxNeg} />
                 <CampoNumerico id="myNeg" etiqueta="My −" sufijo="kN·m/m" valor={myNeg} onChange={setMyNeg} />
+                <div className="col-span-full space-y-3 pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    ¿Algún borde queda parcialmente empotrado (contra una viga o un muro) y el cálculo no lo tuvo en
+                    cuenta? Entonces arriba hace falta armadura aunque el negativo sea 0: la que resista el 25 % del
+                    positivo del vano, o el 15 % en un apoyo extremo (Anejo 19, art. 9.3.1.2 (2)).
+                  </p>
+                  <CampoSeleccion
+                    id="empotramientoX"
+                    etiqueta="Empotramiento parcial no considerado, en X"
+                    valor={EMPOTRAMIENTO[empotramientoX]}
+                    opciones={Object.values(EMPOTRAMIENTO)}
+                    onChange={(x) => setEmpotramientoX(empotramientoPorRotulo(x))}
+                  />
+                  <CampoSeleccion
+                    id="empotramientoY"
+                    etiqueta="Empotramiento parcial no considerado, en Y"
+                    valor={EMPOTRAMIENTO[empotramientoY]}
+                    opciones={Object.values(EMPOTRAMIENTO)}
+                    onChange={(x) => setEmpotramientoY(empotramientoPorRotulo(x))}
+                  />
+                </div>
               </div>
             }
             dibujo={<CroquisMomentosLosa />}
@@ -178,11 +211,13 @@ export default function LosasPage() {
               { etiqueta: "Positivo X · Y", valor: `Ø${phiPosX}/${sPosX} · Ø${phiPosY}/${sPosY} m` },
               { etiqueta: "Negativo X · Y", valor: `Ø${phiNegX}/${sNegX} · Ø${phiNegY}/${sNegY} m` },
               { etiqueta: "Anclaje", valor: formaAnclaje },
+              { etiqueta: "Empotramiento parcial X · Y", valor: `${EMPOTRAMIENTO[empotramientoX]} · ${EMPOTRAMIENTO[empotramientoY]}` },
               ...(resultado ? [{ etiqueta: "As,min", valor: `${fmt(resultado.losa.asMinCm2PorM)} cm²/m`, derivado: true }] : []),
             ]}
             hipotesis={[
               "Cada dirección y cada cara se resuelven por separado, por metro de ancho, con bloque rectangular de compresión: ω = 1 − √(1 − 2μ).",
-              "Cuantía mínima del Anejo 19, art. 9.3.1.1 (1) → 9.2.1.1 (1), ec. (9.1), con fctm,fl del espesor (ec. 3.23).",
+              "Cuantía mínima del Anejo 19, art. 9.3.1.1 (1) → 9.2.1.1 (1), ec. (9.1), con fctm,fl del espesor (ec. 3.23). Es de la armadura de tracción: una cara sin momento no la exige.",
+              "Con empotramiento parcial no considerado, el negativo se arma para el 25 % (o 15 % en apoyo extremo) del positivo de la misma dirección, art. 9.3.1.2 (2), con su mínimo de tracción como en las vigas.",
               "Como en la planilla, el armado positivo en X computa la malla general de Y más el refuerzo propio en X.",
               "Canto útil del positivo con el recubrimiento de positivos (la planilla usaba el de negativos).",
               "Anclaje por el Anejo 19, art. 8.4, con σsd = fyd·As,nec/As,real, cd = mín(a/2, c) y adherencia según la fig. A19.8.2.",
@@ -205,8 +240,8 @@ export default function LosasPage() {
                 comprobaciones={[
                   ...direcciones.map((d) => ({
                     etiqueta: `armado ${d.etiqueta}`,
-                    estado: d.r.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
-                    utilizacion: d.r.aprovechamiento,
+                    estado: !d.r.requerida ? ("no-aplica" as const) : d.r.verificaAs ? ("cumple" as const) : ("no-cumple" as const),
+                    utilizacion: d.r.requerida ? d.r.aprovechamiento : undefined,
                     conPropuestas: !!rec[`as${d.malla}`],
                   })),
                   ...direcciones.map((d) => ({

@@ -88,4 +88,13 @@ describe("MCP de cimentaciones: calcula", () => {
     });
     expect(r.ok && r.tirante?.comprobaciones.length).toBeGreaterThan(0);
   });
+
+  it("con la extraordinaria trae también el hormigón de las tres zapatas", () => {
+    for (const id of ["zapatas", "zapata-corrida", "zapata-combinada"] as const) {
+      const r = calcularCimentacion(id, { conExtraordinaria: "Sí" });
+      const ext = r.ok ? r.comprobaciones.filter((c) => c.clave.startsWith("ext.hormigon.")) : [];
+      expect(ext.length, id).toBeGreaterThan(0);
+      expect(ext.every((c) => c.nombre.endsWith("(extraordinaria)")), id).toBe(true);
+    }
+  });
 });

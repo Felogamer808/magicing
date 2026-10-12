@@ -11,11 +11,10 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 const materiales = derivarMateriales({ fck: 30, fyk: 500 });
 
 /*
- * Caso base deliberadamente robusto: 30 cm de espesor y 2,5 m de altura dan
- * λ = 28,9 contra λlim = 33,4, o sea justo del lado en que los efectos de
- * segundo orden se pueden ignorar. Con 25 cm y 3 m —que suena igual de
- * corriente— λ ya se va a 41,6 y hay que sumarlos: el criterio es más exigente
- * de lo que parece a ojo.
+ * Caso base: 30 cm de espesor y 2,5 m de altura dan λ = 28,9 contra
+ * λlim = 64,4, del lado en que los efectos de segundo orden se ignoran. Hasta
+ * el 2026-10-12 λlim salía 33,4 porque B se tomaba como √(1 + 2ω) en vez de
+ * 1 + √(1 + 2ω) (ec. 5.13): el muro pedía segundo orden de más.
  */
 const geometria = {
   espesorM: 0.3,
@@ -130,6 +129,37 @@ describe("momentos, arts. 6.1(4) y 5.8.8", () => {
   });
 });
 
+describe("λlim y curvatura con las ecs. (5.13) y (5.37)", () => {
+  // As = 2·Ø12 c/200 = 11,31 cm²/m; ω = As·fyd/(Ac·fcd); n = 600/(0,3·20 000).
+  const asM2 = (2 * Math.PI * 1.2 ** 2) / 4 / 0.2 / 1e4;
+  const omega = (asM2 * (500 / 1.15)) / (0.3 * 20);
+  const n = 600 / (0.3 * 20000);
+
+  it("B = 1 + √(1 + 2ω) y λlim = 20·A·B·C/√n", () => {
+    expect(r.esbeltez.factorB).toBeCloseTo(1 + Math.sqrt(1 + 2 * omega), 9);
+    expect(r.esbeltez.lambdaLimite).toBeCloseTo((20 * 0.7 * (1 + Math.sqrt(1 + 2 * omega)) * 0.7) / Math.sqrt(n), 6);
+    expect(r.esbeltez.lambdaLimite).toBeCloseTo(64.4, 1);
+  });
+
+  it("Kφ = 1 + β·φef con β = 0,35 + fck/200 − λ/150", () => {
+    // 6 m de altura y φef = 2: λ = 69,3 > λlim = 65,7.
+    const m = calcularMuro(materiales, { ...geometria, alturaLibreM: 6 }, armadura,
+      { ...esfuerzos, fluenciaBasica: 2, relacionMomentoCuasipermanente: 1 }, 500);
+    expect(m.esbeltez.ignoraSegundoOrden).toBe(false);
+    const beta = 0.35 + 30 / 200 - m.esbeltez.lambda / 150;
+    expect(m.momentos.kPhi).toBeCloseTo(1 + beta * 2, 9);
+    const kr = Math.min((1 + omega - n) / (1 + omega - 0.4), 1);
+    expect(m.momentos.kr).toBeCloseTo(kr, 9);
+    expect(m.momentos.curvatura).toBeCloseTo((kr * (1 + beta * 2) * (500 / 1.15 / 200000)) / (0.45 * 0.26), 9);
+  });
+
+  it("con β negativo Kφ no baja de 1", () => {
+    const m = calcularMuro(materiales, { ...geometria, alturaLibreM: 9 }, armadura, esfuerzos, 500);
+    expect(0.35 + 30 / 200 - m.esbeltez.lambda / 150).toBeLessThan(0);
+    expect(m.momentos.kPhi).toBe(1);
+  });
+});
+
 describe("armado, art. 9.6", () => {
   it("la cuantía vertical va entre 0,002·Ac y 0,04·Ac", () => {
     expect(r.armado.asVerticalMinimaCm2).toBeCloseTo(0.002 * 0.3 * 1e4, 9);
@@ -222,9 +252,12 @@ describe("fluencia, arts. 5.8.3.1 y 5.8.4", () => {
     calcularMuro(materiales, geometria, armadura,
       { ...esfuerzos, fluenciaBasica, relacionMomentoCuasipermanente: relacion }, 500);
 
-  it("sin φ(∞,t0) cae en el A = 0,7 que admite el art. 5.8.3.1", () => {
+  it("sin φ(∞,t0) cae en el A = 0,7 que admite el art. 5.8.3.1, y el mismo φef entra en Kφ", () => {
     expect(r.fluencia.conocida).toBe(false);
     expect(r.esbeltez.factorA).toBeCloseTo(0.7, 9);
+    expect(r.fluencia.eficaz).toBeCloseTo((1 / 0.7 - 1) / 0.2, 9);
+    // Sin φ(∞,t0) no se puede afirmar que sea ≤ 2: no habilita el art. 5.8.4(4).
+    expect(r.fluencia.cumpleFluenciaAcotada).toBe(false);
   });
 
   /** ec. (5.19): la fluencia que entra es la eficaz, no la básica. */

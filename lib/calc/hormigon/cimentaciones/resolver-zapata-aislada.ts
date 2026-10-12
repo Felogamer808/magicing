@@ -1,4 +1,5 @@
 import { aNumero } from "@/lib/verificaciones/formato";
+import { GAMMA_C_ACCIDENTAL, GAMMA_S_ACCIDENTAL } from "@/lib/calc/hormigon/comun/coeficientes";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
@@ -142,8 +143,14 @@ export function resolverZapataAislada(campos: Record<string, string>) {
       : undefined;
   const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
   const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
+  // Las mismas barras del tirante con el Td y los materiales de la accidental.
+  const tdExt = zapata.extraordinaria?.hormigon.tdTiranteKN;
+  const armaduraTiranteExt =
+    entradaTirante && tdExt != null
+      ? verificarTirante({ ...entradaTirante, tdKN: tdExt, gammaC: GAMMA_C_ACCIDENTAL, gammaS: GAMMA_S_ACCIDENTAL })
+      : undefined;
 
-  return { v, entrada, entradaTirante, zapata, armaduraTirante, recomendacionesTirante, recomendaciones };
+  return { v, entrada, entradaTirante, zapata, armaduraTirante, armaduraTiranteExt, recomendacionesTirante, recomendaciones };
 }
 
 export type ResueltoZapataAislada = NonNullable<ReturnType<typeof resolverZapataAislada>>;

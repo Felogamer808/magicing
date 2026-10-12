@@ -430,7 +430,9 @@ export default function VigasFlexionCortantePage() {
               "Flexión con bloque rectangular de compresión de canto 0,8·x y tensión fcd.",
               "Cuantía mínima de tracción As,min = W/z · fctm,fl/fyd, con z = 0,8·h (Anejo 19, art. 9.2.1.1 (1), ec. (9.1)).",
               "Canto útil d⁺ hasta la armadura inferior para M+; d⁻ hasta la superior para M− y para el cortante.",
-              "Cortante con estribos verticales, brazo 0,9·d y fyd de estribos limitada a 400 MPa.",
+              "Cortante por el art. 6.2.3: estribos verticales, θ = 45° y z = 0,9·d. Si VEd > VRd,c los estribos toman el cortante entero (ec. 6.8), sin sumar el hormigón.",
+              "fywd = mín(fyd; 0,8·fyk), que es lo que habilita ν1 = 0,6 en VRd,max (nota del art. 6.2.3(3)).",
+              "Mínima ρw,min = 0,08·√fck/fyk y separación máxima 0,75·d (art. 9.2.2). La adoptada se topa además en 25 cm: criterio de oficina, no de la norma.",
               "La cuantía ρl del cortante se toma con la armadura superior.",
               "La separación de estribos la dimensiona la herramienta: no es un dato.",
               monolitica === "si"
@@ -468,6 +470,12 @@ export default function VigasFlexionCortantePage() {
                     estado: resultado.cortante.verificaVRdMax ? "cumple" : "no-cumple",
                     utilizacion: aNumero(vd) / resultado.cortante.vRdMax,
                     conPropuestas: !!rec.bielas,
+                  },
+                  {
+                    etiqueta: "separación transversal entre ramas",
+                    estado: resultado.cortante.verificaSeparacionTransversal ? "cumple" : "no-cumple",
+                    utilizacion: resultado.cortante.separacionTransversalM / resultado.cortante.separacionTransversalMaxM,
+                    conPropuestas: !!rec.ramas,
                   },
                   {
                     etiqueta: "armadura inferior en el ancho",
@@ -576,6 +584,17 @@ export default function VigasFlexionCortantePage() {
                     }}
                     recomendaciones={rec.bielas}
                   />
+                  <ResultadoCheck
+                    etiqueta="Separación transversal entre ramas"
+                    verifica={resultado.cortante.verificaSeparacionTransversal}
+                    detalle="Ramas repartidas parejo, entre ejes. Anejo 19, art. 9.2.2 (8), ec. (9.8): st,max = 0,75·d ≤ 600 mm."
+                    comparacion={{
+                      real: { etiqueta: "st", valor: resultado.cortante.separacionTransversalM * 100 },
+                      limite: { etiqueta: "st,max", valor: resultado.cortante.separacionTransversalMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
+                    recomendaciones={rec.ramas}
+                  />
                 </div>
               </Subgrupo>
 
@@ -617,11 +636,12 @@ export default function VigasFlexionCortantePage() {
                           { etiqueta: "ρl", valor: fmt(resultado.cortante.rhoL, 5) },
                           { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },
                           { etiqueta: "VRd,c,mín", valor: `${fmt(resultado.cortante.vRdCMin)} kN` },
-                          { etiqueta: "Vd a resistir por estribos", valor: `${fmt(resultado.cortante.vEdEstribos)} kN` },
+                          { etiqueta: "VEd que toman los estribos  (6.8)", valor: resultado.cortante.requiereEstribos ? `${fmt(resultado.cortante.vEdEstribos)} kN` : "0 (VEd ≤ VRd,c)" },
                           { etiqueta: "A90 necesaria", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
-                          { etiqueta: "A90 mínima", valor: `${fmt(resultado.cortante.a90MinCm2PorM)} cm²/m` },
+                          { etiqueta: "A90 mínima ρw,min·b  (9.5)", valor: `${fmt(resultado.cortante.a90MinCm2PorM)} cm²/m` },
                           { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
-                          { etiqueta: "Separación máxima admitida", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Separación máxima 0,75·d  (9.6)", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Tope de oficina (no del Anejo)", valor: "25 cm" },
                         ]}
                       />
                     </>

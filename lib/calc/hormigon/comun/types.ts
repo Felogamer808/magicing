@@ -3,8 +3,11 @@ export interface Materiales {
   fck: number;
   /** Límite elástico característico del acero (MPa) */
   fyk: number;
-  /** Límite elástico de cálculo del acero de estribos (MPa). Por defecto min(fyd, 400). */
+  /** Límite elástico de cálculo del acero de estribos (MPa). Por defecto mín(fyd; 0,8·fyk). */
   fydEstribos?: number;
+  /** Coeficientes parciales del hormigón y del acero. Por defecto los de la situación persistente. */
+  gammaC?: number;
+  gammaS?: number;
 }
 
 export interface MaterialesDerivados extends Required<Materiales> {
@@ -119,8 +122,11 @@ export interface DatosCortante {
   diametroEstriboMm: number;
   /** Número de ramas del estribo */
   numeroRamas: number;
-  /** Armadura transversal extra a sumar a A90 (cm²/m), p. ej. la que aporta la torsión. */
-  a90AdicionalCm2PorM?: number;
+  /**
+   * Armadura de torsión que necesita **cada rama** del cerco (cm²/m), At/s de
+   * la ec. (6.28). Se suma por rama, no una vez al total.
+   */
+  atPorRamaCm2PorM?: number;
   /** Paso al que se redondea hacia abajo la separación adoptada (m). Por defecto 0.05. */
   pasoSeparacionM?: number;
 }
@@ -137,11 +143,13 @@ export interface ResultadoCortante {
   vRdC: number;
   /** VRd,c mínimo (kN) */
   vRdCMin: number;
-  /** Cortante que debe resistir la armadura transversal (kN) */
+  /** VEd > VRd,c: hace falta armadura de cálculo, art. 6.2.3. */
+  requiereEstribos: boolean;
+  /** Cortante que toma la armadura transversal (kN): VEd entero si hace falta, 0 si no. */
   vEdEstribos: number;
   /** Área de estribos necesaria (cm²/m) */
   a90NecCm2PorM: number;
-  /** Área de estribos mínima (cm²/m) */
+  /** Área de estribos mínima ρw,min·b (cm²/m), art. 9.2.2(5) */
   a90MinCm2PorM: number;
   /** Área de estribos de cálculo = máx(necesaria, mínima) (cm²/m) */
   a90Cm2PorM: number;
@@ -149,10 +157,15 @@ export interface ResultadoCortante {
   aEstriboCm2: number;
   /** Separación necesaria entre estribos para dar el área de cálculo (m) */
   separacionNecM: number;
-  /** Separación máxima admitida según relación Vd/VRd,max (m) */
+  /** Separación máxima sl,max = 0,75·d (m), art. 9.2.2(6) */
   separacionMaxM: number;
-  /** Separación final adoptada (m) = mín(necesaria, máxima), redondeada a múltiplos de 0.05 hasta 0.25 */
+  /** Separación final adoptada (m) = mín(necesaria, máxima), redondeada a múltiplos de 0.05 y con el tope de oficina de 0.25 */
   separacionAdoptadaM: number;
   /** Armadura real dada la separación adoptada (cm²/m) */
   areaRealCm2PorM: number;
+  /** Separación transversal entre ejes de ramas (m), con las interiores repartidas parejo */
+  separacionTransversalM: number;
+  /** Separación transversal máxima st,max = 0,75·d ≤ 0,6 m, art. 9.2.2(8) */
+  separacionTransversalMaxM: number;
+  verificaSeparacionTransversal: boolean;
 }

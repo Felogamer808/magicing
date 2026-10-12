@@ -458,6 +458,15 @@ export default function VientoPage() {
               </div>
             </Subgrupo>
           </div>
+          <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
+            Cómo sale γ0 (UNIT 50-84, fig. 8.2, construcción apoyada en el suelo): con la planta envolvente a × b y la
+            altura total h se calculan λa = h/a y λb = h/b. Para el viento perpendicular al lado a, si λa &lt; 0,5,
+            γ0,a se lee en función de λb: vale 0,85 hasta λb = 0,25, sube en línea recta hasta 1,00 en λb = 0,5 y
+            queda en 1,00 después. Para el lado b, si λb &lt; 1, γ0,b se lee en función de λa: 0,85 hasta λa = 0,2 y
+            1,00 desde λa = 0,3. Ejemplo: 77 × 35 × 14 m da λb = 14/35 = 0,40 y γ0,a = 0,85 + (0,40 − 0,25)/0,25 · 0,15
+            = 0,94. Fuera de esos rangos (edificios altos para su planta) la fig. 8.2 no está digitalizada y γ0 se
+            carga a mano leyendo el ábaco.
+          </p>
         </Etapa>
 
         <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">

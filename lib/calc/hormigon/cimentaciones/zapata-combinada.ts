@@ -1,5 +1,5 @@
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
+import { materialesAccidentales } from "@/lib/calc/hormigon/comun/materiales";
 import type { ArmaduraElegida, MaterialesDerivados, ResultadoFlexion } from "@/lib/calc/hormigon/comun/types";
 import { calcularCantoUtil, calcularFlexion } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import {
@@ -20,6 +20,7 @@ import {
   calcularDeslizamiento,
   calcularVuelcoGeneral,
   tensionExtraordinaria,
+  GAMMA_F_SITUACION,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
   type SituacionDimensionado,
@@ -118,8 +119,8 @@ export interface DatosZapataCombinada {
    */
   extraordinaria?: readonly [CargasPilarCombinada, CargasPilarCombinada];
   /**
-   * Situación de dimensionado para los coeficientes del terreno (vuelco y
-   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   * Situación de dimensionado: coeficientes del terreno (vuelco y
+   * deslizamiento) y γ de las acciones del hormigón. Persistente si falta.
    */
   situacion?: SituacionDimensionado;
 }
@@ -127,13 +128,28 @@ export interface DatosZapataCombinada {
 /** Lo que cambia de un pilar entre situaciones: sus cargas. */
 export type CargasPilarCombinada = Pick<PilarCombinada, "Nk" | "MkL" | "MkB" | "HkL" | "HkB" | "NkPermanente">;
 
-/** El terreno con las cargas de la situación extraordinaria. */
+/**
+ * El hormigón con la combinación accidental: γ = 1,0 en las acciones y
+ * γc = 1,3, γs = 1,0 (Anejo 19, tabla A19.2.1, pág. 20).
+ */
+export interface HormigonExtraordinarioCombinada {
+  inferior: ResultadoCaraCombinada;
+  superior: ResultadoCaraCombinada;
+  cortante: ResultadoCortanteCombinada;
+  transversal: ResultadoDireccionZapata;
+  punzonamiento: readonly [ResultadoPunzonamientoDescentrado, ResultadoPunzonamientoDescentrado];
+  /** Td del tirante de cada pilar, si lo hay (kN). */
+  tdTirantePorPilarKN: readonly [number, number] | null;
+}
+
+/** El terreno y el hormigón con las cargas de la situación extraordinaria. */
 export interface TerrenoExtraordinarioCombinada extends TensionExtraordinaria {
   excentricidadLM: number;
   excentricidadBM: number;
   vuelcoL: ResultadoVuelco;
   vuelcoB: ResultadoVuelco | null;
   deslizamiento: ResultadoDeslizamiento | null;
+  hormigon: HormigonExtraordinarioCombinada;
 }
 
 export interface PuntoDiagramaCombinada {
@@ -230,13 +246,15 @@ export function calcularZapataCombinada(
   const hkBTotal = (pilares[0].HkB ?? 0) + (pilares[1].HkB ?? 0);
   const mkBTotal = (pilares[0].MkB ?? 0) + (pilares[1].MkB ?? 0);
 
+  const gammaF = GAMMA_F_SITUACION[datos.situacion ?? "persistente"];
+
   // ------------------------------------------------------------- tirante
   const pesoPropioKN = 25 * L * B * H;
   const global = datos.tirante
     ? calcularTiranteRozamiento(materiales, {
         nkKN: nTotal, pesoZapataKN: pesoPropioKN, momentoCentroKNm: nTotal * e0B + mkBTotal, mkPilarKNm: 0,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: hkBTotal, nkEstabilizanteKN: nPermanente[0] + nPermanente[1],
+        hkKN: hkBTotal, nkEstabilizanteKN: nPermanente[0] + nPermanente[1], gammaF, situacion: datos.situacion,
       })
     : undefined;
   const porPilar = global
@@ -244,7 +262,7 @@ export function calcularZapataCombinada(
         const r = calcularTiranteRozamiento(materiales, {
           nkKN: p.Nk, pesoZapataKN: 0, momentoCentroKNm: p.Nk * e0B + (p.MkB ?? 0), mkPilarKNm: p.MkB ?? 0,
           brazoM: datos.tirante!.brazoM, cantoZapataM: H, phiGrados: datos.tirante!.phiGrados,
-          hkKN: p.HkB ?? 0,
+          hkKN: p.HkB ?? 0, gammaF, situacion: datos.situacion,
         });
         return { tkKN: r.tkKN, tdKN: r.tdKN, asTiranteCm2: r.asTiranteCm2, mPilarArranqueKNm: r.mPilarArranqueKNm, vPilarKN: r.vPilarKN };
       }) as unknown as readonly [TirantePilarCombinada, TirantePilarCombinada])
@@ -263,13 +281,13 @@ export function calcularZapataCombinada(
   // ------------------------------------------------------ a lo largo
   // Presión de cálculo sin peso propio (lo equilibra el mismo peso).
   const excCalculoL = momentoL / nTotal;
-  const distL = distribucionPresiones(GAMMA_F * nTotal, L, B, excCalculoL);
+  const distL = distribucionPresiones(gammaF * nTotal, L, B, excCalculoL);
   const sDe = (x: number) => (excCalculoL >= 0 ? x : L - x);
   const w = (x: number) => B * presionEn(distL, L, sDe(x));
 
   // Un momento en la base que empuja hacia el extremo derecho gira la viga en
   // sentido horario: suma al momento de las secciones a su derecha.
-  const cargas = pilares.map((p, i) => ({ x: p.posicionM, nd: GAMMA_F * p.Nk, md: GAMMA_F * mBaseL[i] }));
+  const cargas = pilares.map((p, i) => ({ x: p.posicionM, nd: gammaF * p.Nk, md: gammaF * mBaseL[i] }));
   const xs = new Set<number>();
   for (let i = 0; i <= PASOS; i++) xs.add((L * i) / PASOS);
   for (const c of cargas) xs.add(c.x);
@@ -368,7 +386,7 @@ export function calcularZapataCombinada(
     materiales, B, 1, H, cB, bordeB, dT, recubrimiento,
     cargaPorMetroKN,
     global ? -cargaPorMetroKN * e0B : (cargaPorMetroKN * (mBaseB[0] + mBaseB[1])) / nTotal,
-    armadoT, datos.formaAnclaje ?? "recta"
+    armadoT, datos.formaAnclaje ?? "recta", gammaF
   );
   const gobernante = vuelosT.fin.momentoKNm >= vuelosT.inicio.momentoKNm ? vuelosT.fin : vuelosT.inicio;
 
@@ -382,7 +400,7 @@ export function calcularZapataCombinada(
       nk: p.Nk, nkPresiones: nTotal,
       mkA: p.MkL ?? 0, mkB: porPilar ? porPilar[i].mPilarArranqueKNm : p.MkB ?? 0,
       excCalculoA: excCalculoL, excCalculoB: global ? 0 : momentoB / nTotal,
-      asRealACm2: inferior.flexion.asRealCm2, asRealBCm2: asTransversalTotalCm2,
+      asRealACm2: inferior.flexion.asRealCm2, asRealBCm2: asTransversalTotalCm2, gammaF,
     })
   ) as unknown as readonly [ResultadoPunzonamientoDescentrado, ResultadoPunzonamientoDescentrado];
 
@@ -413,11 +431,12 @@ export function calcularZapataCombinada(
           situacion: datos.situacion,
         });
 
-  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  // La extraordinaria repite el cálculo con sus cargas y los materiales de la
+  // situación accidental: el terreno y el hormigón.
   const ext = datos.extraordinaria;
   const extraordinaria = ext
     ? (() => {
-        const r = calcularZapataCombinada(materiales, geometria, sigmaAdmisibleKPa, {
+        const r = calcularZapataCombinada(materialesAccidentales(materiales), geometria, sigmaAdmisibleKPa, {
           ...datos,
           // Sin el ?? 0, un dato persistente que falte en la extraordinaria se colaría.
           pilares: pilares.map((p, i) => ({
@@ -434,6 +453,14 @@ export function calcularZapataCombinada(
           vuelcoL: r.vuelcoL,
           vuelcoB: r.vuelcoB,
           deslizamiento: r.deslizamiento,
+          hormigon: {
+            inferior: r.inferior,
+            superior: r.superior,
+            cortante: r.cortante,
+            transversal: r.transversal.gobernante,
+            punzonamiento: r.punzonamiento,
+            tdTirantePorPilarKN: r.tirante ? ([r.tirante.porPilar[0].tdKN, r.tirante.porPilar[1].tdKN] as const) : null,
+          },
         };
       })()
     : null;

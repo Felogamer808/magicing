@@ -203,10 +203,36 @@ export function calcularFlexion(
   };
 }
 
-function separacionMaxM(ratioVdVRdMax: number, d: number): number {
-  if (ratioVdVRdMax <= 0.2) return Math.min(0.75 * d, 0.6);
-  if (ratioVdVRdMax > 2 / 3) return Math.min(0.3 * d, 0.3);
-  return Math.min(0.6 * d, 0.45);
+/**
+ * Separación longitudinal máxima de los cercos verticales, art. 9.2.2(6),
+ * ec. (9.6), pág. 144: 0,75·d·(1 + cot α) con α = 90°. La escala por Vd/Vu1
+ * (0,75d / 0,6d / 0,3d) era de la EHE-08 y no está en el Anejo 19.
+ */
+function separacionMaxM(d: number): number {
+  return 0.75 * d;
+}
+
+/**
+ * Tope de la separación adoptada. No sale del Anejo 19: es un criterio de
+ * oficina de la planilla, que el usuario decidió mantener (2026-10-12) y que
+ * la página declara como tal.
+ */
+export const TOPE_SEPARACION_OFICINA_M = 0.25;
+
+/** Separación transversal máxima entre ramas, art. 9.2.2(8), ec. (9.8), pág. 144: 0,75·d ≤ 600 mm. */
+function separacionTransversalMaxM(d: number): number {
+  return Math.min(0.75 * d, 0.6);
+}
+
+/**
+ * Separación entre ejes de ramas consecutivas. Las exteriores van pegadas al
+ * recubrimiento (eje a rec + Øe/2 de cada cara) y las interiores se reparten
+ * parejo entre ellas: criterio del usuario (2026-10-12), el mismo que dibuja
+ * la sección del pilar.
+ */
+function separacionTransversalM(b: number, recubrimiento: number, diametroEstriboMm: number, numeroRamas: number): number {
+  const entreExteriores = b - 2 * recubrimiento - diametroEstriboMm / 1000;
+  return numeroRamas > 1 ? entreExteriores / (numeroRamas - 1) : entreExteriores;
 }
 
 /** Redondea la separación de estribos hacia abajo al múltiplo de `paso` más cercano. */
@@ -222,9 +248,9 @@ export function calcularCortante(
   asNegativaRealCm2: number,
   datos: DatosCortante
 ): ResultadoCortante {
-  const { b } = geometria;
-  const { fck, fcd, fctm, fydEstribos } = materiales;
-  const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
+  const { b, recubrimiento } = geometria;
+  const { fck, fyk, fcd, fydEstribos } = materiales;
+  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
   const vRdMax = cortanteMaximoBielas(fcd, b, d);
   const verificaVRdMax = vd <= vRdMax;
@@ -241,26 +267,39 @@ export function calcularCortante(
   const vRdC = tensionCortanteBase(k, rhoL, fck) * b * d * 1000;
   const vRdCMin = tensionCortanteMinima(k, fck) * b * d * 1000;
 
-  const vEdEstribos = Math.max(vd - Math.max(vRdC, vRdCMin), 0);
+  // Art. 6.2.3(3), ec. (6.8), pág. 79: si VEd supera VRd,c la armadura toma
+  // el cortante entero, con z = 0,9·d y cot θ = 1. El hormigón no suma: restar
+  // VRd,c (Vsu = Vd − Vcu) era el modelo de la EHE-08.
+  const requiereEstribos = vd > Math.max(vRdC, vRdCMin);
+  const vEdEstribos = requiereEstribos ? vd : 0;
 
   const a90NecCm2PorM = (vEdEstribos * 10) / (fydEstribos * 0.9 * d);
-  const a90MinCm2PorM = (fctm * b * 100 ** 2) / (7.5 * fydEstribos);
-  // La armadura transversal de torsión se suma a la de cortante: ambas traccionan
-  // los mismos cercos.
-  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + a90AdicionalCm2PorM;
+  // Cuantía mínima del art. 9.2.2(5), ec. (9.5), pág. 144:
+  // ρw,min = 0,08·√fck/fyk, con fyk y no fyd. Reemplaza la fctm·b/7,5 de la EHE.
+  const a90MinCm2PorM = ((0.08 * Math.sqrt(fck)) / fyk) * b * 100 ** 2;
+  // Torsión y cortante traccionan los mismos cercos, pero no igual: el cortante
+  // se reparte entre todas las ramas y la torsión pide At/s en cada rama del
+  // perímetro (art. 6.3.2, ec. (6.28)). Con todas las ramas iguales, cada una
+  // tiene que dar A90/n + At, que en total es A90 + n·At. Sumar At una sola vez
+  // dejaba las ramas exteriores cortas (criterio del usuario, 2026-10-12).
+  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + numeroRamas * atPorRamaCm2PorM;
 
   const aEstriboCm2 =
     (100 ** 2 * numeroRamas * Math.PI * (diametroEstriboMm / 1000) ** 2) / 4;
   const separacionNecM = aEstriboCm2 / a90Cm2PorM;
 
-  const ratio = vd / vRdMax;
-  const sepMax = separacionMaxM(ratio, d);
+  const sepMax = separacionMaxM(d);
   const separacionAdoptadaM = Math.min(
     redondearSeparacionM(Math.min(sepMax, separacionNecM), pasoSeparacionM),
-    0.25
+    TOPE_SEPARACION_OFICINA_M
   );
 
   const areaRealCm2PorM = aEstriboCm2 / separacionAdoptadaM;
+
+  // Las ramas son las que carga el usuario, para que coincidan con el plano:
+  // si quedan muy separadas se avisa y se proponen más, no se agregan solas.
+  const sepTransversal = separacionTransversalM(b, recubrimiento, diametroEstriboMm, numeroRamas);
+  const sepTransversalMax = separacionTransversalMaxM(d);
 
   return {
     vRdMax,
@@ -269,6 +308,7 @@ export function calcularCortante(
     rhoL,
     vRdC,
     vRdCMin,
+    requiereEstribos,
     vEdEstribos,
     a90NecCm2PorM,
     a90MinCm2PorM,
@@ -278,5 +318,8 @@ export function calcularCortante(
     separacionMaxM: sepMax,
     separacionAdoptadaM,
     areaRealCm2PorM,
+    separacionTransversalM: sepTransversal,
+    separacionTransversalMaxM: sepTransversalMax,
+    verificaSeparacionTransversal: sepTransversal <= sepTransversalMax + 1e-9,
   };
 }

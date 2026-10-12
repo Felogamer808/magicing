@@ -6,11 +6,19 @@ const BASE = {
   fck: "25", fyk: "500", b: "0.4", h: "0.4", recubrimiento: "0.04", luz: "5",
   n1d: "1000", n2d: "800", porcentaje: "10", compactacion: "no",
   numeroCara: "3", diametroCara: "16", diametroEstribo: "8", numeroRamas: "2",
+  // Sin asiento, para aislar las demás comprobaciones.
+  asiento: "0", distanciaEjes: "5.4", tipoEstructura: "reticulada",
 };
 
 describe("recomendaciones de la viga de atado", () => {
   it("el resolver calcula con los valores por defecto de la página", () => {
     expect(resolverVigaAtado(BASE)).not.toBeNull();
+  });
+
+  it("sin asiento cargado calcula con la tabla 2.2", () => {
+    const r = resolverVigaAtado({ ...BASE, asiento: "" });
+    expect(r?.r.asientoDeTabla).toBe(true);
+    expect(resolverVigaAtado({ ...BASE, asiento: "", distanciaEjes: "" })).toBeNull();
   });
 
   it("tracción excedida: más barras primero, y cumple", () => {

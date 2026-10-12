@@ -21,8 +21,8 @@ export function factorEscalaK(dM: number): number {
  * Sin el término k1·σcp: el motor no contempla axil ni pretensado, y omitirlo
  * queda del lado seguro porque en compresión ese término suma.
  */
-export function tensionCortanteBase(k: number, rhoL: number, fckMPa: number): number {
-  const CRdC = 0.18 / GAMMA_C;
+export function tensionCortanteBase(k: number, rhoL: number, fckMPa: number, gammaC = GAMMA_C): number {
+  const CRdC = 0.18 / gammaC;
   return CRdC * k * (100 * Math.min(rhoL, 0.02) * fckMPa) ** (1 / 3);
 }
 
@@ -32,8 +32,8 @@ export function tensionCortanteMinima(k: number, fckMPa: number): number {
 }
 
 /** Resistencia adoptada: el mayor entre la (6.2.a) y su mínimo (6.2.b), en MPa. */
-export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: number): number {
-  return Math.max(tensionCortanteBase(k, rhoL, fckMPa), tensionCortanteMinima(k, fckMPa));
+export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: number, gammaC = GAMMA_C): number {
+  return Math.max(tensionCortanteBase(k, rhoL, fckMPa, gammaC), tensionCortanteMinima(k, fckMPa));
 }
 
 /**
@@ -49,10 +49,9 @@ export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: numbe
  * De ahí sale exactamente el 11 % de diferencia.
  *
  * Sobre ν1: se puede usar 0,6 en vez de 0,6·(1 − f_ck/250) sólo si la armadura
- * transversal trabaja a f_ywd ≤ 0,8·f_ywk (nota del art. 6.2.3(3)). El motor
- * topa fydEstribos en 400 MPa, que para f_yk = 500 es justo 0,8·f_yk: ese tope
- * no es un capricho de la planilla, es lo que habilita ν1 = 0,6. Si se levanta,
- * hay que bajar ν1 acá.
+ * transversal trabaja a f_ywd ≤ 0,8·f_ywk (nota del art. 6.2.3(3)). Por eso
+ * derivarMateriales topa fydEstribos en 0,8·fyk (400 MPa con B500): es lo que
+ * habilita ν1 = 0,6. Si se levanta, hay que bajar ν1 acá.
  */
 export function cortanteMaximoBielas(fcdMPa: number, bM: number, dM: number): number {
   const alphaCw = 1;

@@ -294,12 +294,18 @@ export default function MuroPage() {
                       { etiqueta: "φ(∞,t0)  (Apéndice B)", valor: fmt(resultado.r.fluencia.basica, 3) },
                       { etiqueta: "φef = φ(∞,t0)·M0Eqp/M0Ed  (5.19)", valor: fmt(resultado.r.fluencia.eficaz, 3) },
                       { etiqueta: "A = 1/(1+0,2·φef)", valor: fmt(resultado.r.esbeltez.factorA, 3) },
-                      { etiqueta: "B = √(1+2ω)", valor: fmt(resultado.r.esbeltez.factorB, 3) },
+                      { etiqueta: "B = 1 + √(1+2ω)", valor: fmt(resultado.r.esbeltez.factorB, 3) },
                       { etiqueta: "C = 1,7 − rm", valor: fmt(resultado.r.esbeltez.factorC, 3) },
                       { etiqueta: "λlim = 20·A·B·C/√n  (5.13)", valor: fmt(resultado.r.esbeltez.lambdaLimite, 1) },
                       { etiqueta: "e₀ = máx(h/30, 20 mm)", valor: `${fmt(resultado.r.momentos.excentricidadMinimaM * 1000, 0)} mm` },
                       { etiqueta: "M0e  (5.32)", valor: `${fmt(resultado.r.momentos.m0eKNm, 2)} kN·m/m` },
                       { etiqueta: "M0Ed adoptado", valor: `${fmt(resultado.r.momentos.m0EdKNm, 2)} kN·m/m` },
+                      ...(resultado.r.esbeltez.ignoraSegundoOrden
+                        ? []
+                        : [
+                            { etiqueta: "Kr  (5.36)", valor: fmt(resultado.r.momentos.kr, 3) },
+                            { etiqueta: "Kφ = 1 + β·φef, β = 0,35 + fck/200 − λ/150  (5.37)", valor: fmt(resultado.r.momentos.kPhi, 3) },
+                          ]),
                       {
                         etiqueta: "e₂ = (1/r)·l₀²/10  (5.33)",
                         valor: resultado.r.esbeltez.ignoraSegundoOrden ? "no aplica" : `${fmt(resultado.r.momentos.e2M * 1000, 1)} mm`,

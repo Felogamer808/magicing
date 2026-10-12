@@ -50,7 +50,9 @@ Independientes, contra `main`:
   a lo largo entran en la viga como momento concentrado. La extraordinaria es un
   juego de cargas aparte que sólo comprueba el terreno: 1,5·σadm con despegue
   parcial, vuelco 0,9 / 1,2, deslizamiento γR = 1,1. El hormigón con la
-  combinación accidental del Anejo 19 (γc = 1,2, γs = 1,0) no está hecho.
+  combinación accidental (hecho, 2026-10-12): cargas sin mayorar, γc = 1,3 y
+  γs = 1,0 (tabla A19.2.1; el 1,2 de esta nota era el del EC2). Flexión sin la
+  mínima, cortante, punzonamiento, anclaje y tirante, en un bloque aparte.
 - **Viga de apeo y ménsula corta, sin Montoya** (hecho, 2026-10-07): todo por
   el Anejo 19. Quedan como avisos que no entran en el cumple d0 ≥ d/2 y los
   cercos en 2/3·d (ménsula), el tirante en 0,12·l y h ≥ 1,2·a (apeo). La
@@ -62,6 +64,24 @@ Independientes, contra `main`:
   (art. 6.1, ec. (9.1)), separación máxima de losas, cortante a d de la cara y
   punzonamiento de los tres pilares con la reacción descontada. Sin armadura
   de reparto: la otra dirección es su propia franja.
+- **Pilar de hormigón** (hecho, 2026-10-12): sección rectangular por el Anejo 19,
+  con segundo orden por curvatura nominal, esviada por la ec. (5.39), cortante
+  y art. 9.5. Queda: pilar circular, barras de distinto diámetro en esquinas y
+  caras, y longitud efectiva con k1 y k2 (ecs. (5.15)/(5.16)).
+- **Muro portante: λlim y Kφ** (hecho, 2026-10-12): B = 1 + √(1 + 2ω) en la
+  ec. (5.13) y Kφ con β = 0,35 + fck/200 − λ/150. Sin φ(∞,t0), φef = 2,14
+  también en la curvatura, como el pilar. λlim sube (≈ el doble): muros que
+  pedían segundo orden pueden dejar de pedirlo.
+- **Cortante de vigas al Anejo 19** (hecho, 2026-10-12): los estribos toman
+  VEd entero (ec. 6.8), mínima ρw,min (ec. 9.5) y sl,max = 0,75·d (ec. 9.6).
+  Se mantienen cot θ = 1, fywd = mín(fyd; 0,8·fyk) con ν1 = 0,6 y el tope de
+  oficina de 25 cm, declarado. La separación transversal entre ramas
+  (st,max = 0,75·d ≤ 600 mm, ec. 9.8) se comprueba desde el 2026-10-12: entre
+  ejes, con las ramas repartidas parejo; si no cumple avisa y propone más ramas.
+- **Torsión: cercos por rama** (hecho, 2026-10-12): At (ec. 6.28) se pide en
+  cada rama del cerco, así que el total es A90 + n·At. Antes se sumaba At una
+  sola vez, del lado inseguro. El ejemplo de la página pasa a 30 × 70 con un
+  cerco de 2 ramas Ø10 y 3Ø25 arriba.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.
@@ -79,10 +99,11 @@ Independientes, contra `main`:
   pretensado (se resuelven con la sección, que se carga como un juego de
   propiedades que no se pueden mover sueltas) y el rango del lado del cordón
   de soldadura (puede fallar por grande o por chico).
-- **Viga de atado: asiento diferencial.** La página toma el axil de atado (un %
-  del pilar más cargado, 10 % de Jiménez Montoya por defecto) y la q₁ de la
-  compactación, pero no el asiento diferencial entre las zapatas que une (CTE DB
-  SE-C, art. 4.1.1 (7)). Decidido dejarlo para después el 2026-10-09.
+- **Viga de atado: asiento diferencial** (hecho, 2026-10-12): CTE DB SE-C,
+  art. 4.1.1 (7). δ es un dato; sin dato, la distorsión límite de la tabla 2.2
+  por la distancia entre ejes. Empotrada en las dos zapatas (6·EI·δ/L²), EI =
+  Ecm·I bruta, γ = 1,35, combinado con el axil por sección. Del lado seguro:
+  con la tabla, el ejemplo de 0,40 × 0,40 ya no cumple.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

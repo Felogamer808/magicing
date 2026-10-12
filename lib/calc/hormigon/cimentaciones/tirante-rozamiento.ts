@@ -1,7 +1,11 @@
 import { calcularAnclaje, type FormaAnclaje, type SituacionAdherencia } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
-import { GAMMA_R_DESLIZAMIENTO } from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
+import {
+  COEFICIENTES_SITUACION,
+  GAMMA_R_DESLIZAMIENTO,
+  type SituacionDimensionado,
+} from "@/lib/calc/hormigon/cimentaciones/estabilidad-zapata";
 
 /**
  * Par tirante–terreno: otra forma de equilibrar la zapata con el pilar
@@ -12,7 +16,8 @@ import { GAMMA_R_DESLIZAMIENTO } from "@/lib/calc/hormigon/cimentaciones/estabil
  *
  * Dos normas, cada una en lo suyo, como prevé el propio DB SE-C (art. 4.1.1
  * (6), pág. 25: "introducción de tirantes, contribución de forjados"):
- * - el terreno, por el CTE DB SE-C: deslizamiento con γR = 1,5 y acciones sin
+ * - el terreno, por el CTE DB SE-C: deslizamiento con γR = 1,5 (1,1 en la
+ *   situación extraordinaria) y acciones sin
  *   mayorar (tabla 2.1, pág. 12), rozamiento δ = 3/4·φ sin adherencia (art.
  *   4.2.3.1 (4), pág. 34), y área de la zapata la real (art. 4.3.1.3 (6), pág. 36);
  * - la armadura del tirante, por el Anejo 19: tracción de cálculo γF·Tk sobre fyd.
@@ -54,6 +59,10 @@ export interface DatosTiranteRozamiento {
    * (kN). Lo que puede faltar no frena. Si falta, `nkKN`.
    */
   nkEstabilizanteKN?: number;
+  /** γ de las acciones para Td: 1,5 (persistente) si falta, 1,0 en accidental. */
+  gammaF?: number;
+  /** Situación de dimensionado para el γR del deslizamiento (tabla 2.1). Persistente si falta. */
+  situacion?: SituacionDimensionado;
 }
 
 export interface ResultadoTiranteRozamiento {
@@ -65,6 +74,8 @@ export interface ResultadoTiranteRozamiento {
   asTiranteCm2: number;
   /** δ = 3/4·φ (grados). */
   deltaGrados: number;
+  /** γR del deslizamiento: 1,5 persistente, 1,1 extraordinaria (DB SE-C, tabla 2.1). */
+  gammaR: number;
   /** Rozamiento resistente de cálculo, (Nk + peso)·tan δ / γR (kN). */
   rozamientoResistenteKN: number;
   /** Horizontal que la base tiene que frenar en esta dirección, Tk + Hk (kN). */
@@ -96,12 +107,13 @@ export function calcularTiranteRozamiento(
   // la horizontal del pilar, que llega con brazo H.
   //   momentoCentro + Hk·H + Tk·h = 0
   const tkKN = geometriaValida ? -(momentoCentroKNm + hkKN * cantoZapataM) / brazoM : 0;
-  const tdKN = GAMMA_F * Math.abs(tkKN);
+  const tdKN = (datos.gammaF ?? GAMMA_F) * Math.abs(tkKN);
   const asTiranteCm2 = (tdKN * 1000) / materiales.fyd / 100;
 
   const deltaGrados = 0.75 * phiGrados;
+  const gammaR = COEFICIENTES_SITUACION[datos.situacion ?? "persistente"].gammaRDeslizamiento;
   const rozamientoResistenteKN =
-    ((nkEstabilizanteKN + pesoZapataKN) * Math.tan((deltaGrados * Math.PI) / 180)) / GAMMA_R_DESLIZAMIENTO;
+    ((nkEstabilizanteKN + pesoZapataKN) * Math.tan((deltaGrados * Math.PI) / 180)) / gammaR;
   // Equilibrio horizontal: la base frena al tirante y a la horizontal juntos.
   const horizontalBaseKN = tkKN + hkKN;
 
@@ -110,6 +122,7 @@ export function calcularTiranteRozamiento(
     tdKN,
     asTiranteCm2,
     deltaGrados,
+    gammaR,
     rozamientoResistenteKN,
     horizontalBaseKN,
     verificaDeslizamiento: geometriaValida && Math.abs(horizontalBaseKN) <= rozamientoResistenteKN,
@@ -178,7 +191,7 @@ export function verificarArmaduraTirante(
       ? Math.min(recubrimientoM * 1000, (separacionM * 1000 - diametroMm) / 2)
       : recubrimientoM * 1000;
   const { lbdMm } = calcularAnclaje(
-    { fckMPa: fck, fykMPa: fyk },
+    { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
     { diametroMm, situacion, forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
   );
 

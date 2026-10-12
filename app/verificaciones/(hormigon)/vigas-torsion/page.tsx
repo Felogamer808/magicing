@@ -67,7 +67,7 @@ export default function VigasTorsionPage() {
   const [fck, setFck] = useCampo("fck", "30");
   const [fyk, setFyk] = useCampo("fyk", "500");
 
-  const [b, setB] = useCampo("b", "0.2");
+  const [b, setB] = useCampo("b", "0.3");
   const [h, setH] = useCampo("h", "0.7");
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.035");
 
@@ -76,12 +76,12 @@ export default function VigasTorsionPage() {
   const [diametroPos, setDiametroPos] = useCampo("diametroPos", "25");
 
   const [momentoNeg, setMomentoNeg] = useCampo("momentoNeg", "235");
-  const [numeroNeg, setNumeroNeg] = useCampo("numeroNeg", "2");
+  const [numeroNeg, setNumeroNeg] = useCampo("numeroNeg", "3");
   const [diametroNeg, setDiametroNeg] = useCampo("diametroNeg", "25");
 
   const [vd, setVd] = useCampo("vd", "405");
-  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
-  const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
+  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
+  const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "2");
 
   const [td, setTd] = useCampo("td", "30");
 
@@ -267,8 +267,9 @@ export default function VigasTorsionPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Las ramas son las patas verticales que cortan la sección en un mismo plano: un
-                    estribo cerrado aporta 2. La separación la calcula la herramienta y aparece en los
-                    resultados.
+                    estribo cerrado aporta 2. La torsión sólo la toman las ramas del perímetro, y cada
+                    una necesita At además de su parte del cortante. La separación la calcula la
+                    herramienta y aparece en los resultados.
                   </p>
                 </Subgrupo>
               }
@@ -307,8 +308,11 @@ export default function VigasTorsionPage() {
               "Sección hueca equivalente con tef = A/u, no menor que 2 veces la distancia del borde al eje de la armadura longitudinal (Anejo 19, art. 6.3.2 (1)).",
               "Bielas a 45°: TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ, con ν = 0,6·(1 − fck/250) (ec. 6.30).",
               "La armadura longitudinal de torsión se reparte en cuartos y cada cara suma uno a su armadura de flexión.",
-              "Cortante con d⁻ y ρl de la armadura superior; fyd de estribos limitada a 400 MPa.",
-              "La separación de estribos la dimensiona la herramienta: no es un dato.",
+              "Cortante con d⁻ y ρl de la armadura superior.",
+              "Cortante por el art. 6.2.3: estribos verticales, θ = 45° y z = 0,9·d. Si VEd > VRd,c los estribos toman el cortante entero (ec. 6.8), sin sumar el hormigón.",
+              "fywd = mín(fyd; 0,8·fyk), que es lo que habilita ν1 = 0,6 en VRd,max (nota del art. 6.2.3(3)).",
+              "Mínima ρw,min = 0,08·√fck/fyk y separación máxima 0,75·d (art. 9.2.2). La adoptada se topa además en 25 cm: criterio de oficina, no de la norma.",
+              "La separación de estribos la dimensiona la herramienta: no es un dato. Cada rama tiene que dar su parte del cortante, A90/n, más At de la torsión (art. 6.3.2, ec. (6.28)): en total, A90 + n·At.",
             ]}
             avisos={avisos}
           />
@@ -355,6 +359,12 @@ export default function VigasTorsionPage() {
                     conPropuestas: !!rec.bielas,
                   },
                   {
+                    etiqueta: "separación transversal entre ramas",
+                    estado: resultado.cortante.verificaSeparacionTransversal ? "cumple" : "no-cumple",
+                    utilizacion: resultado.cortante.separacionTransversalM / resultado.cortante.separacionTransversalMaxM,
+                    conPropuestas: !!rec.ramas,
+                  },
+                  {
                     etiqueta: "armadura inferior en el ancho",
                     estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
                     conPropuestas: !!rec.anchoInferior,
@@ -372,7 +382,7 @@ export default function VigasTorsionPage() {
                 metricas={[
                   { etiqueta: "TRd,max", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m`, nota: `Td ${fmt(aNumero(td))} kN·m` },
                   { etiqueta: "Al de torsión", valor: `${fmt(resultado.torsion.alCm2)} cm²`, nota: `${fmt(resultado.torsion.alPorCaraCm2)} cm² por cara` },
-                  { etiqueta: "At de torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m`, nota: "se suma a los estribos" },
+                  { etiqueta: "At de torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m`, nota: "en cada rama del cerco" },
                   { etiqueta: "VRd,max", valor: `${fmt(resultado.cortante.vRdMax)} kN`, nota: `Vd ${fmt(aNumero(vd))} kN` },
                 ]}
               />
@@ -488,6 +498,17 @@ export default function VigasTorsionPage() {
                     }}
                     recomendaciones={rec.bielas}
                   />
+                  <ResultadoCheck
+                    etiqueta="Separación transversal entre ramas"
+                    verifica={resultado.cortante.verificaSeparacionTransversal}
+                    detalle="Ramas repartidas parejo, entre ejes. Anejo 19, art. 9.2.2 (8), ec. (9.8): st,max = 0,75·d ≤ 600 mm."
+                    comparacion={{
+                      real: { etiqueta: "st", valor: resultado.cortante.separacionTransversalM * 100 },
+                      limite: { etiqueta: "st,max", valor: resultado.cortante.separacionTransversalMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
+                    recomendaciones={rec.ramas}
+                  />
                 </div>
               </Subgrupo>
 
@@ -529,9 +550,11 @@ export default function VigasTorsionPage() {
                           { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },
                           { etiqueta: "VRd,c,mín", valor: `${fmt(resultado.cortante.vRdCMin)} kN` },
                           { etiqueta: "A90 por cortante", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
-                          { etiqueta: "+ At por torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
+                          { etiqueta: "+ n·At por torsión (At en cada rama)", valor: `${fmt(aNumero(numeroRamas), 0)} · ${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
+                          { etiqueta: "A90 total", valor: `${fmt(resultado.cortante.a90Cm2PorM)} cm²/m` },
                           { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
-                          { etiqueta: "Separación máxima admitida", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Separación máxima 0,75·d  (9.6)", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Tope de oficina (no del Anejo)", valor: "25 cm" },
                         ]}
                       />
                     </>

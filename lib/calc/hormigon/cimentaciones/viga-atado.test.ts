@@ -13,6 +13,8 @@ const BASE: DatosVigaAtado = {
   n1dKN: 1000, n2dKN: 800, porcentaje: 10, compactacion: false,
   porCara: { numero: 3, diametroMm: 16 },
   diametroEstriboMm: 8, numeroRamas: 2,
+  // Sin asiento salvo en sus propios tests, para aislar el resto.
+  asientoM: 0, distanciaEjesM: 5.4, tipoEstructura: "reticulada",
 };
 
 describe("viga de atado", () => {
@@ -53,6 +55,30 @@ describe("viga de atado", () => {
     const r = calcularVigaAtado(materiales, { ...BASE, n1dKN: 6000 });
     expect(r.traccionCaraKN).toBeCloseTo(300, 6);
     expect(r.verificaTraccion).toBe(false);
+  });
+
+  // Ecm = 22·(3,3)^0,3 = 31,476 GPa; I = 0,4⁴/12; EI = 67 148 kN·m².
+  // δ = 5,4/500 = 10,8 mm; M = 1,35·6·EI·δ/5² = 235,0 kN·m; V = 1,35·12·EI·δ/5³ = 94,0 kN.
+  it("sin asiento cargado usa la distorsión de la tabla 2.2, empotrada en las dos zapatas", () => {
+    const r = calcularVigaAtado(materiales, { ...BASE, asientoM: null });
+    expect(r.asientoDeTabla).toBe(true);
+    expect(r.asientoM).toBeCloseTo(0.0108, 9);
+    expect(r.rigidezKNm2).toBeCloseTo(67148.39, 1);
+    expect(r.momentoAsientoKNm).toBeCloseTo(234.966, 2);
+    expect(r.cortanteAsientoKN).toBeCloseTo(93.986, 2);
+    expect(r.seccionDeterminante).toBe("extremo");
+    expect(r.traccionCaraKN).toBeCloseTo(50 + 234.966 / 0.288, 1);
+    expect(r.verificaTraccion).toBe(false);
+  });
+
+  it("con asiento cargado y compactación: manda la sección de más momento y los cortantes se suman", () => {
+    const r = calcularVigaAtado(materiales, { ...BASE, asientoM: 0.0005, compactacion: true });
+    expect(r.asientoDeTabla).toBe(false);
+    // M asiento = 1,35·6·EI·0,0005/25 = 10,88 < 31,25 de q₁: manda el vano.
+    expect(r.momentoAsientoKNm).toBeCloseTo(10.878, 2);
+    expect(r.seccionDeterminante).toBe("vano");
+    expect(r.momentoDisenoKNm).toBeCloseTo(31.25, 6);
+    expect(r.cortanteKN).toBeCloseTo(25 + (1.35 * 12 * r.rigidezKNm2 * 0.0005) / 125, 6);
   });
 
   it("exige Ø12 como mínimo", () => {

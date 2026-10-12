@@ -193,9 +193,9 @@ export default function VientoPage() {
 
   // γ0 sale solo de la geometría (fig. 8.2): se calcula aparte de "resultado"
   // para que las tarjetas de Lado A/B lo muestren aunque el resto del
-  // formulario (Ce, Kd) todavía no sea válido. Null = el edificio cae en el
-  // ábaco denso (λa≥0,5 o λb≥1) que no está digitalizado: hay que leer γ0 de
-  // la fig. 8.2 a mano.
+  // formulario (Ce, Kd) todavía no sea válido. Null = el edificio cae fuera
+  // de lo digitalizado (λa > 10, a/b > 1 o λb ≥ 1): hay que leer γ0 de la
+  // fig. 8.2 a mano.
   const factorForma = useMemo(() => {
     if (!geometria) return null;
     return calcularFactorFormaGamma0(
@@ -270,7 +270,7 @@ export default function VientoPage() {
   const avisos: AvisoRevision[] = [];
   if (!geometria) avisos.push({ tipo: "error", texto: "Completá cada nivel con altura de piso, a, b y repeticiones positivos." });
   else if (!resultado) avisos.push({ tipo: "error", texto: "γ0 tiene que ser positivo en los dos lados." });
-  if (geometria && factorForma && factorForma.ladoA === null) avisos.push({ tipo: "aviso", texto: "λa > 2,5: γ0,a no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
+  if (geometria && factorForma && factorForma.ladoA === null) avisos.push({ tipo: "aviso", texto: "λa > 10 o a/b > 1: γ0,a queda fuera de la fig. 8.2 digitalizada y se toma el valor cargado a mano." });
   if (geometria && factorForma && factorForma.ladoB === null) avisos.push({ tipo: "aviso", texto: "λb ≥ 1: γ0,b no está digitalizado para este caso y se toma el valor cargado a mano de la fig. 8.2." });
   if (avisoCasoActual) avisos.push({ tipo: "aviso", texto: avisoCasoActual });
 
@@ -434,7 +434,7 @@ export default function VientoPage() {
                   etiqueta="γ0,a"
                   lambdaEtiqueta="λa"
                   lambdaValor={geometria ? geometria.alturaTotal / geometria.aEnvolvente : NaN}
-                  umbral="2,5"
+                  rango="λa ≤ 10 y a/b ≤ 1"
                   gammaCalculado={factorForma?.ladoA ?? null}
                   valorManual={gammaA}
                   onChangeManual={setGammaA}
@@ -449,7 +449,7 @@ export default function VientoPage() {
                   etiqueta="γ0,b"
                   lambdaEtiqueta="λb"
                   lambdaValor={geometria ? geometria.alturaTotal / geometria.bEnvolvente : NaN}
-                  umbral="1"
+                  rango="λb < 1"
                   gammaCalculado={factorForma?.ladoB ?? null}
                   valorManual={gammaB}
                   onChangeManual={setGammaB}
@@ -465,8 +465,9 @@ export default function VientoPage() {
             queda en 1,00 después (ejemplo: 77 × 35 × 14 m da λb = 0,40 y γ0,a = 0,85 + (0,40 − 0,25)/0,25 · 0,15 =
             0,94). Si λa ≥ 0,5 se usa la otra parte de la figura: con 0,5 ≤ λa ≤ 2,5 es la recta de abajo y γ0,a =
             1,00 sea cual sea a/b; con λa de 3 a 10 se entra con a/b por abajo, se sube hasta la curva de ese λa
-            (interpolando entre curvas) y se lee γ0 a la derecha, entre 1,00 y 1,30. Ese tramo no está
-            digitalizado: se carga a mano. Para el lado b, si λb &lt; 1, γ0,b se lee en función de λa: 0,85 hasta
+            (interpolando entre curvas, y entre la recta 1,00 y la curva 3 si 2,5 &lt; λa &lt; 3) y se lee γ0 a la
+            derecha, entre 1,00 y 1,30. Las curvas están digitalizadas con un error de lectura de ±0,003; con λa &gt;
+            10 o a/b &gt; 1 se carga a mano. Para el lado b, si λb &lt; 1, γ0,b se lee en función de λa: 0,85 hasta
             λa = 0,2 y 1,00 desde λa = 0,3; con λb ≥ 1 se lee el ábaco a mano.
           </p>
         </Etapa>
@@ -488,7 +489,7 @@ export default function VientoPage() {
               ...(coeficientesSitio ? [{ etiqueta: "vk · Kt · Kk", valor: `${fmt(coeficientesSitio.vk, 1)} m/s · ${fmt(coeficientesSitio.kt, 2)} · ${fmt(coeficientesSitio.kk, 2)}`, derivado: true }] : []),
             ]}
             hipotesis={[
-              "γ0 por la fig. 8.2 con la envolvente en planta (el mayor a y el mayor b entre los niveles) y la altura total, para construcciones apoyadas en el suelo: γ0,a con λa ≤ 2,5 y γ0,b con λb < 1; fuera de ese rango se carga a mano.",
+              "γ0 por la fig. 8.2 con la envolvente en planta (el mayor a y el mayor b entre los niveles) y la altura total, para construcciones apoyadas en el suelo: γ0,a con λa ≤ 10 y a/b ≤ 1 (curvas leídas del ábaco, ±0,003) y γ0,b con λb < 1; fuera de ese rango se carga a mano.",
               "Kd (fig. 6.2) por nivel, con el área de influencia propia (ancho expuesto × altura de influencia); entra en la resultante y en Pc por nivel, no en pc (art. 6.2.6.2).",
               "Ce de caras laterales y techo de la fig. 8.6 con α = 0°, a partir de γ.",
               "Con tensiones admisibles Kk = 1 (7.3.1).",
@@ -562,8 +563,8 @@ function CampoValorCalculado({
 }
 
 /**
- * γ0 sale solo de la geometría (fig. 8.2, ramas λa<0,5 y λb<1). Cuando el
- * edificio cae en el ábaco denso que no está digitalizado (λ≥umbral), no hay
+ * γ0 sale solo de la geometría (fig. 8.2). Cuando el edificio cae fuera de
+ * lo digitalizado (fuera del rango), no hay
  * valor calculado: se avisa y se deja el campo para cargarlo a mano leyendo
  * la fig. 8.2 de la norma.
  */
@@ -572,7 +573,7 @@ function CampoGamma0({
   etiqueta,
   lambdaEtiqueta,
   lambdaValor,
-  umbral,
+  rango,
   gammaCalculado,
   valorManual,
   onChangeManual,
@@ -581,7 +582,7 @@ function CampoGamma0({
   etiqueta: string;
   lambdaEtiqueta: string;
   lambdaValor: number;
-  umbral: string;
+  rango: string;
   gammaCalculado: number | null;
   valorManual: string;
   onChangeManual: (valor: string) => void;
@@ -605,7 +606,7 @@ function CampoGamma0({
       onChange={onChangeManual}
       advertencia={
         Number.isFinite(lambdaValor)
-          ? `${lambdaEtiqueta}=${fmt(lambdaValor, 2)} ≥ ${umbral}: leer γ0 de la fig. 8.2 (no está digitalizada para este caso).`
+          ? `${lambdaEtiqueta}=${fmt(lambdaValor, 2)}: fuera de ${rango}, leer γ0 de la fig. 8.2 (no está digitalizada para este caso).`
           : undefined
       }
     />

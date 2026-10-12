@@ -1,5 +1,5 @@
 import { aNumero } from "@/lib/verificaciones/formato";
-import { calcularVigaAtado } from "@/lib/calc/hormigon/cimentaciones/viga-atado";
+import { DISTORSIONES_LIMITE, calcularVigaAtado, type TipoEstructuraAsiento } from "@/lib/calc/hormigon/cimentaciones/viga-atado";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 /**
@@ -24,6 +24,15 @@ export function resolverVigaAtado(campos: Record<string, string>) {
   if (positivos.some((x) => x <= 0) || v.recubrimiento < 0 || v.n1d < 0 || v.n2d < 0) return null;
   if (Math.max(v.n1d, v.n2d) <= 0) return null;
 
+  // Asiento en mm. Vacío: el de la tabla 2.2 con la distancia entre ejes.
+  const asientoTexto = (campos.asiento ?? "").trim();
+  const asientoMm = asientoTexto === "" ? null : aNumero(asientoTexto);
+  if (asientoMm !== null && (!Number.isFinite(asientoMm) || asientoMm < 0)) return null;
+  const distanciaEjes = num("distanciaEjes");
+  if (asientoMm === null && !(distanciaEjes > 0)) return null;
+  const tipo = campos.tipoEstructura ?? "";
+  const tipoEstructura: TipoEstructuraAsiento = tipo in DISTORSIONES_LIMITE ? (tipo as TipoEstructuraAsiento) : "reticulada";
+
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
   const r = calcularVigaAtado(materiales, {
     b: v.b, h: v.h, recubrimiento: v.recubrimiento, luzM: v.luz,
@@ -32,8 +41,11 @@ export function resolverVigaAtado(campos: Record<string, string>) {
     porCara: { numero: v.numeroCara, diametroMm: v.diametroCara },
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
+    asientoM: asientoMm === null ? null : asientoMm / 1000,
+    distanciaEjesM: Number.isFinite(distanciaEjes) ? distanciaEjes : 0,
+    tipoEstructura,
   });
-  return { v, r, materiales };
+  return { v: { ...v, asientoMm, distanciaEjes, tipoEstructura }, r, materiales };
 }
 
 export type ResueltoVigaAtado = NonNullable<ReturnType<typeof resolverVigaAtado>>;

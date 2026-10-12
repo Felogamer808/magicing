@@ -71,6 +71,7 @@ export type IdVerificacion =
   | "cabezales"
   | "muros-contencion"
   | "muros"
+  | "pilares"
   | "fisuracion"
   | "deformaciones"
   | "longitudes-anclaje"
@@ -154,7 +155,7 @@ export const registroSecciones: SeccionMeta[] = [
     grupo: "Materiales",
     nombre: "Hormigón armado",
     descripcion:
-      "Vigas, losas, cimentaciones, muros de contención y estado límite de servicio.",
+      "Vigas, pilares, losas, cimentaciones, muros de contención y estado límite de servicio.",
     normasDisponibles: ["EC2", "EC7"],
     ruta: "/secciones/hormigon-armado",
     disponible: true,
@@ -288,6 +289,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Carga concentrada sobre un área chica (apoyo, placa, aparato de apoyo): aplastamiento local con el área de distribución y armadura para las tracciones transversales.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zona-parcialmente-cargada",
+    disponible: true,
+  },
+  {
+    id: "pilares",
+    nombre: "Pilares",
+    seccion: "hormigon-armado",
+    categoria: "Pilares",
+    descripcion:
+      "Sección rectangular: esbeltez y segundo orden, flexocompresión en las dos direcciones y esviada, cortante y armado del art. 9.5.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/pilares",
     disponible: true,
   },
   {

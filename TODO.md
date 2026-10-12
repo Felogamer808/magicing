@@ -70,9 +70,11 @@ Independientes, contra `main`:
   ec. (5.13) y Kφ con β = 0,35 + fck/200 − λ/150. Sin φ(∞,t0), φef = 2,14
   también en la curvatura, como el pilar. λlim sube (≈ el doble): muros que
   pedían segundo orden pueden dejar de pedirlo.
-- **Cortante de vigas con restos de la EHE** (encontrado el 2026-10-12): resta
-  VRd,c a los estribos (Vsu = Vd − Vcu), limita fyd a 400 MPa y usa la mínima
-  fctm·b/(7,5·fyd). El art. 6.2.3 no suma el hormigón cuando hay estribos.
+- **Cortante de vigas al Anejo 19** (hecho, 2026-10-12): los estribos toman
+  VEd entero (ec. 6.8), mínima ρw,min (ec. 9.5) y sl,max = 0,75·d (ec. 9.6).
+  Se mantienen cot θ = 1, fywd = mín(fyd; 0,8·fyk) con ν1 = 0,6 y el tope de
+  oficina de 25 cm, declarado. Queda la separación transversal de ramas
+  (st,max = 0,75·d ≤ 600 mm, art. 9.2.2(8)).
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.

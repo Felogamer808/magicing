@@ -307,7 +307,10 @@ export default function VigasTorsionPage() {
               "Sección hueca equivalente con tef = A/u, no menor que 2 veces la distancia del borde al eje de la armadura longitudinal (Anejo 19, art. 6.3.2 (1)).",
               "Bielas a 45°: TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ, con ν = 0,6·(1 − fck/250) (ec. 6.30).",
               "La armadura longitudinal de torsión se reparte en cuartos y cada cara suma uno a su armadura de flexión.",
-              "Cortante con d⁻ y ρl de la armadura superior; fyd de estribos limitada a 400 MPa.",
+              "Cortante con d⁻ y ρl de la armadura superior.",
+              "Cortante por el art. 6.2.3: estribos verticales, θ = 45° y z = 0,9·d. Si VEd > VRd,c los estribos toman el cortante entero (ec. 6.8), sin sumar el hormigón.",
+              "fywd = mín(fyd; 0,8·fyk), que es lo que habilita ν1 = 0,6 en VRd,max (nota del art. 6.2.3(3)).",
+              "Mínima ρw,min = 0,08·√fck/fyk y separación máxima 0,75·d (art. 9.2.2). La adoptada se topa además en 25 cm: criterio de oficina, no de la norma.",
               "La separación de estribos la dimensiona la herramienta: no es un dato.",
             ]}
             avisos={avisos}
@@ -531,7 +534,8 @@ export default function VigasTorsionPage() {
                           { etiqueta: "A90 por cortante", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
                           { etiqueta: "+ At por torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m` },
                           { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
-                          { etiqueta: "Separación máxima admitida", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Separación máxima 0,75·d  (9.6)", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
+                          { etiqueta: "Tope de oficina (no del Anejo)", valor: "25 cm" },
                         ]}
                       />
                     </>

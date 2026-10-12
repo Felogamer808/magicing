@@ -2,7 +2,7 @@ import { resolverVigaFlexionCortante, type ResueltoVigaFlexionCortante } from "@
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
-export type ClaveViga = "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior";
+export type ClaveViga = "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior" | "ramas";
 export type RecomendacionesViga = Partial<Record<ClaveViga, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveViga, string> = {
@@ -11,6 +11,7 @@ const NOMBRES: Record<ClaveViga, string> = {
   bielas: "compresión oblicua del alma",
   anchoInferior: "armadura inferior en el ancho",
   anchoSuperior: "armadura superior en el ancho",
+  ramas: "separación transversal entre ramas",
 };
 
 const utilizaciones = (r: ResueltoVigaFlexionCortante): Record<ClaveViga, number> => ({
@@ -19,6 +20,7 @@ const utilizaciones = (r: ResueltoVigaFlexionCortante): Record<ClaveViga, number
   bielas: r.v.vd / r.cortante.vRdMax,
   anchoInferior: siNo(r.flexionPositiva.verificaEntraEnAncho),
   anchoSuperior: siNo(r.flexionNegativa.verificaEntraEnAncho),
+  ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,
 });
 
 // ── Palancas ────────────────────────────────────────────────────────────────
@@ -42,6 +44,16 @@ export const ANCHO = palancaValor(campo("b"), {
   efectoColateral: "Más ancho: más peso propio; entran más barras por fila.",
 });
 export const FCK = palancaFck(campo("fck"));
+
+/** Más ramas por estribo: achica la separación transversal entre ellas. */
+export const RAMAS = palancaValor(campo("numeroRamas"), {
+  paso: 1,
+  tope: (n) => n + 4,
+  decimales: 0,
+  rotulo: "Estribos: ",
+  texto: (n) => `${n} ramas`,
+  efectoColateral: "Más ramas: más acero por estribo; la separación longitudinal puede abrirse.",
+});
 
 const textoCapa = (n: number, d: number) => `${n} Ø${d}`;
 
@@ -108,6 +120,8 @@ function palancasPorClave(clave: ClaveViga): readonly Palanca<Campos>[] {
       return [masBarrasFinas("Pos"), ANCHO];
     case "anchoSuperior":
       return [masBarrasFinas("Neg"), ANCHO];
+    case "ramas":
+      return [RAMAS];
   }
 }
 

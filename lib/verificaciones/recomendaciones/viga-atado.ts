@@ -1,8 +1,9 @@
 import { resolverVigaAtado, type ResueltoVigaAtado } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-atado";
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
+import { RAMAS } from "./vigas-flexion-cortante";
 
-export type ClaveVigaAtado = "traccion" | "compresion" | "minima" | "diametro" | "bielas";
+export type ClaveVigaAtado = "traccion" | "compresion" | "minima" | "diametro" | "bielas" | "ramas";
 export type RecomendacionesVigaAtado = Partial<Record<ClaveVigaAtado, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveVigaAtado, string> = {
@@ -11,6 +12,7 @@ const NOMBRES: Record<ClaveVigaAtado, string> = {
   minima: "armadura mínima",
   diametro: "diámetro mínimo",
   bielas: "bielas del alma",
+  ramas: "separación transversal entre ramas",
 };
 
 const utilizaciones = ({ r }: ResueltoVigaAtado): Record<ClaveVigaAtado, number> => ({
@@ -19,6 +21,7 @@ const utilizaciones = ({ r }: ResueltoVigaAtado): Record<ClaveVigaAtado, number>
   minima: r.asMinCaraCm2 / r.asCaraCm2,
   diametro: siNo(r.verificaDiametro),
   bielas: r.cortanteKN / r.cortante.vRdMax,
+  ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,
 });
 
 const POR_CARA = (n: number, e: Campos) => `${n} Ø${campo("diametroCara").leer(e)}`;
@@ -53,6 +56,8 @@ function palancasPorClave(clave: ClaveVigaAtado): readonly Palanca<Campos>[] {
       return [DIAMETRO_MAYOR];
     case "bielas":
       return [ANCHO, CANTO, FCK];
+    case "ramas":
+      return [RAMAS];
   }
 }
 

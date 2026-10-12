@@ -219,6 +219,22 @@ function separacionMaxM(d: number): number {
  */
 export const TOPE_SEPARACION_OFICINA_M = 0.25;
 
+/** Separación transversal máxima entre ramas, art. 9.2.2(8), ec. (9.8), pág. 144: 0,75·d ≤ 600 mm. */
+function separacionTransversalMaxM(d: number): number {
+  return Math.min(0.75 * d, 0.6);
+}
+
+/**
+ * Separación entre ejes de ramas consecutivas. Las exteriores van pegadas al
+ * recubrimiento (eje a rec + Øe/2 de cada cara) y las interiores se reparten
+ * parejo entre ellas: criterio del usuario (2026-10-12), el mismo que dibuja
+ * la sección del pilar.
+ */
+function separacionTransversalM(b: number, recubrimiento: number, diametroEstriboMm: number, numeroRamas: number): number {
+  const entreExteriores = b - 2 * recubrimiento - diametroEstriboMm / 1000;
+  return numeroRamas > 1 ? entreExteriores / (numeroRamas - 1) : entreExteriores;
+}
+
 /** Redondea la separación de estribos hacia abajo al múltiplo de `paso` más cercano. */
 function redondearSeparacionM(valor: number, paso: number): number {
   return Math.floor(valor / paso + 1e-9) * paso;
@@ -232,7 +248,7 @@ export function calcularCortante(
   asNegativaRealCm2: number,
   datos: DatosCortante
 ): ResultadoCortante {
-  const { b } = geometria;
+  const { b, recubrimiento } = geometria;
   const { fck, fyk, fcd, fydEstribos } = materiales;
   const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
@@ -277,6 +293,11 @@ export function calcularCortante(
 
   const areaRealCm2PorM = aEstriboCm2 / separacionAdoptadaM;
 
+  // Las ramas son las que carga el usuario, para que coincidan con el plano:
+  // si quedan muy separadas se avisa y se proponen más, no se agregan solas.
+  const sepTransversal = separacionTransversalM(b, recubrimiento, diametroEstriboMm, numeroRamas);
+  const sepTransversalMax = separacionTransversalMaxM(d);
+
   return {
     vRdMax,
     verificaVRdMax,
@@ -294,5 +315,8 @@ export function calcularCortante(
     separacionMaxM: sepMax,
     separacionAdoptadaM,
     areaRealCm2PorM,
+    separacionTransversalM: sepTransversal,
+    separacionTransversalMaxM: sepTransversalMax,
+    verificaSeparacionTransversal: sepTransversal <= sepTransversalMax + 1e-9,
   };
 }

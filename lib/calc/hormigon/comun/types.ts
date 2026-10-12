@@ -157,4 +157,9 @@ export interface ResultadoCortante {
   separacionAdoptadaM: number;
   /** Armadura real dada la separación adoptada (cm²/m) */
   areaRealCm2PorM: number;
+  /** Separación transversal entre ejes de ramas (m), con las interiores repartidas parejo */
+  separacionTransversalM: number;
+  /** Separación transversal máxima st,max = 0,75·d ≤ 0,6 m, art. 9.2.2(8) */
+  separacionTransversalMaxM: number;
+  verificaSeparacionTransversal: boolean;
 }

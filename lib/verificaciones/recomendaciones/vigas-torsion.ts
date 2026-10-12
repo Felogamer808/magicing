@@ -1,9 +1,9 @@
 import { resolverVigaTorsion, type ResueltoVigaTorsion } from "@/lib/calc/hormigon/vigas/resolver-torsion";
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import type { Campos } from "./palancas";
-import { ANCHO, CANTO, FCK, diametroMayor, masBarras, masBarrasFinas } from "./vigas-flexion-cortante";
+import { ANCHO, CANTO, FCK, RAMAS, diametroMayor, masBarras, masBarrasFinas } from "./vigas-flexion-cortante";
 
-export type ClaveTorsion = "bielasTorsion" | "interaccion" | "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior";
+export type ClaveTorsion = "bielasTorsion" | "interaccion" | "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior" | "ramas";
 export type RecomendacionesTorsion = Partial<Record<ClaveTorsion, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveTorsion, string> = {
@@ -14,6 +14,7 @@ const NOMBRES: Record<ClaveTorsion, string> = {
   bielas: "compresión oblicua del alma",
   anchoInferior: "armadura inferior en el ancho",
   anchoSuperior: "armadura superior en el ancho",
+  ramas: "separación transversal entre ramas",
 };
 
 const utilizaciones = (r: ResueltoVigaTorsion): Record<ClaveTorsion, number> => ({
@@ -24,6 +25,7 @@ const utilizaciones = (r: ResueltoVigaTorsion): Record<ClaveTorsion, number> => 
   bielas: r.v.vd / r.cortante.vRdMax,
   anchoInferior: siNo(r.flexionPositiva.verificaEntraEnAncho),
   anchoSuperior: siNo(r.flexionNegativa.verificaEntraEnAncho),
+  ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,
 });
 
 function palancasPorClave(clave: ClaveTorsion): readonly Palanca<Campos>[] {
@@ -41,6 +43,8 @@ function palancasPorClave(clave: ClaveTorsion): readonly Palanca<Campos>[] {
       return [masBarrasFinas("Pos"), ANCHO];
     case "anchoSuperior":
       return [masBarrasFinas("Neg"), ANCHO];
+    case "ramas":
+      return [RAMAS];
   }
 }
 

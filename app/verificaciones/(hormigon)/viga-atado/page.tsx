@@ -289,6 +289,17 @@ export default function VigaAtadoPage() {
                     }
                     recomendaciones={rec.bielas}
                   />
+                  <ResultadoCheck
+                    etiqueta="Separación transversal entre ramas"
+                    verifica={r.cortante.verificaSeparacionTransversal}
+                    detalle="Ramas repartidas parejo, entre ejes. Anejo 19, art. 9.2.2 (8), ec. (9.8): st,max = 0,75·d ≤ 600 mm."
+                    comparacion={{
+                      real: { etiqueta: "st", valor: r.cortante.separacionTransversalM * 100 },
+                      limite: { etiqueta: "st,max", valor: r.cortante.separacionTransversalMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
+                    recomendaciones={rec.ramas}
+                  />
                   <PanelFormulas
                     titulo="Ver desarrollo de los estribos"
                     filas={[

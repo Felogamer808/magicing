@@ -5,6 +5,9 @@ export interface Materiales {
   fyk: number;
   /** Límite elástico de cálculo del acero de estribos (MPa). Por defecto mín(fyd; 0,8·fyk). */
   fydEstribos?: number;
+  /** Coeficientes parciales del hormigón y del acero. Por defecto los de la situación persistente. */
+  gammaC?: number;
+  gammaS?: number;
 }
 
 export interface MaterialesDerivados extends Required<Materiales> {

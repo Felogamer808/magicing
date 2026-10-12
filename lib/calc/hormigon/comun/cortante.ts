@@ -21,8 +21,8 @@ export function factorEscalaK(dM: number): number {
  * Sin el término k1·σcp: el motor no contempla axil ni pretensado, y omitirlo
  * queda del lado seguro porque en compresión ese término suma.
  */
-export function tensionCortanteBase(k: number, rhoL: number, fckMPa: number): number {
-  const CRdC = 0.18 / GAMMA_C;
+export function tensionCortanteBase(k: number, rhoL: number, fckMPa: number, gammaC = GAMMA_C): number {
+  const CRdC = 0.18 / gammaC;
   return CRdC * k * (100 * Math.min(rhoL, 0.02) * fckMPa) ** (1 / 3);
 }
 
@@ -32,8 +32,8 @@ export function tensionCortanteMinima(k: number, fckMPa: number): number {
 }
 
 /** Resistencia adoptada: el mayor entre la (6.2.a) y su mínimo (6.2.b), en MPa. */
-export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: number): number {
-  return Math.max(tensionCortanteBase(k, rhoL, fckMPa), tensionCortanteMinima(k, fckMPa));
+export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: number, gammaC = GAMMA_C): number {
+  return Math.max(tensionCortanteBase(k, rhoL, fckMPa, gammaC), tensionCortanteMinima(k, fckMPa));
 }
 
 /**

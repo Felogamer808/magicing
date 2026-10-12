@@ -1,3 +1,5 @@
+import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
+
 /**
  * Vuelco y deslizamiento de una zapata, por el CTE DB SE-C.
  *
@@ -28,6 +30,13 @@
  */
 
 export type SituacionDimensionado = "persistente" | "extraordinaria";
+
+/**
+ * γ de las acciones para el hormigón de la zapata. En la extraordinaria las
+ * cargas que se cargan ya son las de la combinación accidental (G + Ad + ψ·Q),
+ * que va sin mayorar: γ = 1,0. Criterio del usuario, 2026-10-12.
+ */
+export const GAMMA_F_SITUACION: Record<SituacionDimensionado, number> = { persistente: GAMMA_F, extraordinaria: 1 };
 
 export interface CoeficientesSituacion {
   /** γE sobre las acciones estabilizadoras del vuelco */

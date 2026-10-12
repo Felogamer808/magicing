@@ -1,5 +1,6 @@
 import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_F } from "@/lib/calc/hormigon/comun/coeficientes";
+import { materialesAccidentales } from "@/lib/calc/hormigon/comun/materiales";
 import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
@@ -9,6 +10,7 @@ import {
   calcularDeslizamiento,
   calcularVuelco,
   tensionExtraordinaria,
+  GAMMA_F_SITUACION,
   type ResultadoDeslizamiento,
   type ResultadoVuelco,
   type SituacionDimensionado,
@@ -101,19 +103,33 @@ export interface DatosZapataAislada {
    */
   extraordinaria?: CargasZapata;
   /**
-   * Situación de dimensionado para los coeficientes del terreno (vuelco y
-   * deslizamiento). Persistente si falta. El hormigón no cambia.
+   * Situación de dimensionado: coeficientes del terreno (vuelco y
+   * deslizamiento) y γ de las acciones del hormigón. Persistente si falta.
    */
   situacion?: SituacionDimensionado;
 }
 
-/** El terreno con las cargas de la situación extraordinaria. */
+/**
+ * El hormigón con la combinación accidental: γ = 1,0 en las acciones y
+ * γc = 1,3, γs = 1,0 (Anejo 19, tabla A19.2.1, pág. 20). Las mismas
+ * comprobaciones de resistencia que la persistente; los mínimos no cambian.
+ */
+export interface HormigonExtraordinarioAislada {
+  direccionA: ResultadoDireccionZapata;
+  direccionB: ResultadoDireccionZapata;
+  punzonamiento: ResultadoPunzonamiento;
+  /** Tracción de cálculo del tirante, si lo hay (kN). */
+  tdTiranteKN: number | null;
+}
+
+/** El terreno y el hormigón con las cargas de la situación extraordinaria. */
 export interface TerrenoExtraordinarioAislada extends TensionExtraordinaria {
   excentricidadA: number;
   excentricidadB: number;
   vuelcoA: ResultadoVuelco | null;
   vuelcoB: ResultadoVuelco;
   deslizamiento: ResultadoDeslizamiento | null;
+  hormigon: HormigonExtraordinarioAislada;
 }
 
 /**
@@ -422,7 +438,7 @@ export function corteDesdeCarga(
   const { fck } = materiales;
   const k = factorEscalaK(d);
   const rhoL = asRealCm2 / (100 ** 2 * dimPerpendicular * d);
-  const vRdCKN = tensionCortanteResistente(k, rhoL, fck) * dimPerpendicular * d * 1000;
+  const vRdCKN = tensionCortanteResistente(k, rhoL, fck, materiales.gammaC) * dimPerpendicular * d * 1000;
   return { vEdKN, vRdCKN, verificaCorte: vEdKN <= vRdCKN };
 }
 
@@ -502,7 +518,7 @@ export function armarVueloZapata(
     const fsXKN = carga.momentoKNm / ziM;
     const sigmaSdMPa = Math.min((fsXKN * 10) / asRealCm2, fyd);
     const { lbdMm } = calcularAnclaje(
-      { fckMPa: fck, fykMPa: fyk },
+      { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
       { diametroMm: armadura.diametroMm, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
     );
     return { xM, fsKN: fsXKN, sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm, comprobado: true };
@@ -558,10 +574,12 @@ export function calcularDireccionZapata(
   nk: number,
   mk: number,
   armadura: ArmadoDireccion,
-  formaAnclaje: FormaAnclaje
+  formaAnclaje: FormaAnclaje,
+  /** γ de las acciones: 1,5 en persistente, 1,0 en accidental. */
+  gammaF = GAMMA_F
 ): ResultadoDireccionZapata {
   // Presiones de cálculo sin el peso propio, repartidas como en el terreno.
-  const dist = distribucionPresiones(GAMMA_F * nk, dim, dimPerpendicular, nk !== 0 ? mk / nk : 0);
+  const dist = distribucionPresiones(gammaF * nk, dim, dimPerpendicular, nk !== 0 ? mk / nk : 0);
 
   // El vuelo que se arma es el del borde más cargado; por simetría del pilar
   // centrado, el otro pide menos.
@@ -620,7 +638,9 @@ export function calcularVuelosDireccion(
   /** Momento que baja por el pilar en esta dirección, positivo hacia el borde final (kN·m). */
   mk: number,
   armadura: ArmadoDireccion,
-  forma: FormaAnclaje
+  forma: FormaAnclaje,
+  /** γ de las acciones: 1,5 en persistente, 1,0 en accidental. */
+  gammaF = GAMMA_F
 ): VuelosDireccion {
   const xPilarM = distanciaBorde + anchoPilar / 2;
   const excentricidadPilarM = xPilarM - dim / 2;
@@ -630,7 +650,7 @@ export function calcularVuelosDireccion(
   // máximo en el borde final (s = dim); si la resultante cae hacia el borde de
   // inicio, las coordenadas se espejan.
   const excentricidadCalculoM = nk !== 0 ? momentoCentroKNm / nk : 0;
-  const dist = distribucionPresiones(GAMMA_F * nk, dim, dimPerpendicular, excentricidadCalculoM);
+  const dist = distribucionPresiones(gammaF * nk, dim, dimPerpendicular, excentricidadCalculoM);
   const haciaFin = excentricidadCalculoM >= 0;
   const aS = (xM: number) => (haciaFin ? xM : dim - xM);
   const cargaEntre = (x1M: number, x2M: number, puntoM: number) => {
@@ -710,6 +730,7 @@ export function calcularZapataAislada(
   const HkA = cargas.HkA ?? 0;
   const HkB = cargas.HkB ?? 0;
   const nkPermanenteKN = cargas.NkPermanente ?? Nk;
+  const gammaF = GAMMA_F_SITUACION[datos.situacion ?? "persistente"];
   // La horizontal del arranque del pilar llega a la base con brazo H: corre la
   // resultante igual que un momento. Lo que baja por el pilar sigue siendo Mk.
   const mBaseA = MkA + HkA * H;
@@ -738,7 +759,7 @@ export function calcularZapataAislada(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0A + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF,
       })
     : undefined;
   const excA = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0A + mBaseA) / cargaTotalKN : 0;
@@ -762,8 +783,8 @@ export function calcularZapataAislada(
   // Con tirante, el momento que llega al terreno en A es nulo: se le pasa a los
   // vuelos el que anula el de la excentricidad, y la presión sale uniforme.
   const mkVuelosA = tirante ? -Nk * e0A : mBaseA;
-  const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, mkVuelosA, armadoA, forma);
-  const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, mBaseB, armadoB, forma);
+  const vuelosA = calcularVuelosDireccion(materiales, A, B, H, anchoPilarA, bordeA, dA, recubrimiento, Nk, mkVuelosA, armadoA, forma, gammaF);
+  const vuelosB = calcularVuelosDireccion(materiales, B, A, H, anchoPilarB, bordeB, dB, recubrimiento, Nk, mBaseB, armadoB, forma, gammaF);
   const direccionA = vueloGobernante(vuelosA);
   const direccionB = vueloGobernante(vuelosB);
 
@@ -773,7 +794,7 @@ export function calcularZapataAislada(
   // el del arranque del pilar.
   const mkPunzonA = tirante ? tirante.mPilarArranqueKNm : MkA;
   const punzonamiento: ResultadoPunzonamiento = pilarCentrado
-    ? calcularPunzonamiento(materiales, geometria, { ...cargas, MkA: mkPunzonA }, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2)
+    ? calcularPunzonamiento(materiales, geometria, { ...cargas, MkA: mkPunzonA }, dA, dB, direccionA.asRealCm2, direccionB.asRealCm2, gammaF)
     : calcularPunzonamientoDescentrado(materiales, {
         A, B, anchoPilarA, anchoPilarB, bordeA, bordeB, dA, dB,
         nk: Nk, mkA: mkPunzonA, mkB: MkB,
@@ -781,6 +802,7 @@ export function calcularZapataAislada(
         excCalculoB: vuelosB.distribucion.excentricidadM * Math.sign(Nk * e0B + mBaseB),
         asRealACm2: direccionA.asRealCm2,
         asRealBCm2: direccionB.asRealCm2,
+        gammaF,
       });
 
   // Vuelco y deslizamiento, por el DB SE-C (ver estabilidad-zapata.ts).
@@ -804,10 +826,11 @@ export function calcularZapataAislada(
           situacion,
         });
 
-  // La extraordinaria repite el cálculo con sus cargas y toma sólo el terreno.
+  // La extraordinaria repite el cálculo con sus cargas y los materiales de la
+  // situación accidental: el terreno y el hormigón.
   const extraordinaria = datos.extraordinaria
     ? (() => {
-        const r = calcularZapataAislada(materiales, geometria, sigmaAdmisibleKPa, {
+        const r = calcularZapataAislada(materialesAccidentales(materiales), geometria, sigmaAdmisibleKPa, {
           ...datos, cargas: datos.extraordinaria, extraordinaria: undefined, situacion: "extraordinaria",
         });
         return {
@@ -817,6 +840,12 @@ export function calcularZapataAislada(
           vuelcoA: r.vuelcoA,
           vuelcoB: r.vuelcoB,
           deslizamiento: r.deslizamiento,
+          hormigon: {
+            direccionA: r.direccionA,
+            direccionB: r.direccionB,
+            punzonamiento: r.punzonamiento,
+            tdTiranteKN: r.tirante ? r.tirante.tdKN : null,
+          },
         };
       })()
     : null;
@@ -901,16 +930,17 @@ function calcularPunzonamiento(
   dA: number,
   dB: number,
   asRealACm2: number,
-  asRealBCm2: number
+  asRealBCm2: number,
+  gammaF = GAMMA_F
 ): ResultadoPunzonamiento {
   const { A, B, anchoPilarA, anchoPilarB } = geometria;
   const { fck, fcd } = materiales;
   const { Nk, MkA, MkB } = cargas;
 
   const dPromedioM = (dA + dB) / 2;
-  const vEdPilarKN = GAMMA_F * Nk;
-  const mEdAKNm = GAMMA_F * Math.abs(MkA);
-  const mEdBKNm = GAMMA_F * Math.abs(MkB);
+  const vEdPilarKN = gammaF * Nk;
+  const mEdAKNm = gammaF * Math.abs(MkA);
+  const mEdBKNm = gammaF * Math.abs(MkB);
   const kA = coeficienteKMomento(anchoPilarA, anchoPilarB);
   const kB = coeficienteKMomento(anchoPilarB, anchoPilarA);
 
@@ -919,7 +949,7 @@ function calcularPunzonamiento(
     (kA * mEdAKNm * uM) / moduloPerimetroM2(anchoPilarA, anchoPilarB, aM) +
     (kB * mEdBKNm * uM) / moduloPerimetroM2(anchoPilarB, anchoPilarA, aM);
 
-  const sigmaDesignKPa = (GAMMA_F * Nk) / (A * B);
+  const sigmaDesignKPa = (gammaF * Nk) / (A * B);
 
   const rhoLA = asRealACm2 / (100 ** 2 * B * dA);
   const rhoLB = asRealBCm2 / (100 ** 2 * A * dB);
@@ -939,7 +969,7 @@ function calcularPunzonamiento(
     // siempre el peor.
     const factorProximidad = (2 * dPromedioM) / aM;
     const vRdCKN =
-      tensionCortanteResistente(k, rhoL, fck) * factorProximidad * uM * dPromedioM * 1000;
+      tensionCortanteResistente(k, rhoL, fck, materiales.gammaC) * factorProximidad * uM * dPromedioM * 1000;
 
     return { aM, u1M: uM, vEdRedKN, vEdKN, vRdCKN, aprovechamiento: vRdCKN > 0 ? vEdKN / vRdCKN : Infinity };
   }

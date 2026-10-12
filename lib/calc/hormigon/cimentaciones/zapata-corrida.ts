@@ -176,7 +176,7 @@ export function calcularZapataCorrida(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0 + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF, situacion: datos.situacion,
       })
     : undefined;
 

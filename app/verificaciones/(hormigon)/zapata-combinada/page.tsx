@@ -24,6 +24,9 @@ import { ComprobacionVuelco } from "@/components/verificaciones/hormigon/Comprob
 import { ComprobacionDeslizamiento } from "@/components/verificaciones/hormigon/ComprobacionDeslizamiento";
 import { CamposArmaduraTirante, EXTREMOS_TIRANTE } from "@/components/verificaciones/hormigon/CamposArmaduraTirante";
 import { VerificacionArmaduraTirante } from "@/components/verificaciones/hormigon/VerificacionArmaduraTirante";
+import { HormigonExtraordinario } from "@/components/verificaciones/hormigon/HormigonExtraordinario";
+import { filaCaraCombinada, filaCortanteCombinada, filasPunzonamiento, filasTirante, filasVuelos } from "@/lib/verificaciones/hormigon-extraordinario";
+import { GAMMA_C_ACCIDENTAL, GAMMA_S_ACCIDENTAL } from "@/lib/calc/hormigon/comun/coeficientes";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularZapataCombinada } from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
@@ -205,8 +208,14 @@ export default function ZapataCombinadaPage() {
         : undefined;
     const armaduraTirante = entradaTirante && verificarTirante(entradaTirante);
     const recomendacionesTirante = entradaTirante && recomendarArmaduraTirante(entradaTirante);
+    // Las mismas barras del tirante con el Td y los materiales de la accidental.
+    const tdExt = zapata.extraordinaria?.hormigon.tdTirantePorPilarKN?.[iMayor];
+    const armaduraTiranteExt =
+      entradaTirante && tdExt != null
+        ? verificarTirante({ ...entradaTirante, tdKN: tdExt, gammaC: GAMMA_C_ACCIDENTAL, gammaS: GAMMA_S_ACCIDENTAL })
+        : undefined;
 
-    return { zapata, armaduraTirante, recomendacionesTirante, iMayor, recomendaciones };
+    return { zapata, armaduraTirante, armaduraTiranteExt, recomendacionesTirante, iMayor, recomendaciones };
   }, [
     fck, fyk, sigmaAdmisible, A, B, H, recubrimiento, descentrado, distanciaBordeB, conTirante, brazoTirante, phiTerreno,
     pos1, Nk1, cL1, cB1, pos2, Nk2, cL2, cB2,
@@ -289,6 +298,19 @@ export default function ZapataCombinadaPage() {
 
   const z = resultado?.zapata;
   const rec = resultado?.recomendaciones ?? {};
+
+  const hormigonExt = z?.extraordinaria?.hormigon;
+  const filasExt = hormigonExt
+    ? [
+        filaCaraCombinada("inferior", hormigonExt.inferior),
+        filaCaraCombinada("superior", hormigonExt.superior),
+        filaCortanteCombinada(hormigonExt.cortante),
+        ...filasVuelos("a lo ancho", [hormigonExt.transversal]),
+        ...filasPunzonamiento(hormigonExt.punzonamiento[0], " · pilar 1"),
+        ...filasPunzonamiento(hormigonExt.punzonamiento[1], " · pilar 2"),
+        ...(resultado?.armaduraTiranteExt ? filasTirante(resultado.armaduraTiranteExt) : []),
+      ]
+    : [];
   const recVuelo = (lado: "inicio" | "fin" | "gobernante") => ({
     as: rec[`${lado}.as`],
     anclaje: rec[`${lado}.anclaje`],
@@ -432,8 +454,8 @@ export default function ZapataCombinadaPage() {
                         </Subgrupo>
                       ))}
                       <p className="text-xs text-muted-foreground">
-                        Las cargas características de la combinación extraordinaria, con los mismos signos. Sólo se
-                        comprueba el terreno con ellas: el armado sigue con la persistente.
+                        Las cargas de la combinación extraordinaria (accidental), con los mismos signos. Con ellas se
+                        comprueban el terreno y el hormigón, con las mismas barras de la persistente.
                       </p>
                     </>
                   )}
@@ -527,7 +549,7 @@ export default function ZapataCombinadaPage() {
                 "Con par tirante–terreno: cada pilar tiene su tirante Tk = (N·e + Mk + Hk·H)/h a lo ancho, la presión queda uniforme en esa dirección y las barras del tirante se verifican con el pilar que más tira.",
                 ...(extraordinariaActiva
                   ? [
-                      "Situación extraordinaria, sólo para el terreno (DB SE-C, tabla 2.1): tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El armado sigue con la persistente.",
+                      "Situación extraordinaria. Terreno por el DB SE-C, tabla 2.1: tensión contra 1,5·σadm (hundimiento con γR = 2,0 en vez de 3,0, suponiendo que σadm sale del hundimiento) admitiendo despegue parcial; vuelco con 1,2·Mdst ≤ 0,9·Mstb y deslizamiento con γR = 1,1. El hormigón, con la combinación accidental sin mayorar (γ = 1,0) y γc = 1,3, γs = 1,0 (Anejo 19, tabla A19.2.1, pág. 20): flexión, cortante, punzonamiento, anclaje y tirante.",
                     ]
                   : []),
                 "Vuelco y deslizamiento por el CTE DB SE-C, situación persistente, cargas sin mayorar (tabla 2.1, pág. 12): vuelco con 1,8·Mdst ≤ 0,9·Mstb respecto del borde hacia el que empujan los Mk + Hk·H; deslizamiento con √(ΣHkL² + ΣHkB²) ≤ (ΣNk,perm + PP)·tan(3/4·φ')/1,5 (art. 4.2.3.1 (4)); con tirante, la base frena el tirante más la horizontal. Estabiliza y frena sólo la parte permanente de cada pilar. Sin empuje pasivo ni peso de tierras.",
@@ -810,6 +832,8 @@ export default function ZapataCombinadaPage() {
                     ))}
                   </div>
                 </Subgrupo>
+
+                {filasExt.length > 0 && <HormigonExtraordinario filas={filasExt} />}
               </div>
             )}
           </Etapa>

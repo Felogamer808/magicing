@@ -20,6 +20,9 @@ export type BarrasTirante =
 export interface EntradaArmaduraTirante extends Omit<DatosArmaduraTirante, "diametroMm" | "asRealCm2" | "separacionM"> {
   fck: number;
   fyk: number;
+  /** Coeficientes parciales; por defecto los de la situación persistente. */
+  gammaC?: number;
+  gammaS?: number;
   barras: BarrasTirante;
 }
 
@@ -37,8 +40,8 @@ function textoBarras(b: BarrasTirante): string {
 
 /** La misma verificación del tirante, a partir de las barras como se cargaron. */
 export function verificarTirante(e: EntradaArmaduraTirante): ResultadoArmaduraTirante {
-  const { fck, fyk, barras, ...resto } = e;
-  return verificarArmaduraTirante(derivarMateriales({ fck, fyk }), {
+  const { fck, fyk, gammaC, gammaS, barras, ...resto } = e;
+  return verificarArmaduraTirante(derivarMateriales({ fck, fyk, gammaC, gammaS }), {
     ...resto,
     diametroMm: barras.diametroMm,
     asRealCm2: areaDe(barras),

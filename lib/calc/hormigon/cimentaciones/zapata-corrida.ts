@@ -101,7 +101,7 @@ export interface TerrenoExtraordinarioCorrida extends TensionExtraordinaria {
   vuelco: ResultadoVuelco | null;
   deslizamiento: ResultadoDeslizamiento | null;
   /** Hormigón con la combinación accidental: γ = 1,0, γc = 1,3, γs = 1,0 (tabla A19.2.1). */
-  hormigon: { principal: ResultadoDireccionZapata; tdTiranteKN: number | null };
+  hormigon: { principal: ResultadoDireccionZapata; vuelos: VuelosDireccion; tdTiranteKN: number | null };
 }
 
 export interface ResultadoGeotecnicoCorrida {
@@ -240,7 +240,7 @@ export function calcularZapataCorrida(
           excentricidadM: r.geotecnico.excentricidadM,
           vuelco: r.vuelco,
           deslizamiento: r.deslizamiento,
-          hormigon: { principal: r.principal, tdTiranteKN: r.tirante ? r.tirante.tdKN : null },
+          hormigon: { principal: r.principal, vuelos: r.vuelos, tdTiranteKN: r.tirante ? r.tirante.tdKN : null },
         };
       })()
     : null;

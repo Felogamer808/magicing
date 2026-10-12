@@ -117,6 +117,9 @@ export interface DatosZapataAislada {
 export interface HormigonExtraordinarioAislada {
   direccionA: ResultadoDireccionZapata;
   direccionB: ResultadoDireccionZapata;
+  /** Los dos vuelos de cada dirección: con el pilar descentrado se arman por separado. */
+  vuelosA: VuelosDireccion;
+  vuelosB: VuelosDireccion;
   punzonamiento: ResultadoPunzonamiento;
   /** Tracción de cálculo del tirante, si lo hay (kN). */
   tdTiranteKN: number | null;
@@ -843,6 +846,8 @@ export function calcularZapataAislada(
           hormigon: {
             direccionA: r.direccionA,
             direccionB: r.direccionB,
+            vuelosA: r.vuelosA,
+            vuelosB: r.vuelosB,
             punzonamiento: r.punzonamiento,
             tdTiranteKN: r.tirante ? r.tirante.tdKN : null,
           },

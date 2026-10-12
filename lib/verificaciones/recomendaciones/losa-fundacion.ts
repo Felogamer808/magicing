@@ -1,5 +1,5 @@
 import { resolverLosaFundacion, type ResueltoLosaFundacion } from "@/lib/calc/hormigon/losas/resolver-losa-fundacion";
-import { recomendarTodas, type Palanca, type Recomendacion } from "./motor";
+import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { EFECTO_H, campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
 export type ClaveLosaFundacion = "inferior" | "superior" | "cortante" | `punzonamiento${1 | 2 | 3}`;
@@ -60,7 +60,14 @@ function palancasPorClave(clave: ClaveLosaFundacion): readonly Palanca<Campos>[]
   return [H, FCK, ...malla("Inferior")];
 }
 
+const problema = (campos: Campos) => ({ datos: campos, calcular: resolverLosaFundacion, utilizaciones, nombres: NOMBRES });
+
 /** Propuestas para cada comprobación de la franja de losa que no cumple o queda justa. */
 export function recomendarLosaFundacion(campos: Campos): RecomendacionesLosaFundacion {
-  return recomendarTodas({ datos: campos, calcular: resolverLosaFundacion, utilizaciones, nombres: NOMBRES }, palancasPorClave);
+  return recomendarTodas(problema(campos), palancasPorClave);
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarLosaFundacion(campos: Campos) {
+  return evaluar(problema(campos));
 }

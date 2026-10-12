@@ -18,8 +18,9 @@ interface CamposArmaduraTiranteProps {
   adherencia: Campo;
 }
 
-export const EXTREMOS_TIRANTE = ["Barra recta", "Patilla a 90°"] as const;
-export const ADHERENCIAS_TIRANTE = ["Buena", "Mala"] as const;
+import { ADHERENCIAS_TIRANTE, EXTREMOS_TIRANTE } from "@/lib/calc/hormigon/cimentaciones/rotulos-zapatas";
+
+export { ADHERENCIAS_TIRANTE, EXTREMOS_TIRANTE };
 
 /** Barras del tirante, en la losa, y cómo se anclan en el pilar o muro. */
 export function CamposArmaduraTirante({

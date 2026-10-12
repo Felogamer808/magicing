@@ -11,6 +11,7 @@ import type { ResultadoDireccionZapata } from "@/lib/calc/hormigon/cimentaciones
 import { fmt } from "@/lib/verificaciones/formato";
 import {
   CLASES_FCK,
+  evaluar,
   pasos,
   recomendar,
   type Candidato,
@@ -327,4 +328,9 @@ export function recomendarZapataCombinada(entrada: EntradaZapataCombinada): Reco
     if (r.length) salida[clave] = r;
   }
   return salida;
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarZapataCombinada(entrada: EntradaZapataCombinada) {
+  return evaluar({ datos: entrada, calcular, utilizaciones: utilizaciones(entrada), nombres: NOMBRES });
 }

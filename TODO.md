@@ -104,6 +104,9 @@ Independientes, contra `main`:
   por la distancia entre ejes. Empotrada en las dos zapatas (6·EI·δ/L²), EI =
   Ecm·I bruta, γ = 1,35, combinado con el axil por sección. Del lado seguro:
   con la tabla, el ejemplo de 0,40 × 0,40 ya no cumple.
+- **MCP para el resto de las familias.** El servidor (`mcp/servidor.ts`) cubre
+  sólo cimentaciones (2026-10-10). Sumar vigas, losas, muros, acero, madera y
+  pretensado sigue los pasos de `ARCHITECTURE.md` → "Servidor MCP".
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

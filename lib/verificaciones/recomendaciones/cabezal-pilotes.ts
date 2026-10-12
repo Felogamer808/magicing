@@ -1,5 +1,5 @@
 import { resolverCabezal, type ResueltoCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
-import { recomendarTodas, type Palanca, type Recomendacion } from "./motor";
+import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
 export type ClaveCabezal = "tirante" | "biela" | "nudo" | "secundaria" | "estribosV" | "estribosH" | "ancho";
@@ -99,7 +99,14 @@ function palancasPorClave(clave: ClaveCabezal): readonly Palanca<Campos>[] {
   }
 }
 
+const problema = (campos: Campos) => ({ datos: campos, calcular: resolverCabezal, utilizaciones, nombres: NOMBRES });
+
 /** Propuestas para cada comprobación del cabezal que no cumple o queda justa. */
 export function recomendarCabezal(campos: Campos): RecomendacionesCabezal {
-  return recomendarTodas({ datos: campos, calcular: resolverCabezal, utilizaciones, nombres: NOMBRES }, palancasPorClave);
+  return recomendarTodas(problema(campos), palancasPorClave);
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarCabezal(campos: Campos) {
+  return evaluar(problema(campos));
 }

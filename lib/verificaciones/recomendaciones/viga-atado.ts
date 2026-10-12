@@ -1,5 +1,5 @@
 import { resolverVigaAtado, type ResueltoVigaAtado } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-atado";
-import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
+import { evaluar, recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 import { RAMAS } from "./vigas-flexion-cortante";
 
@@ -61,10 +61,14 @@ function palancasPorClave(clave: ClaveVigaAtado): readonly Palanca<Campos>[] {
   }
 }
 
+const problema = (campos: Campos) => ({ datos: campos, calcular: resolverVigaAtado, utilizaciones, nombres: NOMBRES, binarias: ["diametro"] as ClaveVigaAtado[] });
+
 /** Propuestas para cada comprobación de la viga de atado que no cumple o queda justa. */
 export function recomendarVigaAtado(campos: Campos): RecomendacionesVigaAtado {
-  return recomendarTodas(
-    { datos: campos, calcular: resolverVigaAtado, utilizaciones, nombres: NOMBRES, binarias: ["diametro"] },
-    palancasPorClave
-  );
+  return recomendarTodas(problema(campos), palancasPorClave);
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarVigaAtado(campos: Campos) {
+  return evaluar(problema(campos));
 }

@@ -6,7 +6,7 @@ import {
   type ResultadoDireccionZapata,
   type ResultadoZapataAislada,
 } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
-import { recomendar, type Palanca, type Problema, type Recomendacion } from "./motor";
+import { evaluar, recomendar, type Palanca, type Problema, type Recomendacion } from "./motor";
 import {
   CITA_LBD_DIAMETRO,
   CITA_PATILLA,
@@ -263,4 +263,9 @@ export function recomendarZapataAislada(entrada: EntradaZapataAislada): Recomend
     if (r.length) salida[clave] = r;
   }
   return salida;
+}
+
+/** Todas las comprobaciones con su utilización; `null` si los datos no son válidos. */
+export function comprobarZapataAislada(entrada: EntradaZapataAislada) {
+  return evaluar({ datos: entrada, calcular, utilizaciones: utilizaciones(entrada), nombres: NOMBRES });
 }

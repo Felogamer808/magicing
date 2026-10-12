@@ -6,7 +6,7 @@ import {
   type ResultadoArmaduraTirante,
 } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import { fmt } from "@/lib/verificaciones/formato";
-import { recomendar, type Palanca, type Problema, type Recomendacion } from "./motor";
+import { evaluar, recomendar, type Palanca, type Problema, type Recomendacion } from "./motor";
 
 /**
  * Cómo se eligieron las barras del tirante: por cantidad en cada pilar
@@ -135,4 +135,9 @@ export function recomendarArmaduraTirante(entrada: EntradaArmaduraTirante): Reco
   if (as.length) salida.as = as;
   if (anclaje.length) salida.anclaje = anclaje;
   return salida;
+}
+
+/** Comprobaciones del tirante con su utilización. */
+export function comprobarArmaduraTirante(entrada: EntradaArmaduraTirante) {
+  return evaluar({ datos: entrada, calcular: verificarTirante, utilizaciones, nombres: { as: "área del tirante", anclaje: "anclaje del tirante" } });
 }

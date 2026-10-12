@@ -1,7 +1,14 @@
 import type { ResultadoArmaduraTirante } from "@/lib/calc/hormigon/cimentaciones/tirante-rozamiento";
 import type { ResultadoPunzonamientoDescentrado } from "@/lib/calc/hormigon/cimentaciones/punzonamiento-descentrado";
 import type { ResultadoDireccionZapata, ResultadoPunzonamiento } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
-import type { ResultadoCaraCombinada, ResultadoCortanteCombinada } from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
+import type {
+  HormigonExtraordinarioCombinada,
+  ResultadoCaraCombinada,
+  ResultadoCortanteCombinada,
+} from "@/lib/calc/hormigon/cimentaciones/zapata-combinada";
+import type { HormigonExtraordinarioAislada } from "@/lib/calc/hormigon/cimentaciones/zapata-aislada";
+import type { TerrenoExtraordinarioCorrida } from "@/lib/calc/hormigon/cimentaciones/zapata-corrida";
+import { AL_LIMITE, type Comprobacion } from "@/lib/verificaciones/recomendaciones/motor";
 import { fmt } from "@/lib/verificaciones/formato";
 
 /**
@@ -142,4 +149,48 @@ export function resumenExtraordinario(filas: readonly FilaExtraordinaria[]) {
     estado: f.estado,
     utilizacion: f.utilizacion,
   }));
+}
+
+// ── Las filas de cada zapata: las usan la página y el servidor MCP ─────────
+
+export function filasExtraordinariasAislada(h: HormigonExtraordinarioAislada, tirante?: ResultadoArmaduraTirante): FilaExtraordinaria[] {
+  return [
+    ...filasVuelos("en A", [h.vuelosA.inicio, h.vuelosA.fin]),
+    ...filasVuelos("en B", [h.vuelosB.inicio, h.vuelosB.fin]),
+    ...filasPunzonamiento(h.punzonamiento),
+    ...(tirante ? filasTirante(tirante) : []),
+  ];
+}
+
+export function filasExtraordinariasCorrida(h: TerrenoExtraordinarioCorrida["hormigon"], tirante?: ResultadoArmaduraTirante): FilaExtraordinaria[] {
+  return [...filasVuelos("por metro", [h.vuelos.inicio, h.vuelos.fin]), ...(tirante ? filasTirante(tirante) : [])];
+}
+
+export function filasExtraordinariasCombinada(h: HormigonExtraordinarioCombinada, tirante?: ResultadoArmaduraTirante): FilaExtraordinaria[] {
+  return [
+    filaCaraCombinada("inferior", h.inferior),
+    filaCaraCombinada("superior", h.superior),
+    filaCortanteCombinada(h.cortante),
+    ...filasVuelos("a lo ancho", [h.transversal]),
+    ...filasPunzonamiento(h.punzonamiento[0], " · pilar 1"),
+    ...filasPunzonamiento(h.punzonamiento[1], " · pilar 2"),
+    ...(tirante ? filasTirante(tirante) : []),
+  ];
+}
+
+/** Las filas como comprobaciones del motor, para el MCP. Las que no aplican o no se evalúan quedan fuera. */
+export function comprobacionesExtraordinarias(filas: readonly FilaExtraordinaria[]): Comprobacion[] {
+  return filas
+    .filter((f) => f.estado === "cumple" || f.estado === "no-cumple")
+    .map((f) => {
+      const cumple = f.estado === "cumple";
+      const u = f.utilizacion;
+      return {
+        clave: `ext.hormigon.${f.etiqueta}`,
+        nombre: `${f.etiqueta.charAt(0).toLowerCase()}${f.etiqueta.slice(1)} (extraordinaria)`,
+        cumple,
+        ...(u !== undefined && Number.isFinite(u) ? { utilizacion: u } : {}),
+        justa: cumple && u !== undefined && u >= AL_LIMITE,
+      };
+    });
 }

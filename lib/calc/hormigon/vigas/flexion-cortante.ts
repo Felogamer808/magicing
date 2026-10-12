@@ -250,7 +250,7 @@ export function calcularCortante(
 ): ResultadoCortante {
   const { b, recubrimiento } = geometria;
   const { fck, fyk, fcd, fydEstribos } = materiales;
-  const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
+  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
   const vRdMax = cortanteMaximoBielas(fcd, b, d);
   const verificaVRdMax = vd <= vRdMax;
@@ -277,9 +277,12 @@ export function calcularCortante(
   // Cuantía mínima del art. 9.2.2(5), ec. (9.5), pág. 144:
   // ρw,min = 0,08·√fck/fyk, con fyk y no fyd. Reemplaza la fctm·b/7,5 de la EHE.
   const a90MinCm2PorM = ((0.08 * Math.sqrt(fck)) / fyk) * b * 100 ** 2;
-  // La armadura transversal de torsión se suma a la de cortante: ambas traccionan
-  // los mismos cercos.
-  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + a90AdicionalCm2PorM;
+  // Torsión y cortante traccionan los mismos cercos, pero no igual: el cortante
+  // se reparte entre todas las ramas y la torsión pide At/s en cada rama del
+  // perímetro (art. 6.3.2, ec. (6.28)). Con todas las ramas iguales, cada una
+  // tiene que dar A90/n + At, que en total es A90 + n·At. Sumar At una sola vez
+  // dejaba las ramas exteriores cortas (criterio del usuario, 2026-10-12).
+  const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + numeroRamas * atPorRamaCm2PorM;
 
   const aEstriboCm2 =
     (100 ** 2 * numeroRamas * Math.PI * (diametroEstriboMm / 1000) ** 2) / 4;

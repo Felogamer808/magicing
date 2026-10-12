@@ -49,10 +49,9 @@ export function tensionCortanteResistente(k: number, rhoL: number, fckMPa: numbe
  * De ahí sale exactamente el 11 % de diferencia.
  *
  * Sobre ν1: se puede usar 0,6 en vez de 0,6·(1 − f_ck/250) sólo si la armadura
- * transversal trabaja a f_ywd ≤ 0,8·f_ywk (nota del art. 6.2.3(3)). El motor
- * topa fydEstribos en 400 MPa, que para f_yk = 500 es justo 0,8·f_yk: ese tope
- * no es un capricho de la planilla, es lo que habilita ν1 = 0,6. Si se levanta,
- * hay que bajar ν1 acá.
+ * transversal trabaja a f_ywd ≤ 0,8·f_ywk (nota del art. 6.2.3(3)). Por eso
+ * derivarMateriales topa fydEstribos en 0,8·fyk (400 MPa con B500): es lo que
+ * habilita ν1 = 0,6. Si se levanta, hay que bajar ν1 acá.
  */
 export function cortanteMaximoBielas(fcdMPa: number, bM: number, dM: number): number {
   const alphaCw = 1;

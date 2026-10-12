@@ -203,11 +203,21 @@ export function calcularFlexion(
   };
 }
 
-function separacionMaxM(ratioVdVRdMax: number, d: number): number {
-  if (ratioVdVRdMax <= 0.2) return Math.min(0.75 * d, 0.6);
-  if (ratioVdVRdMax > 2 / 3) return Math.min(0.3 * d, 0.3);
-  return Math.min(0.6 * d, 0.45);
+/**
+ * Separación longitudinal máxima de los cercos verticales, art. 9.2.2(6),
+ * ec. (9.6), pág. 144: 0,75·d·(1 + cot α) con α = 90°. La escala por Vd/Vu1
+ * (0,75d / 0,6d / 0,3d) era de la EHE-08 y no está en el Anejo 19.
+ */
+function separacionMaxM(d: number): number {
+  return 0.75 * d;
 }
+
+/**
+ * Tope de la separación adoptada. No sale del Anejo 19: es un criterio de
+ * oficina de la planilla, que el usuario decidió mantener (2026-10-12) y que
+ * la página declara como tal.
+ */
+export const TOPE_SEPARACION_OFICINA_M = 0.25;
 
 /** Redondea la separación de estribos hacia abajo al múltiplo de `paso` más cercano. */
 function redondearSeparacionM(valor: number, paso: number): number {
@@ -223,7 +233,7 @@ export function calcularCortante(
   datos: DatosCortante
 ): ResultadoCortante {
   const { b } = geometria;
-  const { fck, fcd, fctm, fydEstribos } = materiales;
+  const { fck, fyk, fcd, fydEstribos } = materiales;
   const { vd, diametroEstriboMm, numeroRamas, a90AdicionalCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
 
   const vRdMax = cortanteMaximoBielas(fcd, b, d);
@@ -241,10 +251,16 @@ export function calcularCortante(
   const vRdC = tensionCortanteBase(k, rhoL, fck) * b * d * 1000;
   const vRdCMin = tensionCortanteMinima(k, fck) * b * d * 1000;
 
-  const vEdEstribos = Math.max(vd - Math.max(vRdC, vRdCMin), 0);
+  // Art. 6.2.3(3), ec. (6.8), pág. 79: si VEd supera VRd,c la armadura toma
+  // el cortante entero, con z = 0,9·d y cot θ = 1. El hormigón no suma: restar
+  // VRd,c (Vsu = Vd − Vcu) era el modelo de la EHE-08.
+  const requiereEstribos = vd > Math.max(vRdC, vRdCMin);
+  const vEdEstribos = requiereEstribos ? vd : 0;
 
   const a90NecCm2PorM = (vEdEstribos * 10) / (fydEstribos * 0.9 * d);
-  const a90MinCm2PorM = (fctm * b * 100 ** 2) / (7.5 * fydEstribos);
+  // Cuantía mínima del art. 9.2.2(5), ec. (9.5), pág. 144:
+  // ρw,min = 0,08·√fck/fyk, con fyk y no fyd. Reemplaza la fctm·b/7,5 de la EHE.
+  const a90MinCm2PorM = ((0.08 * Math.sqrt(fck)) / fyk) * b * 100 ** 2;
   // La armadura transversal de torsión se suma a la de cortante: ambas traccionan
   // los mismos cercos.
   const a90Cm2PorM = Math.max(a90NecCm2PorM, a90MinCm2PorM) + a90AdicionalCm2PorM;
@@ -253,11 +269,10 @@ export function calcularCortante(
     (100 ** 2 * numeroRamas * Math.PI * (diametroEstriboMm / 1000) ** 2) / 4;
   const separacionNecM = aEstriboCm2 / a90Cm2PorM;
 
-  const ratio = vd / vRdMax;
-  const sepMax = separacionMaxM(ratio, d);
+  const sepMax = separacionMaxM(d);
   const separacionAdoptadaM = Math.min(
     redondearSeparacionM(Math.min(sepMax, separacionNecM), pasoSeparacionM),
-    0.25
+    TOPE_SEPARACION_OFICINA_M
   );
 
   const areaRealCm2PorM = aEstriboCm2 / separacionAdoptadaM;
@@ -269,6 +284,7 @@ export function calcularCortante(
     rhoL,
     vRdC,
     vRdCMin,
+    requiereEstribos,
     vEdEstribos,
     a90NecCm2PorM,
     a90MinCm2PorM,

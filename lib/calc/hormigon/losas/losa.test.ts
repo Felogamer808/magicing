@@ -127,3 +127,37 @@ describe("losa: adherencia y forma del anclaje", () => {
     expect(conGancho.positivo.x.anclaje.alfa1).toBe(1);
   });
 });
+
+describe("losa: cara superior sin momento negativo", () => {
+  const sinNegativo = { ...datos, momentoPositivoX: 14, momentoNegativoX: 0, momentoNegativoY: 0 };
+
+  it("sin momento no se exige armadura ni mínimo: la ec. (9.1) es de tracción", () => {
+    const r = calcularLosa(materiales, geometria, sinNegativo);
+    expect(r.negativo.x.requerida).toBe(false);
+    expect(r.negativo.x.asNecCm2PorM).toBe(0);
+    expect(r.negativo.x.verificaAs).toBe(true);
+    // La positiva sigue con su mínimo.
+    expect(r.positivo.x.requerida).toBe(true);
+  });
+
+  it("con empotramiento parcial en apoyo intermedio arma el 25 % del positivo, art. 9.3.1.2 (2)", () => {
+    const r = calcularLosa(materiales, geometria, { ...sinNegativo, empotramientoParcialX: "intermedio" });
+    expect(r.negativo.x.requerida).toBe(true);
+    expect(r.negativo.x.gobiernaEmpotramiento).toBe(true);
+    expect(r.negativo.x.momentoKNmPorM).toBeCloseTo(3.5, 9);
+    expect(r.negativo.x.asNecCm2PorM).toBeGreaterThanOrEqual(r.asMinCm2PorM);
+    // Y no se toca.
+    expect(r.negativo.y.requerida).toBe(false);
+  });
+
+  it("en apoyo extremo alcanza con el 15 %", () => {
+    const r = calcularLosa(materiales, geometria, { ...sinNegativo, empotramientoParcialX: "extremo" });
+    expect(r.negativo.x.momentoKNmPorM).toBeCloseTo(2.1, 9);
+  });
+
+  it("si el negativo cargado es mayor, manda el cargado", () => {
+    const r = calcularLosa(materiales, geometria, { ...datos, empotramientoParcialX: "intermedio" });
+    expect(r.negativo.x.gobiernaEmpotramiento).toBe(false);
+    expect(r.negativo.x.momentoKNmPorM).toBe(40);
+  });
+});

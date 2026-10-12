@@ -12,6 +12,7 @@ import {
   eliminarCalculo,
   eliminarElemento,
   guardarCalculoEnElemento,
+  incorporarIfc,
   leerArchivo,
   nombreDeArchivo,
 } from "./modelo";
@@ -240,6 +241,92 @@ describe("archivo de proyecto", () => {
       JSON.stringify({ formato: "magicing-proyectos", version: 1, proyectos: [roto] })
     );
     expect(r.ok).toBe(false);
+  });
+
+  /**
+   * El vínculo con el IFC no sube la versión: un archivo de antes, sin `ifc`,
+   * se sigue leyendo, y uno con `ifc` lo conserva entero.
+   */
+  it("un archivo versión 1 sin vínculo IFC se lee igual", () => {
+    const { p } = proyectoConViga();
+    expect(VERSION_FORMATO).toBe(1);
+    const r = leerArchivo(JSON.stringify({ formato: "magicing-proyectos", version: 1, proyectos: [p] }));
+    expect(r.ok).toBe(true);
+    expect(r.proyectos[0].elementos[0].ifc).toBeUndefined();
+  });
+
+  it("el vínculo IFC de un elemento sobrevive a exportar y volver a leer", () => {
+    const { proyecto } = incorporarIfc(crearProyecto("Torre"), [VIGA_IFC]);
+    const r = leerArchivo(JSON.stringify(armarArchivo([proyecto])));
+    expect(r.ok).toBe(true);
+    expect(r.proyectos[0].elementos[0].ifc).toEqual({
+      globalId: VIGA_IFC.globalId,
+      clase: "IfcBeam",
+      seccion: { tipo: "rectangular", anchoM: 0.2, altoM: 0.5 },
+    });
+  });
+
+  it("rechaza un vínculo IFC sin GlobalId o con una clase que no se lee", () => {
+    const { proyecto } = incorporarIfc(crearProyecto("Torre"), [VIGA_IFC]);
+    for (const ifc of [{ clase: "IfcBeam" }, { globalId: "x", clase: "IfcDoor" }]) {
+      const roto = { ...proyecto, elementos: [{ ...proyecto.elementos[0], ifc }] };
+      const r = leerArchivo(JSON.stringify({ formato: "magicing-proyectos", version: 1, proyectos: [roto] }));
+      expect(r.ok).toBe(false);
+    }
+  });
+});
+
+const VIGA_IFC = {
+  globalId: "2O2Fr$t4X7Zf8NOew3FLOH",
+  clase: "IfcBeam" as const,
+  nombre: "V-101",
+  nivel: "Nivel 1",
+  seccion: { tipo: "rectangular" as const, anchoM: 0.2, altoM: 0.5 },
+};
+
+describe("incorporarIfc", () => {
+  it("crea un elemento por cada leído, con nombre, nivel y vínculo", () => {
+    const r = incorporarIfc(crearProyecto("Torre"), [
+      VIGA_IFC,
+      { globalId: "1hqIFTRjfV6AWq_bMtnZwI", clase: "IfcColumn", nombre: "P-1" },
+    ]);
+    expect(r.creados).toEqual({ IfcBeam: 1, IfcColumn: 1 });
+    expect(r.yaEstaban).toBe(0);
+    const [viga, pilar] = r.proyecto.elementos;
+    expect(viga.nombre).toBe("V-101");
+    expect(viga.ubicacion).toBe("Nivel 1");
+    expect(viga.ifc?.globalId).toBe(VIGA_IFC.globalId);
+    expect(viga.calculos).toEqual([]);
+    expect(pilar.ubicacion).toBeUndefined();
+    expect(pilar.ifc?.seccion).toBeUndefined();
+  });
+
+  /** Volver a importar el mismo modelo no duplica ni pisa lo que se trabajó. */
+  it("no duplica un GlobalId que ya está, ni le toca nombre o cálculos", () => {
+    let p = incorporarIfc(crearProyecto("Torre"), [VIGA_IFC]).proyecto;
+    const id = p.elementos[0].id;
+    p = actualizarElemento(p, id, { nombre: "V-101 (renombrada)" });
+    p = guardarCalculoEnElemento(p, id, crearCalculo("vigas-flexion-cortante", { b: "0,20" }));
+
+    const r = incorporarIfc(p, [VIGA_IFC]);
+    expect(r.yaEstaban).toBe(1);
+    expect(r.creados).toEqual({});
+    expect(r.proyecto).toBe(p);
+    expect(r.proyecto.elementos).toHaveLength(1);
+    expect(r.proyecto.elementos[0].nombre).toBe("V-101 (renombrada)");
+    expect(r.proyecto.elementos[0].calculos).toHaveLength(1);
+  });
+
+  it("un GlobalId repetido dentro del mismo archivo entra una sola vez", () => {
+    const r = incorporarIfc(crearProyecto("Torre"), [VIGA_IFC, { ...VIGA_IFC, nombre: "copia" }]);
+    expect(r.proyecto.elementos).toHaveLength(1);
+    expect(r.yaEstaban).toBe(1);
+  });
+
+  it("los elementos cargados a mano no cuentan como vinculados", () => {
+    const p = agregarElemento(crearProyecto("Torre"), crearElemento("V-101", "Nivel 1"));
+    const r = incorporarIfc(p, [VIGA_IFC]);
+    expect(r.proyecto.elementos).toHaveLength(2);
   });
 });
 

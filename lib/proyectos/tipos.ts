@@ -13,6 +13,12 @@
  * El elemento no declara de qué tipo es. Se sabe por los cálculos que tiene
  * colgando, y un dato que se puede deducir es un dato que puede contradecir a
  * la realidad: una viga marcada como "pilar" no la detecta nadie.
+ *
+ * La excepción es el elemento que viene de un modelo IFC: ahí la clase
+ * (`IfcBeam`, `IfcColumn`…) no la escribe nadie, la trae el archivo. Se guarda
+ * en `ifc.clase` como dato de origen —lo que dice el modelo—, no como un tipo
+ * declarado, y por eso puede contrastarse contra los cálculos en vez de
+ * reemplazarlos.
  */
 
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
@@ -50,13 +56,52 @@ export interface CalculoGuardado {
   editado: string;
 }
 
+/** Clases IFC que se leen como estructura. Sus subtipos (`IfcBeamStandardCase`…) entran como la clase madre. */
+export const CLASES_IFC = [
+  "IfcBeam",
+  "IfcColumn",
+  "IfcSlab",
+  "IfcWall",
+  "IfcFooting",
+  "IfcPile",
+  "IfcMember",
+] as const;
+
+export type ClaseIfc = (typeof CLASES_IFC)[number];
+
+/**
+ * Dimensiones que se pudieron leer del modelo, en m. Sólo se muestran: no
+ * entran en los campos de ninguna verificación, porque el IFC de Revit es el
+ * modelo físico y la sección que trae no es necesariamente la de cálculo.
+ */
+export type SeccionIfc =
+  | { tipo: "rectangular"; anchoM: number; altoM: number }
+  | { tipo: "circular"; diametroM: number }
+  | { tipo: "espesor"; espesorM: number };
+
+/** Vínculo del elemento con el modelo del que se importó. */
+export interface OrigenIfc {
+  /**
+   * GlobalId del IFC: 22 caracteres, estable entre exportaciones del mismo
+   * modelo. Es lo que permite volver a importar sin duplicar elementos.
+   */
+  globalId: string;
+  clase: ClaseIfc;
+  seccion?: SeccionIfc;
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
   nombre: string;
-  /** Dónde está: "Nivel 4", "Planta baja". Opcional porque no toda obra los numera. */
+  /**
+   * Dónde está: "Nivel 4", "Planta baja". Opcional porque no toda obra los
+   * numera. Al importar un IFC es el nombre de su IfcBuildingStorey.
+   */
   ubicacion?: string;
   nota?: string;
+  /** Sólo en los elementos importados de un IFC. */
+  ifc?: OrigenIfc;
   calculos: CalculoGuardado[];
   creado: string;
   editado: string;
@@ -81,6 +126,10 @@ export interface Proyecto {
  * Lleva versión desde el primer día. El formato va a cambiar —van a aparecer
  * campos que hoy no se nos ocurren— y sin un número acá, un archivo exportado
  * hoy se vuelve ilegible más adelante sin forma de saber por qué.
+ *
+ * El campo `ifc` del elemento no la sube: es opcional y un archivo sin él se
+ * lee igual. Se sube una sola vez, cuando entren los vínculos entre elementos
+ * (ver TODO.md), y esa conversión desde 1 deja el `ifc` tal como está.
  */
 export const VERSION_FORMATO = 1;
 

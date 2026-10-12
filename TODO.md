@@ -66,10 +66,10 @@ Independientes, contra `main`:
   con segundo orden por curvatura nominal, esviada por la ec. (5.39), cortante
   y art. 9.5. Queda: pilar circular, barras de distinto diámetro en esquinas y
   caras, y longitud efectiva con k1 y k2 (ecs. (5.15)/(5.16)).
-- **Muro portante, dos diferencias con el Anejo 19** (encontradas el
-  2026-10-12, sin corregir): en λlim usa B = √(1 + 2ω) en vez de
-  1 + √(1 + 2ω), y en Kφ toma β = 0,35 fijo en vez de 0,35 + fck/200 − λ/150.
-  Sin φ cargado toma φef = 0. El pilar ya lo hace bien.
+- **Muro portante: λlim y Kφ** (hecho, 2026-10-12): B = 1 + √(1 + 2ω) en la
+  ec. (5.13) y Kφ con β = 0,35 + fck/200 − λ/150. Sin φ(∞,t0), φef = 2,14
+  también en la curvatura, como el pilar. λlim sube (≈ el doble): muros que
+  pedían segundo orden pueden dejar de pedirlo.
 - **Cortante de vigas al Anejo 19** (hecho, 2026-10-12): los estribos toman
   VEd entero (ec. 6.8), mínima ρw,min (ec. 9.5) y sl,max = 0,75·d (ec. 9.6).
   Se mantienen cot θ = 1, fywd = mín(fyd; 0,8·fyk) con ν1 = 0,6 y el tope de

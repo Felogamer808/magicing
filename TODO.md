@@ -78,6 +78,10 @@ Independientes, contra `main`:
   oficina de 25 cm, declarado. La separación transversal entre ramas
   (st,max = 0,75·d ≤ 600 mm, ec. 9.8) se comprueba desde el 2026-10-12: entre
   ejes, con las ramas repartidas parejo; si no cumple avisa y propone más ramas.
+- **Torsión: cercos por rama** (hecho, 2026-10-12): At (ec. 6.28) se pide en
+  cada rama del cerco, así que el total es A90 + n·At. Antes se sumaba At una
+  sola vez, del lado inseguro. El ejemplo de la página pasa a 30 × 70 con un
+  cerco de 2 ramas Ø10 y 3Ø25 arriba.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.

@@ -122,8 +122,11 @@ export interface DatosCortante {
   diametroEstriboMm: number;
   /** Número de ramas del estribo */
   numeroRamas: number;
-  /** Armadura transversal extra a sumar a A90 (cm²/m), p. ej. la que aporta la torsión. */
-  a90AdicionalCm2PorM?: number;
+  /**
+   * Armadura de torsión que necesita **cada rama** del cerco (cm²/m), At/s de
+   * la ec. (6.28). Se suma por rama, no una vez al total.
+   */
+  atPorRamaCm2PorM?: number;
   /** Paso al que se redondea hacia abajo la separación adoptada (m). Por defecto 0.05. */
   pasoSeparacionM?: number;
 }

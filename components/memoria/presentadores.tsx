@@ -112,6 +112,11 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
         verifica: cortante.areaRealCm2PorM >= cortante.a90Cm2PorM,
         detalle: `Área real ${fmt(cortante.areaRealCm2PorM)} cm²/m ≥ necesaria ${fmt(cortante.a90Cm2PorM)} cm²/m`,
       },
+      {
+        etiqueta: "Cortante — separación transversal entre ramas",
+        verifica: cortante.verificaSeparacionTransversal,
+        detalle: `st ${fmt(cortante.separacionTransversalM * 100, 1)} cm ≤ st,max ${fmt(cortante.separacionTransversalMaxM * 100, 1)} cm (0,75·d ≤ 600 mm, ec. 9.8)`,
+      },
     ],
     formulas: [
       { etiqueta: "d", formula: "h − distancia al centroide de la armadura", valor: `${fmt(d, 3)} m` },

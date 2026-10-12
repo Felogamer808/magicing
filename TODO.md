@@ -73,8 +73,9 @@ Independientes, contra `main`:
 - **Cortante de vigas al Anejo 19** (hecho, 2026-10-12): los estribos toman
   VEd entero (ec. 6.8), mínima ρw,min (ec. 9.5) y sl,max = 0,75·d (ec. 9.6).
   Se mantienen cot θ = 1, fywd = mín(fyd; 0,8·fyk) con ν1 = 0,6 y el tope de
-  oficina de 25 cm, declarado. Queda la separación transversal de ramas
-  (st,max = 0,75·d ≤ 600 mm, art. 9.2.2(8)).
+  oficina de 25 cm, declarado. La separación transversal entre ramas
+  (st,max = 0,75·d ≤ 600 mm, ec. 9.8) se comprueba desde el 2026-10-12: entre
+  ejes, con las ramas repartidas parejo; si no cumple avisa y propone más ramas.
 - **Zapata corrida, combinada, losa de fundación y pilotes** siguen sin
   auditar. La corrida ya sigue el Anejo 19 (modelo de la aislada, por metro,
   2026-10-06), pero sin repaso independiente.

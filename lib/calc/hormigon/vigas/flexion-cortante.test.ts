@@ -171,6 +171,28 @@ describe("cortante (bloque VIGA)", () => {
     expect(r.areaRealCm2PorM).toBeCloseTo(47.1238898038469, 3);
   });
 
+  // Ramas repartidas entre ejes: (b − 2·rec − Øe)/(n − 1) = (0,9 − 0,08 − 0,01)/5.
+  it("separación transversal entre ramas contra st,max = 0,75·d ≤ 600 mm (ec. 9.8)", () => {
+    expect(r.separacionTransversalM).toBeCloseTo(0.162, 9);
+    expect(r.separacionTransversalMaxM).toBeCloseTo(0.75 * d, 9);
+    expect(r.verificaSeparacionTransversal).toBe(true);
+
+    const dosRamas = calcularCortante(materiales, geometria, d, asNegativaRealCm2, {
+      vd: 1076,
+      diametroEstriboMm: 10,
+      numeroRamas: 2,
+    });
+    expect(dosRamas.separacionTransversalM).toBeCloseTo(0.81, 9);
+    expect(dosRamas.verificaSeparacionTransversal).toBe(false);
+
+    const canto = calcularCortante(materiales, geometria, 0.9, asNegativaRealCm2, {
+      vd: 1076,
+      diametroEstriboMm: 10,
+      numeroRamas: 6,
+    });
+    expect(canto.separacionTransversalMaxM).toBe(0.6);
+  });
+
   it("sin VEd > VRd,c no hay armadura de cálculo: manda la mínima", () => {
     const bajo = calcularCortante(materiales, geometria, d, asNegativaRealCm2, {
       vd: 150,

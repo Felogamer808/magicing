@@ -358,6 +358,12 @@ export default function VigasTorsionPage() {
                     conPropuestas: !!rec.bielas,
                   },
                   {
+                    etiqueta: "separación transversal entre ramas",
+                    estado: resultado.cortante.verificaSeparacionTransversal ? "cumple" : "no-cumple",
+                    utilizacion: resultado.cortante.separacionTransversalM / resultado.cortante.separacionTransversalMaxM,
+                    conPropuestas: !!rec.ramas,
+                  },
+                  {
                     etiqueta: "armadura inferior en el ancho",
                     estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
                     conPropuestas: !!rec.anchoInferior,
@@ -490,6 +496,17 @@ export default function VigasTorsionPage() {
                       unidad: "kN", exige: "≤",
                     }}
                     recomendaciones={rec.bielas}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Separación transversal entre ramas"
+                    verifica={resultado.cortante.verificaSeparacionTransversal}
+                    detalle="Ramas repartidas parejo, entre ejes. Anejo 19, art. 9.2.2 (8), ec. (9.8): st,max = 0,75·d ≤ 600 mm."
+                    comparacion={{
+                      real: { etiqueta: "st", valor: resultado.cortante.separacionTransversalM * 100 },
+                      limite: { etiqueta: "st,max", valor: resultado.cortante.separacionTransversalMaxM * 100 },
+                      unidad: "cm", exige: "≤", decimales: 1,
+                    }}
+                    recomendaciones={rec.ramas}
                   />
                 </div>
               </Subgrupo>

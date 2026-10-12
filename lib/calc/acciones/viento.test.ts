@@ -143,9 +143,38 @@ describe("viento: factor de forma γ0 (fig. 8.2, ramas simples)", () => {
     expect(calcularFactorFormaGamma0(2.5, 0.3).ladoA).toBe(1);
   });
 
+  it("con λa de 3 a 10 lee la curva en a/b = λb/λa, que se lee en la fig. 8.2", () => {
+    // a/b = 0 a la izquierda y a/b = 1 a la derecha de las curvas 3 y 10.
+    expect(calcularFactorFormaGamma0(3, 0).ladoA).toBeCloseTo(1.011, 9);
+    expect(calcularFactorFormaGamma0(10, 0).ladoA).toBeCloseTo(1.212, 9);
+    expect(calcularFactorFormaGamma0(10, 10).ladoA).toBeCloseTo(1.308, 9);
+    // λa = 6, a/b = 0,45: entre 1,118 (0,4) y 1,121 (0,5).
+    expect(calcularFactorFormaGamma0(6, 2.7).ladoA).toBeCloseTo(1.1195, 9);
+  });
+
+  it("entre curvas interpola lineal en λa, y de 2,5 a 3 desde la recta 1,00", () => {
+    // λa = 4,6, a/b = 0,5: 1,045 + 0,6·(1,082 − 1,045).
+    expect(calcularFactorFormaGamma0(4.6, 2.3).ladoA).toBeCloseTo(1.0672, 9);
+    // λa = 2,75, a/b = 0,8: a mitad de camino entre 1,00 y 1,015.
+    expect(calcularFactorFormaGamma0(2.75, 2.2).ladoA).toBeCloseTo(1.0075, 9);
+  });
+
+  it("γ0,a crece con λa y con a/b, como en el ábaco", () => {
+    for (let k = 0; k <= 20; k++) {
+      const ab = k / 20;
+      let previo = 1;
+      for (let l = 2.5; l <= 10; l += 0.25) {
+        const g = calcularFactorFormaGamma0(l, l * ab).ladoA!;
+        expect(g).toBeGreaterThanOrEqual(previo);
+        previo = g;
+      }
+    }
+  });
+
   it("devuelve null cuando λ sale del rango digitalizado: hay que leer la fig. 8.2", () => {
-    // Las curvas λa = 3…10 (y el tramo 2,5 < λa < 3) y la rama λb≥1 no están digitalizadas.
-    expect(calcularFactorFormaGamma0(2.6, 0.3).ladoA).toBeNull();
+    // λa > 10 o a/b > 1 quedan fuera del ábaco; la rama λb≥1 no está digitalizada.
+    expect(calcularFactorFormaGamma0(10.5, 3).ladoA).toBeNull();
+    expect(calcularFactorFormaGamma0(4, 4.4).ladoA).toBeNull();
     expect(calcularFactorFormaGamma0(0.1, 1.2).ladoB).toBeNull();
   });
 });

@@ -20,6 +20,7 @@
  */
 
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import { FLUENCIA_EFICAZ_SIN_DATO } from "@/lib/calc/hormigon/comun/coeficientes";
 
 /** Deformación última del hormigón en el bloque rectangular, art. 3.1.7. */
 const EPSILON_CU3 = 0.0035;
@@ -108,9 +109,12 @@ export interface ResultadoEsbeltez {
 export interface ResultadoFluenciaMuro {
   /** φ(∞,t0) que entró; 0 si no se cargó. */
   basica: number;
-  /** φef = φ(∞,t0)·M0Eqp/M0Ed, ec. (5.19). */
+  /**
+   * φef = φ(∞,t0)·M0Eqp/M0Ed, ec. (5.19). Sin φ(∞,t0), el que da A = 0,7
+   * (FLUENCIA_EFICAZ_SIN_DATO), el mismo en λlim y en la curvatura.
+   */
   eficaz: number;
-  /** true si se cargó φ(∞,t0); si no, factorA cae en el 0,7 del art. 5.8.3.1. */
+  /** true si se cargó φ(∞,t0); si no, A = 0,7 del art. 5.8.3.1. */
   conocida: boolean;
   /** φ(∞,t0) ≤ 2, 1ª condición del art. 5.8.4(4). */
   cumpleFluenciaAcotada: boolean;
@@ -133,6 +137,10 @@ export interface ResultadoMomentos {
   m0eKNm: number;
   /** Momento de primer orden adoptado, con el mínimo de e0. */
   m0EdKNm: number;
+  /** Kr de la ec. (5.36). Cero si no hay segundo orden. */
+  kr: number;
+  /** Kφ = 1 + β·φef de la ec. (5.37), con β = 0,35 + fck/200 − λ/150. Uno si no hay segundo orden. */
+  kPhi: number;
   /** Curvatura 1/r, ec. (5.34). Cero si no hay segundo orden. */
   curvatura: number;
   /** Flecha e2 = (1/r)·l0²/c. */
@@ -314,11 +322,13 @@ export function calcularMuro(
   // fluencia la produce la carga sostenida y no la total.
   const fluenciaConocida = esfuerzos.fluenciaBasica !== undefined;
   const fluenciaBasica = esfuerzos.fluenciaBasica ?? 0;
-  const fluenciaEficaz = fluenciaBasica * (esfuerzos.relacionMomentoCuasipermanente ?? 1);
+  const fluenciaEficaz = fluenciaConocida
+    ? fluenciaBasica * (esfuerzos.relacionMomentoCuasipermanente ?? 1)
+    : FLUENCIA_EFICAZ_SIN_DATO;
 
-  // Factores de la ec. (5.13). Sin φef conocido el articulado admite A = 0,7.
-  const factorA = fluenciaConocida ? 1 / (1 + 0.2 * fluenciaEficaz) : 0.7;
-  const factorB = Math.sqrt(1 + 2 * cuantiaMecanica);
+  // Factores de la ec. (5.13), pág. 56. Sin φef conocido da A = 0,7.
+  const factorA = 1 / (1 + 0.2 * fluenciaEficaz);
+  const factorB = 1 + Math.sqrt(1 + 2 * cuantiaMecanica);
   /*
    * C = 1,7 − rm. En muros el momento de primer orden viene casi siempre de
    * imperfecciones o de carga transversal, y para ese caso el articulado manda
@@ -338,13 +348,16 @@ export function calcularMuro(
   const m0EdKNm = Math.max(m0eKNm, nEdKN * excentricidadMinimaM);
 
   const dEficaz = h - rec;
+  let kr = 0;
+  let kPhi = 1;
   let curvatura = 0;
   let e2M = 0;
   if (!ignoraSegundoOrden) {
-    // Curvatura de la ec. (5.34), con Kr de la (5.36) y Kφ de la (5.37).
+    // Curvatura de la ec. (5.34), con Kr de la (5.36) y Kφ de la (5.37), pág. 64.
     const nu = 1 + cuantiaMecanica;
-    const kr = Math.min((nu - axilReducido) / (nu - 0.4), 1);
-    const kPhi = Math.max(1 + 0.35 * fluenciaEficaz, 1);
+    kr = Math.min((nu - axilReducido) / (nu - 0.4), 1);
+    const betaFluencia = 0.35 + materiales.fck / 200 - lambda / 150;
+    kPhi = Math.max(1 + betaFluencia * fluenciaEficaz, 1);
     const curvaturaBase = fyd / ES_MPA / (0.45 * dEficaz);
     curvatura = kr * kPhi * curvaturaBase;
     // c = 10 para sección constante, art. 5.8.8.2(4).
@@ -355,7 +368,8 @@ export function calcularMuro(
 
   // art. 5.8.4(4): con las tres condiciones a la vez se puede tomar φef = 0.
   // Se evalúan acá y no antes porque la tercera necesita M0Ed.
-  const cumpleFluenciaAcotada = fluenciaBasica <= 2;
+  // Sin φ(∞,t0) no se puede afirmar que sea ≤ 2.
+  const cumpleFluenciaAcotada = fluenciaConocida && fluenciaBasica <= 2;
   const cumpleEsbeltez = lambda <= 75;
   const cumpleExcentricidad = nEdKN > 0 ? m0EdKNm / nEdKN >= h : false;
 
@@ -415,6 +429,8 @@ export function calcularMuro(
       excentricidadMinimaM,
       m0eKNm,
       m0EdKNm,
+      kr,
+      kPhi,
       curvatura,
       e2M,
       m2KNm,

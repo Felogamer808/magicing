@@ -32,7 +32,7 @@
  * "dirección b" es la otra: canto b, ancho h.
  */
 
-import { ES_MPA, GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
+import { ES_MPA, FLUENCIA_EFICAZ_SIN_DATO, GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
@@ -41,8 +41,7 @@ import { momentoResistente, type PuntoInteraccion } from "@/lib/calc/hormigon/mu
 export type DireccionPilar = "h" | "b";
 export const DIRECCIONES_PILAR: readonly DireccionPilar[] = ["h", "b"];
 
-/** φef que da A = 0,7 en la ec. (5.13): 1/(1 + 0,2·φef) = 0,7. */
-export const FLUENCIA_EFICAZ_SIN_DATO = (1 / 0.7 - 1) / 0.2;
+export { FLUENCIA_EFICAZ_SIN_DATO };
 
 export interface GeometriaPilar {
   bM: number;

@@ -66,10 +66,10 @@ Independientes, contra `main`:
   con segundo orden por curvatura nominal, esviada por la ec. (5.39), cortante
   y art. 9.5. Queda: pilar circular, barras de distinto diámetro en esquinas y
   caras, y longitud efectiva con k1 y k2 (ecs. (5.15)/(5.16)).
-- **Muro portante, dos diferencias con el Anejo 19** (encontradas el
-  2026-10-12, sin corregir): en λlim usa B = √(1 + 2ω) en vez de
-  1 + √(1 + 2ω), y en Kφ toma β = 0,35 fijo en vez de 0,35 + fck/200 − λ/150.
-  Sin φ cargado toma φef = 0. El pilar ya lo hace bien.
+- **Muro portante: λlim y Kφ** (hecho, 2026-10-12): B = 1 + √(1 + 2ω) en la
+  ec. (5.13) y Kφ con β = 0,35 + fck/200 − λ/150. Sin φ(∞,t0), φef = 2,14
+  también en la curvatura, como el pilar. λlim sube (≈ el doble): muros que
+  pedían segundo orden pueden dejar de pedirlo.
 - **Cortante de vigas con restos de la EHE** (encontrado el 2026-10-12): resta
   VRd,c a los estribos (Vsu = Vd − Vcu), limita fyd a 400 MPa y usa la mínima
   fctm·b/(7,5·fyd). El art. 6.2.3 no suma el hormigón cuando hay estribos.

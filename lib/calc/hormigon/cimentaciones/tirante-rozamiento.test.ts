@@ -11,10 +11,11 @@ const materiales = derivarMateriales({ fck: 25, fyk: 500 });
  * Tirante a 3,50 m de la base, zapata de 0,50, φ = 30°. Todo a mano.
  */
 describe("par tirante–terreno", () => {
-  const r = calcularTiranteRozamiento(materiales, {
+  const DATOS = {
     nkKN: 300, pesoZapataKN: 22.5, momentoCentroKNm: 300 * -0.5, mkPilarKNm: 0,
     brazoM: 3.5, cantoZapataM: 0.5, phiGrados: 30,
-  });
+  };
+  const r = calcularTiranteRozamiento(materiales, DATOS);
 
   it("el tirante anula el momento respecto del centro de la base: Tk = N·e/h, hacia adentro", () => {
     expect(r.tkKN).toBeCloseTo(150 / 3.5, 9);
@@ -29,6 +30,12 @@ describe("par tirante–terreno", () => {
     expect(r.deltaGrados).toBeCloseTo(22.5, 9);
     expect(r.rozamientoResistenteKN).toBeCloseTo(322.5 * Math.tan((22.5 * Math.PI) / 180) / 1.5, 9);
     expect(r.verificaDeslizamiento).toBe(true);
+  });
+
+  it("en la situación extraordinaria el deslizamiento usa γR = 1,1 (tabla 2.1)", () => {
+    const ext = calcularTiranteRozamiento(materiales, { ...DATOS, situacion: "extraordinaria" });
+    expect(ext.gammaR).toBe(1.1);
+    expect(ext.rozamientoResistenteKN).toBeCloseTo(322.5 * Math.tan((22.5 * Math.PI) / 180) / 1.1, 9);
   });
 
   it("al pilar le queda el momento del tirante con brazo h − H, y el cortante Tk", () => {

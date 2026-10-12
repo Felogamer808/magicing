@@ -254,7 +254,7 @@ export function calcularZapataCombinada(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: nTotal, pesoZapataKN: pesoPropioKN, momentoCentroKNm: nTotal * e0B + mkBTotal, mkPilarKNm: 0,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: hkBTotal, nkEstabilizanteKN: nPermanente[0] + nPermanente[1], gammaF,
+        hkKN: hkBTotal, nkEstabilizanteKN: nPermanente[0] + nPermanente[1], gammaF, situacion: datos.situacion,
       })
     : undefined;
   const porPilar = global
@@ -262,7 +262,7 @@ export function calcularZapataCombinada(
         const r = calcularTiranteRozamiento(materiales, {
           nkKN: p.Nk, pesoZapataKN: 0, momentoCentroKNm: p.Nk * e0B + (p.MkB ?? 0), mkPilarKNm: p.MkB ?? 0,
           brazoM: datos.tirante!.brazoM, cantoZapataM: H, phiGrados: datos.tirante!.phiGrados,
-          hkKN: p.HkB ?? 0, gammaF,
+          hkKN: p.HkB ?? 0, gammaF, situacion: datos.situacion,
         });
         return { tkKN: r.tkKN, tdKN: r.tdKN, asTiranteCm2: r.asTiranteCm2, mPilarArranqueKNm: r.mPilarArranqueKNm, vPilarKN: r.vPilarKN };
       }) as unknown as readonly [TirantePilarCombinada, TirantePilarCombinada])

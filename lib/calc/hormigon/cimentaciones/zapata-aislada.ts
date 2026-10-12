@@ -762,7 +762,7 @@ export function calcularZapataAislada(
     ? calcularTiranteRozamiento(materiales, {
         nkKN: Nk, pesoZapataKN: pesoPropioKN, momentoCentroKNm: Nk * e0A + MkA, mkPilarKNm: MkA,
         brazoM: datos.tirante.brazoM, cantoZapataM: H, phiGrados: datos.tirante.phiGrados,
-        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF,
+        hkKN: HkA, nkEstabilizanteKN: nkPermanenteKN, gammaF, situacion: datos.situacion,
       })
     : undefined;
   const excA = tirante ? 0 : cargaTotalKN !== 0 ? (Nk * e0A + mBaseA) / cargaTotalKN : 0;

@@ -42,7 +42,35 @@ Independientes, contra `main`:
   automática desde 1. **Faltan dos respuestas del usuario:** si el vínculo se
   crea al guardar desde la página o desde la vista del proyecto, y si se piensa
   vincular otros casos (pilar → zapata, viga → viga que la apea) para hacerlo
-  genérico.
+  genérico. El campo `ifc` del elemento (2026-10-15) **no** subió la versión:
+  es opcional. Este salto a 2 es el único previsto y cubre las dos cosas; la
+  conversión desde 1 deja `ifc` tal como está.
+- **Modelo 3D desde IFC** (hecho, rama `modelo-ifc`, 2026-10-15): importar IFC,
+  elementos vinculados por GlobalId, estado derivado y visor pintado por
+  estado. Ver `ARCHITECTURE.md` → "Modelo IFC". Queda:
+  - **Estado de las verificaciones que no son de cimentaciones.** Hoy dan "no
+    evaluable": hace falta que cada módulo de `lib/verificaciones/recomendaciones/`
+    exporte su `comprobarX(campos)`, como cimentaciones para el MCP. Son ~30
+    archivos que edita el trabajo de comprobaciones: hacerlo coordinado.
+  - Cargar la sección leída del IFC en los campos de la verificación (decidido
+    no hacerlo todavía: el IFC de Revit es el modelo físico).
+  - Contrastar la clase IFC contra los cálculos del elemento (una `IfcColumn`
+    con flexión de viga) y avisar.
+  - Ejes, niveles y rótulos en el visor, para que se lea "tipo Revit".
+- **Levantar una planta de fundaciones desde DXF** (en curso, 2026-10-15):
+  primero una vez, con un script fuera de MagicIng que genere un IFC, sobre la
+  planta real del usuario (pilotes, cabezales CT1–CT14, vigas VC y VR). Recién
+  después decidir si se hace un importador de DXF. Criterios dados por el
+  usuario: cara superior de cabezales y vigas a una cota común, salvo el CT14
+  (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo; pilotes
+  10 cm dentro de la pieza que tienen encima y 12 m de largo representativo;
+  cabezales y vigas se cierran a partir del contorno corrido; los pilares no
+  se dibujan (entran como cargas).
+- **Pilar que descarga en una viga sobre pilotes, armado como cabezal** (CT6,
+  CT7 y CT8 de esa planta, sin medidas propias): falta decidir con qué modelo
+  y artículos se verifica. Idea del usuario: definir dentro de la viga las
+  dimensiones que harían de cabezal. Es criterio de ingeniería: preguntar
+  antes de implementarlo.
 - **Vuelco y deslizamiento** (hecho en aislada, corrida y combinada,
   2026-10-07, por el CTE DB SE-C, persistente y extraordinaria). Criterios
   decididos: estabiliza sólo "Nk permanente" (campo aparte, vacío = Nk), sin

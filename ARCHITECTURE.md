@@ -19,6 +19,7 @@ app/
     (pretensado)/<id>/page.tsx
     (acciones)/<id>/page.tsx
     (herramientas)/<id>/page.tsx
+  proyectos/[proyecto]/            Vista del proyecto, memoria/ y modelo/ (visor 3D)
 
 components/
   ui/                              Primitivas de shadcn/ui — no editar a mano
@@ -30,6 +31,8 @@ components/
     hormigon/  acero/  madera/     Diagramas específicos de un material
     pretensado/
     estatica/  geometria/          Diagramas de las herramientas de análisis
+  proyectos/                       Piezas de la vista del proyecto: CalcularElemento,
+                                    ImportarIfc, VisorModelo, PanelElementoModelo
   TemaToggle.tsx                   Claro/oscuro + script que evita el destello inicial
   IndiceVerificaciones.tsx         Índice con buscador
 
@@ -54,6 +57,10 @@ lib/
     estatica/                      Vigas continuas por rigidez directa
     armaduras.ts                   Serie comercial de diámetros (todo hormigón armado)
   hooks/useCampo.ts                Campos persistidos en localStorage
+  proyectos/                       Proyecto → Elemento → Cálculo: tipos, modelo (puro),
+                                    almacen (localStorage), estado (derivado)
+  ifc/                             Lectura de IFC (web-ifc), escena 3D (three.js),
+                                    el IFC en memoria — ver "Modelo IFC" abajo
   verificaciones/
     registry.ts                    Índice de áreas, secciones y verificaciones (fuente única)
     combinaciones.ts               Con qué combinación trabaja cada una
@@ -193,6 +200,31 @@ Hoy cubre cimentaciones. Para sumar otra verificación:
    del motor, y agregarla a `lib/mcp/cimentaciones.ts` (o a un módulo hermano).
 
 No ve los proyectos guardados: viven en el localStorage del navegador.
+
+## Modelo IFC
+
+Desde la vista del proyecto, "Importar IFC" lee el archivo en el navegador y
+crea un elemento por cada pieza estructural (`IfcBeam`, `IfcColumn`, `IfcSlab`,
+`IfcWall`, `IfcFooting`, `IfcPile`, `IfcMember`, con sus subtipos). Sin backend.
+
+- **Vínculo**: `ElementoProyecto.ifc` guarda GlobalId, clase y la sección que se
+  pudo leer. Reimportar reconoce por GlobalId y no pisa nada. Es opcional y no
+  subió `VERSION_FORMATO`; el salto a 2 queda para los vínculos entre elementos.
+- **Sección**: sólo la que se lee sin interpretar (un único sólido extruido,
+  perfil rectangular o circular; losas y zapatas, su espesor). Se muestra, no
+  entra en los campos de ninguna verificación.
+- **El IFC no se guarda** (`lib/ifc/memoria.ts`): vive mientras la pestaña está
+  abierta. Al recargar, el visor pide cargarlo de nuevo.
+- **Estado** (`lib/proyectos/estado.ts`): se deriva cada vez, con el mismo
+  resolver por campos que la página y el MCP. Hoy existe sólo para
+  cimentaciones; el resto da "no evaluable".
+- **Visor** (`lib/ifc/visor.ts`): three.js con web-ifc directo, sin That Open
+  (no hace falta su formato ni su conversión para cargar, pintar y elegir).
+  Colores de los tokens de `globals.css`. Se importa dinámicamente.
+- **wasm**: `scripts/copiar-web-ifc.mjs` lo copia a `public/web-ifc/` antes de
+  `dev` y `build` (no se versiona). Un solo hilo: el multihilo pide COOP/COEP.
+- **Trampa de web-ifc 0.0.78**: la malla que llega a `StreamAllMeshes` no tiene
+  `delete()`, aunque los tipos lo declaren. Llamarlo rompe la carga.
 
 ## Decisiones que conviene conocer
 

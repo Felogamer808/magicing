@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Box, Check, Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
+import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
+import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { useProyectoActivo } from "@/lib/proyectos/activo";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
@@ -138,6 +140,14 @@ export default function ProyectoPage() {
             <Download className="h-4 w-4" />
             Exportar
           </button>
+          <Link
+            href={`/proyectos/${proyecto.id}/modelo`}
+            className="flex h-9 items-center gap-2 rounded-lg border border-input px-3 text-sm transition-colors hover:bg-secondary"
+          >
+            <Box className="h-4 w-4" />
+            Modelo 3D
+          </Link>
+          <ImportarIfc proyecto={proyecto} guardar={guardar} />
         </div>
       </div>
 
@@ -254,6 +264,13 @@ export default function ProyectoPage() {
                         <span className="text-muted-foreground"> · {elemento.ubicacion}</span>
                       )}
                     </p>
+                    {elemento.ifc && (
+                      // Lo que dice el modelo: se muestra, no entra en ningún cálculo.
+                      <p className="text-xs text-muted-foreground">
+                        {ROTULO_CLASE[elemento.ifc.clase]} del IFC
+                        {elemento.ifc.seccion && ` · ${describirSeccion(elemento.ifc.seccion)}`}
+                      </p>
+                    )}
                     {elemento.calculos.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Sin cálculos todavía</p>
                     ) : (

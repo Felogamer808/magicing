@@ -8,12 +8,15 @@
  */
 
 import {
+  CLASES_IFC,
   MATERIALES_POR_DEFECTO,
   VERSION_FORMATO,
   type ArchivoProyectos,
   type CalculoGuardado,
+  type ClaseIfc,
   type ElementoProyecto,
   type Proyecto,
+  type SeccionIfc,
 } from "@/lib/proyectos/tipos";
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
@@ -181,6 +184,75 @@ export function eliminarCalculo(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Elementos importados de un IFC
+// ---------------------------------------------------------------------------
+
+/** Un elemento tal como sale de leer el IFC, antes de entrar al proyecto. */
+export interface ElementoIfcLeido {
+  globalId: string;
+  clase: ClaseIfc;
+  nombre: string;
+  /** Nombre del IfcBuildingStorey que lo contiene, si lo hay. */
+  nivel?: string;
+  seccion?: SeccionIfc;
+}
+
+export interface ResultadoIncorporacion {
+  proyecto: Proyecto;
+  /** Elementos nuevos, por clase. */
+  creados: Partial<Record<ClaseIfc, number>>;
+  /** Ya estaban en el proyecto con el mismo GlobalId: no se tocan. */
+  yaEstaban: number;
+  /** Aparecen más de una vez en el archivo con el mismo GlobalId: se toma la primera. */
+  repetidos: number;
+}
+
+/**
+ * Suma al proyecto los elementos leídos de un IFC.
+ *
+ * El GlobalId decide si un elemento es nuevo. Uno que ya está no se pisa: pudo
+ * haberse renombrado o tener cálculos, y volver a importar el mismo modelo
+ * tiene que ser inocuo. Un GlobalId repetido dentro del mismo archivo entra
+ * una sola vez.
+ */
+export function incorporarIfc(proyecto: Proyecto, leidos: ElementoIfcLeido[]): ResultadoIncorporacion {
+  const enProyecto = new Set(
+    proyecto.elementos.map((e) => e.ifc?.globalId).filter((g): g is string => Boolean(g))
+  );
+  const enArchivo = new Set<string>();
+  const creados: Partial<Record<ClaseIfc, number>> = {};
+  const nuevos: ElementoProyecto[] = [];
+  let yaEstaban = 0;
+  let repetidos = 0;
+
+  for (const l of leidos) {
+    // Se distinguen para el resumen: "ya estaba" es lo esperable al
+    // reimportar; "repetido" es un defecto del archivo exportado.
+    if (enArchivo.has(l.globalId)) {
+      repetidos++;
+      continue;
+    }
+    enArchivo.add(l.globalId);
+    if (enProyecto.has(l.globalId)) {
+      yaEstaban++;
+      continue;
+    }
+    nuevos.push({
+      ...crearElemento(l.nombre, l.nivel),
+      ifc: { globalId: l.globalId, clase: l.clase, ...(l.seccion ? { seccion: l.seccion } : {}) },
+    });
+    creados[l.clase] = (creados[l.clase] ?? 0) + 1;
+  }
+
+  return {
+    proyecto: nuevos.length ? tocado({ ...proyecto, elementos: [...proyecto.elementos, ...nuevos] }) : proyecto,
+    creados,
+    yaEstaban,
+    repetidos,
+  };
+}
+
 /** Cuántos cálculos tiene el proyecto, sumando los de todos sus elementos. */
 export function contarCalculos(proyecto: Proyecto): number {
   return proyecto.elementos.reduce((total, e) => total + e.calculos.length, 0);
@@ -272,11 +344,18 @@ function esElemento(v: unknown): v is ElementoProyecto {
   if (!esObjeto(v)) return false;
   if (typeof v.id !== "string" || typeof v.nombre !== "string") return false;
   if (!Array.isArray(v.calculos)) return false;
+  if (v.ifc !== undefined && !esOrigenIfc(v.ifc)) return false;
   return v.calculos.every((c) => {
     if (!esObjeto(c)) return false;
     if (typeof c.id !== "string" || typeof c.verificacion !== "string") return false;
     return esObjeto(c.campos);
   });
+}
+
+function esOrigenIfc(v: unknown): boolean {
+  if (!esObjeto(v) || typeof v.globalId !== "string" || v.globalId === "") return false;
+  if (!(CLASES_IFC as readonly unknown[]).includes(v.clase)) return false;
+  return v.seccion === undefined || (esObjeto(v.seccion) && typeof v.seccion.tipo === "string");
 }
 
 /**

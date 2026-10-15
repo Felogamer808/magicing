@@ -59,7 +59,8 @@ describe("leerIfc", () => {
   it("al incorporarlo a un proyecto, el GlobalId repetido entra una sola vez", () => {
     const r = incorporarIfc(crearProyecto("Prueba"), lectura.elementos);
     expect(r.proyecto.elementos).toHaveLength(7);
-    expect(r.yaEstaban).toBe(1);
+    expect(r.yaEstaban).toBe(0);
+    expect(r.repetidos).toBe(1);
     expect(r.creados).toEqual({
       IfcBeam: 1,
       IfcColumn: 2,

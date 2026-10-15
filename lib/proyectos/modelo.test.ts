@@ -317,10 +317,20 @@ describe("incorporarIfc", () => {
     expect(r.proyecto.elementos[0].calculos).toHaveLength(1);
   });
 
-  it("un GlobalId repetido dentro del mismo archivo entra una sola vez", () => {
+  it("un GlobalId repetido dentro del mismo archivo entra una sola vez, y se cuenta aparte", () => {
     const r = incorporarIfc(crearProyecto("Torre"), [VIGA_IFC, { ...VIGA_IFC, nombre: "copia" }]);
     expect(r.proyecto.elementos).toHaveLength(1);
+    expect(r.proyecto.elementos[0].nombre).toBe("V-101");
+    expect(r.yaEstaban).toBe(0);
+    expect(r.repetidos).toBe(1);
+  });
+
+  it("al reimportar un archivo con repetidos, cada GlobalId cuenta una vez como ya estaba", () => {
+    const leidos = [VIGA_IFC, { ...VIGA_IFC, nombre: "copia" }];
+    const p = incorporarIfc(crearProyecto("Torre"), leidos).proyecto;
+    const r = incorporarIfc(p, leidos);
     expect(r.yaEstaban).toBe(1);
+    expect(r.repetidos).toBe(1);
   });
 
   it("los elementos cargados a mano no cuentan como vinculados", () => {

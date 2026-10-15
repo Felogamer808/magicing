@@ -204,6 +204,8 @@ export interface ResultadoIncorporacion {
   creados: Partial<Record<ClaseIfc, number>>;
   /** Ya estaban en el proyecto con el mismo GlobalId: no se tocan. */
   yaEstaban: number;
+  /** Aparecen más de una vez en el archivo con el mismo GlobalId: se toma la primera. */
+  repetidos: number;
 }
 
 /**
@@ -215,19 +217,27 @@ export interface ResultadoIncorporacion {
  * una sola vez.
  */
 export function incorporarIfc(proyecto: Proyecto, leidos: ElementoIfcLeido[]): ResultadoIncorporacion {
-  const vistos = new Set(
+  const enProyecto = new Set(
     proyecto.elementos.map((e) => e.ifc?.globalId).filter((g): g is string => Boolean(g))
   );
+  const enArchivo = new Set<string>();
   const creados: Partial<Record<ClaseIfc, number>> = {};
   const nuevos: ElementoProyecto[] = [];
   let yaEstaban = 0;
+  let repetidos = 0;
 
   for (const l of leidos) {
-    if (vistos.has(l.globalId)) {
+    // Se distinguen para el resumen: "ya estaba" es lo esperable al
+    // reimportar; "repetido" es un defecto del archivo exportado.
+    if (enArchivo.has(l.globalId)) {
+      repetidos++;
+      continue;
+    }
+    enArchivo.add(l.globalId);
+    if (enProyecto.has(l.globalId)) {
       yaEstaban++;
       continue;
     }
-    vistos.add(l.globalId);
     nuevos.push({
       ...crearElemento(l.nombre, l.nivel),
       ifc: { globalId: l.globalId, clase: l.clase, ...(l.seccion ? { seccion: l.seccion } : {}) },
@@ -239,6 +249,7 @@ export function incorporarIfc(proyecto: Proyecto, leidos: ElementoIfcLeido[]): R
     proyecto: nuevos.length ? tocado({ ...proyecto, elementos: [...proyecto.elementos, ...nuevos] }) : proyecto,
     creados,
     yaEstaban,
+    repetidos,
   };
 }
 

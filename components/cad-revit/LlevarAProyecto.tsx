@@ -29,14 +29,18 @@ export function LlevarAProyecto({
   escala,
   largoPiloteM,
   archivo,
+  destino,
+  onDestino,
 }: {
   resultado: Interpretacion;
   escala: number;
   largoPiloteM: number;
   archivo: string;
+  /** Id del proyecto elegido, o "" para uno nuevo. Lo tiene la página: también pinta la planta. */
+  destino: string;
+  onDestino: (id: string) => void;
 }) {
   const { proyectos, guardar } = useProyectos();
-  const [destino, setDestino] = useState<string>(NUEVO);
   const [nombreNuevo, setNombreNuevo] = useState(archivo.replace(/\.dxf$/i, ""));
   const [hecho, setHecho] = useState<(Omit<ResultadoPlanta, "proyecto"> & { id: string; nombre: string }) | null>(null);
 
@@ -51,7 +55,7 @@ export function LlevarAProyecto({
     // dos cabezales que ya tenían su pilar).
     const conCargas = derivarCargas(r.proyecto);
     if (conCargas !== proyecto || !elegido) guardar(conCargas);
-    setDestino(r.proyecto.id);
+    onDestino(r.proyecto.id);
     setHecho({ ...r, id: r.proyecto.id, nombre: r.proyecto.nombre });
   }
 
@@ -73,7 +77,7 @@ export function LlevarAProyecto({
           className={selector}
           value={elegido ? elegido.id : NUEVO}
           onChange={(e) => {
-            setDestino(e.target.value);
+            onDestino(e.target.value);
             setHecho(null);
           }}
         >

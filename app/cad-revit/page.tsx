@@ -4,11 +4,14 @@ import { useMemo, useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { CampoMetros } from "@/components/cad-revit/CampoMetros";
 import { ListaAvisos } from "@/components/cad-revit/ListaAvisos";
+import { LeyendaEstados } from "@/components/cad-revit/LeyendaEstados";
 import { LlevarAProyecto } from "@/components/cad-revit/LlevarAProyecto";
 import { PanelPieza } from "@/components/cad-revit/PanelPieza";
 import { PlantaInterpretada, type Seleccion } from "@/components/cad-revit/PlantaInterpretada";
 import type { LecturaDxf, Punto } from "@/lib/dxf/leer";
 import { exportarParaRevit } from "@/lib/cad-revit/exportar";
+import { estadosDePlanta } from "@/lib/cad-revit/proyecto";
+import { useProyectos } from "@/lib/proyectos/almacen";
 import { interpretar, opcionesSugeridas, zonas, type OpcionesInterpretacion } from "@/lib/cad-revit/interpretar";
 
 /** Cuánto entra la cabeza del pilote en la pieza de arriba (criterio del usuario). */
@@ -61,6 +64,9 @@ export default function CadRevitPage() {
   const [foco, setFoco] = useState<Punto | null>(null);
   const [desniveles, setDesniveles] = useState<Record<number, number>>({});
   const [largoPilote, setLargoPilote] = useState(12);
+  /** Proyecto donde se calcula la planta: "" hasta elegir uno. Pinta la planta por estado. */
+  const [idProyecto, setIdProyecto] = useState("");
+  const { proyectos } = useProyectos();
 
   async function cargar(f: File) {
     setError(null);
@@ -109,6 +115,8 @@ export default function CadRevitPage() {
     [lectura, opciones]
   );
   const resultado = useMemo(() => (lectura && opciones ? interpretar(lectura, opciones) : null), [lectura, opciones]);
+  const proyecto = proyectos.find((p) => p.id === idProyecto) ?? null;
+  const estados = useMemo(() => (resultado && proyecto ? estadosDePlanta(resultado, proyecto) : null), [resultado, proyecto]);
 
   const cambiar = (c: Partial<OpcionesInterpretacion>) => {
     if (!opciones) return;
@@ -256,7 +264,11 @@ export default function CadRevitPage() {
               </button>
             </div>
           </div>
-          <LlevarAProyecto resultado={resultado} escala={opciones.escala} largoPiloteM={largoPilote} archivo={archivo ?? "planta.dxf"} />
+          <LlevarAProyecto resultado={resultado} escala={opciones.escala} largoPiloteM={largoPilote} archivo={archivo ?? "planta.dxf"}
+            destino={idProyecto}
+            onDestino={setIdProyecto}
+          />
+          {estados && proyecto && <LeyendaEstados estados={estados} proyecto={proyecto.nombre} />}
           <details className="rounded-md border px-4 py-3 text-sm">
             <summary className="cursor-pointer font-medium">Cómo llevarlo a Revit</summary>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
@@ -285,6 +297,7 @@ export default function CadRevitPage() {
               seleccion={seleccion}
               onSeleccionar={setSeleccion}
               foco={foco}
+              estados={estados}
             />
             <aside className="space-y-4">
               <PanelPieza

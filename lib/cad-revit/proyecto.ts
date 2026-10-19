@@ -17,7 +17,8 @@
  */
 
 import type { Punto } from "@/lib/dxf/leer";
-import type { MaterialesProyecto } from "@/lib/proyectos/tipos";
+import { estadoDeElemento, type EstadoElemento } from "@/lib/proyectos/estado";
+import type { MaterialesProyecto, Proyecto } from "@/lib/proyectos/tipos";
 import type { PiezaPlantaLeida } from "@/lib/proyectos/modelo";
 import { contiene } from "./geometria";
 import type { Interpretacion } from "./interpretar";
@@ -57,14 +58,11 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
   const piezas: PiezaPlantaLeida[] = [];
 
   // --- Cabezales y nodos: las piezas sobre las que apoyan pilotes y vigas ----
-  const marcasCab = numerarMarcas(r.cabezales.map((c) => ({ nombre: c.nombre, centro: c.rect.centro })));
-  const marcasNodo = numerarMarcas(r.nodos.map((n) => ({ nombre: n.nombre, centro: n.rotulo })));
-  /** De qué pieza es cada pilote (por índice), para nombrarlo y bajarle la carga. */
-  const duenio = new Map<number, string>();
+  const marcas = marcasDePlanta(r);
+  const { cabezales: marcasCab, nodos: marcasNodo } = marcas;
 
   r.cabezales.forEach((c, i) => {
     const marca = marcasCab[i];
-    c.pilotes.forEach((k) => duenio.set(k, marca));
     const medidasM: [number, number, number] = [c.rect.largo * e, c.rect.ancho * e, c.canto * e];
     const n = c.pilotes.length;
     if (n !== 2) {
@@ -105,7 +103,6 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
   });
 
   r.nodos.forEach((nodo, i) => {
-    nodo.pilotes.forEach((k) => duenio.set(k, marcasNodo[i]));
     piezas.push({
       origen: { marca: marcasNodo[i], pieza: "nodo", sinVerificacion: "Pilar sobre viga: se verifica su pilote." },
       geometria: {},
@@ -149,7 +146,7 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
     return { marca: marcasNodo[inodo], centro: pil.reduce(medio) };
   };
 
-  const marcasViga = numerarMarcas(r.vigas.map((v) => ({ nombre: v.nombre, centro: medio(v.inicio, v.fin) })));
+  const marcasViga = marcas.vigas;
   r.vigas.forEach((v, i) => {
     let a = piezaEn(v.inicio, v.fin, v.ancho);
     let b = piezaEn(v.fin, v.inicio, v.ancho);
@@ -195,25 +192,77 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
   });
 
   // --- Pilotes: uno por uno, nombrados por la pieza que tienen encima ---------
+  r.pilotes.forEach((p, k) => {
+    const bajo = marcas.duenioPilote[k];
+    piezas.push({
+      origen: { marca: marcas.pilotes[k], pieza: "pilote", ...(bajo ? { bajo } : {}) },
+      verificacion: "pilotes",
+      geometria: { diametro: m(p.diametro * e), longitud: m(o.largoPiloteM) },
+      aMano: A_MANO.pilotes,
+      materiales: { fck: String(mat.fckMPa), fyk: String(mat.fykMPa) },
+    });
+  });
+
+  return piezas;
+}
+
+export interface MarcasPlanta {
+  cabezales: string[];
+  nodos: string[];
+  vigas: string[];
+  pilotes: string[];
+  /** Marca de la pieza (cabezal o nodo) que tiene encima cada pilote, o null. */
+  duenioPilote: (string | null)[];
+}
+
+/**
+ * La marca de cada pieza, por índice en la interpretación: las mismas que van
+ * a Revit (`numerarMarcas`) y que vinculan los elementos del proyecto. Los
+ * pilotes se nombran por la pieza que tienen encima: CT9-1-P1, CT9-1-P2…
+ */
+export function marcasDePlanta(r: Interpretacion): MarcasPlanta {
+  const cabezales = numerarMarcas(r.cabezales.map((c) => ({ nombre: c.nombre, centro: c.rect.centro })));
+  const nodos = numerarMarcas(r.nodos.map((n) => ({ nombre: n.nombre, centro: n.rotulo })));
+  const vigas = numerarMarcas(r.vigas.map((v) => ({ nombre: v.nombre, centro: medio(v.inicio, v.fin) })));
+  const duenioPilote: (string | null)[] = r.pilotes.map(() => null);
+  r.cabezales.forEach((c, i) => c.pilotes.forEach((k) => (duenioPilote[k] = cabezales[i])));
+  r.nodos.forEach((n, i) => n.pilotes.forEach((k) => (duenioPilote[k] = nodos[i])));
+
+  const pilotes: string[] = r.pilotes.map(() => "");
   const porDuenio = new Map<string, number[]>();
-  for (let k = 0; k < r.pilotes.length; k++) {
-    const d = duenio.get(k) ?? "";
-    porDuenio.set(d, [...(porDuenio.get(d) ?? []), k]);
-  }
+  duenioPilote.forEach((d, k) => porDuenio.set(d ?? "", [...(porDuenio.get(d ?? "") ?? []), k]));
   for (const [d, ks] of porDuenio) {
     const orden = numerarMarcas(ks.map((k) => ({ nombre: "P", centro: r.pilotes[k].centro })));
     ks.forEach((k, j) => {
       // numerarMarcas deja "P" sola si hay un único pilote: igual se numera.
       const numero = orden[j] === "P" ? "P1" : orden[j].replace("-", "");
-      piezas.push({
-        origen: { marca: d ? `${d}-${numero}` : numero, pieza: "pilote", ...(d ? { bajo: d } : {}) },
-        verificacion: "pilotes",
-        geometria: { diametro: m(r.pilotes[k].diametro * e), longitud: m(o.largoPiloteM) },
-        aMano: A_MANO.pilotes,
-        materiales: { fck: String(mat.fckMPa), fyk: String(mat.fykMPa) },
-      });
+      pilotes[k] = d ? `${d}-${numero}` : numero;
     });
   }
+  return { cabezales, nodos, vigas, pilotes, duenioPilote };
+}
 
-  return piezas;
+/** Estado de cada pieza de la planta, por índice; null si no está en el proyecto. */
+export interface EstadosPlanta {
+  cabezales: (EstadoElemento | null)[];
+  vigas: (EstadoElemento | null)[];
+  pilotes: (EstadoElemento | null)[];
+}
+
+/**
+ * Cómo está cada pieza de la planta en el proyecto, buscándola por su marca.
+ * Usa el mismo estado derivado que el visor del IFC (`estadoDeElemento`).
+ */
+export function estadosDePlanta(r: Interpretacion, proyecto: Proyecto): EstadosPlanta {
+  const porMarca = new Map(proyecto.elementos.filter((e) => e.cad).map((e) => [e.cad!.marca, e]));
+  const marcas = marcasDePlanta(r);
+  const estado = (marca: string) => {
+    const e = porMarca.get(marca);
+    return e ? estadoDeElemento(e) : null;
+  };
+  return {
+    cabezales: marcas.cabezales.map(estado),
+    vigas: marcas.vigas.map(estado),
+    pilotes: marcas.pilotes.map(estado),
+  };
 }

@@ -291,6 +291,9 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   pilar en cada cabezal/nodo (`ElementoProyecto.pilar`) y suelo del proyecto
   (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
   cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
+- **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
+  elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
+  visor IFC) y una leyenda con los totales.
 
 ## Decisiones que conviene conocer
 

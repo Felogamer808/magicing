@@ -6,7 +6,7 @@ import { estadoDeElemento } from "@/lib/proyectos/estado";
 import { armarArchivo, crearProyecto, incorporarPlanta, leerArchivo } from "@/lib/proyectos/modelo";
 import type { ElementoProyecto, Proyecto } from "@/lib/proyectos/tipos";
 import { interpretar } from "./interpretar";
-import { A_MANO, piezasDePlanta } from "./proyecto";
+import { A_MANO, estadosDePlanta, marcasDePlanta, piezasDePlanta } from "./proyecto";
 
 const lectura = leerDxf(readFileSync(path.join(__dirname, "..", "dxf", "prueba.dxf"), "utf8"));
 const r = interpretar(lectura, { capaContorno: "FUNDACIONES", capaPilotes: "FUNDACIONES", escala: 0.001, zona: 0 })!;
@@ -122,6 +122,36 @@ describe("incorporarPlanta", () => {
     const otra = incorporarPlanta(proyecto, sinCT2, "prueba.dxf");
     expect(otra.proyecto.elementos).toHaveLength(9);
     expect(otra.yaNoEstan.sort()).toEqual(["CT2", "CT2-P1"]);
+  });
+
+  it("da el estado de cada pieza de la planta, buscándola por su marca", () => {
+    const marcas = marcasDePlanta(r);
+    const armado = {
+      ...proyecto,
+      elementos: proyecto.elementos.map((e) =>
+        e.cad?.marca === "CT9-1"
+          ? {
+              ...e,
+              calculos: [
+                {
+                  ...e.calculos[0],
+                  campos: {
+                    ...e.calculos[0].campos,
+                    ...{ anchoPilar: "0.3", ndPilar: "690", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10" },
+                    ...{ nEstV: "10", phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10" },
+                  },
+                },
+              ],
+            }
+          : e
+      ),
+    };
+    const estados = estadosDePlanta(r, armado);
+    const de = (marca: string) => estados.cabezales[marcas.cabezales.indexOf(marca)];
+    expect(["verifica", "no-verifica"]).toContain(de("CT9-1"));
+    expect(de("CT9-2")).toBe("no-evaluable");
+    expect(estados.pilotes).toHaveLength(5);
+    expect(estadosDePlanta(r, crearProyecto("Vacío")).vigas).toEqual([null]);
   });
 
   it("el vínculo con el CAD sobrevive a exportar e importar el proyecto", () => {

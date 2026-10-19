@@ -89,8 +89,10 @@ Independientes, contra `main`:
   - **Calcular la planta** (rama `calcular-planta`). Criterios: Nd = 1,35·G +
     1,5·Q; Nk por pilote = (G + Q + peso propio del cabezal a 25 kN/m³) / nº de
     pilotes; suelo (fs, qp, FS) uno por proyecto; armadura y sección del pilar a
-    mano. Hecho: paso 1 (planta → proyecto) y paso 2 (cargas del pilar y suelo,
-    derivados). Falta: paso 3 (planta pintada por estado).
+    mano. Hecho: paso 1 (planta → proyecto), paso 2 (cargas del pilar y suelo,
+    derivados) y paso 3 (planta pintada por estado). Falta: verificaciones
+    para cabezales de 1, 4 y 6 pilotes y para la VC sobre pilotes (hoy no
+    evaluables); la armadura se carga pieza por pieza en su formulario.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
     representativo (no se calculan pilotes).
   - Cabezales y vigas se cierran a partir del contorno corrido; los huecos en

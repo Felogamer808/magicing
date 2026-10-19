@@ -64,9 +64,13 @@ Independientes, contra `main`:
   Revit entra como formas no editables. Hecho: lector de DXF (`lib/dxf/`),
   rótulos y pilotes, cabezales, vigas y zonas (`lib/cad-revit/`), y la
   pantalla `/cad-revit` con la planta interpretada y la lista de diferencias.
-  Falta: la exportación y el script de Dynamo, y decidir si en Revit las
-  vigas entran dentro del cabezal (en el tramo modelado, VC1, VC3 y VR24
-  medían 125 a 326 mm más que de cara a cara). Criterios dados por el usuario:
+  Falta: la exportación y el script de Dynamo. Criterios dados por el usuario:
+  - **Geometría de las vigas: de cara a cara del cabezal** (para la vista y
+    para Revit; 2026-10-19). No cambia el cálculo:
+  - **Largo de cálculo** (2026-10-19): las **vigas centradoras**, desde el
+    pilar que descarga hasta el pilote más lejano; las **riostras**, de cara
+    a cara de cabezal. Cuando una viga del modelo pase a una verificación,
+    el largo sale de esta regla y no de la geometría.
   - Cara superior de cabezales y vigas a una cota común, salvo el CT14
     (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo

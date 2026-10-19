@@ -5,12 +5,24 @@ import { Maximize } from "lucide-react";
 import type { Punto } from "@/lib/dxf/leer";
 import { esquinas } from "@/lib/cad-revit/geometria";
 import type { Interpretacion } from "@/lib/cad-revit/interpretar";
+import type { EstadosPlanta } from "@/lib/cad-revit/proyecto";
+import type { EstadoElemento } from "@/lib/proyectos/estado";
 
 export type Seleccion =
   | { tipo: "cabezal"; indice: number }
   | { tipo: "viga"; indice: number }
   | { tipo: "nodo"; indice: number }
   | null;
+
+/** Colores por estado, los mismos que el modelo 3D y MarcaEstado. */
+const CLASE_ESTADO: Record<EstadoElemento, string> = {
+  verifica: "fill-exito/35 stroke-exito",
+  "no-verifica": "fill-destructive/35 stroke-destructive",
+  "sin-verificar": "fill-muted-foreground/35 stroke-muted-foreground",
+  "no-evaluable": "fill-muted-foreground/10 stroke-muted-foreground/60",
+};
+/** Una pieza que no está en el proyecto elegido. */
+const FUERA = "fill-none stroke-muted-foreground/60";
 
 interface Vista {
   x: number;
@@ -32,12 +44,15 @@ export function PlantaInterpretada({
   seleccion,
   onSeleccionar,
   foco,
+  estados,
 }: {
   interpretacion: Interpretacion;
   seleccion: Seleccion;
   onSeleccionar: (s: Seleccion) => void;
   /** Punto que el plano tiene que mostrar centrado (un aviso elegido en la lista). */
   foco: Punto | null;
+  /** Si hay un proyecto elegido: el estado de cada pieza, que manda sobre el color. */
+  estados?: EstadosPlanta | null;
 }) {
   const { zona, dibujo, pilotes, cabezales, vigas, nodos, avisos } = interpretacion;
   const margen = Math.max(zona.caja.max[0] - zona.caja.min[0], zona.caja.max[1] - zona.caja.min[1]) * 0.05;
@@ -63,6 +78,7 @@ export function PlantaInterpretada({
 
   const unidad = vista.ancho / 900; // grosor de línea: ~1 px en pantalla, haga el zoom que haga
   const P = (p: Punto) => `${p[0]},${-p[1]}`;
+  const colorDe = (e: EstadoElemento | null) => (e ? CLASE_ESTADO[e] : FUERA);
   const elegido = (tipo: string, i: number) => seleccion?.tipo === tipo && seleccion.indice === i;
 
   function alRueda(e: React.WheelEvent<SVGSVGElement>) {
@@ -140,10 +156,10 @@ export function PlantaInterpretada({
             <g key={`v${i}`} onClick={(e) => (e.stopPropagation(), elegir({ tipo: "viga", indice: i })())} className="cursor-pointer">
               <polygon
                 points={franja.map(P).join(" ")}
-                className={elegido("viga", i) ? "fill-exito/50 stroke-exito" : "fill-exito/20 stroke-exito/70"}
+                className={estados ? colorDe(estados.vigas[i]) : elegido("viga", i) ? "fill-exito/50 stroke-exito" : "fill-exito/20 stroke-exito/70"}
                 strokeWidth={unidad * (elegido("viga", i) ? 2.5 : 1)}
               />
-              <line x1={v.inicio[0]} y1={-v.inicio[1]} x2={v.fin[0]} y2={-v.fin[1]} className="stroke-exito" strokeWidth={unidad} strokeDasharray={`${unidad * 6} ${unidad * 4}`} />
+              <line x1={v.inicio[0]} y1={-v.inicio[1]} x2={v.fin[0]} y2={-v.fin[1]} className={estados ? "stroke-foreground/40" : "stroke-exito"} strokeWidth={unidad} strokeDasharray={`${unidad * 6} ${unidad * 4}`} />
             </g>
           );
         })}
@@ -153,14 +169,20 @@ export function PlantaInterpretada({
             key={`c${i}`}
             points={esquinas(c.rect).map(P).join(" ")}
             onClick={(e) => (e.stopPropagation(), elegir({ tipo: "cabezal", indice: i })())}
-            className={`cursor-pointer ${elegido("cabezal", i) ? "fill-primary/45 stroke-primary" : "fill-primary/15 stroke-primary"}`}
+            className={`cursor-pointer ${estados ? colorDe(estados.cabezales[i]) : elegido("cabezal", i) ? "fill-primary/45 stroke-primary" : "fill-primary/15 stroke-primary"}`}
             strokeWidth={unidad * (elegido("cabezal", i) ? 3 : 1.5)}
           />
         ))}
 
         <g className="stroke-foreground/70" fill="none" strokeWidth={unidad}>
           {pilotes.map((p, i) => (
-            <circle key={`p${i}`} cx={p.centro[0]} cy={-p.centro[1]} r={p.diametro / 2} />
+            <circle
+              key={`p${i}`}
+              cx={p.centro[0]}
+              cy={-p.centro[1]}
+              r={p.diametro / 2}
+              className={estados ? colorDe(estados.pilotes[i]) : undefined}
+            />
           ))}
         </g>
 

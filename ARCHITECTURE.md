@@ -281,6 +281,19 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   relativas al nivel, cara superior común en 0 salvo el desnivel que se cargue
   por cabezal; cada pilote con la cabeza 10 cm dentro de la pieza que tiene
   encima y 12 m de largo por defecto. Lo lee el script de Dynamo.
+- **Al proyecto** (`proyecto.ts` + `incorporarPlanta` en `lib/proyectos/modelo.ts`):
+  un elemento por pieza, vinculado por marca (`ElementoProyecto.cad`). CT de 2
+  pilotes → cabezales; pilotes → pilotes; VR → viga-atado; el resto queda
+  no evaluable con su motivo. Geometría del plano cargada; cargas, armadura y
+  suelo entran vacíos para que no calcule con valores por defecto. Volver a
+  traer la planta reescribe sólo la geometría.
+- **Cargas** (`cargas.ts`, tarjeta `CargasPlanta` del proyecto): G, Q y lado del
+  pilar en cada cabezal/nodo (`ElementoProyecto.pilar`) y suelo del proyecto
+  (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
+  cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
+- **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
+  elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
+  visor IFC) y una leyenda con los totales.
 
 ## Decisiones que conviene conocer
 

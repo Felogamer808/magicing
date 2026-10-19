@@ -47,7 +47,9 @@ export function estadoDeCalculo(calculo: CalculoGuardado): EstadoCalculo {
  * alguno sin evaluar, no se puede decir que verifica.
  */
 export function estadoDeElemento(elemento: ElementoProyecto): EstadoElemento {
-  if (elemento.calculos.length === 0) return "sin-verificar";
+  // Una pieza del CAD que no tiene verificación (cabezal de un pilote, viga
+  // centradora sobre pilotes) no está pendiente: no hay con qué evaluarla.
+  if (elemento.calculos.length === 0) return elemento.cad?.sinVerificacion ? "no-evaluable" : "sin-verificar";
   const estados = elemento.calculos.map(estadoDeCalculo);
   if (estados.includes("no-verifica")) return "no-verifica";
   if (estados.includes("no-evaluable")) return "no-evaluable";

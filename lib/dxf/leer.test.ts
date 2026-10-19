@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { leerDxf, leerDxfPorPartes, limpiarTexto } from "@/lib/dxf/leer";
 
 /**
- * `prueba.dxf`: dos CT9 unidos por una VR4, con las trampas de una planta
+ * `prueba.dxf`: dos CT9 unidos por una VR4 y un CT2 suelto dibujado de 760
+ * aunque su rótulo dice 800, con las trampas de una planta
  * real: declara metros y está en mm, trae un bloque que no se usa, un HATCH,
  * un círculo en espacio papel y textos con formato de MTEXT.
  */
@@ -14,8 +15,8 @@ describe("leerDxf", () => {
   const l = leerDxf(texto);
 
   it("lee sólo el espacio modelo: ni los bloques ni las láminas", () => {
-    expect(l.entidades.filter((e) => e.tipo === "circulo")).toHaveLength(4);
-    expect(l.entidades.filter((e) => e.tipo === "polilinea")).toHaveLength(2);
+    expect(l.entidades.filter((e) => e.tipo === "circulo")).toHaveLength(5);
+    expect(l.entidades.filter((e) => e.tipo === "polilinea")).toHaveLength(3);
     expect(l.ignoradas).toEqual({ HATCH: 1 });
   });
 

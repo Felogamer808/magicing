@@ -36,13 +36,13 @@ describe("reconocerRotulo", () => {
 
 describe("en la planta de prueba", () => {
   it("encuentra los rótulos sin importar la capa", () => {
-    expect(rotulos(lectura.entidades).map((r) => r.nombre).sort()).toEqual(["CT9", "CT9", "VR4"]);
+    expect(rotulos(lectura.entidades).map((r) => r.nombre).sort()).toEqual(["CT2", "CT9", "CT9", "VR4"]);
   });
 
   it("los pilotes son los círculos de la capa elegida", () => {
-    expect(capasConCirculos(lectura)).toEqual([{ capa: "FUNDACIONES", circulos: 4 }]);
+    expect(capasConCirculos(lectura)).toEqual([{ capa: "FUNDACIONES", circulos: 5 }]);
     const p = pilotes(lectura.entidades, "FUNDACIONES");
-    expect(p).toHaveLength(4);
+    expect(p).toHaveLength(5);
     expect(p[0].diametro).toBe(500);
   });
 

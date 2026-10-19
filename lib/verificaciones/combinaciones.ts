@@ -63,6 +63,17 @@ const VIGA_ATADO: Combinacion = {
     "N₁d y N₂d se cargan con los coeficientes ya aplicados. El axil de atado es un porcentaje del mayor, y q₁ = 10 kN/m entra sin volver a mayorar.",
 };
 
+/*
+ * La palanca de la centradora sobre pilotes usa el Nd del pilar, ya mayorado, y
+ * le suma el peso propio de la viga con γG = 1,35 por dentro.
+ */
+const VIGA_CENTRADORA_PILOTES: Combinacion = {
+  regimen: "elu",
+  etiqueta: "ELU · axil del pilar mayorado",
+  detalle:
+    "N₁d se carga con los coeficientes ya aplicados. El peso propio de la viga lo suma la herramienta con γG = 1,35, y el momento accidental es N₁d·e_acc.",
+};
+
 const PILOTES: Combinacion = {
   regimen: "mixta",
   etiqueta: "Cargas características · sin mayorar",
@@ -245,6 +256,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "zapata-corrida": ZAPATAS,
   "zapata-viga-centradora": ZAPATAS,
   "viga-atado": VIGA_ATADO,
+  "viga-centradora-pilotes": VIGA_CENTRADORA_PILOTES,
   "zapata-combinada": ZAPATAS,
   "losa-fundacion": ZAPATAS,
   pilotes: PILOTES,

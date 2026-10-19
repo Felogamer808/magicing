@@ -3,7 +3,9 @@
  * verificación de una planta de CAD.
  *
  * Criterio del usuario (2026-10-19):
- * - Nd del pilar = γG·G + γQ·Q (1,35·G + 1,5·Q). Al cabezal va sólo el del
+ * - Nd del pilar = γG·G + γQ·Q (1,35·G + 1,5·Q), salvo que se cargue a mano:
+ *   la envolvente ELU de Robot, que trae el viento y esa combinación no
+ *   (criterio del usuario, 2026-10-19). Al cabezal va sólo el del
  *   pilar: su propio peso ya lo suma la verificación (cabezal-pilotes.ts).
  * - Nk de cada pilote = (G + Q + peso propio del cabezal) / nº de pilotes,
  *   con el hormigón armado a 25 kN/m³. En un nodo (pilar sobre viga) no hay
@@ -29,8 +31,9 @@ export const PESO_ESPECIFICO_HA_KNM3 = 25;
 const kN = (x: number) => String(Math.round(x * 10) / 10);
 const texto = (x: number | undefined) => (x === undefined ? "" : String(x));
 
-/** Nd del pilar, kN, o null si falta G o Q. */
+/** Nd del pilar, kN: el cargado a mano si lo hay; si no, γG·G + γQ·Q, o null si falta G o Q. */
 export function ndPilar(p: PilarCargado | undefined): number | null {
+  if (p?.ndKN !== undefined) return p.ndKN;
   if (p?.gKN === undefined || p.qKN === undefined) return null;
   return GAMMA_G * p.gKN + GAMMA_Q * p.qKN;
 }

@@ -292,6 +292,8 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   pilar en cada cabezal/nodo (`ElementoProyecto.pilar`) y suelo del proyecto
   (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
   cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
+  Un Nd a mano por pilar (`PilarCargado.ndKN`, la envolvente ELU de Robot)
+  gana sobre 1,35·G + 1,5·Q; el Nk sigue saliendo de G + Q.
 - **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
   elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
   visor IFC) y una leyenda con los totales.

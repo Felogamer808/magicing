@@ -3,16 +3,22 @@
 import type { Interpretacion } from "@/lib/cad-revit/interpretar";
 import { fmt } from "@/lib/verificaciones/formato";
 import type { Seleccion } from "@/components/cad-revit/PlantaInterpretada";
+import { CampoMetros } from "@/components/cad-revit/CampoMetros";
 
 /** Qué es la pieza elegida en el plano y de dónde salió. Medidas en m. */
 export function PanelPieza({
   interpretacion,
   seleccion,
   escala,
+  desniveles,
+  onDesnivel,
 }: {
   interpretacion: Interpretacion;
   seleccion: Seleccion;
   escala: number;
+  /** Desnivel de la cara superior de cada cabezal, por índice, m. */
+  desniveles: Record<number, number>;
+  onDesnivel: (indice: number, metros: number) => void;
 }) {
   const m = (x: number) => fmt(x * escala, 2);
   const fila = (nombre: string, valor: string) => (
@@ -48,6 +54,21 @@ export function PanelPieza({
             ? "Ubicado sobre el contorno dibujado, con las medidas del rótulo."
             : "No encajó en el contorno: se ubicó sobre su pilote. Revisar."}
         </p>
+        {/*
+          La cara superior de todos es la misma salvo excepciones, como un
+          cabezal de ascensor más abajo. Sus pilotes bajan con él.
+        */}
+        <div className="flex items-center justify-between gap-3 border-t pt-3">
+          <label htmlFor={`desnivel-${seleccion.indice}`} className="text-muted-foreground">
+            Desnivel de la cara superior (m)
+          </label>
+          <CampoMetros
+            key={seleccion.indice}
+            id={`desnivel-${seleccion.indice}`}
+            valor={desniveles[seleccion.indice] ?? 0}
+            onCambio={(n) => onDesnivel(seleccion.indice, n)}
+          />
+        </div>
       </div>
     );
   }
@@ -63,7 +84,9 @@ export function PanelPieza({
           {fila("Largo", `${m(largo)} m`)}
           {v.anchoDibujado !== undefined && fila("Ancho dibujado", `${m(v.anchoDibujado)} m`)}
         </dl>
-        <p className="text-xs text-muted-foreground">De cara a cara de los cabezales donde termina.</p>
+        <p className="text-xs text-muted-foreground">
+          De cara a cara de los cabezales donde termina, o hasta el pilote de un pilar sobre viga.
+        </p>
       </div>
     );
   }

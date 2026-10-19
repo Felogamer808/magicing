@@ -269,6 +269,14 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   declaraba metros y estaba en mm).
 - **Zonas** (`interpretar.ts`): un DXF trae varios dibujos; los contornos a
   menos de 8 m forman una zona y se interpreta una.
+- **Nodos** (CT6/7/8, pilar sobre viga): las vigas que se quedan cortas antes
+  del pilote del nodo (hasta 1 m, alineadas) se prolongan hasta él: el nodo
+  es parte de la viga.
+- **Exportación** (`exportar.ts`): JSON en metros con las coordenadas del CAD
+  sin corrimiento (el CAD se vincula en Revit origen a origen); cotas
+  relativas al nivel, cara superior común en 0 salvo el desnivel que se cargue
+  por cabezal; cada pilote con la cabeza 10 cm dentro de la pieza que tiene
+  encima y 12 m de largo por defecto. Lo lee el script de Dynamo.
 
 ## Decisiones que conviene conocer
 

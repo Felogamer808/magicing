@@ -14,9 +14,9 @@
  */
 
 import type { Punto } from "@/lib/dxf/leer";
-import type { Aviso, Cabezal } from "./cabezales";
+import type { Aviso, Cabezal, NodoSinMedidas } from "./cabezales";
 import { aEjes, desdeEjes, largo, type Segmento } from "./geometria";
-import type { Rotulo, RotuloViga } from "./rotulos";
+import type { Pilote, Rotulo, RotuloViga } from "./rotulos";
 
 export interface Viga {
   nombre: string;
@@ -151,6 +151,37 @@ function cruceConCabezal(c: Cabezal, angulo: number, v: number): [number, number
     hi = Math.min(hi, Math.max(t1, t2));
   }
   return lo < hi ? [lo, hi] : null;
+}
+
+/**
+ * Prolonga hasta el pilote de un nodo (CT6, CT7, CT8: pilar que descarga en
+ * una viga sobre pilotes) las vigas que se quedan cortas.
+ *
+ * En esos nodos el contorno dibuja un ensanche que no es un cabezal con
+ * medidas, y las vigas terminan antes: quedaba un hueco en el nodo y el
+ * pilote sin nada encima. El nodo es parte de la viga (criterio del usuario:
+ * "se termina armando como un cabezal"), así que la viga llega hasta el
+ * pilote. Sólo si está alineada con él y le falta menos de 1 m.
+ */
+export function prolongarANodos(vigas: Viga[], nodos: NodoSinMedidas[], pil: Pilote[], escala: number): Viga[] {
+  const maximo = 1 / escala;
+  return vigas.map((v) => {
+    const ang = (Math.atan2(v.fin[1] - v.inicio[1], v.fin[0] - v.inicio[0]) * 180) / Math.PI;
+    const a = aEjes(v.inicio, ang);
+    const b = aEjes(v.fin, ang);
+    let u0 = a[0];
+    let u1 = b[0];
+    for (const n of nodos) {
+      for (const k of n.pilotes) {
+        const q = aEjes(pil[k].centro, ang);
+        if (Math.abs(q[1] - a[1]) > v.ancho / 2) continue;
+        if (q[0] < u0 && u0 - q[0] <= maximo) u0 = q[0];
+        if (q[0] > u1 && q[0] - u1 <= maximo) u1 = q[0];
+      }
+    }
+    if (u0 === a[0] && u1 === b[0]) return v;
+    return { ...v, inicio: desdeEjes([u0, a[1]], ang), fin: desdeEjes([u1, b[1]], ang) };
+  });
 }
 
 export function ubicarVigas(rot: Rotulo[], segs: Segmento[], cabezales: Cabezal[], escala: number): ResultadoVigas {

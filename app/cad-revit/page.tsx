@@ -1,12 +1,26 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { Download, Upload } from "lucide-react";
+import { CampoMetros } from "@/components/cad-revit/CampoMetros";
 import { ListaAvisos } from "@/components/cad-revit/ListaAvisos";
 import { PanelPieza } from "@/components/cad-revit/PanelPieza";
 import { PlantaInterpretada, type Seleccion } from "@/components/cad-revit/PlantaInterpretada";
 import type { LecturaDxf, Punto } from "@/lib/dxf/leer";
+import { exportarParaRevit } from "@/lib/cad-revit/exportar";
 import { interpretar, opcionesSugeridas, zonas, type OpcionesInterpretacion } from "@/lib/cad-revit/interpretar";
+
+/** Cuánto entra la cabeza del pilote en la pieza de arriba (criterio del usuario). */
+const PENETRACION_PILOTE_M = 0.1;
+
+function descargar(nombre: string, contenido: string) {
+  const url = URL.createObjectURL(new Blob([contenido], { type: "application/json" }));
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
 
 const UNIDADES: { escala: number; nombre: string }[] = [
   { escala: 0.001, nombre: "milímetros" },
@@ -44,11 +58,14 @@ export default function CadRevitPage() {
   const [opciones, setOpciones] = useState<OpcionesInterpretacion | null>(null);
   const [seleccion, setSeleccion] = useState<Seleccion>(null);
   const [foco, setFoco] = useState<Punto | null>(null);
+  const [desniveles, setDesniveles] = useState<Record<number, number>>({});
+  const [largoPilote, setLargoPilote] = useState(12);
 
   async function cargar(f: File) {
     setError(null);
     setLectura(null);
     setSeleccion(null);
+    setDesniveles({});
     setProgreso(0);
     setArchivo(f.name);
     try {
@@ -95,6 +112,8 @@ export default function CadRevitPage() {
   const cambiar = (c: Partial<OpcionesInterpretacion>) => {
     if (!opciones) return;
     setSeleccion(null);
+    // Los desniveles van por índice de cabezal: otra interpretación, otros índices.
+    setDesniveles({});
     setOpciones({ ...opciones, ...c, ...(c.capaContorno || c.escala ? { zona: 0 } : {}) });
   };
   const unidadDibujo = UNIDADES.find((u) => u.escala === opciones?.escala)?.nombre;
@@ -197,14 +216,45 @@ export default function CadRevitPage() {
 
       {resultado && opciones && (
         <>
-          <p className="text-sm">
-            <span className="font-medium">{archivo}</span>
-            <span className="text-muted-foreground">
-              {" "}
-              · {resultado.pilotes.length} pilotes · {resultado.cabezales.length} cabezales · {resultado.vigas.length} vigas
-              {resultado.nodos.length > 0 && ` · ${resultado.nodos.length} pilares sobre viga`}
-            </span>
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm">
+              <span className="font-medium">{archivo}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {resultado.pilotes.length} pilotes · {resultado.cabezales.length} cabezales · {resultado.vigas.length} vigas
+                {resultado.nodos.length > 0 && ` · ${resultado.nodos.length} pilares sobre viga`}
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <label htmlFor="largo-pilote" className="text-muted-foreground">
+                Largo de pilotes (m)
+              </label>
+              <CampoMetros id="largo-pilote" valor={largoPilote} onCambio={(n) => n > 0 && setLargoPilote(n)} />
+              <button
+                type="button"
+                onClick={() =>
+                  descargar(
+                    `${(archivo ?? "planta").replace(/\.dxf$/i, "")}-revit.json`,
+                    JSON.stringify(
+                      exportarParaRevit(resultado, {
+                        escala: opciones.escala,
+                        largoPiloteM: largoPilote,
+                        penetracionPiloteM: PENETRACION_PILOTE_M,
+                        desniveles,
+                        archivo: archivo ?? "",
+                      }),
+                      null,
+                      2
+                    )
+                  )
+                }
+                className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                <Download className="h-4 w-4" />
+                Descargar para Revit
+              </button>
+            </div>
+          </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
             <PlantaInterpretada
               key={`${opciones.capaContorno}|${opciones.escala}|${opciones.zona}`}
@@ -214,7 +264,13 @@ export default function CadRevitPage() {
               foco={foco}
             />
             <aside className="space-y-4">
-              <PanelPieza interpretacion={resultado} seleccion={seleccion} escala={opciones.escala} />
+              <PanelPieza
+                interpretacion={resultado}
+                seleccion={seleccion}
+                escala={opciones.escala}
+                desniveles={desniveles}
+                onDesnivel={(i, m) => setDesniveles((d) => ({ ...d, [i]: m }))}
+              />
               <ListaAvisos avisos={resultado.avisos} onVer={(p) => setFoco([p[0], p[1]])} />
             </aside>
           </div>

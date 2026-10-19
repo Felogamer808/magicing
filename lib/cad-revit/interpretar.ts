@@ -12,7 +12,7 @@ import type { EntidadDxf, LecturaDxf, Punto } from "@/lib/dxf/leer";
 import { ubicarCabezales, type Aviso, type Cabezal, type NodoSinMedidas } from "./cabezales";
 import { segmentos } from "./geometria";
 import { capasConCirculos, pilotes, rotulos, sugerirEscala, type Pilote } from "./rotulos";
-import { ubicarVigas, type Viga } from "./vigas";
+import { prolongarANodos, ubicarVigas, type Viga } from "./vigas";
 
 export interface Caja {
   min: Punto;
@@ -121,5 +121,6 @@ export function interpretar(lectura: LecturaDxf, o: OpcionesInterpretacion): Int
   const segs = segmentos(dibujo, o.capaContorno);
   const c = ubicarCabezales(rot, pil, segs, o.escala);
   const v = ubicarVigas(rot, segs, c.cabezales, o.escala);
-  return { zona, pilotes: pil, cabezales: c.cabezales, nodos: c.nodos, vigas: v.vigas, avisos: [...c.avisos, ...v.avisos], dibujo };
+  const vigas = prolongarANodos(v.vigas, c.nodos, pil, o.escala);
+  return { zona, pilotes: pil, cabezales: c.cabezales, nodos: c.nodos, vigas, avisos: [...c.avisos, ...v.avisos], dibujo };
 }

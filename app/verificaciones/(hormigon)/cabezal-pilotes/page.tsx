@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
@@ -21,8 +22,12 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
 import { recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
+import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 
 const meta = registroVerificaciones.find((v) => v.id === "cabezales")!;
+
+const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
+const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
@@ -54,10 +59,11 @@ export default function CabezalPilotesPage() {
   const [nCercos, setNCercos] = useCampo("nCercos", "2");
   const [nEstH, setNEstH] = useCampo("nEstH", "5");
   const [phiEstH, setPhiEstH] = useCampo("phiEstH", "10");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
 
   const campos = useMemo(
-    () => ({ fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH }),
-    [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH]
+    () => ({ fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH, formaAnclaje }),
+    [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH, formaAnclaje]
   );
   const resultado = useMemo(() => resolverCabezal(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -145,6 +151,15 @@ export default function CabezalPilotesPage() {
                   ]}
                 />
               </div>
+              <div className="max-w-xs pt-4">
+                <CampoSeleccion
+                  id="formaAnclaje"
+                  etiqueta="Extremo del tirante"
+                  valor={FORMAS[formaAnclaje]}
+                  opciones={Object.values(FORMAS)}
+                  onChange={(v) => setFormaAnclaje(formaPorNombre(v))}
+                />
+              </div>
             </Subgrupo>
             <Subgrupo titulo="Estribos">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
@@ -177,7 +192,7 @@ export default function CabezalPilotesPage() {
               "Separación de pilotes s = 2,5·D.",
               "El nudo bajo el pilar no se comprueba: el pilar ya está dimensionado para ese axil.",
               "Separación de estribos verticales con n−1, igual que el resto de las separaciones de la planilla.",
-              "Anclaje del tirante con la fórmula de la planilla (EHE‑08), medido desde el eje del pilote; pendiente pasarlo al Anejo 19, art. 8.4.",
+              "Anclaje del tirante por el art. 8.4, desde la cara interior del pilote (art. 6.5.4 (7)) hasta el borde menos el recubrimiento, sobre el eje de la barra; con patilla suma la pata hasta H − 2·rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}
           />
@@ -198,6 +213,12 @@ export default function CabezalPilotesPage() {
                     estado: resultado.r.principal.verificaAs ? "cumple" : "no-cumple",
                     utilizacion: resultado.r.principal.asNecCm2 / resultado.r.principal.asRealCm2,
                     conPropuestas: !!rec.tirante,
+                  },
+                  {
+                    etiqueta: "anclaje del tirante",
+                    estado: resultado.r.principal.verificaAnclaje ? "cumple" : "no-cumple",
+                    utilizacion: resultado.r.principal.lbdMm / resultado.r.principal.disponibleAnclajeMm,
+                    conPropuestas: !!rec.anclaje,
                   },
                   {
                     etiqueta: "biela",
@@ -285,8 +306,24 @@ export default function CabezalPilotesPage() {
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.r.principal.pesoPropioKN)} kN` },
                       { etiqueta: "Nd por pilote", valor: `${fmt(resultado.r.principal.ndPorPiloteKN)} kN` },
                       { etiqueta: "Td (tracción del tirante)", valor: `${fmt(resultado.r.principal.tdKN)} kN` },
-                      { etiqueta: "Anclaje lb,neta (desde el eje del pilote)", valor: `${fmt(resultado.r.principal.lbNetaMm, 0)} mm` },
+                      { etiqueta: "σsd en el anclaje", valor: `${fmt(resultado.r.principal.sigmaSdAnclajeMPa)} MPa` },
                     ]}
+                  />
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Anclaje del tirante" detalle="art. 8.4 y 6.5.4 (7)">
+                <div>
+                  <ResultadoCheck
+                    etiqueta="Largo disponible desde la cara interior del pilote"
+                    verifica={resultado.r.principal.verificaAnclaje}
+                    detalle={FORMAS[formaAnclaje].toLowerCase()}
+                    comparacion={{
+                      real: { etiqueta: "disponible", valor: resultado.r.principal.disponibleAnclajeMm },
+                      limite: { etiqueta: "lbd", valor: resultado.r.principal.lbdMm },
+                      unidad: "mm", exige: "≥", decimales: 0,
+                    }}
+                    recomendaciones={rec.anclaje}
                   />
                 </div>
               </Subgrupo>

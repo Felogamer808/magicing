@@ -1,12 +1,13 @@
 import { resolverCabezal, type ResueltoCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
 import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
-import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
+import { CITA_PATILLA, campo, m, palancaDiametro, palancaFck, palancaOpcion, palancaValor, type Campos } from "./palancas";
 
-export type ClaveCabezal = "tirante" | "biela" | "nudo" | "secundaria" | "estribosV" | "estribosH" | "ancho";
+export type ClaveCabezal = "tirante" | "anclaje" | "biela" | "nudo" | "secundaria" | "estribosV" | "estribosH" | "ancho";
 export type RecomendacionesCabezal = Partial<Record<ClaveCabezal, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveCabezal, string> = {
   tirante: "tirante",
+  anclaje: "anclaje del tirante",
   biela: "biela",
   nudo: "nudo sobre el pilote",
   secundaria: "armadura secundaria",
@@ -17,6 +18,7 @@ const NOMBRES: Record<ClaveCabezal, string> = {
 
 const utilizaciones = ({ r, n }: ResueltoCabezal): Record<ClaveCabezal, number> => ({
   tirante: r.principal.asNecCm2 / r.principal.asRealCm2,
+  anclaje: r.principal.lbdMm / r.principal.disponibleAnclajeMm,
   biela: r.bielas.sigmaBielaMPa / r.bielas.sigmaBielaMaxMPa,
   nudo: r.bielas.sigmaNudoMPa / r.bielas.sigmaNudoMaxMPa,
   secundaria: r.secundaria.asNecCm2 / r.secundaria.asRealCm2,
@@ -48,6 +50,12 @@ const CANTO = palancaValor(campo("hCab"), {
   efectoColateral: "Más canto: las bielas se paran y baja la tracción del tirante.",
 });
 const FCK = palancaFck(campo("fck"));
+const PATILLA = palancaOpcion<Campos>(
+  (e) => e.formaAnclaje !== "gancho",
+  (e) => ({ ...e, formaAnclaje: "gancho" }),
+  "Terminar el tirante en patilla a 90° (hoy recta)",
+  { cita: CITA_PATILLA }
+);
 const PILAR = palancaValor(campo("anchoPilar"), {
   paso: 0.05,
   tope: (a) => a + 0.5,
@@ -84,6 +92,9 @@ function palancasPorClave(clave: ClaveCabezal): readonly Palanca<Campos>[] {
   switch (clave) {
     case "tirante":
       return [...barras("nPrinc", "phiPrinc", "Tirante: "), CANTO];
+    case "anclaje":
+      // Más barras bajan σsd y con ella el anclaje; un diámetro menor también.
+      return [PATILLA, ...barras("nPrinc", "phiPrinc", "Tirante: ")];
     case "biela":
       return [CANTO, PILAR, FCK];
     case "nudo":

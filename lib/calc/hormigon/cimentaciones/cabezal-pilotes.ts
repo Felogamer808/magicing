@@ -1,3 +1,4 @@
+import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_G } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
@@ -41,6 +42,8 @@ export interface DatosCabezal {
   armaduraSecundaria: ArmaduraCabezal;
   estribosVerticales: EstribosCabezal;
   estribosHorizontales: EstribosCabezal;
+  /** Extremo del tirante sobre el pilote. Por defecto, barra recta. */
+  formaAnclaje?: FormaAnclaje;
 }
 
 export interface ResultadoArmaduraPrincipalCabezal {
@@ -63,8 +66,17 @@ export interface ResultadoArmaduraPrincipalCabezal {
   verificaBNec: boolean;
   /** Separación entre ejes de barras (mm) */
   separacionMm: number;
-  lbIMm: number;
-  lbNetaMm: number;
+  /** Tensión del tirante en el anclaje, Td / As real con tope fyd (MPa) */
+  sigmaSdAnclajeMPa: number;
+  /** Longitud de anclaje necesaria, art. 8.4.4 ec. (8.4) (mm) */
+  lbdMm: number;
+  /**
+   * Largo disponible desde la cara interior del pilote, donde empieza el nudo
+   * (art. 6.5.4 (7)), hasta el borde del cabezal menos el recubrimiento; con
+   * patilla suma la pata hasta H − 2·rec (mm)
+   */
+  disponibleAnclajeMm: number;
+  verificaAnclaje: boolean;
 }
 
 export interface ResultadoArmaduraSecundariaCabezal {
@@ -72,8 +84,6 @@ export interface ResultadoArmaduraSecundariaCabezal {
   asRealCm2: number;
   verificaAs: boolean;
   separacionMm: number;
-  lbIIMm: number;
-  lbNetaMm: number;
 }
 
 export interface ResultadoEstribosCabezal {
@@ -121,7 +131,8 @@ export function calcularCabezalDosPilotes(
 ): ResultadoCabezal {
   const { anchoPilarM, ladoXM, ladoYM, hM, diametroPiloteM, recubrimientoM } = geometria;
   const { ndPilarKN, armaduraPrincipal, armaduraSecundaria, estribosVerticales, estribosHorizontales } = datos;
-  const { fck, fcd, fyk, fydEstribos } = materiales;
+  const formaAnclaje = datos.formaAnclaje ?? "recta";
+  const { fck, fcd, fyk, fyd, fydEstribos } = materiales;
 
   const phiPrinc = armaduraPrincipal.diametroMm;
   const phiT = estribosVerticales.diametroMm;
@@ -182,14 +193,27 @@ export function calcularCabezalDosPilotes(
       (armaduraPrincipal.numero - 1)) *
     1000;
 
-  const lbIMm = Math.max(1.3 * phiPrinc ** 2, (fyk * phiPrinc) / 20);
-  const lbNetaMm = Math.max((lbIMm * asNecCm2) / asRealCm2, 10 * phiPrinc, 150, lbIMm / 3);
+  // Anclaje del tirante, Anejo 19 art. 8.4 (criterio del usuario, 2026-10-19,
+  // el mismo de la zapata aislada): σsd = Td / As real con tope fyd, buena
+  // adherencia (barras inferiores, fig. A19.8.2), α3 = α5 = 1.
+  // cd = mín(recubrimiento, media separación libre) — fig. A19.8.3.
+  const sigmaSdAnclajeMPa = Math.min((tdKN * 10) / asRealCm2, fyd);
+  const cdMm = Math.min(recubrimientoM * 1000, (separacionPrincipalMm - phiPrinc) / 2);
+  const { lbdMm } = calcularAnclaje(
+    { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
+    { diametroMm: phiPrinc, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa: sigmaSdAnclajeMPa }
+  );
+  // Empieza en la cara interior del pilote (art. 6.5.4 (7), pág. 100) y se mide
+  // sobre el eje de la barra (art. 8.4.3 (3)): con patilla suma la pata hasta
+  // H − 2·rec, sin contar el doblez.
+  const rectaM = ladoXM / 2 - separacionPilotesM / 2 + diametroPiloteM / 2 - recubrimientoM;
+  const pataM = formaAnclaje === "gancho" ? Math.max(hM - 2 * recubrimientoM, 0) : 0;
+  const disponibleAnclajeMm = (rectaM + pataM) * 1000;
 
   // Secundaria: el 10% de la armadura principal realmente colocada.
   const phiSec = armaduraSecundaria.diametroMm;
   const asSecNecCm2 = 0.1 * asRealCm2;
   const asSecRealCm2 = areaCm2(armaduraSecundaria.numero, phiSec);
-  const lbIISecMm = Math.max(1.4 * 1.3 * phiSec ** 2, (fyk * phiSec) / 14);
   const separacionSecundariaMm =
     ((ladoXM - 2 * recubrimientoM - phiSec / 1000 - (2 * phiL) / 1000 - (2 * phiPrinc) / 1000) /
       (armaduraSecundaria.numero - 1)) *
@@ -219,16 +243,16 @@ export function calcularCabezalDosPilotes(
       bNecM,
       verificaBNec: bNecM <= ladoYM,
       separacionMm: separacionPrincipalMm,
-      lbIMm,
-      lbNetaMm,
+      sigmaSdAnclajeMPa,
+      lbdMm,
+      disponibleAnclajeMm,
+      verificaAnclaje: disponibleAnclajeMm >= lbdMm,
     },
     secundaria: {
       asNecCm2: asSecNecCm2,
       asRealCm2: asSecRealCm2,
       verificaAs: asSecRealCm2 >= asSecNecCm2,
       separacionMm: separacionSecundariaMm,
-      lbIIMm: lbIISecMm,
-      lbNetaMm: Math.max((lbIISecMm * asSecNecCm2) / asSecRealCm2, 10 * phiSec, 150, lbIISecMm / 3),
     },
     estribosVerticales: {
       asNecCm2: asTNecCm2,

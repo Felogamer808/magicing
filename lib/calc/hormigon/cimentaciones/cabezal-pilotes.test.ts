@@ -88,9 +88,39 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
     expect(r.principal.separacionMm).toBeCloseTo(77.3333333333333, 6);
   });
 
-  it("reproduce las longitudes de anclaje", () => {
-    expect(r.principal.lbIMm).toBeCloseTo(400, 6);
-    expect(r.principal.lbNetaMm).toBeCloseTo(456.058957783056, 6);
+  // Anejo 19, art. 8.4, a mano: Td/As = 456 MPa > fyd → σsd = 434,78 MPa.
+  // fctd = 0,7·0,3·30^(2/3)/1,5 = 1,3515; fbd = 2,25·fctd = 3,0409.
+  // lb,rqd = 16/4 · 434,78/3,0409 = 571,9 mm. cd = mín(50; (77,33 − 16)/2) = 30,67.
+  // Recta: α2 = 1 − 0,15·(30,67 − 16)/16 = 0,8625 → lbd = 493,3 mm.
+  it("ancla el tirante con el art. 8.4, con σsd topada en fyd", () => {
+    const fyd = 500 / 1.15;
+    const fbd = 2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5);
+    const lbRqd = (16 / 4) * (fyd / fbd);
+    const cd = (77.3333333333333 - 16) / 2;
+    expect(r.principal.sigmaSdAnclajeMPa).toBeCloseTo(fyd, 9);
+    expect(r.principal.lbdMm).toBeCloseTo((1 - (0.15 * (cd - 16)) / 16) * lbRqd, 4);
+  });
+
+  // De la cara interior del pilote al borde: 0,8 − 0,625 + 0,25 − 0,05 = 0,375 m.
+  it("mide el anclaje desde la cara interior del pilote (art. 6.5.4 (7))", () => {
+    expect(r.principal.disponibleAnclajeMm).toBeCloseTo(375, 6);
+    expect(r.principal.verificaAnclaje).toBe(false);
+  });
+
+  // Con patilla: + H − 2·rec = 0,5 m; α1 = 1 (cd ≤ 3φ) y α2 = 1 → lbd = lb,rqd.
+  it("con patilla suma la pata y verifica", () => {
+    const conPatilla = calcularCabezalDosPilotes(materiales, geometria, {
+      ndPilarKN: 1040,
+      armaduraPrincipal: { numero: 7, diametroMm: 16 },
+      armaduraSecundaria: { numero: 7, diametroMm: 10 },
+      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
+      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      formaAnclaje: "gancho",
+    });
+    const lbRqd = (16 / 4) * ((500 / 1.15) / (2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5)));
+    expect(conPatilla.principal.disponibleAnclajeMm).toBeCloseTo(875, 6);
+    expect(conPatilla.principal.lbdMm).toBeCloseTo(lbRqd, 4);
+    expect(conPatilla.principal.verificaAnclaje).toBe(true);
   });
 });
 
@@ -99,8 +129,6 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.secundaria.asNecCm2).toBeCloseTo(1.40743350880823, 6);
     expect(r.secundaria.asRealCm2).toBeCloseTo(5.49778714378214, 6);
     expect(r.secundaria.verificaAs).toBe(true);
-    expect(r.secundaria.lbIIMm).toBeCloseTo(357.142857142857, 6);
-    expect(r.secundaria.lbNetaMm).toBeCloseTo(150, 6);
     expect(r.secundaria.separacionMm).toBeCloseTo(239.666666666667, 6);
   });
 

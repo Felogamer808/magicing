@@ -197,7 +197,8 @@ try:
                 doc.Regenerate()
                 caja = inst.get_BoundingBox(None)
                 # Centrado: si el origen de la familia no está en el centro, se corre.
-                centro_caja = (caja.Min + caja.Max) / 2.0
+                # En Python 3 los XYZ no admiten + ni /: se usan sus métodos.
+                centro_caja = caja.Min.Add(caja.Max).Divide(2.0)
                 corrimiento = XYZ(punto.X - centro_caja.X, punto.Y - centro_caja.Y, 0)
                 if corrimiento.GetLength() > en_pies(0.005):
                     ElementTransformUtils.MoveElement(doc, inst.Id, corrimiento)
@@ -208,7 +209,7 @@ try:
                     ancho_en_x = abs(dx - en_pies(a / 1000.0)) <= abs(dy - en_pies(a / 1000.0))
                 giro = math.radians(c["giroLadoA"]) - (0 if ancho_en_x in (None, True) else math.pi / 2)
                 if abs(giro) > 1e-9:
-                    ElementTransformUtils.RotateElement(doc, inst.Id, Line.CreateBound(punto, punto + XYZ.BasisZ), giro)
+                    ElementTransformUtils.RotateElement(doc, inst.Id, Line.CreateBound(punto, punto.Add(XYZ.BasisZ)), giro)
 
             # --- Vigas -------------------------------------------------------
             for v in datos["vigas"]:

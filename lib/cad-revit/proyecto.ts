@@ -5,10 +5,12 @@
  *
  * Qué verificación lleva cada pieza (criterio del usuario, 2026-10-19):
  * - cabezal de 2 pilotes → "cabezales" (bielas y tirantes, Anejo 19);
+ * - cabezal de 1 pilote → "cabezal-un-pilote" (compresión localizada y
+ *   tracción transversal, Anejo 19), con lado x = largo del rectángulo;
  * - cada pilote → "pilotes";
  * - viga riostra (VR) → "viga-atado", con la luz de cara a cara;
  * - el resto queda "no evaluable" hasta que haya una verificación para él:
- *   cabezales de 1, 4 o más pilotes, vigas centradoras (la que existe es de
+ *   cabezales de 3 o más pilotes, vigas centradoras (la que existe es de
  *   zapata medianera, no de cabezal sobre pilotes) y los nodos de pilar sobre
  *   viga (de ellos se verifica el pilote).
  *
@@ -27,6 +29,7 @@ import { numerarMarcas } from "./exportar";
 /** Campos de cada verificación que se cargan a mano: entran vacíos. */
 export const A_MANO = {
   cabezales: ["anchoPilar", "ndPilar", "nPrinc", "phiPrinc", "nSec", "phiSec", "nEstV", "phiEstV", "nCercos", "nEstH", "phiEstH"],
+  "cabezal-un-pilote": ["pilarX", "pilarY", "ndPilar", "nCercosSup", "phiCercosSup", "nCercosInf", "phiCercosInf"],
   pilotes: ["friccion", "punta", "factorSeguridad", "numero", "diametroBarra", "diametroEstribo", "Nk"],
   "viga-atado": ["n1d", "n2d", "numeroCara", "diametroCara", "diametroEstribo", "numeroRamas"],
 } as const;
@@ -65,6 +68,21 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
     const marca = marcasCab[i];
     const medidasM: [number, number, number] = [c.rect.largo * e, c.rect.ancho * e, c.canto * e];
     const n = c.pilotes.length;
+    if (n === 1) {
+      piezas.push({
+        origen: { marca, pieza: "cabezal", medidasM },
+        verificacion: "cabezal-un-pilote",
+        geometria: {
+          ladoX: m(c.rect.largo * e),
+          ladoY: m(c.rect.ancho * e),
+          hCab: m(c.canto * e),
+          dPilote: m(r.pilotes[c.pilotes[0]].diametro * e),
+        },
+        aMano: A_MANO["cabezal-un-pilote"],
+        materiales: { fck: String(mat.fckMPa), fyk: String(mat.fykMPa) },
+      });
+      return;
+    }
     if (n !== 2) {
       piezas.push({
         origen: {
@@ -74,7 +92,7 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
           sinVerificacion:
             n === 0
               ? "Cabezal sin pilotes: revisar la planta."
-              : `Cabezal de ${n} ${n === 1 ? "pilote" : "pilotes"}: todavía no hay verificación para él.`,
+              : `Cabezal de ${n} pilotes: todavía no hay verificación para él.`,
         },
         geometria: {},
         aMano: [],

@@ -24,7 +24,11 @@ const conPilar = (p: Proyecto, marca: string, pilar: PilarCargado): Proyecto => 
 
 describe("derivarCargas", () => {
   const cargado = derivarCargas({
-    ...conPilar(conPilar(planta, "CT9-1", { gKN: 400, qKN: 100, ladoPilotesM: 0.3 }), "CT9-2", { gKN: 300, qKN: 50 }),
+    ...conPilar(
+      conPilar(conPilar(planta, "CT9-1", { gKN: 400, qKN: 100, ladoPilotesM: 0.3 }), "CT9-2", { gKN: 300, qKN: 50 }),
+      "CT2",
+      { gKN: 400, qKN: 100, ladoPilotesM: 0.3, ladoTransversalM: 0.4 }
+    ),
     suelo: { friccionKNm2: 30, puntaKNm2: 800, factorSeguridad: 2.5 },
   });
 
@@ -32,6 +36,25 @@ describe("derivarCargas", () => {
   it("al cabezal va el Nd del pilar y el lado del pilar en la dirección de los pilotes", () => {
     expect(ndPilar({ gKN: 400, qKN: 100 })).toBeCloseTo(690, 9);
     expect(campos(cargado, "CT9-1")).toMatchObject({ ndPilar: "690", anchoPilar: "0.3" });
+  });
+
+  /** Envolvente de Robot con viento: gana sobre 1,35·G + 1,5·Q; el Nk de los pilotes no cambia. */
+  it("con Nd a mano, el cabezal y las vigas usan ese y los pilotes siguen con G + Q", () => {
+    expect(ndPilar({ gKN: 400, qKN: 100, ndKN: 900 })).toBe(900);
+    const conNd = derivarCargas(conPilar(cargado, "CT9-1", { gKN: 400, qKN: 100, ladoPilotesM: 0.3, ndKN: 900 }));
+    expect(campos(conNd, "CT9-1").ndPilar).toBe("900");
+    expect(campos(conNd, "CT9-1-P1").Nk).toBe("263.5");
+    const extremos = elemento(conNd, "VR4").cad!.extremos!;
+    const vr = campos(conNd, "VR4");
+    expect(extremos[0] === "CT9-1" ? vr.n1d : vr.n2d).toBe("900");
+  });
+
+  it("con Nd a mano y sin G ni Q, el cabezal ya tiene su Nd", () => {
+    expect(ndPilar({ ndKN: 750 })).toBe(750);
+  });
+
+  it("al cabezal de 1 pilote, el Nd y los dos lados del pilar", () => {
+    expect(campos(cargado, "CT2")).toMatchObject({ ndPilar: "690", pilarX: "0.3", pilarY: "0.4" });
   });
 
   /** CT9 de 1,8 × 0,8 × 0,75: 27 kN de peso propio. (400 + 100 + 27) / 2 = 263,5. */
@@ -76,5 +99,10 @@ describe("derivarCargas", () => {
       ...{ nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", nEstV: "10", phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10" },
     };
     expect(calcularCimentacion("cabezales", c).ok).toBe(true);
+  });
+
+  it("con cargas y cercos, el cabezal de 1 pilote se evalúa", () => {
+    const c = { ...campos(cargado, "CT2"), nCercosSup: "3", phiCercosSup: "10", nCercosInf: "3", phiCercosInf: "12" };
+    expect(calcularCimentacion("cabezal-un-pilote", c).ok).toBe(true);
   });
 });

@@ -80,6 +80,12 @@ Independientes, contra `main`:
     el largo sale de esta regla y no de la geometría.
   - Cara superior de cabezales y vigas a una cota común, salvo el CT14
     (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
+  - El CT14 (ascensor) usa la familia **Cimentacion-Rectangular**, no
+    "Cabezal ascensor" (2026-10-19).
+  - **Cargas de los pilares** (2026-10-19): por ahora se cargan **a mano en
+    MagicIng**. Después, un Excel que las saque de Robot.
+  - Probado en Revit 2026 sobre una copia de FUNDACIONES MAGICING: 21
+    cabezales, 35 vigas, 50 pilotes, alturas correctas, CT14 en −1300.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
     representativo (no se calculan pilotes).
   - Cabezales y vigas se cierran a partir del contorno corrido; los huecos en

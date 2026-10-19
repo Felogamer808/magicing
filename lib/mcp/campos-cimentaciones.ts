@@ -254,6 +254,7 @@ export const CAMPOS_CIMENTACIONES = {
     { clave: "nCercos", etiqueta: "Cercos", porDefecto: "2" },
     { clave: "nEstH", etiqueta: "Horizontales · Nº", porDefecto: "5" },
     { clave: "phiEstH", etiqueta: "Horizontales · Øl", porDefecto: "10" },
+    { clave: "formaAnclaje", etiqueta: "Extremo del tirante", porDefecto: "recta", opciones: ["recta","gancho"], descripcion: "recta = barra recta; gancho = patilla a 90°." },
   ],
   "cabezal-un-pilote": [
     { clave: "fck", etiqueta: "fck", unidad: "MPa", porDefecto: "30" },

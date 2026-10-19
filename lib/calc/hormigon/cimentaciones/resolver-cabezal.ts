@@ -36,6 +36,7 @@ export function resolverCabezal(campos: Record<string, string>) {
       armaduraSecundaria: { numero: n.nSec, diametroMm: n.phiSec },
       estribosVerticales: { numero: n.nEstV, diametroMm: n.phiEstV, numeroCercos: n.nCercos },
       estribosHorizontales: { numero: n.nEstH, diametroMm: n.phiEstH },
+      formaAnclaje: campos.formaAnclaje === "gancho" ? "gancho" : "recta",
     }
   );
   return { n, r };

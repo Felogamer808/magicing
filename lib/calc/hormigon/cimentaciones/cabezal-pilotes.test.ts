@@ -88,9 +88,39 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
     expect(r.principal.separacionMm).toBeCloseTo(77.3333333333333, 6);
   });
 
-  it("reproduce las longitudes de anclaje", () => {
-    expect(r.principal.lbIMm).toBeCloseTo(400, 6);
-    expect(r.principal.lbNetaMm).toBeCloseTo(456.058957783056, 6);
+  // Anejo 19, art. 8.4, a mano: Td/As = 456 MPa > fyd → σsd = 434,78 MPa.
+  // fctd = 0,7·0,3·30^(2/3)/1,5 = 1,3515; fbd = 2,25·fctd = 3,0409.
+  // lb,rqd = 16/4 · 434,78/3,0409 = 571,9 mm. cd = mín(50; (77,33 − 16)/2) = 30,67.
+  // Recta: α2 = 1 − 0,15·(30,67 − 16)/16 = 0,8625 → lbd = 493,3 mm.
+  it("ancla el tirante con el art. 8.4, con σsd topada en fyd", () => {
+    const fyd = 500 / 1.15;
+    const fbd = 2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5);
+    const lbRqd = (16 / 4) * (fyd / fbd);
+    const cd = (77.3333333333333 - 16) / 2;
+    expect(r.principal.sigmaSdAnclajeMPa).toBeCloseTo(fyd, 9);
+    expect(r.principal.lbdMm).toBeCloseTo((1 - (0.15 * (cd - 16)) / 16) * lbRqd, 4);
+  });
+
+  // De la cara interior del pilote al borde: 0,8 − 0,625 + 0,25 − 0,05 = 0,375 m.
+  it("mide el anclaje desde la cara interior del pilote (art. 6.5.4 (7))", () => {
+    expect(r.principal.disponibleAnclajeMm).toBeCloseTo(375, 6);
+    expect(r.principal.verificaAnclaje).toBe(false);
+  });
+
+  // Con patilla: + H − 2·rec = 0,5 m; α1 = 1 (cd ≤ 3φ) y α2 = 1 → lbd = lb,rqd.
+  it("con patilla suma la pata y verifica", () => {
+    const conPatilla = calcularCabezalDosPilotes(materiales, geometria, {
+      ndPilarKN: 1040,
+      armaduraPrincipal: { numero: 7, diametroMm: 16 },
+      armaduraSecundaria: { numero: 7, diametroMm: 10 },
+      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
+      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      formaAnclaje: "gancho",
+    });
+    const lbRqd = (16 / 4) * ((500 / 1.15) / (2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5)));
+    expect(conPatilla.principal.disponibleAnclajeMm).toBeCloseTo(875, 6);
+    expect(conPatilla.principal.lbdMm).toBeCloseTo(lbRqd, 4);
+    expect(conPatilla.principal.verificaAnclaje).toBe(true);
   });
 });
 
@@ -99,21 +129,42 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.secundaria.asNecCm2).toBeCloseTo(1.40743350880823, 6);
     expect(r.secundaria.asRealCm2).toBeCloseTo(5.49778714378214, 6);
     expect(r.secundaria.verificaAs).toBe(true);
-    expect(r.secundaria.lbIIMm).toBeCloseTo(357.142857142857, 6);
-    expect(r.secundaria.lbNetaMm).toBeCloseTo(150, 6);
     expect(r.secundaria.separacionMm).toBeCloseTo(239.666666666667, 6);
   });
 
-  it("reproduce los estribos verticales", () => {
-    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(19.2, 6);
-    expect(r.estribosVerticales.asRealCm2).toBeCloseTo(20.1061929829747, 6);
-    expect(r.estribosVerticales.verificaAs).toBe(true);
+  // Art. 9.7 por analogía: espesor 0,60 m → máx(0,001·0,60 m²/m; 1,5 cm²/m) = 6 cm²/m por cara.
+  it("las caras piden la malla del art. 9.7: 0,1 % del espesor por cara y dirección", () => {
+    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(6, 9);
+    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(6, 9);
+    expect(r.estribosVerticales.separacionMaxM).toBeCloseTo(0.3, 9);
   });
 
-  it("reproduce los estribos horizontales", () => {
-    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(7.2, 6);
-    expect(r.estribosHorizontales.asRealCm2).toBeCloseTo(7.85398163397448, 6);
+  // Verticales: 10φ8 en 1,6 − 0,2 m → s = 0,156 m; una rama por cara: 0,503/0,156 = 3,23 cm²/m.
+  it("los verticales cuentan la rama exterior por metro y no alcanzan", () => {
+    expect(r.estribosVerticales.separacionM).toBeCloseTo(1.4 / 9, 9);
+    expect(r.estribosVerticales.asRealCm2).toBeCloseTo((Math.PI * 0.64) / 4 / (1.4 / 9), 9);
+    expect(r.estribosVerticales.verificaAs).toBe(false);
+    expect(r.estribosVerticales.verificaSeparacion).toBe(true);
+  });
+
+  // Horizontales: 5φ10 en 0,6 − 0,15 m → s = 0,1125 m: 0,785/0,1125 = 6,98 cm²/m.
+  it("los horizontales cumplen la malla y la separación", () => {
+    expect(r.estribosHorizontales.asRealCm2).toBeCloseTo((Math.PI * 1) / 4 / 0.1125, 9);
     expect(r.estribosHorizontales.verificaAs).toBe(true);
+    expect(r.estribosHorizontales.verificaSeparacion).toBe(true);
+  });
+
+  it("cabezal delgado: el mínimo de 150 mm²/m y la separación de 2·espesor", () => {
+    const delgado = calcularCabezalDosPilotes(materiales, { ...geometria, ladoYM: 0.1 }, {
+      ndPilarKN: 100,
+      armaduraPrincipal: { numero: 2, diametroMm: 12 },
+      armaduraSecundaria: { numero: 2, diametroMm: 8 },
+      estribosVerticales: { numero: 5, diametroMm: 8, numeroCercos: 1 },
+      estribosHorizontales: { numero: 3, diametroMm: 8 },
+    });
+    expect(delgado.estribosVerticales.asNecCm2).toBeCloseTo(1.5, 9);
+    expect(delgado.estribosVerticales.separacionMaxM).toBeCloseTo(0.2, 9);
+    expect(delgado.estribosVerticales.verificaSeparacion).toBe(false);
   });
 });
 

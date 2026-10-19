@@ -19,6 +19,8 @@ import { comprobarVigaAtado, recomendarVigaAtado } from "@/lib/verificaciones/re
 import { comprobarLosaFundacion, recomendarLosaFundacion } from "@/lib/verificaciones/recomendaciones/losa-fundacion";
 import { comprobarPilote, recomendarPilote } from "@/lib/verificaciones/recomendaciones/pilotes";
 import { comprobarCabezal, recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
+import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
+import { comprobarCabezalUnPilote, recomendarCabezalUnPilote } from "@/lib/verificaciones/recomendaciones/cabezal-un-pilote";
 import { comprobarArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import {
   comprobacionesExtraordinarias,
@@ -119,6 +121,10 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
   cabezales: (c) => {
     const r = resolverCabezal(c);
     return r && { comprobaciones: comprobarCabezal(c) ?? [], recomendaciones: recomendarCabezal(c), resultado: r.r };
+  },
+  "cabezal-un-pilote": (c) => {
+    const r = resolverCabezalUnPilote(c);
+    return r && { comprobaciones: comprobarCabezalUnPilote(c) ?? [], recomendaciones: recomendarCabezalUnPilote(c), resultado: r.r };
   },
 };
 

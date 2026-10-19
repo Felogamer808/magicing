@@ -14,6 +14,7 @@ const PAGINA: Record<IdCimentacion, string> = {
   "losa-fundacion": "losa-fundacion",
   pilotes: "pilotes",
   cabezales: "cabezal-pilotes",
+  "cabezal-un-pilote": "cabezal-un-pilote",
 };
 
 /** Los valores por defecto que la página escribe con una constante en vez de un literal. */

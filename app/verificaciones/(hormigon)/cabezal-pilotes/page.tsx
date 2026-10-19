@@ -192,6 +192,7 @@ export default function CabezalPilotesPage() {
               "Separación de pilotes s = 2,5·D.",
               "El nudo bajo el pilar no se comprueba: el pilar ya está dimensionado para ese axil.",
               "Separación de estribos verticales con n−1, igual que el resto de las separaciones de la planilla.",
+              "Malla de las caras por el art. 9.7 (vigas de gran canto), por analogía: los encepados están fuera del Anejo 19 (art. 9.8.1). Por cara y dirección, máx(0,1 %·lado y; 1,5 cm²/m), separación ≤ mín(30 cm; 2·lado y). Cuenta la rama exterior de cada cerco.",
               "Anclaje del tirante por el art. 8.4, desde la cara interior del pilote (art. 6.5.4 (7)) hasta el borde menos el recubrimiento, sobre el eje de la barra; con patilla suma la pata hasta H − 2·rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}
@@ -240,14 +241,14 @@ export default function CabezalPilotesPage() {
                   },
                   {
                     etiqueta: "estribos verticales",
-                    estado: resultado.r.estribosVerticales.verificaAs ? "cumple" : "no-cumple",
-                    utilizacion: resultado.r.estribosVerticales.asNecCm2 / resultado.r.estribosVerticales.asRealCm2,
+                    estado: resultado.r.estribosVerticales.verificaAs && resultado.r.estribosVerticales.verificaSeparacion ? "cumple" : "no-cumple",
+                    utilizacion: Math.max(resultado.r.estribosVerticales.asNecCm2 / resultado.r.estribosVerticales.asRealCm2, resultado.r.estribosVerticales.separacionM / resultado.r.estribosVerticales.separacionMaxM),
                     conPropuestas: !!rec.estribosV,
                   },
                   {
                     etiqueta: "estribos horizontales",
-                    estado: resultado.r.estribosHorizontales.verificaAs ? "cumple" : "no-cumple",
-                    utilizacion: resultado.r.estribosHorizontales.asNecCm2 / resultado.r.estribosHorizontales.asRealCm2,
+                    estado: resultado.r.estribosHorizontales.verificaAs && resultado.r.estribosHorizontales.verificaSeparacion ? "cumple" : "no-cumple",
+                    utilizacion: Math.max(resultado.r.estribosHorizontales.asNecCm2 / resultado.r.estribosHorizontales.asRealCm2, resultado.r.estribosHorizontales.separacionM / resultado.r.estribosHorizontales.separacionMaxM),
                     conPropuestas: !!rec.estribosH,
                   },
                   {
@@ -374,24 +375,24 @@ export default function CabezalPilotesPage() {
                     recomendaciones={rec.secundaria}
                   />
                   <ResultadoCheck
-                    etiqueta="Estribos verticales"
-                    verifica={resultado.r.estribosVerticales.verificaAs}
-                    detalle={`cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm`}
+                    etiqueta="Estribos verticales · malla de cara (art. 9.7)"
+                    verifica={resultado.r.estribosVerticales.verificaAs && resultado.r.estribosVerticales.verificaSeparacion}
+                    detalle={`cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosVerticales.separacionMaxM * 100, 0)} cm)`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.r.estribosVerticales.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosVerticales.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
+                      unidad: "cm²/m", exige: "≥",
                     }}
                     recomendaciones={rec.estribosV}
                   />
                   <ResultadoCheck
-                    etiqueta="Estribos horizontales"
-                    verifica={resultado.r.estribosHorizontales.verificaAs}
-                    detalle={`cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm`}
+                    etiqueta="Estribos horizontales · malla de cara (art. 9.7)"
+                    verifica={resultado.r.estribosHorizontales.verificaAs && resultado.r.estribosHorizontales.verificaSeparacion}
+                    detalle={`cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosHorizontales.separacionMaxM * 100, 0)} cm)`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.r.estribosHorizontales.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosHorizontales.asNecCm2 },
-                      unidad: "cm²", exige: "≥",
+                      unidad: "cm²/m", exige: "≥",
                     }}
                     recomendaciones={rec.estribosH}
                   />

@@ -132,16 +132,39 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.secundaria.separacionMm).toBeCloseTo(239.666666666667, 6);
   });
 
-  it("reproduce los estribos verticales", () => {
-    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(19.2, 6);
-    expect(r.estribosVerticales.asRealCm2).toBeCloseTo(20.1061929829747, 6);
-    expect(r.estribosVerticales.verificaAs).toBe(true);
+  // Art. 9.7 por analogía: espesor 0,60 m → máx(0,001·0,60 m²/m; 1,5 cm²/m) = 6 cm²/m por cara.
+  it("las caras piden la malla del art. 9.7: 0,1 % del espesor por cara y dirección", () => {
+    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(6, 9);
+    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(6, 9);
+    expect(r.estribosVerticales.separacionMaxM).toBeCloseTo(0.3, 9);
   });
 
-  it("reproduce los estribos horizontales", () => {
-    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(7.2, 6);
-    expect(r.estribosHorizontales.asRealCm2).toBeCloseTo(7.85398163397448, 6);
+  // Verticales: 10φ8 en 1,6 − 0,2 m → s = 0,156 m; una rama por cara: 0,503/0,156 = 3,23 cm²/m.
+  it("los verticales cuentan la rama exterior por metro y no alcanzan", () => {
+    expect(r.estribosVerticales.separacionM).toBeCloseTo(1.4 / 9, 9);
+    expect(r.estribosVerticales.asRealCm2).toBeCloseTo((Math.PI * 0.64) / 4 / (1.4 / 9), 9);
+    expect(r.estribosVerticales.verificaAs).toBe(false);
+    expect(r.estribosVerticales.verificaSeparacion).toBe(true);
+  });
+
+  // Horizontales: 5φ10 en 0,6 − 0,15 m → s = 0,1125 m: 0,785/0,1125 = 6,98 cm²/m.
+  it("los horizontales cumplen la malla y la separación", () => {
+    expect(r.estribosHorizontales.asRealCm2).toBeCloseTo((Math.PI * 1) / 4 / 0.1125, 9);
     expect(r.estribosHorizontales.verificaAs).toBe(true);
+    expect(r.estribosHorizontales.verificaSeparacion).toBe(true);
+  });
+
+  it("cabezal delgado: el mínimo de 150 mm²/m y la separación de 2·espesor", () => {
+    const delgado = calcularCabezalDosPilotes(materiales, { ...geometria, ladoYM: 0.1 }, {
+      ndPilarKN: 100,
+      armaduraPrincipal: { numero: 2, diametroMm: 12 },
+      armaduraSecundaria: { numero: 2, diametroMm: 8 },
+      estribosVerticales: { numero: 5, diametroMm: 8, numeroCercos: 1 },
+      estribosHorizontales: { numero: 3, diametroMm: 8 },
+    });
+    expect(delgado.estribosVerticales.asNecCm2).toBeCloseTo(1.5, 9);
+    expect(delgado.estribosVerticales.separacionMaxM).toBeCloseTo(0.2, 9);
+    expect(delgado.estribosVerticales.verificaSeparacion).toBe(false);
   });
 });
 

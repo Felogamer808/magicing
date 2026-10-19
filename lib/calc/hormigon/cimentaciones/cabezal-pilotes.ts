@@ -86,12 +86,23 @@ export interface ResultadoArmaduraSecundariaCabezal {
   separacionMm: number;
 }
 
+/**
+ * Malla de una cara del cabezal, por metro: art. 9.7 (1) y (2) del Anejo 19,
+ * vigas de gran canto, aplicado por analogía (criterio del usuario,
+ * 2026-10-19). Cuenta sólo la rama exterior de cada cerco, la que está cerca
+ * de la cara.
+ */
 export interface ResultadoEstribosCabezal {
+  /** máx(0,1 %·espesor; 150 mm²/m) por cara y dirección (cm²/m) */
   asNecCm2: number;
+  /** Rama exterior por metro, en una cara (cm²/m) */
   asRealCm2: number;
   verificaAs: boolean;
   /** Separación entre estribos (m) */
   separacionM: number;
+  /** mín(300 mm; 2·espesor), art. 9.7 (2) (m) */
+  separacionMaxM: number;
+  verificaSeparacion: boolean;
 }
 
 /**
@@ -219,15 +230,21 @@ export function calcularCabezalDosPilotes(
       (armaduraSecundaria.numero - 1)) *
     1000;
 
-  // Armadura de reparto en las caras: 0,4% del menor entre el ancho y medio canto.
-  const anchoReferenciaM = Math.min(ladoYM, hM / 2);
-
-  const asTNecCm2 = 100 ** 2 * 0.004 * anchoReferenciaM * ladoXM;
-  const asTRealCm2 =
-    (estribosVerticales.numeroCercos ?? 1) * 2 * areaCm2(estribosVerticales.numero, phiT);
-
-  const asLNecCm2 = 100 ** 2 * 0.004 * anchoReferenciaM * hM;
-  const asLRealCm2 = 2 * areaCm2(estribosHorizontales.numero, phiL);
+  // Armadura de las caras. Los encepados están fuera del Anejo 19 (art.
+  // 9.8.1); con la luz entre pilotes menor que 3 veces el canto el cabezal es
+  // una viga de gran canto (art. 5.3.1 (3)) y se le aplica por analogía el
+  // art. 9.7 (pág. 152): malla ortogonal cerca de cada cara con
+  // A_s,dbmin = 0,001·A_c por cara y dirección, ≥ 150 mm²/m, y separación
+  // ≤ mín(300 mm; 2·espesor). Criterio del usuario, 2026-10-19: reemplaza el
+  // 0,4 % de min(B, h/2) de la planilla original, que no tenía artículo.
+  // El espesor de la "viga" es el lado transversal: las caras son las dos
+  // paralelas a la línea de pilotes.
+  const separacionVM = (ladoXM - 0.2) / Math.max(estribosVerticales.numero - 1, 1);
+  const separacionHM = (hM - 0.15) / Math.max(estribosHorizontales.numero - 1, 1);
+  const asCaraNecCm2 = Math.max(0.001 * ladoYM * 1e4, 1.5);
+  const separacionMaxM = Math.min(0.3, 2 * ladoYM);
+  const asTRealCm2 = areaCm2(1, phiT) / separacionVM;
+  const asLRealCm2 = areaCm2(1, phiL) / separacionHM;
 
   return {
     principal: {
@@ -255,16 +272,20 @@ export function calcularCabezalDosPilotes(
       separacionMm: separacionSecundariaMm,
     },
     estribosVerticales: {
-      asNecCm2: asTNecCm2,
+      asNecCm2: asCaraNecCm2,
       asRealCm2: asTRealCm2,
-      verificaAs: asTRealCm2 >= asTNecCm2,
-      separacionM: (ladoXM - 0.2) / Math.max(estribosVerticales.numero - 1, 1),
+      verificaAs: asTRealCm2 >= asCaraNecCm2,
+      separacionM: separacionVM,
+      separacionMaxM,
+      verificaSeparacion: separacionVM <= separacionMaxM,
     },
     estribosHorizontales: {
-      asNecCm2: asLNecCm2,
+      asNecCm2: asCaraNecCm2,
       asRealCm2: asLRealCm2,
-      verificaAs: asLRealCm2 >= asLNecCm2,
-      separacionM: (hM - 0.15) / Math.max(estribosHorizontales.numero - 1, 1),
+      verificaAs: asLRealCm2 >= asCaraNecCm2,
+      separacionM: separacionHM,
+      separacionMaxM,
+      verificaSeparacion: separacionHM <= separacionMaxM,
     },
     bielas,
   };

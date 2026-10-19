@@ -87,7 +87,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
   cabezales: {
     nivel: "auditada",
-    nota: "Modelo de bielas y tirantes repasado; se agregaron las comprobaciones de biela y nudo que faltaban. El anclaje del tirante pasó de la fórmula de la EHE-08 al art. 8.4 del Anejo 19 el 2026-10-19, medido desde la cara interior del pilote; esa parte no pasó por la auditoría.",
+    nota: "Modelo de bielas y tirantes repasado; se agregaron las comprobaciones de biela y nudo que faltaban. El anclaje del tirante pasó de la fórmula de la EHE-08 al art. 8.4 del Anejo 19 el 2026-10-19, medido desde la cara interior del pilote; esa parte no pasó por la auditoría. La malla de las caras pasó del 0,4 % de la planilla al art. 9.7 por analogía el mismo día.",
   },
 
   "zapata-corrida": {

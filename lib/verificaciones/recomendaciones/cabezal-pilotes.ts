@@ -16,14 +16,18 @@ const NOMBRES: Record<ClaveCabezal, string> = {
   ancho: "barras en el ancho",
 };
 
+/** La peor entre la cuantía y la separación de la malla de la cara (art. 9.7). */
+const malla = (e: ResueltoCabezal["r"]["estribosVerticales"]) =>
+  Math.max(e.asNecCm2 / e.asRealCm2, e.separacionM / e.separacionMaxM);
+
 const utilizaciones = ({ r, n }: ResueltoCabezal): Record<ClaveCabezal, number> => ({
   tirante: r.principal.asNecCm2 / r.principal.asRealCm2,
   anclaje: r.principal.lbdMm / r.principal.disponibleAnclajeMm,
   biela: r.bielas.sigmaBielaMPa / r.bielas.sigmaBielaMaxMPa,
   nudo: r.bielas.sigmaNudoMPa / r.bielas.sigmaNudoMaxMPa,
   secundaria: r.secundaria.asNecCm2 / r.secundaria.asRealCm2,
-  estribosV: r.estribosVerticales.asNecCm2 / r.estribosVerticales.asRealCm2,
-  estribosH: r.estribosHorizontales.asNecCm2 / r.estribosHorizontales.asRealCm2,
+  estribosV: malla(r.estribosVerticales),
+  estribosH: malla(r.estribosHorizontales),
   ancho: r.principal.bNecM / n.ladoY,
 });
 

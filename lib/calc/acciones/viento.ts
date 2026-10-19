@@ -57,17 +57,57 @@ export const CASOS_APERTURA: { id: CasoApertura; nombre: string }[] = [
  * del 0,2 que parecía a simple vista en el escaneo.
  *
  * La rama "λa≥0,5" es un ábaco con a/b en abscisas y una curva por cada λa
- * entero de 3 a 10, más una recta en γ0 = 1,00 rotulada "0,5 ≤ λa ≤ 2,5". Esa
- * recta sí está acá (2026-10-12, leída de la figura que pasó el usuario): no
- * depende de a/b y no tiene error de lectura. Las curvas de 3 a 10 —y el
- * tramo 2,5 < λa < 3, que se interpola hasta la curva 3— no están
- * digitalizadas, como tampoco la rama "λb≥1": la función devuelve null y hay
- * que leer γ0 de la fig. 8.2 directamente.
+ * entero de 3 a 10, más una recta en γ0 = 1,00 rotulada "0,5 ≤ λa ≤ 2,5". La
+ * recta no depende de a/b. Las curvas están en GAMMA0_CURVAS_LAMBDA_A. Entre
+ * curvas se interpola lineal en λa, y el tramo 2,5 < λa < 3 va de la recta
+ * 1,00 a la curva 3, como se lee un ábaco a mano (criterio del usuario,
+ * 2026-10-12). Con λa > 10 o a/b > 1 la figura no tiene curva ni eje: la
+ * función devuelve null, igual que en la rama "λb≥1", que sigue sin
+ * digitalizar, y hay que leer γ0 de la fig. 8.2 directamente.
  */
 function gammaOLadoA(lambdaB: number): number {
   if (lambdaB <= 0.25) return 0.85;
   if (lambdaB >= 0.5) return 1.0;
   return 0.85 + ((lambdaB - 0.25) / (0.5 - 0.25)) * (1.0 - 0.85);
+}
+
+/**
+ * Curvas λa = 3…10 de la rama "λa≥0,5" de la fig. 8.2: γ0 cada 0,1 de a/b,
+ * de 0 a 1. Se leyeron píxel a píxel del escaneo que pasó el usuario
+ * (2026-10-12), con los ejes calibrados sobre la grilla de la figura. El
+ * trazo tiene unos 4 px de espesor y la grilla de γ0 va cada 0,05 en 62 px,
+ * así que cada valor tiene un error de lectura de ±0,003 aproximadamente.
+ * Es menor que el redondeo a dos decimales con que se usa γ0.
+ */
+const GAMMA0_CURVAS_LAMBDA_A: Readonly<Record<number, readonly number[]>> = {
+  //   a/b = 0     0,1    0,2    0,3    0,4    0,5    0,6    0,7    0,8    0,9    1,0
+  3: [1.011, 1.011, 1.011, 1.011, 1.011, 1.012, 1.012, 1.013, 1.015, 1.015, 1.015],
+  4: [1.043, 1.043, 1.043, 1.043, 1.044, 1.045, 1.046, 1.049, 1.051, 1.056, 1.059],
+  5: [1.080, 1.080, 1.080, 1.080, 1.080, 1.082, 1.085, 1.090, 1.099, 1.105, 1.108],
+  6: [1.115, 1.115, 1.116, 1.116, 1.118, 1.121, 1.128, 1.136, 1.146, 1.155, 1.159],
+  7: [1.141, 1.142, 1.143, 1.145, 1.148, 1.153, 1.161, 1.173, 1.186, 1.196, 1.200],
+  8: [1.168, 1.167, 1.168, 1.171, 1.176, 1.184, 1.195, 1.210, 1.226, 1.237, 1.240],
+  9: [1.191, 1.192, 1.194, 1.198, 1.204, 1.213, 1.225, 1.242, 1.261, 1.275, 1.280],
+  10: [1.212, 1.213, 1.217, 1.222, 1.230, 1.243, 1.256, 1.275, 1.294, 1.305, 1.308],
+};
+
+/** γ0 sobre una curva entera de λa (3…10), interpolando en a/b. Con λa = 2,5 es la recta 1,00. */
+function gammaOCurva(lambdaA: number, aSobreB: number): number {
+  const curva = GAMMA0_CURVAS_LAMBDA_A[lambdaA];
+  if (!curva) return 1;
+  const i = Math.min(Math.floor(aSobreB * 10), 9);
+  const t = aSobreB * 10 - i;
+  return curva[i] + t * (curva[i + 1] - curva[i]);
+}
+
+/** Rama "λa≥0,5": recta 1,00 hasta λa = 2,5 y curvas de 3 a 10. null fuera del ábaco (λa > 10 o a/b > 1). */
+function gammaOLadoAEsbelto(lambdaA: number, aSobreB: number): number | null {
+  if (lambdaA <= 2.5) return 1;
+  if (lambdaA > 10 || aSobreB > 1) return null;
+  if (lambdaA < 3) return 1 + ((lambdaA - 2.5) / 0.5) * (gammaOCurva(3, aSobreB) - 1);
+  const abajo = Math.min(Math.floor(lambdaA), 9);
+  const gAbajo = gammaOCurva(abajo, aSobreB);
+  return gAbajo + (lambdaA - abajo) * (gammaOCurva(abajo + 1, aSobreB) - gAbajo);
 }
 
 function gammaOLadoB(lambdaA: number): number {
@@ -77,15 +117,16 @@ function gammaOLadoB(lambdaA: number): number {
 }
 
 export interface FactorFormaGamma0 {
-  /** γ0 para viento ⊥ Sa: λa<0,5 en función de λb; 1,00 con 0,5≤λa≤2,5. null si λa>2,5: hay que leer la fig. 8.2. */
+  /** γ0 para viento ⊥ Sa: λa<0,5 en función de λb; si no, en función de λa y a/b. null si λa>10 o a/b>1: hay que leer la fig. 8.2. */
   ladoA: number | null;
   /** γ0 para viento ⊥ Sb (usa λb<1, en función de λa). null si λb≥1: hay que leer la fig. 8.2. */
   ladoB: number | null;
 }
 
 export function calcularFactorFormaGamma0(lambdaA: number, lambdaB: number): FactorFormaGamma0 {
+  // λb/λa = (h/b)/(h/a) = a/b, la abscisa de la rama λa≥0,5.
   return {
-    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : lambdaA <= 2.5 ? 1 : null,
+    ladoA: lambdaA < 0.5 ? gammaOLadoA(lambdaB) : gammaOLadoAEsbelto(lambdaA, lambdaB / lambdaA),
     ladoB: lambdaB < 1 ? gammaOLadoB(lambdaA) : null,
   };
 }

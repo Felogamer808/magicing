@@ -46,7 +46,8 @@ lib/
       vigas/                       flexion-cortante, torsion, complementos, apeo-bielas
       losas/                       losa, losa-fundacion
       cimentaciones/               zapata-aislada/corrida/medianeria/combinada,
-                                    pilote, cabezal-pilotes, cabezal-un-pilote
+                                    pilote, cabezal-pilotes, cabezal-un-pilote,
+                                    viga-centradora-pilotes
       muros/                       contencion, portante
       fisuracion.ts                No es de una pieza sola: aplica a vigas y losas
       mensula-corta.ts             Región D, no es un voladizo de viga
@@ -284,7 +285,10 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
 - **Al proyecto** (`proyecto.ts` + `incorporarPlanta` en `lib/proyectos/modelo.ts`):
   un elemento por pieza, vinculado por marca (`ElementoProyecto.cad`). CT de 2
   pilotes → cabezales; CT de 1 → cabezal-un-pilote (x = largo del cabezal,
-  primer lado del pilar en x); pilotes → pilotes; VR → viga-atado; el resto queda
+  primer lado del pilar en x); pilotes → pilotes; VR → viga-atado; VC →
+  viga-centradora-pilotes (`centradora()`: el extremo medianero es donde la
+  viga sobresale más allá de su apoyo, y va primero en `extremos`; l − e del
+  centro de sus pilotes al centro de la pieza lejana; e a mano); el resto queda
   no evaluable con su motivo. Geometría del plano cargada; cargas, armadura y
   suelo entran vacíos para que no calcule con valores por defecto. Volver a
   traer la planta reescribe sólo la geometría.
@@ -293,7 +297,9 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
   cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
   Un Nd a mano por pilar (`PilarCargado.ndKN`, la envolvente ELU de Robot)
-  gana sobre 1,35·G + 1,5·Q; el Nk sigue saliendo de G + Q.
+  gana sobre 1,35·G + 1,5·Q; el Nk sigue saliendo de G + Q. N₁d de cada VC es
+  el Nd de su nodo medianero, y el pilote de ese nodo recibe la reacción de la
+  palanca en servicio en lugar de G + Q (`reaccionPalanca`), si la VC tiene e.
 - **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
   elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
   visor IFC) y una leyenda con los totales.

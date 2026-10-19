@@ -65,6 +65,7 @@ export type IdVerificacion =
   | "zapata-corrida"
   | "zapata-viga-centradora"
   | "viga-atado"
+  | "viga-centradora-pilotes"
   | "zapata-combinada"
   | "losa-fundacion"
   | "pilotes"
@@ -394,6 +395,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Viga riostra entre zapatas o encepados: trabaja a axil de tracción y de compresión, con la flexión de la compactación si la hay.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/viga-atado",
+    disponible: true,
+  },
+  {
+    id: "viga-centradora-pilotes",
+    nombre: "Viga centradora sobre pilotes",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion:
+      "Viga que equilibra un pilar de medianería descentrado de su pilote: palanca hasta un apoyo interior, flexión en el pilote y cortante del tramo y del voladizo.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/viga-centradora-pilotes",
     disponible: true,
   },
   {

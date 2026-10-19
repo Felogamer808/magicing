@@ -94,8 +94,19 @@ Independientes, contra `main`:
     hecho (2026-10-19): el Anejo 19 deja los encepados fuera (art. 9.8.1),
     así que compresión localizada (6.7) y tracción transversal por mitad del
     canto (6.5.3), pilote como cuadrado de igual área, y con a > H/2 (fuera
-    de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. Falta: cabezales de 4 y 6 pilotes y la VC sobre
-    pilotes (hoy no evaluables); la armadura se carga pieza por pieza en su formulario.
+    de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. VC sobre pilotes hecha (2026-10-19, ver
+    "Para no volver a preguntarlos"). Falta: cabezales de 4 y 6 pilotes (hoy no
+    evaluables); la armadura se carga pieza por pieza en su formulario.
+  - **Pendiente de la VC sobre pilotes**: (1) el cabezal medianero de 2
+    pilotes (CT11, CT12) se verifica con el Nd del pilar, sin la reacción de la
+    palanca ni el pilar descentrado; (2) con dos centradoras en el mismo nodo
+    el Nk del pilote queda vacío (la palanca deja de ser plana: tres
+    ecuaciones, como la planilla); (3) no se comprueba el anclaje de la
+    armadura superior más allá del pilar; (4) sin fisuración en servicio.
+    Contraste con la planilla REV08: Md al 1 % en VC1, VC2, VC5 y VC6; en VC3
+    y VC4 (medianero de 2 pilotes) −8 % y +5 % porque la planilla usa el F de
+    Robot. El voladizo pilar–pilote, por la ec. (6.19), pide estribos densos
+    (VC2: unos 7,4 cm² en 0,32 m) que la planilla no tenía.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
     representativo (no se calculan pilotes).
   - Cabezales y vigas se cierran a partir del contorno corrido; los huecos en
@@ -199,6 +210,12 @@ Para no volver a preguntarlos:
   descuenta de la interior; peso propio de la viga en toda la luz; M₁ con su
   signo; reparto del 20 % (art. 9.3.1.1 (2)); va en Cimentaciones, dentro de
   Hormigón armado.
+- Viga centradora sobre pilotes (2026-10-19): palanca rígida de JM § 25.5.2;
+  ΔN no se descuenta del apoyo lejano; M_acc = Nd·e_acc (0,10 m editable)
+  entero en el pilote; Nd del pilar + 1,35·pp de la viga en toda la luz; l del
+  pilar al centro de la pieza lejana, e a mano; medianero por regla
+  automática; sin axil de atado; cortante del voladizo con β = a_v/2d; el
+  pilote medianero recibe (G + Q)·l/(l − e) + la reacción del pp en servicio.
 - Viga con carga en voladizo: página aparte, sólo Anejo 19; z = h − d′; la
   carga mínima que estabiliza el apoyo lejano se carga ya ponderada como
   favorable (el coeficiente es del Anejo 18, que no está entre las fuentes).

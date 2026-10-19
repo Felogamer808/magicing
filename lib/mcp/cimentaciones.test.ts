@@ -11,6 +11,7 @@ const PAGINA: Record<IdCimentacion, string> = {
   "zapata-combinada": "zapata-combinada",
   "zapata-viga-centradora": "zapata-viga-centradora",
   "viga-atado": "viga-atado",
+  "viga-centradora-pilotes": "viga-centradora-pilotes",
   "losa-fundacion": "losa-fundacion",
   pilotes: "pilotes",
   cabezales: "cabezal-pilotes",

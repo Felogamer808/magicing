@@ -21,6 +21,8 @@ import { comprobarPilote, recomendarPilote } from "@/lib/verificaciones/recomend
 import { comprobarCabezal, recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
 import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
 import { comprobarCabezalUnPilote, recomendarCabezalUnPilote } from "@/lib/verificaciones/recomendaciones/cabezal-un-pilote";
+import { resolverVigaCentradoraPilotes } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora-pilotes";
+import { comprobarVigaCentradoraPilotes, recomendarVigaCentradoraPilotes } from "@/lib/verificaciones/recomendaciones/viga-centradora-pilotes";
 import { comprobarArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
 import {
   comprobacionesExtraordinarias,
@@ -109,6 +111,14 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
   "viga-atado": (c) => {
     const r = resolverVigaAtado(c);
     return r && { comprobaciones: comprobarVigaAtado(c) ?? [], recomendaciones: recomendarVigaAtado(c), resultado: r.r };
+  },
+  "viga-centradora-pilotes": (c) => {
+    const r = resolverVigaCentradoraPilotes(c);
+    return r && {
+      comprobaciones: comprobarVigaCentradoraPilotes(c) ?? [],
+      recomendaciones: recomendarVigaCentradoraPilotes(c),
+      resultado: r.r,
+    };
   },
   "losa-fundacion": (c) => {
     const r = resolverLosaFundacion(c);

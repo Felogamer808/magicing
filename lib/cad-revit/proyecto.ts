@@ -9,10 +9,10 @@
  *   tracción transversal, Anejo 19), con lado x = largo del rectángulo;
  * - cada pilote → "pilotes";
  * - viga riostra (VR) → "viga-atado", con la luz de cara a cara;
+ * - viga centradora (VC) → "viga-centradora-pilotes" (ver `centradora`);
  * - el resto queda "no evaluable" hasta que haya una verificación para él:
- *   cabezales de 3 o más pilotes, vigas centradoras (la que existe es de
- *   zapata medianera, no de cabezal sobre pilotes) y los nodos de pilar sobre
- *   viga (de ellos se verifica el pilote).
+ *   cabezales de 3 o más pilotes y los nodos de pilar sobre viga (de ellos se
+ *   verifica el pilote).
  *
  * Las marcas son las mismas que van a Revit (`numerarMarcas`), así un
  * elemento del proyecto y su pieza en Revit se llaman igual.
@@ -32,6 +32,9 @@ export const A_MANO = {
   "cabezal-un-pilote": ["pilarX", "pilarY", "ndPilar", "nCercosSup", "phiCercosSup", "nCercosInf", "phiCercosInf"],
   pilotes: ["friccion", "punta", "factorSeguridad", "numero", "diametroBarra", "diametroEstribo", "Nk"],
   "viga-atado": ["n1d", "n2d", "numeroCara", "diametroCara", "diametroEstribo", "numeroRamas"],
+  "viga-centradora-pilotes": [
+    "excentricidad", "ladoPilar", "n1d", "numeroSup", "diametroSup", "numeroInf", "diametroInf", "diametroEstribo", "numeroRamas",
+  ],
 } as const;
 
 export interface OpcionesPlanta {
@@ -54,6 +57,55 @@ const m = (x: number) => String(Math.round(x * 1000) / 1000);
 
 const medio = (a: Punto, b: Punto): Punto => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const distancia = (a: Punto, b: Punto) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+const proyeccion = (p: Punto, desde: Punto, u: Punto) => (p[0] - desde[0]) * u[0] + (p[1] - desde[1]) * u[1];
+
+/** Pieza en el extremo de una viga: su marca, su centro y sus pilotes (índices). */
+interface PiezaExtremo {
+  marca: string;
+  centro: Punto;
+  pilotes: number[];
+}
+
+export interface Centradora {
+  /** El extremo medianero: 0 = inicio de la viga, 1 = fin. */
+  medianero: 0 | 1;
+  /** Del apoyo medianero (centro de sus pilotes) al centro de la pieza lejana, a lo largo de la viga (unidades del dibujo). */
+  luzApoyos: number;
+  /** Pilote del nodo medianero (índice en la interpretación). */
+  pilote: number;
+}
+
+/**
+ * Qué extremo de una viga centradora es el medianero y cuánto mide la palanca.
+ *
+ * Criterios del usuario (2026-10-19):
+ * - El medianero es el extremo donde la viga sobresale más allá de su apoyo:
+ *   el pilar está en ese voladizo, del lado del límite. El apoyo es el centro
+ *   de los pilotes de la pieza. Acierta en las VC1–VC6 del ALTAMIRA REV08.
+ * - l − e va del apoyo medianero al centro de la pieza lejana (cabezal: su
+ *   centro; nodo: su pilote), medida a lo largo de la viga. e no está en el
+ *   plano (los pilares no se dibujan) y se carga a mano.
+ */
+export function centradora(
+  inicio: Punto,
+  fin: Punto,
+  extremos: [PiezaExtremo, PiezaExtremo],
+  pilotes: readonly { centro: Punto }[]
+): Centradora {
+  const largo = distancia(inicio, fin);
+  const u: Punto = [(fin[0] - inicio[0]) / largo, (fin[1] - inicio[1]) / largo];
+  const apoyo = (p: PiezaExtremo): Punto => p.pilotes.map((k) => pilotes[k].centro).reduce(medio);
+  // Hacia adentro de la viga desde cada punta: +u desde el inicio, −u desde el fin.
+  const voladizos = [proyeccion(apoyo(extremos[0]), inicio, u), -proyeccion(apoyo(extremos[1]), fin, u)];
+  const medianero: 0 | 1 = voladizos[0] >= voladizos[1] ? 0 : 1;
+  const med = extremos[medianero];
+  const lejano = extremos[1 - medianero];
+  return {
+    medianero,
+    luzApoyos: Math.abs(proyeccion(lejano.centro, apoyo(med), u)),
+    pilote: med.pilotes[0],
+  };
+}
 
 export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlantaLeida[] {
   const e = o.escala;
@@ -139,9 +191,9 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
    * - o el nodo cuyo pilote queda bajo la viga cerca de ese extremo (la
    *   centradora pasa por encima del pilote del pilar, no termina en él).
    */
-  const piezaEn = (p: Punto, q: Punto, ancho: number): { marca: string; centro: Punto } | null => {
+  const piezaEn = (p: Punto, q: Punto, ancho: number): PiezaExtremo | null => {
     const ic = r.cabezales.findIndex((c) => contiene(c.rect, p, -(tol + ancho / 2)));
-    if (ic >= 0) return { marca: marcasCab[ic], centro: r.cabezales[ic].rect.centro };
+    if (ic >= 0) return { marca: marcasCab[ic], centro: r.cabezales[ic].rect.centro, pilotes: r.cabezales[ic].pilotes };
     const largo = distancia(p, q);
     const u: Punto = [(q[0] - p[0]) / largo, (q[1] - p[1]) / largo];
     let mejor: { inodo: number; dist: number } | null = null;
@@ -161,7 +213,7 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
     if (!mejor) return null;
     const { inodo } = mejor as { inodo: number; dist: number };
     const pil = r.nodos[inodo].pilotes.map((k) => r.pilotes[k].centro);
-    return { marca: marcasNodo[inodo], centro: pil.reduce(medio) };
+    return { marca: marcasNodo[inodo], centro: pil.reduce(medio), pilotes: r.nodos[inodo].pilotes };
   };
 
   const marcasViga = marcas.vigas;
@@ -194,13 +246,35 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
       });
       return;
     }
+    const esVC = /^VC/i.test(v.nombre);
+    if (esVC && a && b && a.pilotes.length > 0 && b.pilotes.length > 0) {
+      const c = centradora(v.inicio, v.fin, [a, b], r.pilotes);
+      const lejano = c.medianero === 0 ? b : a;
+      const med = c.medianero === 0 ? a : b;
+      piezas.push({
+        // En una centradora el primer extremo es el medianero: de ahí sale N₁d.
+        origen: { marca, pieza: "viga", extremos: [med.marca, lejano.marca] },
+        verificacion: "viga-centradora-pilotes",
+        geometria: {
+          b: m(v.ancho * e),
+          h: m(v.alto * e),
+          luzApoyos: m(c.luzApoyos * e),
+          dPilote: m(r.pilotes[c.pilote].diametro * e),
+        },
+        aMano: A_MANO["viga-centradora-pilotes"],
+        // e_acc entra con su valor por defecto sólo al crear, como los materiales:
+        // volver a traer la planta no pisa el que se haya cambiado.
+        materiales: { fck: String(mat.fckMPa), fyk: String(mat.fykMPa), recubrimiento: m(mat.recubrimientoM), eacc: "0.1" },
+      });
+      return;
+    }
     piezas.push({
       origen: {
         marca,
         pieza: "viga",
         extremos,
-        sinVerificacion: /^VC/i.test(v.nombre)
-          ? "Viga centradora sobre pilotes: todavía no hay verificación para ella."
+        sinVerificacion: esVC
+          ? "Viga centradora: falta la pieza con pilotes en uno de sus extremos."
           : "No se reconoce el tipo de viga por su rótulo (se esperaba VR o VC).",
       },
       geometria: {},

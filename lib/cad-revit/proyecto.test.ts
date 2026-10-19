@@ -62,6 +62,35 @@ describe("piezasDePlanta", () => {
     };
     const vc = piezasDePlanta(conNodo, { escala: 0.001, largoPiloteM: 12, materiales }).find((p) => p.origen.marca === "VC1")!;
     expect(vc.origen.extremos?.[0]).toBe("CT6");
+    expect(vc.verificacion).toBe("viga-centradora-pilotes");
+  });
+
+  /**
+   * La misma VC1: de CT6 (pilote en x = −1 m) a CT9-1 (centro en x = 0). La
+   * viga sobresale 1 m más allá del pilote de CT6 y nada más allá del centro
+   * de CT9-1: CT6 es el medianero, se dibuje la viga en un sentido o en el otro.
+   * l − e = del pilote de CT6 al centro de CT9-1 = 1 m.
+   */
+  it("una centradora va a su verificación, con el medianero primero y l − e del plano", () => {
+    for (const [inicio, fin] of [[[-2000, 0], [0, 0]], [[0, 0], [-2000, 0]]] as [number, number][][]) {
+      const conNodo = {
+        ...r,
+        pilotes: [...r.pilotes, { centro: [-1000, 0] as [number, number], diametro: 500 }],
+        nodos: [{ nombre: "CT6", rotulo: [0, 0] as [number, number], pilotes: [5] }],
+        vigas: [{ ...r.vigas[0], nombre: "VC1", inicio: inicio as [number, number], fin: fin as [number, number] }],
+      };
+      const vc = piezasDePlanta(conNodo, { escala: 0.001, largoPiloteM: 12, materiales }).find((p) => p.origen.marca === "VC1")!;
+      expect(vc.origen.extremos).toEqual(["CT6", "CT9-1"]);
+      expect(vc.geometria).toEqual({ b: "0.35", h: "0.6", luzApoyos: "1", dPilote: "0.5" });
+      expect(vc.aMano).toEqual(A_MANO["viga-centradora-pilotes"]);
+      expect(vc.materiales.eacc).toBe("0.1");
+    }
+  });
+
+  it("una centradora sin pieza en un extremo queda no evaluable", () => {
+    const sola = { ...r, vigas: [{ ...r.vigas[0], nombre: "VC1", inicio: [20000, 20000] as [number, number], fin: [22000, 20000] as [number, number] }] };
+    const vc = piezasDePlanta(sola, { escala: 0.001, largoPiloteM: 12, materiales }).find((p) => p.origen.marca === "VC1")!;
+    expect(vc.verificacion).toBeUndefined();
     expect(vc.origen.sinVerificacion).toMatch(/centradora/);
   });
 

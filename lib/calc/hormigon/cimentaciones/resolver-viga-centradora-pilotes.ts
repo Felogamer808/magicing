@@ -8,7 +8,10 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
  * sola copia para que no digan números distintos.
  */
 export function resolverVigaCentradoraPilotes(campos: Record<string, string>) {
-  const num = (clave: string) => aNumero(campos[clave] ?? "");
+  // Vacío no es cero: aNumero("") da 0, y una centradora traída de la planta
+  // con e todavía sin cargar no tiene que calcularse como si el pilar cayera
+  // sobre el pilote.
+  const num = (clave: string) => ((campos[clave] ?? "").trim() === "" ? NaN : aNumero(campos[clave]));
 
   const v = {
     fck: num("fck"), fyk: num("fyk"),

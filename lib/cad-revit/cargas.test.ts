@@ -5,7 +5,7 @@ import { leerDxf } from "@/lib/dxf/leer";
 import { calcularCimentacion } from "@/lib/mcp/cimentaciones";
 import { crearProyecto, incorporarPlanta } from "@/lib/proyectos/modelo";
 import type { ElementoProyecto, PilarCargado, Proyecto } from "@/lib/proyectos/tipos";
-import { derivarCargas, ndPilar } from "./cargas";
+import { derivarCargas, ndPilar, reaccionPalanca } from "./cargas";
 import { interpretar } from "./interpretar";
 import { piezasDePlanta } from "./proyecto";
 
@@ -104,5 +104,54 @@ describe("derivarCargas", () => {
   it("con cargas y cercos, el cabezal de 1 pilote se evalúa", () => {
     const c = { ...campos(cargado, "CT2"), nCercosSup: "3", phiCercosSup: "10", nCercosInf: "3", phiCercosInf: "12" };
     expect(calcularCimentacion("cabezal-un-pilote", c).ok).toBe(true);
+  });
+});
+
+/**
+ * VC1 de CT6 (nodo, pilote en x = −1 m) a CT9-1 (centro en x = 0), como en
+ * proyecto.test.ts: l − e = 1 m, viga 0,35 × 0,6.
+ */
+describe("derivarCargas con una viga centradora", () => {
+  const conNodo = {
+    ...r,
+    pilotes: [...r.pilotes, { centro: [-1000, 0] as [number, number], diametro: 500 }],
+    nodos: [{ nombre: "CT6", rotulo: [0, 0] as [number, number], pilotes: [5] }],
+    vigas: [...r.vigas, { ...r.vigas[0], nombre: "VC1", inicio: [-2000, 0] as [number, number], fin: [0, 0] as [number, number] }],
+  };
+  const conVC = incorporarPlanta(base, piezasDePlanta(conNodo, { escala: 0.001, largoPiloteM: 12, materiales: base.materiales }), "prueba.dxf").proyecto;
+  const conE = (p: Proyecto, e: string): Proyecto => ({
+    ...p,
+    elementos: p.elementos.map((x) =>
+      x.cad?.marca === "VC1" ? { ...x, calculos: x.calculos.map((c) => ({ ...c, campos: { ...c.campos, excentricidad: e } })) } : x
+    ),
+  });
+  const cargado = derivarCargas(conE(conPilar(conVC, "CT6", { gKN: 400, qKN: 100 }), "0.5"));
+  const piloteCT6 = elemento(cargado, "VC1").cad!.extremos![0] + "-P1";
+
+  it("N₁d es el Nd del pilar medianero", () => {
+    expect(elemento(cargado, "VC1").cad!.extremos).toEqual(["CT6", "CT9-1"]);
+    expect(campos(cargado, "VC1").n1d).toBe("690");
+  });
+
+  /**
+   * R₁ = (500·1,5 + 25·0,35·0,6·1,5²/2)/1 = 750 + 5,906 = 755,9 kN. En el nodo
+   * no hay cabezal: va entero a su pilote.
+   */
+  it("el pilote medianero recibe la reacción de la palanca", () => {
+    expect(reaccionPalanca(500, { excentricidadM: 0.5, luzApoyosM: 1, qKNm: 5.25 })).toBeCloseTo(755.906, 3);
+    expect(campos(cargado, piloteCT6).Nk).toBe("755.9");
+  });
+
+  it("sin e cargada, el pilote sigue con G + Q", () => {
+    const sinE = derivarCargas(conE(conPilar(conVC, "CT6", { gKN: 400, qKN: 100 }), ""));
+    expect(campos(sinE, piloteCT6).Nk).toBe("500");
+  });
+
+  it("con e y armadura, la centradora se evalúa", () => {
+    const c = {
+      ...campos(cargado, "VC1"),
+      ...{ ladoPilar: "0.3", numeroSup: "4", diametroSup: "16", numeroInf: "3", diametroInf: "12", diametroEstribo: "8", numeroRamas: "2" },
+    };
+    expect(calcularCimentacion("viga-centradora-pilotes", c).ok).toBe(true);
   });
 });

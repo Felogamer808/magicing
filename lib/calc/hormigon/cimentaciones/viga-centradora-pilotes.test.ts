@@ -114,3 +114,14 @@ describe("viga centradora sobre pilotes: casos límite", () => {
     expect(r.verificaDiametro).toBe(false);
   });
 });
+
+describe("resolver de la viga centradora sobre pilotes", () => {
+  it("un campo vacío no es cero: sin e no calcula", async () => {
+    const { resolverVigaCentradoraPilotes } = await import("./resolver-viga-centradora-pilotes");
+    const { CAMPOS_CIMENTACIONES } = await import("@/lib/mcp/campos-cimentaciones");
+    const porDefecto = Object.fromEntries(CAMPOS_CIMENTACIONES["viga-centradora-pilotes"].map((c) => [c.clave, c.porDefecto]));
+    expect(resolverVigaCentradoraPilotes(porDefecto)).not.toBeNull();
+    expect(resolverVigaCentradoraPilotes({ ...porDefecto, excentricidad: "" })).toBeNull();
+    expect(resolverVigaCentradoraPilotes({ ...porDefecto, excentricidad: "0" })).not.toBeNull();
+  });
+});

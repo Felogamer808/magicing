@@ -111,7 +111,10 @@ export interface OrigenCad {
    * "no evaluable" y no "sin verificar", porque no falta nada por hacer.
    */
   sinVerificacion?: string;
-  /** Viga: la marca de la pieza en cada extremo (cabezal o nodo), o null. */
+  /**
+   * Viga: la marca de la pieza en cada extremo (cabezal o nodo), o null. En
+   * una viga centradora el primero es el extremo medianero.
+   */
   extremos?: [string | null, string | null];
   /** Pilote: la marca de la pieza que tiene encima. */
   bajo?: string;

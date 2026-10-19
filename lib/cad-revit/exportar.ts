@@ -3,7 +3,7 @@
  * un script de Dynamo coloque las familias de la oficina.
  *
  * Las coordenadas son las del CAD pasadas a metros, sin corrimiento: el CAD
- * se vincula en Revit origen a origen (criterio del usuario), así que cada
+ * se vincula en Revit y el script de Dynamo las lleva sobre él, así que cada
  * pieza cae sobre su dibujo. Las cotas son relativas al nivel donde se
  * coloca la fundación: la cara superior común es 0.
  *

@@ -273,7 +273,11 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   del pilote del nodo (hasta 1 m, alineadas) se prolongan hasta él: el nodo
   es parte de la viga.
 - **Exportación** (`exportar.ts`): JSON en metros con las coordenadas del CAD
-  sin corrimiento (el CAD se vincula en Revit origen a origen); cotas
+  sin corrimiento; el script de Dynamo las lleva sobre el CAD vinculado en
+  Revit que tiene el mismo nombre (su transformación: corrimiento y giro), u
+  origen a origen si no lo encuentra. Las cotas van respecto del origen
+  interno (Level.ProjectElevation, no Elevation, que es relativa al Project
+  Base Point); cotas
   relativas al nivel, cara superior común en 0 salvo el desnivel que se cargue
   por cabezal; cada pilote con la cabeza 10 cm dentro de la pieza que tiene
   encima y 12 m de largo por defecto. Lo lee el script de Dynamo.

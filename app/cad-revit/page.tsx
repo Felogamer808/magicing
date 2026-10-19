@@ -266,7 +266,10 @@ export default function CadRevitPage() {
                 (Revit 2026, Dynamo 3).
               </li>
               <li>Revisá la lista de diferencias y, si hace falta, el desnivel de algún cabezal. Después, Descargar para Revit.</li>
-              <li>En Revit, con el CAD vinculado origen a origen: Manage → Dynamo Player, abrí el script, elegí el archivo y el nivel, y corré.</li>
+              <li>
+                En Revit, vinculá el mismo DXF donde corresponda (con el nombre del archivo sin cambiar): las piezas se colocan encima de él, con
+                su corrimiento y su giro. Después, Manage → Dynamo Player, abrí el script, elegí el archivo y el nivel, y corré.
+              </li>
               <li>
                 Si un tipo no existe (por ejemplo un CT nuevo), el script lo crea con las medidas del rótulo. Si ya colocó antes en ese
                 modelo, no duplica: avisa.

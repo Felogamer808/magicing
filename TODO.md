@@ -68,7 +68,10 @@ Independientes, contra `main`:
   de pilotes). Falta: el script de Dynamo que la lee y coloca las familias
   (necesita el nombre del parámetro de largo del cabezal: correr
   `listar-familias-magicing.dyn`). Criterios dados por el usuario:
-  - El CAD se vincula en Revit **origen a origen** (2026-10-19).
+  - El CAD se vincula en Revit **origen a origen** (2026-10-19). Ajustado
+    tras la prueba en Revit: el script coloca sobre el CAD vinculado con el
+    mismo nombre, esté donde esté (el REV08 está corrido ~164 m, ~39 m del
+    FUNDO132 sobre el que se modeló a mano).
   - **Geometría de las vigas: de cara a cara del cabezal** (para la vista y
     para Revit; 2026-10-19). No cambia el cálculo:
   - **Largo de cálculo** (2026-10-19): las **vigas centradoras**, desde el

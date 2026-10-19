@@ -10,7 +10,8 @@
 # Qué hace y qué no:
 #   - Usa las familias de la oficina; si falta un tipo, lo crea duplicando uno
 #     de la misma familia y le pone las medidas.
-#   - Coordenadas del CAD sin corrimiento: el CAD se vincula origen a origen.
+#   - Coloca sobre el CAD vinculado en el modelo que se llama como el DXF
+#     exportado, con su corrimiento y su giro. Si no está, origen a origen.
 #   - Todo en una transacción: si algo falla, Revit vuelve atrás entero.
 #   - Si ya hay elementos creados por este script, no hace nada y avisa: no
 #     duplica ni borra.
@@ -121,6 +122,32 @@ def archivo_reciente():
     return max(candidatos, key=os.path.getmtime)
 
 
+def ubicar_cad(nombre_archivo):
+    """El CAD vinculado o importado que se llama como el DXF exportado (sin
+    mirar la extensión ni mayúsculas): (transformación, descripción) o None.
+    Si hay varios, el primero que no es de una sola vista."""
+    base = os.path.splitext(os.path.basename(nombre_archivo))[0].lower()
+    if not base:
+        return None
+    candidatos = []
+    for ci in FilteredElementCollector(doc).OfClass(ImportInstance).ToElements():
+        tipo = doc.GetElement(ci.GetTypeId())
+        nombre = nombre_tipo(tipo) if tipo is not None else ""
+        if os.path.splitext(nombre)[0].lower() == base:
+            candidatos.append((ci, nombre))
+    if not candidatos:
+        return None
+    candidatos.sort(key=lambda x: x[0].ViewSpecific)
+    ci, nombre = candidatos[0]
+    return ci.GetTotalTransform(), "%s (%s)" % (nombre, "vinculado" if ci.IsLinked else "importado")
+
+
+def cota_superior(e):
+    """Cara superior real, m sobre el origen interno."""
+    caja = e.get_BoundingBox(None)
+    return UnitUtils.ConvertFromInternalUnits(caja.Max.Z, UnitTypeId.Meters) if caja else None
+
+
 # ---------------------------------------------------------------------------
 # Tipos: el que existe, o uno nuevo duplicando uno de la familia
 # ---------------------------------------------------------------------------
@@ -183,6 +210,21 @@ try:
     if not niveles:
         raise Exception("No existe el nivel '%s' en el modelo." % nombre_nivel)
     nivel = niveles[0]
+    # Cota del nivel respecto del origen interno, que es donde viven las
+    # coordenadas de la API. Level.Elevation es relativa al Project Base Point
+    # (en FUNDACIONES MAGICING, PB está 1,02 m sobre el origen interno).
+    z_nivel = nivel.ProjectElevation
+
+    # Dónde está el CAD en el modelo: el vinculado o importado con el mismo
+    # nombre que el DXF exportado. Las piezas se ponen sobre él, con su
+    # corrimiento y su giro. Si no está, origen a origen.
+    cad = ubicar_cad(datos.get("archivo", ""))
+    transformar = cad[0] if cad else Transform.Identity
+    giro_cad = math.atan2(transformar.BasisX.Y, transformar.BasisX.X)
+
+    def en_modelo(xy, z):
+        q = transformar.OfPoint(XYZ(en_pies(xy[0]), en_pies(xy[1]), 0))
+        return XYZ(q.X, q.Y, z)
 
     # Si ya se colocó, no se vuelve a colocar.
     ya = 0
@@ -201,15 +243,18 @@ try:
         try:
             # --- Cabezales ---------------------------------------------------
             ancho_en_x = None
+            muestra = {}  # una pieza de cada clase, para comprobar alturas al final
             for c in datos["cabezales"]:
                 a, b, h = [int(round(v * 1000)) for v in (c["a"], c["b"], c["canto"])]
                 simbolo = tipo_por_nombre(FAMILIA_CABEZAL, "%s (%dx%dx%d)" % (c["nombre"], a, b, h), [("#Ancho", a), ("#Profundidad", h)])
-                punto = XYZ(en_pies(c["centro"][0]), en_pies(c["centro"][1]), 0)
+                punto = en_modelo(c["centro"], z_nivel)
                 inst = doc.Create.NewFamilyInstance(punto, simbolo, nivel, StructuralType.Footing)
                 poner_mm(inst, "Length", b)
                 parametro(inst, "Height Offset From Level").Set(en_pies(c["cotaSuperior"]))
                 # "marca" viene numerada si el rótulo se repite (CT9-1, CT9-2…).
                 marcar(inst, c.get("marca") or c["nombre"])
+                if "cabezal" not in muestra:
+                    muestra["cabezal"] = (c.get("marca") or c["nombre"], inst, c["cotaSuperior"])
                 doc.Regenerate()
                 caja = inst.get_BoundingBox(None)
                 # Centrado: si el origen de la familia no está en el centro, se corre.
@@ -223,7 +268,7 @@ try:
                     dx = caja.Max.X - caja.Min.X
                     dy = caja.Max.Y - caja.Min.Y
                     ancho_en_x = abs(dx - en_pies(a / 1000.0)) <= abs(dy - en_pies(a / 1000.0))
-                giro = math.radians(c["giroLadoA"]) - (0 if ancho_en_x in (None, True) else math.pi / 2)
+                giro = math.radians(c["giroLadoA"]) + giro_cad - (0 if ancho_en_x in (None, True) else math.pi / 2)
                 if abs(giro) > 1e-9:
                     ElementTransformUtils.RotateElement(doc, inst.Id, Line.CreateBound(punto, punto.Add(XYZ.BasisZ)), giro)
 
@@ -231,11 +276,10 @@ try:
             for v in datos["vigas"]:
                 ancho, alto = int(round(v["ancho"] * 1000)), int(round(v["alto"] * 1000))
                 simbolo = tipo_por_nombre(FAMILIA_VIGA, "%dx%d" % (ancho, alto), [("#Ancho", ancho), ("#Altura", alto)])
-                z = nivel.Elevation
-                linea = Line.CreateBound(
-                    XYZ(en_pies(v["inicio"][0]), en_pies(v["inicio"][1]), z),
-                    XYZ(en_pies(v["fin"][0]), en_pies(v["fin"][1]), z),
-                )
+                # La línea ya va a la cota final (no sólo los offsets), así Revit
+                # no tiene dos alturas que conciliar.
+                z = z_nivel + en_pies(v["cotaSuperior"])
+                linea = Line.CreateBound(en_modelo(v["inicio"], z), en_modelo(v["fin"], z))
                 viga = doc.Create.NewFamilyInstance(linea, simbolo, nivel, StructuralType.Beam)
                 # De cara a cara: que Revit no la estire ni la una en los extremos.
                 StructuralFramingUtils.DisallowJoinAtEnd(viga, 0)
@@ -243,16 +287,32 @@ try:
                 for nombre in ("Start Level Offset", "End Level Offset"):
                     parametro(viga, nombre).Set(en_pies(v["cotaSuperior"]))
                 marcar(viga, v.get("marca") or v["nombre"])
+                if "viga" not in muestra:
+                    muestra["viga"] = (v.get("marca") or v["nombre"], viga, v["cotaSuperior"])
 
             # --- Pilotes -----------------------------------------------------
             for p in datos["pilotes"]:
                 simbolo = tipo_pilote(int(round(p["diametro"] * 1000)), int(round(p["largo"] * 1000)), avisos)
-                punto = XYZ(en_pies(p["centro"][0]), en_pies(p["centro"][1]), 0)
+                punto = en_modelo(p["centro"], z_nivel)
                 inst = doc.Create.NewFamilyInstance(punto, simbolo, nivel, StructuralType.Footing)
                 parametro(inst, "Height Offset From Level").Set(en_pies(p["cotaCabeza"]))
                 marcar(inst)
 
             t.Commit()
+
+            # Comprobación: cara superior real contra la esperada, respecto del nivel.
+            alturas = []
+            for clase in ("cabezal", "viga"):
+                if clase not in muestra:
+                    continue
+                marca, e, esperada = muestra[clase]
+                real = cota_superior(e)
+                if real is None:
+                    continue
+                real -= UnitUtils.ConvertFromInternalUnits(z_nivel, UnitTypeId.Meters)
+                ok = abs(real - esperada) < 0.005
+                alturas.append("Cara superior de %s %s: %.3f m respecto de %s (esperada %.3f)%s" % (
+                    clase, marca, real, nombre_nivel, esperada, "" if ok else "  <-- NO COINCIDE"))
         except Exception:
             t.RollBack()
             raise
@@ -262,6 +322,8 @@ try:
             "Nivel: " + nombre_nivel,
             "Colocados: %d cabezales, %d vigas, %d pilotes." % (len(datos["cabezales"]), len(datos["vigas"]), len(datos["pilotes"])),
             "#Ancho del cabezal corre en " + ("X" if ancho_en_x in (None, True) else "Y") + " de la familia.",
-        ] + ["Tipo creado: " + c for c in creados] + avisos + ["Para revisar (de MagicIng): " + a for a in datos.get("avisos", [])]
+            ("Ubicado sobre el CAD %s, giro %.4f grados." % (cad[1], math.degrees(giro_cad))) if cad else
+            ("No hay en el modelo un CAD llamado '%s': se colocó origen a origen." % datos.get("archivo", "?")),
+        ] + alturas + ["Tipo creado: " + c for c in creados] + avisos + ["Para revisar (de MagicIng): " + a for a in datos.get("avisos", [])]
 except Exception as e:
     OUT = "ERROR: " + str(e) + "\n" + traceback.format_exc()

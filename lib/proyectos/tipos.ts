@@ -119,6 +119,29 @@ export interface OrigenCad {
   medidasM?: [number, number, number];
 }
 
+/**
+ * El pilar que descarga en un cabezal o en un nodo de una planta de CAD. Los
+ * pilares no se dibujan: sus cargas y su sección se cargan a mano. Cargas
+ * características, sin mayorar (cada verificación combina a su manera). Cada
+ * dato es opcional porque se cargan de a uno; se deriva sólo con los que hacen
+ * falta en cada caso.
+ */
+export interface PilarCargado {
+  gKN?: number;
+  qKN?: number;
+  /** Lado del pilar en la dirección que une los pilotes, m. */
+  ladoPilotesM?: number;
+  /** Lado transversal, m. */
+  ladoTransversalM?: number;
+}
+
+/** Datos del terreno para los pilotes: uno solo para todo el proyecto. */
+export interface SueloPilotes {
+  friccionKNm2?: number;
+  puntaKNm2?: number;
+  factorSeguridad?: number;
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -133,6 +156,8 @@ export interface ElementoProyecto {
   ifc?: OrigenIfc;
   /** Sólo en los elementos traídos de una planta de CAD (página CAD → Revit). */
   cad?: OrigenCad;
+  /** Cabezal o nodo de una planta de CAD: el pilar que tiene encima. */
+  pilar?: PilarCargado;
   calculos: CalculoGuardado[];
   creado: string;
   editado: string;
@@ -146,6 +171,8 @@ export interface Proyecto {
   /** Quien firma. Va a la portada de la memoria. */
   autor?: string;
   materiales: MaterialesProyecto;
+  /** Terreno para los pilotes de una planta de CAD. */
+  suelo?: SueloPilotes;
   elementos: ElementoProyecto[];
   creado: string;
   editado: string;

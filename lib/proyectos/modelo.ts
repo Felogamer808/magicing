@@ -428,6 +428,7 @@ function esProyecto(v: unknown): v is Proyecto {
   if (typeof m.fckMPa !== "number" || typeof m.fykMPa !== "number") return false;
   if (typeof m.recubrimientoM !== "number") return false;
   if (!Array.isArray(v.elementos)) return false;
+  if (v.suelo !== undefined && !soloNumeros(v.suelo)) return false;
   return v.elementos.every(esElemento);
 }
 
@@ -437,6 +438,7 @@ function esElemento(v: unknown): v is ElementoProyecto {
   if (!Array.isArray(v.calculos)) return false;
   if (v.ifc !== undefined && !esOrigenIfc(v.ifc)) return false;
   if (v.cad !== undefined && !esOrigenCad(v.cad)) return false;
+  if (v.pilar !== undefined && !soloNumeros(v.pilar)) return false;
   return v.calculos.every((c) => {
     if (!esObjeto(c)) return false;
     if (typeof c.id !== "string" || typeof c.verificacion !== "string") return false;
@@ -448,6 +450,11 @@ function esOrigenIfc(v: unknown): boolean {
   if (!esObjeto(v) || typeof v.globalId !== "string" || v.globalId === "") return false;
   if (!(CLASES_IFC as readonly unknown[]).includes(v.clase)) return false;
   return v.seccion === undefined || (esObjeto(v.seccion) && typeof v.seccion.tipo === "string");
+}
+
+/** Un objeto cuyos valores son todos números finitos (pilar, suelo). */
+function soloNumeros(v: unknown): boolean {
+  return esObjeto(v) && Object.values(v).every((x) => typeof x === "number" && Number.isFinite(x));
 }
 
 function esOrigenCad(v: unknown): boolean {

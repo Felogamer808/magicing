@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { FolderInput } from "lucide-react";
 import type { Interpretacion } from "@/lib/cad-revit/interpretar";
+import { derivarCargas } from "@/lib/cad-revit/cargas";
 import { piezasDePlanta } from "@/lib/cad-revit/proyecto";
 import { useProyectos } from "@/lib/proyectos/almacen";
 import { crearProyecto, incorporarPlanta, type ResultadoPlanta } from "@/lib/proyectos/modelo";
@@ -46,7 +47,10 @@ export function LlevarAProyecto({
     const proyecto = elegido ?? crearProyecto(nombreNuevo);
     const piezas = piezasDePlanta(resultado, { escala, largoPiloteM, materiales: proyecto.materiales });
     const r = incorporarPlanta(proyecto, piezas, archivo);
-    if (r.proyecto !== proyecto || !elegido) guardar(r.proyecto);
+    // Las piezas nuevas toman las cargas ya cargadas (una viga nueva entre
+    // dos cabezales que ya tenían su pilar).
+    const conCargas = derivarCargas(r.proyecto);
+    if (conCargas !== proyecto || !elegido) guardar(conCargas);
     setDestino(r.proyecto.id);
     setHecho({ ...r, id: r.proyecto.id, nombre: r.proyecto.nombre });
   }

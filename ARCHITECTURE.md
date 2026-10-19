@@ -287,6 +287,10 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   no evaluable con su motivo. Geometría del plano cargada; cargas, armadura y
   suelo entran vacíos para que no calcule con valores por defecto. Volver a
   traer la planta reescribe sólo la geometría.
+- **Cargas** (`cargas.ts`, tarjeta `CargasPlanta` del proyecto): G, Q y lado del
+  pilar en cada cabezal/nodo (`ElementoProyecto.pilar`) y suelo del proyecto
+  (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
+  cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
 
 ## Decisiones que conviene conocer
 

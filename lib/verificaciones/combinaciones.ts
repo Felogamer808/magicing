@@ -249,6 +249,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "losa-fundacion": ZAPATAS,
   pilotes: PILOTES,
   cabezales: CABEZAL,
+  "cabezal-un-pilote": CABEZAL,
   fisuracion: SERVICIO_CUASIPERMANENTE,
   deformaciones: SERVICIO_CUASIPERMANENTE,
   "longitudes-anclaje": ANCLAJE_REFERENCIA,

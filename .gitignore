@@ -62,3 +62,6 @@ desktop.ini
 scripts/normas/salida/
 .claude/skills/aisc-360/
 .env*
+
+# wasm de web-ifc, copiado de node_modules por scripts/copiar-web-ifc.mjs
+/public/web-ifc/

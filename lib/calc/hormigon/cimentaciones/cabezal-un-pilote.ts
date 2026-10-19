@@ -19,6 +19,8 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  * arriba carga el pilar y abajo el pilote. Criterio del usuario (2026-10-19):
  * cada mitad del canto se resuelve por separado, con z = h/2, la superior con
  * el pilar y la inferior con el pilote, y los cercos de cada mitad cubren su T.
+ * Si a > H/2 la (6.59) queda fuera de su rango y se usa la (6.58) con b = lado
+ * del cabezal.
  *
  * Supone el pilar centrado sobre el pilote y el cabezal: la excentricidad
  * accidental la toman las vigas de atado, que se verifican aparte.
@@ -77,13 +79,16 @@ export interface ResultadoTraccionTransversal {
   aM: number;
   /** Ancho del cabezal b (m) */
   bM: number;
-  /** Parcial con b ≤ H/2 (ec. 6.58); total con b > H/2 (ec. 6.59) */
+  /** Parcial con b ≤ H/2; total con b > H/2 (fig. A19.6.25) */
   discontinuidad: "parcial" | "total";
   /**
-   * La ec. (6.59) exige a ≤ h = H/2 (fig. A19.6.25b). Fuera de eso no hay T
-   * citable: la zona no verifica (criterio del usuario, 2026-10-19).
+   * La ecuación con que salió T. Con discontinuidad total y a > H/2 la (6.59)
+   * queda fuera de su rango (a ≤ h, fig. A19.6.25b) y se usa la (6.58) con
+   * b = lado del cabezal (criterio del usuario, 2026-10-19).
    */
-  fueraDeRango: boolean;
+  ecuacion: "6.58" | "6.59";
+  /** a > H/2: la (6.59) no aplica y T sale de la (6.58) */
+  aSuperaMitad: boolean;
   tKN: number;
   asNecCm2: number;
   /** Dos ramas por cerco en cada dirección (cm²) */
@@ -159,20 +164,19 @@ function traccionTransversal(
   fyd: number
 ): ResultadoTraccionTransversal {
   const mitad = cantoM / 2;
-  let discontinuidad: "parcial" | "total";
-  let tKN: number;
-  let fueraDeRango = false;
+  const discontinuidad: "parcial" | "total" = bM <= mitad ? "parcial" : "total";
+  const aSuperaMitad = aM > mitad;
+  // La (6.59) sólo con discontinuidad total y a ≤ h = H/2 (fig. A19.6.25b).
+  const ecuacion: "6.58" | "6.59" = discontinuidad === "total" && !aSuperaMitad ? "6.59" : "6.58";
 
-  if (bM <= mitad) {
-    // Anejo 19, art. 6.5.3 (3) a), ec. (6.58): T = ¼·(b − a)/b·F.
-    discontinuidad = "parcial";
-    tKN = Math.max(0, 0.25 * ((bM - aM) / bM) * fKN);
-  } else {
-    // Anejo 19, art. 6.5.3 (3) b), ec. (6.59): T = ¼·(1 − 0,7·a/h)·F, con h = H/2 y a ≤ h.
-    discontinuidad = "total";
-    fueraDeRango = aM > mitad;
-    tKN = Math.max(0, 0.25 * (1 - (0.7 * aM) / mitad) * fKN);
-  }
+  const tKN =
+    ecuacion === "6.59"
+      ? // Anejo 19, art. 6.5.3 (3) b), ec. (6.59): T = ¼·(1 − 0,7·a/h)·F, con h = H/2.
+        Math.max(0, 0.25 * (1 - (0.7 * aM) / mitad) * fKN)
+      : // Anejo 19, art. 6.5.3 (3) a), ec. (6.58): T = ¼·(b − a)/b·F. Con a > H/2
+        // el campo se abre de a hasta el lado del cabezal b en ese tramo
+        // (criterio del usuario, 2026-10-19).
+        Math.max(0, 0.25 * ((bM - aM) / bM) * fKN);
 
   // Art. 6.5.3 (1) remite al 3.2: fyd = fyk/γs, sin el tope de 0,8·fyk de los
   // estribos de cortante.
@@ -183,11 +187,12 @@ function traccionTransversal(
     aM,
     bM,
     discontinuidad,
-    fueraDeRango,
+    ecuacion,
+    aSuperaMitad,
     tKN,
     asNecCm2,
     asRealCm2,
-    verifica: !fueraDeRango && asRealCm2 >= asNecCm2,
+    verifica: asRealCm2 >= asNecCm2,
   };
 }
 

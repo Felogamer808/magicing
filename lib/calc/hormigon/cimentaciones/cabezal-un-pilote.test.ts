@@ -73,19 +73,32 @@ describe("cabezal de un pilote: tracción transversal (ec. 6.58 y 6.59)", () => 
   it("mitad superior, discontinuidad total: T = ¼·(1 − 0,7·a/h)·F", () => {
     const t = bajo.superior.x;
     expect(t.discontinuidad).toBe("total");
-    expect(t.fueraDeRango).toBe(false);
+    expect(t.ecuacion).toBe("6.59");
     expect(t.tKN).toBeCloseTo(0.25 * (1 - (0.7 * 0.3) / 0.4) * 690, 9);
     expect(t.asNecCm2).toBeCloseTo((t.tKN * 10) / fyd, 9);
     expect(t.asRealCm2).toBeCloseTo(2 * 3 * Math.PI * 0.25, 9);
     expect(t.verifica).toBe(true);
   });
 
-  it("con el pilote más ancho que H/2 queda fuera de la ec. 6.59 y no verifica", () => {
-    // a = 0,886·0,60 = 0,53 > h = 0,40
-    expect(bajo.inferior.x.aM).toBeCloseTo(Math.sqrt(Math.PI / 4) * 0.6, 9);
-    expect(bajo.inferior.x.fueraDeRango).toBe(true);
-    expect(bajo.inferior.x.verifica).toBe(false);
-    expect(bajo.verifica).toBe(false);
+  it("con el pilote más ancho que H/2, T sale de la ec. 6.58 con b = lado del cabezal", () => {
+    // a = 0,886·0,60 = 0,53 > h = 0,40 → T = ¼·(0,90 − 0,53)/0,90·F
+    const a = Math.sqrt(Math.PI / 4) * 0.6;
+    const t = bajo.inferior.x;
+    expect(t.aM).toBeCloseTo(a, 9);
+    expect(t.aSuperaMitad).toBe(true);
+    expect(t.ecuacion).toBe("6.58");
+    expect(t.tKN).toBeCloseTo(0.25 * ((0.9 - a) / 0.9) * bajo.ndPiloteKN, 9);
+    expect(t.verifica).toBe(t.asRealCm2 >= t.asNecCm2);
+  });
+
+  it("si a supera el lado del cabezal, T no baja de cero", () => {
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.9, pilarYM: 0.3, ladoXM: 0.9, ladoYM: 0.9, hM: 0.6, diametroPiloteM: 0.6 },
+      { ndPilarKN: 690, ...cercos }
+    );
+    expect(r.superior.x.ecuacion).toBe("6.58");
+    expect(r.superior.x.tKN).toBe(0);
   });
 
   it("con más canto el pilote entra en rango", () => {
@@ -96,7 +109,7 @@ describe("cabezal de un pilote: tracción transversal (ec. 6.58 y 6.59)", () => 
     );
     const a = Math.sqrt(Math.PI / 4) * 0.6;
     const f = 690 + 1.35 * 0.9 * 0.9 * 1.2 * 25;
-    expect(r.inferior.y.fueraDeRango).toBe(false);
+    expect(r.inferior.y.ecuacion).toBe("6.59");
     expect(r.inferior.y.tKN).toBeCloseTo(0.25 * (1 - (0.7 * a) / 0.6) * f, 9);
     expect(r.inferior.y.verifica).toBe(true);
     expect(r.verifica).toBe(true);
@@ -109,6 +122,7 @@ describe("cabezal de un pilote: tracción transversal (ec. 6.58 y 6.59)", () => 
       { ndPilarKN: 690, ...cercos }
     );
     expect(r.superior.x.discontinuidad).toBe("parcial");
+    expect(r.superior.x.ecuacion).toBe("6.58");
     expect(r.superior.x.tKN).toBeCloseTo(0.25 * (0.2 / 0.5) * 690, 9);
   });
 

@@ -93,8 +93,8 @@ Independientes, contra `main`:
     derivados) y paso 3 (planta pintada por estado). Cabezal de 1 pilote
     hecho (2026-10-19): el Anejo 19 deja los encepados fuera (art. 9.8.1),
     así que compresión localizada (6.7) y tracción transversal por mitad del
-    canto (6.5.3), pilote como cuadrado de igual área, y fuera de a ≤ H/2 de
-    la ec. 6.59 no verifica. Falta: cabezales de 4 y 6 pilotes y la VC sobre
+    canto (6.5.3), pilote como cuadrado de igual área, y con a > H/2 (fuera
+    de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. Falta: cabezales de 4 y 6 pilotes y la VC sobre
     pilotes (hoy no evaluables); la armadura se carga pieza por pieza en su formulario.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
     representativo (no se calculan pilotes).

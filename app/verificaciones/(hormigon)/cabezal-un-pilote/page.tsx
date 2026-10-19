@@ -72,10 +72,10 @@ export default function CabezalUnPilotePage() {
     });
   }
   for (const [nombre, zona] of resultado ? ([["superior", resultado.r.superior], ["inferior", resultado.r.inferior]] as const) : []) {
-    if (zona.x.fueraDeRango || zona.y.fueraDeRango) {
+    if (zona.x.aSuperaMitad || zona.y.aSuperaMitad) {
       avisos.push({
-        tipo: "error",
-        texto: `Mitad ${nombre}: el ancho cargado supera H/2 y queda fuera de la ec. (6.59) (fig. A19.6.25b). Aumentar el canto.`,
+        tipo: "aviso",
+        texto: `Mitad ${nombre}: el ancho cargado supera H/2, fuera del rango de la ec. (6.59) (fig. A19.6.25b). T sale de la ec. (6.58) con b = lado del cabezal.`,
       });
     }
   }
@@ -165,6 +165,7 @@ export default function CabezalUnPilotePage() {
               "El Anejo 19 deja los encepados fuera de su alcance (art. 9.8.1, pág. 152): se usa el articulado general, sin cuantía mínima propia.",
               "Compresión localizada del pilar sobre el cabezal y del cabezal sobre el pilote: art. 6.7, ec. (6.63), con A_c1 semejante a A_c0.",
               "Tracción transversal por mitad del canto, con z = h/2: la superior con el pilar y Nd, la inferior con el pilote y Nd + 1,35·peso propio (art. 6.5.3, ec. 6.58/6.59).",
+              "Si el ancho cargado supera H/2, la ec. (6.59) queda fuera de su rango (a ≤ h): se usa la (6.58), T = ¼·(b − a)/b·F, con b = lado del cabezal.",
               "El pilote entra en la ec. (6.58/6.59) como el cuadrado de igual área: a = 0,886·D.",
               "fyd = fyk/γs (art. 6.5.3 (1) remite al 3.2).",
               "Pilar centrado: la excentricidad accidental la toman las vigas de atado, que se verifican aparte.",
@@ -243,11 +244,11 @@ export default function CabezalUnPilotePage() {
                       return (
                         <ResultadoCheck
                           key={dir}
-                          etiqueta={`Cercos en ${dir} · ${t.discontinuidad === "total" ? "ec. (6.59)" : "ec. (6.58)"}`}
+                          etiqueta={`Cercos en ${dir} · ec. (${t.ecuacion})`}
                           verifica={t.verifica}
                           detalle={
-                            t.fueraDeRango
-                              ? `a = ${fmt(t.aM)} m > H/2: fuera de la fig. A19.6.25b`
+                            t.aSuperaMitad
+                              ? `T = ${fmt(t.tKN)} kN · a = ${fmt(t.aM)} m > H/2`
                               : `T = ${fmt(t.tKN)} kN`
                           }
                           comparacion={{
@@ -255,7 +256,7 @@ export default function CabezalUnPilotePage() {
                             limite: { etiqueta: "As nec", valor: t.asNecCm2 },
                             unidad: "cm²", exige: "≥",
                           }}
-                          recomendaciones={t.fueraDeRango ? rec[`rango${id}`] : recZona}
+                          recomendaciones={recZona}
                         />
                       );
                     })}

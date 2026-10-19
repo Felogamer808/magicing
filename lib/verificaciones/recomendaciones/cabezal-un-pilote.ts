@@ -6,39 +6,23 @@ import type { ResultadoZonaCabezalUnPilote } from "@/lib/calc/hormigon/cimentaci
 import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, EFECTO_PILAR, type Campos } from "./palancas";
 
-export type ClaveCabezalUnPilote = "pilar" | "pilote" | "rangoSup" | "rangoInf" | "cercosSup" | "cercosInf";
+export type ClaveCabezalUnPilote = "pilar" | "pilote" | "cercosSup" | "cercosInf";
 export type RecomendacionesCabezalUnPilote = Partial<Record<ClaveCabezalUnPilote, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveCabezalUnPilote, string> = {
   pilar: "compresión bajo el pilar",
   pilote: "compresión sobre el pilote",
-  rangoSup: "mitad superior dentro de la ec. 6.59",
-  rangoInf: "mitad inferior dentro de la ec. 6.59",
   cercosSup: "cercos de la mitad superior",
   cercosInf: "cercos de la mitad inferior",
 };
 
-/**
- * a / (H/2) en las direcciones con discontinuidad total, que son las que
- * tienen el tope a ≤ h de la fig. A19.6.25b. Con discontinuidad parcial en las
- * dos no hay tope y la comprobación no aplica.
- */
-function rango(zona: ResultadoZonaCabezalUnPilote, hCab: number): number | undefined {
-  const us = [zona.x, zona.y].filter((t) => t.discontinuidad === "total").map((t) => t.aM / (hCab / 2));
-  return us.length ? Math.max(...us) : undefined;
-}
-
 const cercos = (zona: ResultadoZonaCabezalUnPilote) => Math.max(zona.x.asNecCm2, zona.y.asNecCm2) / zona.x.asRealCm2;
 
-function utilizaciones({ r, n }: ResueltoCabezalUnPilote): Partial<Record<ClaveCabezalUnPilote, number>> {
+function utilizaciones({ r }: ResueltoCabezalUnPilote): Partial<Record<ClaveCabezalUnPilote, number>> {
   const u: Partial<Record<ClaveCabezalUnPilote, number>> = {
     pilar: r.compresionPilar.fEdKN / r.compresionPilar.fRduKN,
     pilote: r.compresionPilote.fEdKN / r.compresionPilote.fRduKN,
   };
-  const rSup = rango(r.superior, n.hCab);
-  const rInf = rango(r.inferior, n.hCab);
-  if (rSup !== undefined) u.rangoSup = rSup;
-  if (rInf !== undefined) u.rangoInf = rInf;
   u.cercosSup = cercos(r.superior);
   u.cercosInf = cercos(r.inferior);
   return u;
@@ -90,9 +74,6 @@ function palancasPorClave(clave: ClaveCabezalUnPilote): readonly Palanca<Campos>
       return [FCK, PILAR_X, CANTO];
     case "pilote":
       return [FCK, lado("ladoX", "lado x = "), lado("ladoY", "lado y = ")];
-    case "rangoSup":
-    case "rangoInf":
-      return [CANTO];
     case "cercosSup":
       return barras("nCercosSup", "phiCercosSup", "Mitad superior: ");
     case "cercosInf":

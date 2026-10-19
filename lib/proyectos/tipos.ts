@@ -90,6 +90,65 @@ export interface OrigenIfc {
   seccion?: SeccionIfc;
 }
 
+/** Qué pieza de una planta de fundaciones es, al traerla desde CAD → Revit. */
+export const PIEZAS_CAD = ["cabezal", "nodo", "viga", "pilote"] as const;
+export type PiezaCad = (typeof PIEZAS_CAD)[number];
+
+/** Vínculo del elemento con la planta del CAD de la que salió. */
+export interface OrigenCad {
+  /**
+   * La marca de la pieza en Revit ("CT9-1", "VR4", "CT9-1-P2"): es lo que
+   * permite volver a traer la planta —otra revisión del mismo plano— sin
+   * duplicar elementos.
+   */
+  marca: string;
+  pieza: PiezaCad;
+  /** El DXF del que salió la última vez. */
+  archivo: string;
+  /**
+   * Por qué no tiene verificación: no hay una para esta pieza todavía (un
+   * cabezal de un pilote, una viga centradora sobre pilotes). El estado es
+   * "no evaluable" y no "sin verificar", porque no falta nada por hacer.
+   */
+  sinVerificacion?: string;
+  /** Viga: la marca de la pieza en cada extremo (cabezal o nodo), o null. */
+  extremos?: [string | null, string | null];
+  /** Pilote: la marca de la pieza que tiene encima. */
+  bajo?: string;
+  /** Cabezal: lados y canto, m (para el peso propio que baja a los pilotes). */
+  medidasM?: [number, number, number];
+}
+
+/**
+ * El pilar que descarga en un cabezal o en un nodo de una planta de CAD. Los
+ * pilares no se dibujan: sus cargas y su sección se cargan a mano. Cargas
+ * características, sin mayorar (cada verificación combina a su manera). Cada
+ * dato es opcional porque se cargan de a uno; se deriva sólo con los que hacen
+ * falta en cada caso.
+ */
+export interface PilarCargado {
+  gKN?: number;
+  qKN?: number;
+  /**
+   * Nd cargado a mano, kN: la envolvente ELU del modelo (Robot), que incluye
+   * las combinaciones con viento. Si está, gana sobre γG·G + γQ·Q en todo lo
+   * que usa el Nd (cabezales y vigas de atado). El Nk de los pilotes sigue
+   * saliendo de G + Q.
+   */
+  ndKN?: number;
+  /** Lado del pilar en la dirección que une los pilotes, m. */
+  ladoPilotesM?: number;
+  /** Lado transversal, m. */
+  ladoTransversalM?: number;
+}
+
+/** Datos del terreno para los pilotes: uno solo para todo el proyecto. */
+export interface SueloPilotes {
+  friccionKNm2?: number;
+  puntaKNm2?: number;
+  factorSeguridad?: number;
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -102,6 +161,10 @@ export interface ElementoProyecto {
   nota?: string;
   /** Sólo en los elementos importados de un IFC. */
   ifc?: OrigenIfc;
+  /** Sólo en los elementos traídos de una planta de CAD (página CAD → Revit). */
+  cad?: OrigenCad;
+  /** Cabezal o nodo de una planta de CAD: el pilar que tiene encima. */
+  pilar?: PilarCargado;
   calculos: CalculoGuardado[];
   creado: string;
   editado: string;
@@ -115,6 +178,8 @@ export interface Proyecto {
   /** Quien firma. Va a la portada de la memoria. */
   autor?: string;
   materiales: MaterialesProyecto;
+  /** Terreno para los pilotes de una planta de CAD. */
+  suelo?: SueloPilotes;
   elementos: ElementoProyecto[];
   creado: string;
   editado: string;

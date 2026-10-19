@@ -1,0 +1,172 @@
+{
+  "Uuid": "9b0fd7adfed5a5a4d64eb238ebe75ca8",
+  "IsCustomNode": false,
+  "Description": "MagicIng · CAD → Revit: coloca cabezales, vigas y pilotes desde el archivo -revit.json.",
+  "Name": "MagicIng - Colocar fundaciones",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "HintPath": "",
+      "InputValue": "",
+      "NodeType": "ExtensionNode",
+      "Id": "597ed1f4766088ed4cd3d3b3db1469dd",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "554c11416630c6fd1a1a0216fd38b3ab",
+          "Name": "",
+          "Description": "File Path",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Archivo -revit.json bajado de MagicIng. Vacío: el más reciente de Descargas."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "NodeType": "StringInputNode",
+      "InputValue": "PB",
+      "Id": "41f4ee136e7decb8101eda1198d565c6",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "c506e6c7734b6672a5e27c09be29058e",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Nivel donde se colocan las fundaciones."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "# MagicIng · CAD → Revit: coloca cabezales, vigas y pilotes a partir del\n# archivo \"-revit.json\" que baja la página CAD → Revit de MagicIng.\n#\n# Revit 2026, Dynamo 3.x, motor Python 3 (CPython3 o PythonNet3).\n#\n# Entradas:\n#   IN[0]  ruta del .json. Vacío: el \"-revit.json\" más reciente de Descargas.\n#   IN[1]  nombre del nivel donde se colocan (la cara superior común es 0).\n#\n# Qué hace y qué no:\n#   - Usa las familias de la oficina; si falta un tipo, lo crea duplicando uno\n#     de la misma familia y le pone las medidas.\n#   - Coloca sobre el CAD vinculado en el modelo que se llama como el DXF\n#     exportado, con su corrimiento y su giro. Si no está, origen a origen.\n#   - Todo en una transacción: si algo falla, Revit vuelve atrás entero.\n#   - Si ya hay elementos creados por este script, no hace nada y avisa: no\n#     duplica ni borra.\n\nimport clr\nimport glob\nimport json\nimport math\nimport os\nimport traceback\n\nclr.AddReference('RevitServices')\nfrom RevitServices.Persistence import DocumentManager\nfrom RevitServices.Transactions import TransactionManager\nclr.AddReference('RevitAPI')\nfrom Autodesk.Revit.DB import *\nfrom Autodesk.Revit.DB.Structure import StructuralType, StructuralFramingUtils\nclr.AddReference('System')\nfrom System import Environment\n\ndoc = DocumentManager.Instance.CurrentDBDocument\n\nFAMILIA_CABEZAL = \"Cimentacion-Rectangular\"\nFAMILIA_VIGA = \"Solid Wall - Rectangular Beam\"\nFAMILIA_PILOTE = \"M_Pile-Steel Pipe\"\n# Va en \"Comments\" de todo lo que se crea, para reconocerlo después.\nMARCA = \"MagicIng CAD-Revit\"\n\n\n# ---------------------------------------------------------------------------\n# Utilidades\n# ---------------------------------------------------------------------------\n\ndef en_pies(metros):\n    return UnitUtils.ConvertToInternalUnits(metros, UnitTypeId.Meters)\n\n\ndef parametro(elemento, nombre):\n    # Puede haber dos con el mismo nombre: en Cimentacion-Rectangular, \"Length\"\n    # es a la vez el de la familia (editable) y el interno de Revit para\n    # fundaciones (sólo lectura). LookupParameter devuelve cualquiera de los\n    # dos, así que se busca el editable entre todos.\n    for p in elemento.GetParameters(nombre):\n        if not p.IsReadOnly:\n            return p\n    raise Exception(\"El parámetro '%s' no existe o es de sólo lectura en '%s'.\" % (nombre, nombre_tipo(elemento) if isinstance(elemento, FamilySymbol) else elemento.Name))\n\n\ndef es_medida(p):\n    \"\"\"True si Revit guarda el valor en sus unidades internas (pies): Length,\n    pero también Pipe Size, Section Dimension… como el Diameter y el Depth de\n    M_Pile-Steel Pipe. False si es un número suelto, como los #Ancho, #Altura…\n    de la oficina, que ya están en mm.\"\"\"\n    tipo_dato = p.Definition.GetDataType()\n    if tipo_dato.TypeId == SpecTypeId.Number.TypeId:\n        return False\n    return UnitUtils.IsMeasurableSpec(tipo_dato)\n\n\ndef poner_mm(elemento, nombre, mm):\n    \"\"\"Escribe una medida en mm, sea el parámetro una medida o un número.\"\"\"\n    p = parametro(elemento, nombre)\n    if es_medida(p):\n        p.Set(en_pies(mm / 1000.0))\n    else:\n        p.Set(float(mm))\n\n\ndef leer_mm(elemento, nombre):\n    p = elemento.LookupParameter(nombre)\n    if p is None:\n        return None\n    if es_medida(p):\n        return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Millimeters)\n    return p.AsDouble()\n\n\ndef nombre_tipo(t):\n    p = t.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)\n    return p.AsString() if p is not None else \"\"\n\n\ndef tipos_de(familia):\n    tipos = [s for s in FilteredElementCollector(doc).OfClass(FamilySymbol).ToElements() if s.FamilyName == familia]\n    if not tipos:\n        raise Exception(\"No está cargada la familia '%s' en el modelo.\" % familia)\n    return tipos\n\n\ndef activar(t):\n    if not t.IsActive:\n        t.Activate()\n        doc.Regenerate()\n    return t\n\n\ndef marcar(elemento, nombre=None):\n    elemento.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS).Set(MARCA)\n    if nombre:\n        elemento.get_Parameter(BuiltInParameter.ALL_MODEL_MARK).Set(nombre)\n\n\ndef archivo_reciente():\n    descargas = os.path.join(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), \"Downloads\")\n    candidatos = glob.glob(os.path.join(descargas, \"*-revit.json\"))\n    if not candidatos:\n        raise Exception(\"No se indicó archivo y no hay ningún '-revit.json' en \" + descargas)\n    return max(candidatos, key=os.path.getmtime)\n\n\ndef ubicar_cad(nombre_archivo):\n    \"\"\"El CAD vinculado o importado que se llama como el DXF exportado (sin\n    mirar la extensión ni mayúsculas): (transformación, descripción) o None.\n    Si hay varios, el primero que no es de una sola vista.\"\"\"\n    base = os.path.splitext(os.path.basename(nombre_archivo))[0].lower()\n    if not base:\n        return None\n    candidatos = []\n    for ci in FilteredElementCollector(doc).OfClass(ImportInstance).ToElements():\n        tipo = doc.GetElement(ci.GetTypeId())\n        nombre = nombre_tipo(tipo) if tipo is not None else \"\"\n        if os.path.splitext(nombre)[0].lower() == base:\n            candidatos.append((ci, nombre))\n    if not candidatos:\n        return None\n    candidatos.sort(key=lambda x: x[0].ViewSpecific)\n    ci, nombre = candidatos[0]\n    return ci.GetTotalTransform(), \"%s (%s)\" % (nombre, \"vinculado\" if ci.IsLinked else \"importado\")\n\n\ndef cota_superior(e):\n    \"\"\"Cara superior real, m sobre el origen interno.\"\"\"\n    caja = e.get_BoundingBox(None)\n    return UnitUtils.ConvertFromInternalUnits(caja.Max.Z, UnitTypeId.Meters) if caja else None\n\n\n# ---------------------------------------------------------------------------\n# Tipos: el que existe, o uno nuevo duplicando uno de la familia\n# ---------------------------------------------------------------------------\n\ncreados = []\n\n\ndef tipo_por_nombre(familia, nombre, medidas_mm):\n    tipos = tipos_de(familia)\n    for t in tipos:\n        if nombre_tipo(t) == nombre:\n            return activar(t)\n    nuevo = tipos[0].Duplicate(nombre)\n    for param, mm in medidas_mm:\n        poner_mm(nuevo, param, mm)\n    creados.append(\"%s: %s\" % (familia, nombre))\n    return activar(nuevo)\n\n\ndef tipo_pilote(diametro_mm, largo_mm, avisos):\n    tipos = tipos_de(FAMILIA_PILOTE)\n    nombre = u\"⌀%d\" % diametro_mm\n    # Primero por nombre (la convención de la oficina), después por diámetro.\n    elegido = None\n    for t in tipos:\n        if nombre_tipo(t) == nombre:\n            elegido = t\n            break\n    if elegido is None:\n        for t in tipos:\n            d = leer_mm(t, \"Diameter\")\n            if d is not None and abs(d - diametro_mm) < 0.5:\n                elegido = t\n                break\n    if elegido is None:\n        elegido = tipos[0].Duplicate(nombre)\n        poner_mm(elegido, \"Diameter\", diametro_mm)\n        creados.append(u\"%s: ⌀%d\" % (FAMILIA_PILOTE, diametro_mm))\n    # El largo es de tipo: cambia todos los pilotes de ese diámetro del proyecto.\n    if abs((leer_mm(elegido, \"Depth\") or 0) - largo_mm) > 0.5:\n        poner_mm(elegido, \"Depth\", largo_mm)\n        avisos.append(u\"Tipo %s: Depth = %d mm (es de tipo: vale para todos los pilotes de ese diámetro).\" % (nombre_tipo(elegido), largo_mm))\n    return activar(elegido)\n\n\n# ---------------------------------------------------------------------------\n\ntry:\n    ruta = IN[0] if len(IN) > 0 and IN[0] else archivo_reciente()\n    nombre_nivel = IN[1] if len(IN) > 1 and IN[1] else \"PB\"\n\n    with open(ruta, \"r\", encoding=\"utf-8\") as f:\n        datos = json.load(f)\n    if datos.get(\"formato\") != \"magicing-cad-revit\":\n        raise Exception(\"El archivo no es una exportación de CAD → Revit de MagicIng: \" + ruta)\n    if datos.get(\"version\", 0) > 1:\n        raise Exception(\"El archivo es de una versión más nueva de MagicIng. Actualizá el script.\")\n\n    niveles = [n for n in FilteredElementCollector(doc).OfClass(Level).ToElements() if n.Name == nombre_nivel]\n    if not niveles:\n        raise Exception(\"No existe el nivel '%s' en el modelo.\" % nombre_nivel)\n    nivel = niveles[0]\n    # Cota del nivel respecto del origen interno, que es donde viven las\n    # coordenadas de la API. Level.Elevation es relativa al Project Base Point\n    # (en FUNDACIONES MAGICING, PB está 1,02 m sobre el origen interno).\n    z_nivel = nivel.ProjectElevation\n\n    # Dónde está el CAD en el modelo: el vinculado o importado con el mismo\n    # nombre que el DXF exportado. Las piezas se ponen sobre él, con su\n    # corrimiento y su giro. Si no está, origen a origen.\n    cad = ubicar_cad(datos.get(\"archivo\", \"\"))\n    transformar = cad[0] if cad else Transform.Identity\n    giro_cad = math.atan2(transformar.BasisX.Y, transformar.BasisX.X)\n\n    def en_modelo(xy, z):\n        q = transformar.OfPoint(XYZ(en_pies(xy[0]), en_pies(xy[1]), 0))\n        return XYZ(q.X, q.Y, z)\n\n    # Si ya se colocó, no se vuelve a colocar.\n    ya = 0\n    for cat in (BuiltInCategory.OST_StructuralFoundation, BuiltInCategory.OST_StructuralFraming):\n        for e in FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().ToElements():\n            c = e.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)\n            if c is not None and c.AsString() == MARCA:\n                ya += 1\n    if ya:\n        OUT = [\"No se hizo nada: ya hay %d elementos colocados por este script (Comments = '%s'). Borralos para volver a colocar.\" % (ya, MARCA)]\n    else:\n        avisos = []\n        TransactionManager.Instance.ForceCloseTransaction()\n        t = Transaction(doc, \"MagicIng: colocar fundaciones\")\n        t.Start()\n        try:\n            # --- Cabezales ---------------------------------------------------\n            ancho_en_x = None\n            muestra = {}  # una pieza de cada clase, para comprobar alturas al final\n            for c in datos[\"cabezales\"]:\n                a, b, h = [int(round(v * 1000)) for v in (c[\"a\"], c[\"b\"], c[\"canto\"])]\n                simbolo = tipo_por_nombre(FAMILIA_CABEZAL, \"%s (%dx%dx%d)\" % (c[\"nombre\"], a, b, h), [(\"#Ancho\", a), (\"#Profundidad\", h)])\n                punto = en_modelo(c[\"centro\"], z_nivel)\n                inst = doc.Create.NewFamilyInstance(punto, simbolo, nivel, StructuralType.Footing)\n                poner_mm(inst, \"Length\", b)\n                parametro(inst, \"Height Offset From Level\").Set(en_pies(c[\"cotaSuperior\"]))\n                # \"marca\" viene numerada si el rótulo se repite (CT9-1, CT9-2…).\n                marcar(inst, c.get(\"marca\") or c[\"nombre\"])\n                if \"cabezal\" not in muestra:\n                    muestra[\"cabezal\"] = (c.get(\"marca\") or c[\"nombre\"], inst, c[\"cotaSuperior\"])\n                doc.Regenerate()\n                caja = inst.get_BoundingBox(None)\n                # Centrado: si el origen de la familia no está en el centro, se corre.\n                # En Python 3 los XYZ no admiten + ni /: se usan sus métodos.\n                centro_caja = caja.Min.Add(caja.Max).Divide(2.0)\n                corrimiento = XYZ(punto.X - centro_caja.X, punto.Y - centro_caja.Y, 0)\n                if corrimiento.GetLength() > en_pies(0.005):\n                    ElementTransformUtils.MoveElement(doc, inst.Id, corrimiento)\n                # En qué eje de la familia corre #Ancho: se mide en el primero, sin girar.\n                if ancho_en_x is None and a != b:\n                    dx = caja.Max.X - caja.Min.X\n                    dy = caja.Max.Y - caja.Min.Y\n                    ancho_en_x = abs(dx - en_pies(a / 1000.0)) <= abs(dy - en_pies(a / 1000.0))\n                giro = math.radians(c[\"giroLadoA\"]) + giro_cad - (0 if ancho_en_x in (None, True) else math.pi / 2)\n                if abs(giro) > 1e-9:\n                    ElementTransformUtils.RotateElement(doc, inst.Id, Line.CreateBound(punto, punto.Add(XYZ.BasisZ)), giro)\n\n            # --- Vigas -------------------------------------------------------\n            for v in datos[\"vigas\"]:\n                ancho, alto = int(round(v[\"ancho\"] * 1000)), int(round(v[\"alto\"] * 1000))\n                simbolo = tipo_por_nombre(FAMILIA_VIGA, \"%dx%d\" % (ancho, alto), [(\"#Ancho\", ancho), (\"#Altura\", alto)])\n                # La línea ya va a la cota final (no sólo los offsets), así Revit\n                # no tiene dos alturas que conciliar.\n                z = z_nivel + en_pies(v[\"cotaSuperior\"])\n                linea = Line.CreateBound(en_modelo(v[\"inicio\"], z), en_modelo(v[\"fin\"], z))\n                viga = doc.Create.NewFamilyInstance(linea, simbolo, nivel, StructuralType.Beam)\n                # De cara a cara: que Revit no la estire ni la una en los extremos.\n                StructuralFramingUtils.DisallowJoinAtEnd(viga, 0)\n                StructuralFramingUtils.DisallowJoinAtEnd(viga, 1)\n                for nombre in (\"Start Level Offset\", \"End Level Offset\"):\n                    parametro(viga, nombre).Set(en_pies(v[\"cotaSuperior\"]))\n                marcar(viga, v.get(\"marca\") or v[\"nombre\"])\n                if \"viga\" not in muestra:\n                    muestra[\"viga\"] = (v.get(\"marca\") or v[\"nombre\"], viga, v[\"cotaSuperior\"])\n\n            # --- Pilotes -----------------------------------------------------\n            for p in datos[\"pilotes\"]:\n                simbolo = tipo_pilote(int(round(p[\"diametro\"] * 1000)), int(round(p[\"largo\"] * 1000)), avisos)\n                punto = en_modelo(p[\"centro\"], z_nivel)\n                inst = doc.Create.NewFamilyInstance(punto, simbolo, nivel, StructuralType.Footing)\n                parametro(inst, \"Height Offset From Level\").Set(en_pies(p[\"cotaCabeza\"]))\n                marcar(inst)\n\n            t.Commit()\n\n            # Comprobación: cara superior real contra la esperada, respecto del nivel.\n            alturas = []\n            for clase in (\"cabezal\", \"viga\"):\n                if clase not in muestra:\n                    continue\n                marca, e, esperada = muestra[clase]\n                real = cota_superior(e)\n                if real is None:\n                    continue\n                real -= UnitUtils.ConvertFromInternalUnits(z_nivel, UnitTypeId.Meters)\n                ok = abs(real - esperada) < 0.005\n                alturas.append(\"Cara superior de %s %s: %.3f m respecto de %s (esperada %.3f)%s\" % (\n                    clase, marca, real, nombre_nivel, esperada, \"\" if ok else \"  <-- NO COINCIDE\"))\n        except Exception:\n            t.RollBack()\n            raise\n\n        OUT = [\n            \"Archivo: \" + ruta,\n            \"Nivel: \" + nombre_nivel,\n            \"Colocados: %d cabezales, %d vigas, %d pilotes.\" % (len(datos[\"cabezales\"]), len(datos[\"vigas\"]), len(datos[\"pilotes\"])),\n            \"#Ancho del cabezal corre en \" + (\"X\" if ancho_en_x in (None, True) else \"Y\") + \" de la familia.\",\n            (\"Ubicado sobre el CAD %s, giro %.4f grados.\" % (cad[1], math.degrees(giro_cad))) if cad else\n            (\"No hay en el modelo un CAD llamado '%s': se colocó origen a origen.\" % datos.get(\"archivo\", \"?\")),\n        ] + alturas + [\"Tipo creado: \" + c for c in creados] + avisos + [\"Para revisar (de MagicIng): \" + a for a in datos.get(\"avisos\", [])]\nexcept Exception as e:\n    OUT = \"ERROR: \" + str(e) + \"\\n\" + traceback.format_exc()",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "40c379a8ebf559edc052ad56adb6edae",
+      "Inputs": [
+        {
+          "Id": "f935eb67b1a6b3df304e2dfcd82689de",
+          "Name": "IN[0]",
+          "Description": "Archivo -revit.json",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "2f4b8a200c545f234c504333913b42c6",
+          "Name": "IN[1]",
+          "Description": "Nivel",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "c17da8c7a33cdb98523862d2cea067cd",
+          "Name": "OUT",
+          "Description": "Resultado",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Coloca cabezales, vigas y pilotes."
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "554c11416630c6fd1a1a0216fd38b3ab",
+      "End": "f935eb67b1a6b3df304e2dfcd82689de",
+      "Id": "89d227de5f428fdafedc4df7a3df18af",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "c506e6c7734b6672a5e27c09be29058e",
+      "End": "2f4b8a200c545f234c504333913b42c6",
+      "Id": "93f47fc72f85d77cccd76626d8d5205c",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "EnableLaceByDefault": true,
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1,
+      "HasRunWithoutCrash": false,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "3.0.0.0",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "Background Preview",
+      "EyeX": -17,
+      "EyeY": 24,
+      "EyeZ": 50,
+      "LookX": 12,
+      "LookY": -13,
+      "LookZ": -58,
+      "UpX": 0,
+      "UpY": 1,
+      "UpZ": 0
+    },
+    "NodeViews": [
+      {
+        "Name": "Archivo de MagicIng",
+        "ShowGeometry": true,
+        "Id": "597ed1f4766088ed4cd3d3b3db1469dd",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 0,
+        "Y": 0
+      },
+      {
+        "Name": "Nivel",
+        "ShowGeometry": true,
+        "Id": "41f4ee136e7decb8101eda1198d565c6",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 0,
+        "Y": 160
+      },
+      {
+        "Name": "Colocar fundaciones (MagicIng)",
+        "ShowGeometry": true,
+        "Id": "40c379a8ebf559edc052ad56adb6edae",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": true,
+        "Excluded": false,
+        "X": 420,
+        "Y": 60
+      }
+    ],
+    "Annotations": [],
+    "X": 0,
+    "Y": 0,
+    "Zoom": 1
+  }
+}

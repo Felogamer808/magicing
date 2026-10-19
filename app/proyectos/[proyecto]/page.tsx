@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
+import { CargasPlanta } from "@/components/proyectos/CargasPlanta";
 import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
 import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
@@ -97,7 +98,7 @@ export default function ProyectoPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Proyecto</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{proyecto.nombre}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">{proyecto.nombre}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {proyecto.elementos.length}{" "}
             {proyecto.elementos.length === 1 ? "elemento" : "elementos"} · {contarCalculos(proyecto)}{" "}
@@ -210,6 +211,8 @@ export default function ProyectoPage() {
         </Card>
       </div>
 
+      <CargasPlanta proyecto={proyecto} guardar={guardar} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Elementos</CardTitle>
@@ -272,7 +275,7 @@ export default function ProyectoPage() {
                       </p>
                     )}
                     {elemento.calculos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Sin cálculos todavía</p>
+                      <p className="text-xs text-muted-foreground">{elemento.cad?.sinVerificacion ?? "Sin cálculos todavía"}</p>
                     ) : (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {elemento.calculos.map((calculo) => {

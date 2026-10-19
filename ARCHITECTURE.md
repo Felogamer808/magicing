@@ -20,6 +20,7 @@ app/
     (acciones)/<id>/page.tsx
     (herramientas)/<id>/page.tsx
   proyectos/[proyecto]/            Vista del proyecto, memoria/ y modelo/ (visor 3D)
+  cad-revit/                       Planta de fundaciones en DXF → interpretación → Revit
 
 components/
   ui/                              Primitivas de shadcn/ui — no editar a mano
@@ -33,6 +34,7 @@ components/
     estatica/  geometria/          Diagramas de las herramientas de análisis
   proyectos/                       Piezas de la vista del proyecto: CalcularElemento,
                                     ImportarIfc, VisorModelo, PanelElementoModelo
+  cad-revit/                       PlantaInterpretada (SVG), PanelPieza, ListaAvisos
   TemaToggle.tsx                   Claro/oscuro + script que evita el destello inicial
   IndiceVerificaciones.tsx         Índice con buscador
 
@@ -44,7 +46,7 @@ lib/
       vigas/                       flexion-cortante, torsion, complementos, apeo-bielas
       losas/                       losa, losa-fundacion
       cimentaciones/               zapata-aislada/corrida/medianeria/combinada,
-                                    pilote, cabezal-pilotes
+                                    pilote, cabezal-pilotes, cabezal-un-pilote
       muros/                       contencion, portante
       fisuracion.ts                No es de una pieza sola: aplica a vigas y losas
       mensula-corta.ts             Región D, no es un voladizo de viga
@@ -61,6 +63,11 @@ lib/
                                     almacen (localStorage), estado (derivado)
   ifc/                             Lectura de IFC (web-ifc), escena 3D (three.js),
                                     el IFC en memoria — ver "Modelo IFC" abajo
+  dxf/                             Lector de DXF por partes: entidades del espacio
+                                    modelo, sin interpretar
+  cad-revit/                       Qué es cada cosa de una planta de fundaciones:
+                                    rótulos, pilotes, cabezales, vigas, zonas — ver
+                                    "CAD → Revit" abajo
   verificaciones/
     registry.ts                    Índice de áreas, secciones y verificaciones (fuente única)
     combinaciones.ts               Con qué combinación trabaja cada una
@@ -238,6 +245,58 @@ crea un elemento por cada pieza estructural (`IfcBeam`, `IfcColumn`, `IfcSlab`,
   `dev` y `build` (no se versiona). Un solo hilo: el multihilo pide COOP/COEP.
 - **Trampa de web-ifc 0.0.78**: la malla que llega a `StreamAllMeshes` no tiene
   `delete()`, aunque los tipos lo declaren. Llamarlo rompe la carga.
+
+## CAD → Revit
+
+`/cad-revit` lee una planta de fundaciones en DXF, en el navegador y por
+partes (una planta real pesaba 332 MB por bloques sin usar), y la interpreta.
+La geometría vive en Revit: MagicIng no la guarda, sólo la lee del CAD y la
+exporta para que un script de Dynamo coloque las familias (pendiente).
+
+- **El contorno no dibuja piezas**: da la vuelta a vigas y cabezales juntos, y
+  los dos bordes de una viga suelen ser de polilíneas distintas. Por eso todo
+  se reconstruye a partir de los **rótulos** ("CT9 (1800x800x750)", "VR4
+  350x600"), reconocidos por lo que dicen y no por la capa.
+- **Cabezales** (`cabezales.ts`): bordes paralelos separados por las medidas
+  del rótulo que encierren pilotes; gana el de más perímetro dibujado. Un
+  borde puede faltar (ahí entra una viga) y se infiere del opuesto.
+- **Vigas** (`vigas.ts`): par de bordes separados por el ancho del rótulo; la
+  viga sigue mientras al menos un borde esté dibujado (cruza la boca de una
+  unión en T) y termina en la cara del cabezal, de cara a cara.
+- **Manda el rótulo**: si lo dibujado mide otra cosa, se coloca con el rótulo
+  y la diferencia va a la lista de avisos (criterio del usuario).
+- **Unidad**: se deduce de los pilotes, no de `$INSUNITS` (una planta real
+  declaraba metros y estaba en mm).
+- **Zonas** (`interpretar.ts`): un DXF trae varios dibujos; los contornos a
+  menos de 8 m forman una zona y se interpreta una.
+- **Nodos** (CT6/7/8, pilar sobre viga): las vigas que se quedan cortas antes
+  del pilote del nodo (hasta 1 m, alineadas) se prolongan hasta él: el nodo
+  es parte de la viga.
+- **Exportación** (`exportar.ts`): JSON en metros con las coordenadas del CAD
+  sin corrimiento; el script de Dynamo las lleva sobre el CAD vinculado en
+  Revit que tiene el mismo nombre (su transformación: corrimiento y giro), u
+  origen a origen si no lo encuentra. Las cotas van respecto del origen
+  interno (Level.ProjectElevation, no Elevation, que es relativa al Project
+  Base Point); cotas
+  relativas al nivel, cara superior común en 0 salvo el desnivel que se cargue
+  por cabezal; cada pilote con la cabeza 10 cm dentro de la pieza que tiene
+  encima y 12 m de largo por defecto. Lo lee el script de Dynamo.
+- **Al proyecto** (`proyecto.ts` + `incorporarPlanta` en `lib/proyectos/modelo.ts`):
+  un elemento por pieza, vinculado por marca (`ElementoProyecto.cad`). CT de 2
+  pilotes → cabezales; CT de 1 → cabezal-un-pilote (x = largo del cabezal,
+  primer lado del pilar en x); pilotes → pilotes; VR → viga-atado; el resto queda
+  no evaluable con su motivo. Geometría del plano cargada; cargas, armadura y
+  suelo entran vacíos para que no calcule con valores por defecto. Volver a
+  traer la planta reescribe sólo la geometría.
+- **Cargas** (`cargas.ts`, tarjeta `CargasPlanta` del proyecto): G, Q y lado del
+  pilar en cada cabezal/nodo (`ElementoProyecto.pilar`) y suelo del proyecto
+  (`Proyecto.suelo`). `derivarCargas` reescribe los campos derivados: Nd del
+  cabezal, Nk y suelo de cada pilote, N1d/N2d de cada VR. Sin dato, vacío.
+  Un Nd a mano por pilar (`PilarCargado.ndKN`, la envolvente ELU de Robot)
+  gana sobre 1,35·G + 1,5·Q; el Nk sigue saliendo de G + Q.
+- **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
+  elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
+  visor IFC) y una leyenda con los totales.
 
 ## Decisiones que conviene conocer
 

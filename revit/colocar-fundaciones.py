@@ -51,10 +51,14 @@ def en_pies(metros):
 
 
 def parametro(elemento, nombre):
-    p = elemento.LookupParameter(nombre)
-    if p is None or p.IsReadOnly:
-        raise Exception("El parámetro '%s' no existe o es de sólo lectura en '%s'." % (nombre, nombre_tipo(elemento) if isinstance(elemento, FamilySymbol) else elemento.Name))
-    return p
+    # Puede haber dos con el mismo nombre: en Cimentacion-Rectangular, "Length"
+    # es a la vez el de la familia (editable) y el interno de Revit para
+    # fundaciones (sólo lectura). LookupParameter devuelve cualquiera de los
+    # dos, así que se busca el editable entre todos.
+    for p in elemento.GetParameters(nombre):
+        if not p.IsReadOnly:
+            return p
+    raise Exception("El parámetro '%s' no existe o es de sólo lectura en '%s'." % (nombre, nombre_tipo(elemento) if isinstance(elemento, FamilySymbol) else elemento.Name))
 
 
 def poner_mm(elemento, nombre, mm):

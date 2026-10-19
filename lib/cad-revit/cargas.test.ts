@@ -38,6 +38,21 @@ describe("derivarCargas", () => {
     expect(campos(cargado, "CT9-1")).toMatchObject({ ndPilar: "690", anchoPilar: "0.3" });
   });
 
+  /** Envolvente de Robot con viento: gana sobre 1,35·G + 1,5·Q; el Nk de los pilotes no cambia. */
+  it("con Nd a mano, el cabezal y las vigas usan ese y los pilotes siguen con G + Q", () => {
+    expect(ndPilar({ gKN: 400, qKN: 100, ndKN: 900 })).toBe(900);
+    const conNd = derivarCargas(conPilar(cargado, "CT9-1", { gKN: 400, qKN: 100, ladoPilotesM: 0.3, ndKN: 900 }));
+    expect(campos(conNd, "CT9-1").ndPilar).toBe("900");
+    expect(campos(conNd, "CT9-1-P1").Nk).toBe("263.5");
+    const extremos = elemento(conNd, "VR4").cad!.extremos!;
+    const vr = campos(conNd, "VR4");
+    expect(extremos[0] === "CT9-1" ? vr.n1d : vr.n2d).toBe("900");
+  });
+
+  it("con Nd a mano y sin G ni Q, el cabezal ya tiene su Nd", () => {
+    expect(ndPilar({ ndKN: 750 })).toBe(750);
+  });
+
   it("al cabezal de 1 pilote, el Nd y los dos lados del pilar", () => {
     expect(campos(cargado, "CT2")).toMatchObject({ ndPilar: "690", pilarX: "0.3", pilarY: "0.4" });
   });

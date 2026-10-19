@@ -1,8 +1,8 @@
 import { readFileSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { leerDxf } from "@/lib/dxf/leer";
-import { exportarParaRevit, FORMATO_EXPORTACION } from "./exportar";
+import { leerDxf, type Punto } from "@/lib/dxf/leer";
+import { ENDEREZAR_GRADOS, enderezar, exportarParaRevit, FORMATO_EXPORTACION, numerarMarcas } from "./exportar";
 import { interpretar } from "./interpretar";
 
 const lectura = leerDxf(readFileSync(path.join(__dirname, "..", "dxf", "prueba.dxf"), "utf8"));
@@ -61,5 +61,52 @@ describe("exportarParaRevit", () => {
 
   it("lleva los avisos de la pantalla", () => {
     expect(x.avisos.some((a) => a.startsWith("CT2: dibujado"))).toBe(true);
+  });
+
+  /** Los dos CT9 de prueba se numeran; el CT2, que es único, queda igual. */
+  it("numera las marcas que se repiten y deja las únicas", () => {
+    expect(x.cabezales.map((c) => c.marca).sort()).toEqual(["CT2", "CT9-1", "CT9-2"]);
+    expect(x.vigas[0].marca).toBe("VR4");
+  });
+});
+
+describe("numerarMarcas", () => {
+  /** Orden de lectura: de arriba abajo y, en la misma altura, de izquierda a derecha. */
+  it("numera en orden de lectura de la planta", () => {
+    const marcas = numerarMarcas([
+      { nombre: "CT9", centro: [10, 0] },
+      { nombre: "CT9", centro: [0, 5] },
+      { nombre: "CT5", centro: [3, 3] },
+      { nombre: "CT9", centro: [0, 0] },
+    ]);
+    expect(marcas).toEqual(["CT9-3", "CT9-1", "CT5", "CT9-2"]);
+  });
+});
+
+describe("enderezar", () => {
+  const largo = (a: Punto, b: Punto) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+  /** Como VR27 del REV08: 0,018° sobre 5,8 m. Revit avisa "slightly off axis". */
+  it("endereza un error de dibujo sobre su punto medio, sin cambiar el largo", () => {
+    const desvio = (0.018 * Math.PI) / 180;
+    const ini: Punto = [10, 20];
+    const fin: Punto = [10 + 5.8 * Math.cos(desvio), 20 + 5.8 * Math.sin(desvio)];
+    const [a, b] = enderezar(ini, fin);
+    expect(a[1]).toBeCloseTo(b[1], 12);
+    expect(a[1]).toBeCloseTo((ini[1] + fin[1]) / 2, 12);
+    expect(largo(a, b)).toBeCloseTo(5.8, 12);
+  });
+
+  it("también cerca de Y y en sentido contrario", () => {
+    const [a, b] = enderezar([0, 0], [-0.001, -4]);
+    expect(a[0]).toBeCloseTo(b[0], 12);
+    expect(b[1]).toBeLessThan(a[1]);
+  });
+
+  /** Como VC5, VR8 o VR15: ~0,3°, puede ser a propósito. */
+  it("no toca las vigas inclinadas a propósito", () => {
+    const desvio = (ENDEREZAR_GRADOS * 2 * Math.PI) / 180;
+    const fin: Punto = [6 * Math.cos(desvio), 6 * Math.sin(desvio)];
+    expect(enderezar([0, 0], fin)).toEqual([[0, 0], fin]);
   });
 });

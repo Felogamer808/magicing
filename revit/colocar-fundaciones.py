@@ -208,7 +208,8 @@ try:
                 inst = doc.Create.NewFamilyInstance(punto, simbolo, nivel, StructuralType.Footing)
                 poner_mm(inst, "Length", b)
                 parametro(inst, "Height Offset From Level").Set(en_pies(c["cotaSuperior"]))
-                marcar(inst, c["nombre"])
+                # "marca" viene numerada si el rótulo se repite (CT9-1, CT9-2…).
+                marcar(inst, c.get("marca") or c["nombre"])
                 doc.Regenerate()
                 caja = inst.get_BoundingBox(None)
                 # Centrado: si el origen de la familia no está en el centro, se corre.
@@ -241,7 +242,7 @@ try:
                 StructuralFramingUtils.DisallowJoinAtEnd(viga, 1)
                 for nombre in ("Start Level Offset", "End Level Offset"):
                     parametro(viga, nombre).Set(en_pies(v["cotaSuperior"]))
-                marcar(viga, v["nombre"])
+                marcar(viga, v.get("marca") or v["nombre"])
 
             # --- Pilotes -----------------------------------------------------
             for p in datos["pilotes"]:

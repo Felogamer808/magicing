@@ -69,6 +69,7 @@ export type IdVerificacion =
   | "losa-fundacion"
   | "pilotes"
   | "cabezales"
+  | "cabezal-un-pilote"
   | "muros-contencion"
   | "muros"
   | "pilares"
@@ -433,6 +434,16 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Modelo de bielas y tirantes: armadura principal, secundaria y de reparto.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/cabezal-pilotes",
+    disponible: true,
+  },
+  {
+    id: "cabezal-un-pilote",
+    nombre: "Cabezal de 1 pilote",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion: "Compresión localizada del pilar y del pilote, y cercos horizontales para la tracción transversal.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/cabezal-un-pilote",
     disponible: true,
   },
   {

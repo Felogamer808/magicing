@@ -44,9 +44,14 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-xs text-muted-foreground">
-          Cargas características, sin mayorar. De acá salen el Nd de cada cabezal (1,35·G + 1,5·Q), el Nk de cada pilote
+          G y Q características, sin mayorar. De acá salen el Nd de cada cabezal (1,35·G + 1,5·Q), el Nk de cada pilote
           ((G + Q + peso propio del cabezal a 25 kN/m³) / nº de pilotes) y los Nd de los extremos de cada viga de atado. El
-          lado del pilar sólo lo usa la verificación del cabezal de 2 pilotes.
+          lado del pilar lo usan las verificaciones de cabezales.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Nd a mano</span>: si el pilar tiene combinaciones que 1,35·G + 1,5·Q
+          no cubre —viento, por ejemplo—, cargá acá la envolvente ELU del modelo. Gana sobre la combinación en el cabezal y en
+          las vigas de atado; el Nk de los pilotes sigue saliendo de G + Q.
         </p>
 
         {hayPilotes && (
@@ -73,21 +78,22 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[34rem] text-left">
+          <table className="w-full min-w-[40rem] text-left">
             <thead className="text-xs text-muted-foreground">
               <tr>
                 <th className="py-1 pr-2 font-normal">Pieza</th>
                 <th className="px-1 font-normal">G (kN)</th>
                 <th className="px-1 font-normal">Q (kN)</th>
-                <th className="px-1 font-normal">Lado ∥ pilotes (m)</th>
-                <th className="px-1 font-normal">Lado ⊥ (m)</th>
-                <th className="pl-2 text-right font-normal">Nd (kN)</th>
+                <th className="px-1 font-normal" title="Con un solo pilote, el lado según el largo del cabezal">Lado ∥ pilotes o x (m)</th>
+                <th className="px-1 font-normal">Lado ⊥ o y (m)</th>
+                <th className="px-1 font-normal">Nd a mano (kN)</th>
+                <th className="pl-2 text-right font-normal">Nd usado (kN)</th>
               </tr>
             </thead>
             <tbody>
               {piezas.map((e) => {
                 const nd = ndPilar(e.pilar);
-                const conLado = e.calculos.some((c) => c.verificacion === "cabezales");
+                const conLado = e.calculos.some((c) => c.verificacion === "cabezales" || c.verificacion === "cabezal-un-pilote");
                 return (
                   <tr key={e.id} className="border-t">
                     <td className="py-1 pr-2 font-medium">
@@ -118,7 +124,18 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
                         )}
                       </td>
                     ))}
-                    <td className="pl-2 text-right tabular-nums">{nd === null ? "—" : fmt(nd, 1)}</td>
+                    <td className="px-1">
+                      <CampoNumeroOpcional
+                        etiqueta={`Nd a mano de ${e.nombre}`}
+                        className={celda}
+                        valor={e.pilar?.ndKN}
+                        onCambio={(n) => pilar(e, "ndKN", n)}
+                      />
+                    </td>
+                    <td className="pl-2 text-right tabular-nums">
+                      {nd === null ? "—" : fmt(nd, 1)}
+                      {e.pilar?.ndKN !== undefined && <span className="block text-xs text-muted-foreground">a mano</span>}
+                    </td>
                   </tr>
                 );
               })}

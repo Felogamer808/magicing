@@ -129,6 +129,13 @@ export interface OrigenCad {
 export interface PilarCargado {
   gKN?: number;
   qKN?: number;
+  /**
+   * Nd cargado a mano, kN: la envolvente ELU del modelo (Robot), que incluye
+   * las combinaciones con viento. Si está, gana sobre γG·G + γQ·Q en todo lo
+   * que usa el Nd (cabezales y vigas de atado). El Nk de los pilotes sigue
+   * saliendo de G + Q.
+   */
+  ndKN?: number;
   /** Lado del pilar en la dirección que une los pilotes, m. */
   ladoPilotesM?: number;
   /** Lado transversal, m. */

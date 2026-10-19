@@ -30,9 +30,13 @@ describe("piezasDePlanta", () => {
     expect(ct9.origen.medidasM?.map((x) => Math.round(x * 1000) / 1000).sort()).toEqual([0.75, 0.8, 1.8]);
   });
 
-  it("un cabezal de 1 pilote queda sin verificación, y dice por qué", () => {
-    expect(pieza("CT2").verificacion).toBeUndefined();
-    expect(pieza("CT2").origen.sinVerificacion).toMatch(/1 pilote/);
+  it("un cabezal de 1 pilote va a su verificación, con x según el largo del cabezal", () => {
+    const ct2 = pieza("CT2");
+    expect(ct2.verificacion).toBe("cabezal-un-pilote");
+    expect(ct2.origen.sinVerificacion).toBeUndefined();
+    const [largo, ancho, canto] = ct2.origen.medidasM!.map((x) => String(Math.round(x * 1000) / 1000));
+    expect(ct2.geometria).toMatchObject({ ladoX: largo, ladoY: ancho, hCab: canto });
+    expect(ct2.aMano).toEqual(A_MANO["cabezal-un-pilote"]);
   });
 
   /** VR4 de cara a cara entre los dos CT9: de x = 0,9 a x = 5,1. */
@@ -91,7 +95,15 @@ describe("incorporarPlanta", () => {
   });
 
   it("una pieza sin verificación es no evaluable, no pendiente", () => {
-    expect(elemento(proyecto, "CT2").calculos).toHaveLength(0);
+    const ct2 = elemento(proyecto, "CT2");
+    const sinVerificacion = { ...ct2, calculos: [], cad: { ...ct2.cad!, sinVerificacion: "Cabezal de 4 pilotes" } };
+    expect(estadoDeElemento(sinVerificacion)).toBe("no-evaluable");
+  });
+
+  it("el cabezal de 1 pilote entra con los campos a mano vacíos", () => {
+    const calculo = elemento(proyecto, "CT2").calculos[0];
+    expect(calculo.verificacion).toBe("cabezal-un-pilote");
+    for (const clave of A_MANO["cabezal-un-pilote"]) expect(calculo.campos[clave]).toBe("");
     expect(estadoDeElemento(elemento(proyecto, "CT2"))).toBe("no-evaluable");
   });
 

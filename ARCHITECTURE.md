@@ -46,7 +46,7 @@ lib/
       vigas/                       flexion-cortante, torsion, complementos, apeo-bielas
       losas/                       losa, losa-fundacion
       cimentaciones/               zapata-aislada/corrida/medianeria/combinada,
-                                    pilote, cabezal-pilotes
+                                    pilote, cabezal-pilotes, cabezal-un-pilote
       muros/                       contencion, portante
       fisuracion.ts                No es de una pieza sola: aplica a vigas y losas
       mensula-corta.ts             Región D, no es un voladizo de viga
@@ -283,7 +283,8 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   encima y 12 m de largo por defecto. Lo lee el script de Dynamo.
 - **Al proyecto** (`proyecto.ts` + `incorporarPlanta` en `lib/proyectos/modelo.ts`):
   un elemento por pieza, vinculado por marca (`ElementoProyecto.cad`). CT de 2
-  pilotes → cabezales; pilotes → pilotes; VR → viga-atado; el resto queda
+  pilotes → cabezales; CT de 1 → cabezal-un-pilote (x = largo del cabezal,
+  primer lado del pilar en x); pilotes → pilotes; VR → viga-atado; el resto queda
   no evaluable con su motivo. Geometría del plano cargada; cargas, armadura y
   suelo entran vacíos para que no calcule con valores por defecto. Volver a
   traer la planta reescribe sólo la geometría.

@@ -54,7 +54,13 @@ function derivados(
   const cad = e.cad!;
   if (cad.pieza === "cabezal") {
     const nd = ndPilar(e.pilar);
-    return { cabezales: { ndPilar: nd === null ? "" : kN(nd), anchoPilar: texto(e.pilar?.ladoPilotesM) } };
+    const ndTexto = nd === null ? "" : kN(nd);
+    return {
+      cabezales: { ndPilar: ndTexto, anchoPilar: texto(e.pilar?.ladoPilotesM) },
+      // Con un pilote no hay dirección que una pilotes: el primer lado va en x,
+      // el largo del cabezal (ver proyecto.ts).
+      "cabezal-un-pilote": { ndPilar: ndTexto, pilarX: texto(e.pilar?.ladoPilotesM), pilarY: texto(e.pilar?.ladoTransversalM) },
+    };
   }
   if (cad.pieza === "pilote") {
     const pieza = cad.bajo ? porMarca.get(cad.bajo) : undefined;

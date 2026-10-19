@@ -79,15 +79,15 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
                 <th className="py-1 pr-2 font-normal">Pieza</th>
                 <th className="px-1 font-normal">G (kN)</th>
                 <th className="px-1 font-normal">Q (kN)</th>
-                <th className="px-1 font-normal">Lado ∥ pilotes (m)</th>
-                <th className="px-1 font-normal">Lado ⊥ (m)</th>
+                <th className="px-1 font-normal" title="Con un solo pilote, el lado según el largo del cabezal">Lado ∥ pilotes o x (m)</th>
+                <th className="px-1 font-normal">Lado ⊥ o y (m)</th>
                 <th className="pl-2 text-right font-normal">Nd (kN)</th>
               </tr>
             </thead>
             <tbody>
               {piezas.map((e) => {
                 const nd = ndPilar(e.pilar);
-                const conLado = e.calculos.some((c) => c.verificacion === "cabezales");
+                const conLado = e.calculos.some((c) => c.verificacion === "cabezales" || c.verificacion === "cabezal-un-pilote");
                 return (
                   <tr key={e.id} className="border-t">
                     <td className="py-1 pr-2 font-medium">

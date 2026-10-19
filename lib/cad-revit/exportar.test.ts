@@ -29,6 +29,16 @@ describe("exportarParaRevit", () => {
     expect([vr4.inicio[0], vr4.fin[0]].sort((a, b) => a - b)).toEqual([0.9, 5.1]);
   });
 
+  /**
+   * "CT9 (1800x800x750)": en la familia, `#Ancho` es la primera medida y
+   * `Length` la segunda. Los CT9 de prueba tienen los 1800 a lo largo de X.
+   */
+  it("dice qué lado del cabezal es la primera medida del rótulo y hacia dónde va", () => {
+    const ct9 = x.cabezales.find((c) => c.centro[0] === 6)!;
+    expect([ct9.a, ct9.b]).toEqual([1.8, 0.8]);
+    expect(ct9.giroLadoA % 180).toBeCloseTo(0, 6);
+  });
+
   /** Cara superior en 0, canto 0,75, la cabeza 10 cm adentro: −0,65. */
   it("pone la cabeza de cada pilote 10 cm dentro de la pieza que tiene encima", () => {
     expect(x.pilotes).toHaveLength(5);

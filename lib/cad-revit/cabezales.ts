@@ -32,6 +32,8 @@ export interface Cabezal {
   nombre: string;
   rect: Rectangulo;
   canto: number;
+  /** Las medidas en el orden del rótulo: "CT5 (1100x800x750)" → [1100, 800, 750]. */
+  medidas: [number, number, number];
   /** Índices en la lista de pilotes. */
   pilotes: number[];
   /** Fracción del perímetro que coincide con el contorno dibujado (0 a 1). */
@@ -216,6 +218,7 @@ export function ubicarCabezales(rot: Rotulo[], pil: Pilote[], segs: Segmento[], 
         nombre: r.nombre,
         rect: c.rect,
         canto: r.medidas[2],
+        medidas: r.medidas,
         pilotes: c.pilotes,
         cobertura: c.cobertura,
         origen: "contorno",
@@ -240,7 +243,7 @@ export function ubicarCabezales(rot: Rotulo[], pil: Pilote[], segs: Segmento[], 
     }
     pilotesUsados.add(libre.k);
     const rect: Rectangulo = { centro: pil[libre.k].centro, angulo: 0, largo: r.medidas[0], ancho: r.medidas[1] };
-    cabezales.push({ nombre: r.nombre, rect, canto: r.medidas[2], pilotes: [libre.k], cobertura: coberturaDelBorde(rect, segs, tol), origen: "pilotes", rotulo: r.posicion });
+    cabezales.push({ nombre: r.nombre, rect, canto: r.medidas[2], medidas: r.medidas, pilotes: [libre.k], cobertura: coberturaDelBorde(rect, segs, tol), origen: "pilotes", rotulo: r.posicion });
     avisos.push({
       texto: `${r.nombre} (${r.medidas[0]}x${r.medidas[1]}): no coincide con ningún borde dibujado; se ubicó sobre el pilote más cercano. Revisar medidas o posición.`,
       posicion: r.posicion,

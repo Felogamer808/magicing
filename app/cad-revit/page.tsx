@@ -255,6 +255,24 @@ export default function CadRevitPage() {
               </button>
             </div>
           </div>
+          <details className="rounded-md border px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-medium">Cómo llevarlo a Revit</summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>
+                Bajá el script una sola vez:{" "}
+                <a href="/revit/colocar-fundaciones-magicing.dyn" download className="text-foreground underline underline-offset-2">
+                  colocar-fundaciones-magicing.dyn
+                </a>{" "}
+                (Revit 2026, Dynamo 3).
+              </li>
+              <li>Revisá la lista de diferencias y, si hace falta, el desnivel de algún cabezal. Después, Descargar para Revit.</li>
+              <li>En Revit, con el CAD vinculado origen a origen: Manage → Dynamo Player, abrí el script, elegí el archivo y el nivel, y corré.</li>
+              <li>
+                Si un tipo no existe (por ejemplo un CT nuevo), el script lo crea con las medidas del rótulo. Si ya colocó antes en ese
+                modelo, no duplica: avisa.
+              </li>
+            </ol>
+          </details>
           <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
             <PlantaInterpretada
               key={`${opciones.capaContorno}|${opciones.escala}|${opciones.zona}`}

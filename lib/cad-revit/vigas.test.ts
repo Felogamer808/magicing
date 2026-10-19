@@ -53,6 +53,7 @@ describe("unión en T", () => {
     nombre: "CT1",
     rect: { centro: [5000, -3500], angulo: 0, largo: 1000, ancho: 1000 },
     canto: 750,
+    medidas: [1000, 1000, 750],
     pilotes: [0],
     cobertura: 0.8,
     origen: "contorno",

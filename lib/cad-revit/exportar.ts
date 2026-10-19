@@ -46,6 +46,15 @@ export interface CabezalExportado {
   canto: number;
   /** Cota de la cara superior respecto del nivel, m. */
   cotaSuperior: number;
+  /**
+   * Las medidas en el orden del rótulo ("CT5 (1100x800x750)": a = 1,10,
+   * b = 0,80), m. En la familia de la oficina `a` es `#Ancho` del tipo y `b`
+   * es `Length` del ejemplar, y el tipo se llama como el rótulo.
+   */
+  a: number;
+  b: number;
+  /** Dirección en planta del lado que mide `a`, grados respecto de X. */
+  giroLadoA: number;
 }
 
 export interface VigaExportada {
@@ -97,15 +106,24 @@ export function exportarParaRevit(r: Interpretacion, o: OpcionesExportacion): Ex
   const e = o.escala;
   const avisos = r.avisos.map((a) => a.texto);
 
-  const cabezales: CabezalExportado[] = r.cabezales.map((c, i) => ({
-    nombre: c.nombre,
-    centro: enM(c.rect.centro, e),
-    giroGrados: redondear(c.rect.angulo),
-    largo: redondear(c.rect.largo * e),
-    ancho: redondear(c.rect.ancho * e),
-    canto: redondear(c.canto * e),
-    cotaSuperior: redondear(o.desniveles[i] ?? 0),
-  }));
+  const cabezales: CabezalExportado[] = r.cabezales.map((c, i) => {
+    // El rectángulo guarda las medidas según su giro; el rótulo, en su orden.
+    // El lado `a` corre a lo largo del giro si es el `largo`, si no a 90°.
+    const [a, b] = c.medidas;
+    const aSobreElGiro = Math.abs(c.rect.largo - a) <= Math.abs(c.rect.ancho - a);
+    return {
+      nombre: c.nombre,
+      centro: enM(c.rect.centro, e),
+      giroGrados: redondear(c.rect.angulo),
+      largo: redondear(c.rect.largo * e),
+      ancho: redondear(c.rect.ancho * e),
+      canto: redondear(c.canto * e),
+      cotaSuperior: redondear(o.desniveles[i] ?? 0),
+      a: redondear(a * e),
+      b: redondear(b * e),
+      giroLadoA: redondear((((c.rect.angulo + (aSobreElGiro ? 0 : 90)) % 180) + 180) % 180),
+    };
+  });
 
   const vigas: VigaExportada[] = r.vigas.map((v) => ({
     nombre: v.nombre,

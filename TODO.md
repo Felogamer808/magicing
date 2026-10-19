@@ -57,15 +57,28 @@ Independientes, contra `main`:
   - Contrastar la clase IFC contra los cálculos del elemento (una `IfcColumn`
     con flexión de viga) y avisar.
   - Ejes, niveles y rótulos en el visor, para que se lea "tipo Revit".
-- **Levantar una planta de fundaciones desde DXF** (en curso, 2026-10-15):
-  primero una vez, con un script fuera de MagicIng que genere un IFC, sobre la
-  planta real del usuario (pilotes, cabezales CT1–CT14, vigas VC y VR). Recién
-  después decidir si se hace un importador de DXF. Criterios dados por el
-  usuario: cara superior de cabezales y vigas a una cota común, salvo el CT14
-  (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo; pilotes
-  10 cm dentro de la pieza que tienen encima y 12 m de largo representativo;
-  cabezales y vigas se cierran a partir del contorno corrido; los pilares no
-  se dibujan (entran como cargas).
+- **CAD → Revit** (en curso, rama `cad-a-revit`, 2026-10-19): sección de
+  MagicIng que lee un DXF de planta de fundaciones, la interpreta y exporta un
+  archivo que un script de Dynamo (Revit 2026) usa para colocar las familias
+  de la oficina. Decidido así en vez de generar un IFC: un IFC abierto en
+  Revit entra como formas no editables. Hecho: lector de DXF (`lib/dxf/`),
+  rótulos y pilotes, cabezales y vigas (`lib/cad-revit/`). Falta: elegir la
+  zona del dibujo (el DXF trae planta de pilotes, de fundaciones y planilla),
+  la pantalla con la planta interpretada y la lista de diferencias, la
+  exportación y el script de Dynamo. Criterios dados por el usuario:
+  - Cara superior de cabezales y vigas a una cota común, salvo el CT14
+    (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
+  - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
+    representativo (no se calculan pilotes).
+  - Cabezales y vigas se cierran a partir del contorno corrido; los huecos en
+    el contorno de una centradora son donde llegan las riostras.
+  - **Si lo dibujado no coincide con el rótulo, manda el rótulo** y la
+    diferencia se informa (2026-10-19).
+  - Los pilares no se dibujan: entran como cargas.
+  - Familias de Revit: vigas "Solid Wall - Rectangular Beam" (`#Ancho`,
+    `#Altura`; son vigas in situ), cabezales "Cimentacion-Rectangular"
+    (`#Ancho`, `#Profundidad`), pilotes "M_Pile-Steel Pipe" (`Diameter`,
+    `Depth`), con `IfcExportAs` cargado en las de cabezal y pilote.
 - **Pilar que descarga en una viga sobre pilotes, armado como cabezal** (CT6,
   CT7 y CT8 de esa planta, sin medidas propias): falta decidir con qué modelo
   y artículos se verifica. Idea del usuario: definir dentro de la viga las

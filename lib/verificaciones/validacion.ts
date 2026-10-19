@@ -89,6 +89,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nivel: "auditada",
     nota: "Modelo de bielas y tirantes repasado; se agregaron las comprobaciones de biela y nudo que faltaban. El anclaje del tirante pasó de la fórmula de la EHE-08 al art. 8.4 del Anejo 19 el 2026-10-19, medido desde la cara interior del pilote; esa parte no pasó por la auditoría. La malla de las caras pasó del 0,4 % de la planilla al art. 9.7 por analogía el mismo día.",
   },
+  "cabezal-un-pilote": {
+    nivel: "probada",
+    nota: "Sin planilla: se contrasta a mano en los tests. El Anejo 19 deja los encepados fuera de su alcance (art. 9.8.1); se usan la compresión localizada (art. 6.7) y la tracción transversal (art. 6.5.3), sin cuantía mínima propia; con a > H/2 la T sale de la ec. 6.58 con b = lado del cabezal. La excentricidad accidental la toman las vigas de atado.",
+  },
 
   "zapata-corrida": {
     nivel: "probada",

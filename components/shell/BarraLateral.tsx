@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Calculator, FolderKanban, LayoutGrid, ShieldCheck } from "lucide-react";
+import { BookOpen, Calculator, DraftingCompass, FolderKanban, LayoutGrid, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { NavVerificaciones } from "@/components/verificaciones/comun/NavVerificaciones";
 
@@ -31,6 +31,7 @@ const GRUPOS: { titulo: string; destinos: Destino[] }[] = [
     destinos: [
       { nombre: "Resumen", ruta: "/", Icono: LayoutGrid },
       { nombre: "Proyectos", ruta: "/proyectos", Icono: FolderKanban, prefijo: true },
+      { nombre: "CAD → Revit", ruta: "/cad-revit", Icono: DraftingCompass },
       { nombre: "Verificaciones", ruta: "/verificaciones", Icono: Calculator, prefijo: true },
       { nombre: "Secciones", ruta: "/secciones", Icono: BookOpen, prefijo: true },
     ],

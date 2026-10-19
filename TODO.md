@@ -42,7 +42,76 @@ Independientes, contra `main`:
   automática desde 1. **Faltan dos respuestas del usuario:** si el vínculo se
   crea al guardar desde la página o desde la vista del proyecto, y si se piensa
   vincular otros casos (pilar → zapata, viga → viga que la apea) para hacerlo
-  genérico.
+  genérico. El campo `ifc` del elemento (2026-10-15) **no** subió la versión:
+  es opcional. Este salto a 2 es el único previsto y cubre las dos cosas; la
+  conversión desde 1 deja `ifc` tal como está.
+- **Modelo 3D desde IFC** (hecho, rama `modelo-ifc`, 2026-10-15): importar IFC,
+  elementos vinculados por GlobalId, estado derivado y visor pintado por
+  estado. Ver `ARCHITECTURE.md` → "Modelo IFC". Queda:
+  - **Estado de las verificaciones que no son de cimentaciones.** Hoy dan "no
+    evaluable": hace falta que cada módulo de `lib/verificaciones/recomendaciones/`
+    exporte su `comprobarX(campos)`, como cimentaciones para el MCP. Son ~30
+    archivos que edita el trabajo de comprobaciones: hacerlo coordinado.
+  - Cargar la sección leída del IFC en los campos de la verificación (decidido
+    no hacerlo todavía: el IFC de Revit es el modelo físico).
+  - Contrastar la clase IFC contra los cálculos del elemento (una `IfcColumn`
+    con flexión de viga) y avisar.
+  - Ejes, niveles y rótulos en el visor, para que se lea "tipo Revit".
+- **CAD → Revit** (en curso, rama `cad-a-revit`, 2026-10-19): sección de
+  MagicIng que lee un DXF de planta de fundaciones, la interpreta y exporta un
+  archivo que un script de Dynamo (Revit 2026) usa para colocar las familias
+  de la oficina. Decidido así en vez de generar un IFC: un IFC abierto en
+  Revit entra como formas no editables. Hecho: lector de DXF (`lib/dxf/`),
+  rótulos y pilotes, cabezales, vigas y zonas (`lib/cad-revit/`), y la
+  pantalla `/cad-revit` con la planta interpretada y la lista de diferencias,
+  y la exportación (JSON en m, origen a origen, desnivel por cabezal, largo
+  de pilotes). Falta: el script de Dynamo que la lee y coloca las familias
+  (necesita el nombre del parámetro de largo del cabezal: correr
+  `listar-familias-magicing.dyn`). Criterios dados por el usuario:
+  - El CAD se vincula en Revit **origen a origen** (2026-10-19). Ajustado
+    tras la prueba en Revit: el script coloca sobre el CAD vinculado con el
+    mismo nombre, esté donde esté (el REV08 está corrido ~164 m, ~39 m del
+    FUNDO132 sobre el que se modeló a mano).
+  - **Geometría de las vigas: de cara a cara del cabezal** (para la vista y
+    para Revit; 2026-10-19). No cambia el cálculo:
+  - **Largo de cálculo** (2026-10-19): las **vigas centradoras**, desde el
+    pilar que descarga hasta el pilote más lejano; las **riostras**, de cara
+    a cara de cabezal. Cuando una viga del modelo pase a una verificación,
+    el largo sale de esta regla y no de la geometría.
+  - Cara superior de cabezales y vigas a una cota común, salvo el CT14
+    (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
+  - El CT14 (ascensor) usa la familia **Cimentacion-Rectangular**, no
+    "Cabezal ascensor" (2026-10-19).
+  - **Cargas de los pilares** (2026-10-19): por ahora se cargan **a mano en
+    MagicIng**. Después, un Excel que las saque de Robot.
+  - Probado en Revit 2026 sobre una copia de FUNDACIONES MAGICING: 21
+    cabezales, 35 vigas, 50 pilotes, alturas correctas, CT14 en −1300.
+  - **Calcular la planta** (rama `calcular-planta`). Criterios: Nd = 1,35·G +
+    1,5·Q; Nk por pilote = (G + Q + peso propio del cabezal a 25 kN/m³) / nº de
+    pilotes; suelo (fs, qp, FS) uno por proyecto; armadura y sección del pilar a
+    mano. Hecho: paso 1 (planta → proyecto), paso 2 (cargas del pilar y suelo,
+    derivados) y paso 3 (planta pintada por estado). Cabezal de 1 pilote
+    hecho (2026-10-19): el Anejo 19 deja los encepados fuera (art. 9.8.1),
+    así que compresión localizada (6.7) y tracción transversal por mitad del
+    canto (6.5.3), pilote como cuadrado de igual área, y con a > H/2 (fuera
+    de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. Falta: cabezales de 4 y 6 pilotes y la VC sobre
+    pilotes (hoy no evaluables); la armadura se carga pieza por pieza en su formulario.
+  - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo
+    representativo (no se calculan pilotes).
+  - Cabezales y vigas se cierran a partir del contorno corrido; los huecos en
+    el contorno de una centradora son donde llegan las riostras.
+  - **Si lo dibujado no coincide con el rótulo, manda el rótulo** y la
+    diferencia se informa (2026-10-19).
+  - Los pilares no se dibujan: entran como cargas.
+  - Familias de Revit: vigas "Solid Wall - Rectangular Beam" (`#Ancho`,
+    `#Altura`; son vigas in situ), cabezales "Cimentacion-Rectangular"
+    (`#Ancho`, `#Profundidad`), pilotes "M_Pile-Steel Pipe" (`Diameter`,
+    `Depth`), con `IfcExportAs` cargado en las de cabezal y pilote.
+- **Pilar que descarga en una viga sobre pilotes, armado como cabezal** (CT6,
+  CT7 y CT8 de esa planta, sin medidas propias): falta decidir con qué modelo
+  y artículos se verifica. Idea del usuario: definir dentro de la viga las
+  dimensiones que harían de cabezal. Es criterio de ingeniería: preguntar
+  antes de implementarlo.
 - **Vuelco y deslizamiento** (hecho en aislada, corrida y combinada,
   2026-10-07, por el CTE DB SE-C, persistente y extraordinaria). Criterios
   decididos: estabiliza sólo "Nk permanente" (campo aparte, vacío = Nk), sin

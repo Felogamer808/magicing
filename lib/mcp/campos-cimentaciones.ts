@@ -256,6 +256,21 @@ export const CAMPOS_CIMENTACIONES = {
     { clave: "phiEstH", etiqueta: "Horizontales · Øl", porDefecto: "10" },
     { clave: "formaAnclaje", etiqueta: "Extremo del tirante", porDefecto: "recta", opciones: ["recta","gancho"], descripcion: "recta = barra recta; gancho = patilla a 90°." },
   ],
+  "cabezal-un-pilote": [
+    { clave: "fck", etiqueta: "fck", unidad: "MPa", porDefecto: "30" },
+    { clave: "fyk", etiqueta: "fyk", unidad: "MPa", porDefecto: "500" },
+    { clave: "pilarX", etiqueta: "Pilar x", unidad: "m", porDefecto: "0.3" },
+    { clave: "pilarY", etiqueta: "Pilar y", unidad: "m", porDefecto: "0.3" },
+    { clave: "ladoX", etiqueta: "Lado x", unidad: "m", porDefecto: "0.9" },
+    { clave: "ladoY", etiqueta: "Lado y", unidad: "m", porDefecto: "0.9" },
+    { clave: "hCab", etiqueta: "H", unidad: "m", porDefecto: "1" },
+    { clave: "dPilote", etiqueta: "D pilote", unidad: "m", porDefecto: "0.5" },
+    { clave: "ndPilar", etiqueta: "Nd pilar", unidad: "kN", porDefecto: "690" },
+    { clave: "nCercosSup", etiqueta: "Mitad superior · cercos", porDefecto: "3" },
+    { clave: "phiCercosSup", etiqueta: "Mitad superior · Ø", unidad: "mm", porDefecto: "10" },
+    { clave: "nCercosInf", etiqueta: "Mitad inferior · cercos", porDefecto: "3" },
+    { clave: "phiCercosInf", etiqueta: "Mitad inferior · Ø", unidad: "mm", porDefecto: "12" },
+  ],
 } as const satisfies Record<string, readonly DefinicionCampo[]>;
 
 export type IdCimentacion = keyof typeof CAMPOS_CIMENTACIONES;

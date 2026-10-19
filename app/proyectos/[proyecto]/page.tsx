@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Box, Check, Download, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
+import { CargasPlanta } from "@/components/proyectos/CargasPlanta";
+import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
+import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { useProyectoActivo } from "@/lib/proyectos/activo";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
@@ -95,7 +98,7 @@ export default function ProyectoPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Proyecto</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{proyecto.nombre}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">{proyecto.nombre}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {proyecto.elementos.length}{" "}
             {proyecto.elementos.length === 1 ? "elemento" : "elementos"} · {contarCalculos(proyecto)}{" "}
@@ -138,6 +141,14 @@ export default function ProyectoPage() {
             <Download className="h-4 w-4" />
             Exportar
           </button>
+          <Link
+            href={`/proyectos/${proyecto.id}/modelo`}
+            className="flex h-9 items-center gap-2 rounded-lg border border-input px-3 text-sm transition-colors hover:bg-secondary"
+          >
+            <Box className="h-4 w-4" />
+            Modelo 3D
+          </Link>
+          <ImportarIfc proyecto={proyecto} guardar={guardar} />
         </div>
       </div>
 
@@ -200,6 +211,8 @@ export default function ProyectoPage() {
         </Card>
       </div>
 
+      <CargasPlanta proyecto={proyecto} guardar={guardar} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Elementos</CardTitle>
@@ -254,8 +267,15 @@ export default function ProyectoPage() {
                         <span className="text-muted-foreground"> · {elemento.ubicacion}</span>
                       )}
                     </p>
+                    {elemento.ifc && (
+                      // Lo que dice el modelo: se muestra, no entra en ningún cálculo.
+                      <p className="text-xs text-muted-foreground">
+                        {ROTULO_CLASE[elemento.ifc.clase]} del IFC
+                        {elemento.ifc.seccion && ` · ${describirSeccion(elemento.ifc.seccion)}`}
+                      </p>
+                    )}
                     {elemento.calculos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Sin cálculos todavía</p>
+                      <p className="text-xs text-muted-foreground">{elemento.cad?.sinVerificacion ?? "Sin cálculos todavía"}</p>
                     ) : (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {elemento.calculos.map((calculo) => {

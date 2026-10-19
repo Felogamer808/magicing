@@ -8,12 +8,18 @@
  */
 
 import {
+  CLASES_IFC,
   MATERIALES_POR_DEFECTO,
+  PIEZAS_CAD,
   VERSION_FORMATO,
   type ArchivoProyectos,
   type CalculoGuardado,
+  type ClaseIfc,
   type ElementoProyecto,
+  type OrigenCad,
+  type PiezaCad,
   type Proyecto,
+  type SeccionIfc,
 } from "@/lib/proyectos/tipos";
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
@@ -181,6 +187,163 @@ export function eliminarCalculo(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Elementos importados de un IFC
+// ---------------------------------------------------------------------------
+
+/** Un elemento tal como sale de leer el IFC, antes de entrar al proyecto. */
+export interface ElementoIfcLeido {
+  globalId: string;
+  clase: ClaseIfc;
+  nombre: string;
+  /** Nombre del IfcBuildingStorey que lo contiene, si lo hay. */
+  nivel?: string;
+  seccion?: SeccionIfc;
+}
+
+export interface ResultadoIncorporacion {
+  proyecto: Proyecto;
+  /** Elementos nuevos, por clase. */
+  creados: Partial<Record<ClaseIfc, number>>;
+  /** Ya estaban en el proyecto con el mismo GlobalId: no se tocan. */
+  yaEstaban: number;
+  /** Aparecen más de una vez en el archivo con el mismo GlobalId: se toma la primera. */
+  repetidos: number;
+}
+
+/**
+ * Suma al proyecto los elementos leídos de un IFC.
+ *
+ * El GlobalId decide si un elemento es nuevo. Uno que ya está no se pisa: pudo
+ * haberse renombrado o tener cálculos, y volver a importar el mismo modelo
+ * tiene que ser inocuo. Un GlobalId repetido dentro del mismo archivo entra
+ * una sola vez.
+ */
+export function incorporarIfc(proyecto: Proyecto, leidos: ElementoIfcLeido[]): ResultadoIncorporacion {
+  const enProyecto = new Set(
+    proyecto.elementos.map((e) => e.ifc?.globalId).filter((g): g is string => Boolean(g))
+  );
+  const enArchivo = new Set<string>();
+  const creados: Partial<Record<ClaseIfc, number>> = {};
+  const nuevos: ElementoProyecto[] = [];
+  let yaEstaban = 0;
+  let repetidos = 0;
+
+  for (const l of leidos) {
+    // Se distinguen para el resumen: "ya estaba" es lo esperable al
+    // reimportar; "repetido" es un defecto del archivo exportado.
+    if (enArchivo.has(l.globalId)) {
+      repetidos++;
+      continue;
+    }
+    enArchivo.add(l.globalId);
+    if (enProyecto.has(l.globalId)) {
+      yaEstaban++;
+      continue;
+    }
+    nuevos.push({
+      ...crearElemento(l.nombre, l.nivel),
+      ifc: { globalId: l.globalId, clase: l.clase, ...(l.seccion ? { seccion: l.seccion } : {}) },
+    });
+    creados[l.clase] = (creados[l.clase] ?? 0) + 1;
+  }
+
+  return {
+    proyecto: nuevos.length ? tocado({ ...proyecto, elementos: [...proyecto.elementos, ...nuevos] }) : proyecto,
+    creados,
+    yaEstaban,
+    repetidos,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Elementos traídos de una planta de CAD (página CAD → Revit)
+// ---------------------------------------------------------------------------
+
+/** Una pieza de la planta interpretada, lista para entrar al proyecto. */
+export interface PiezaPlantaLeida {
+  origen: Omit<OrigenCad, "archivo">;
+  /** La verificación que le corresponde, si hay una. */
+  verificacion?: IdVerificacion;
+  /** Campos que salen del dibujo: se reescriben cada vez que se trae la planta. */
+  geometria: Record<string, string>;
+  /**
+   * Campos que se cargan a mano (cargas, armadura, suelo). Entran vacíos: si
+   * faltaran, la verificación los completaría con su valor por defecto y la
+   * pieza diría "verifica" con una armadura que nadie cargó.
+   */
+  aMano: readonly string[];
+  /** Campos de materiales del proyecto (fck, fyk, recubrimiento): sólo al crear. */
+  materiales: Record<string, string>;
+}
+
+export interface ResultadoPlanta {
+  proyecto: Proyecto;
+  creados: Partial<Record<PiezaCad, number>>;
+  /** Ya estaban (misma marca): se les actualizó la geometría, no lo cargado a mano. */
+  actualizados: number;
+  /** Elementos del CAD que ya no aparecen en esta planta: no se borran. */
+  yaNoEstan: string[];
+}
+
+/**
+ * Suma o actualiza en el proyecto las piezas de una planta de CAD.
+ *
+ * La marca decide si una pieza es nueva. A una que ya está se le reescribe
+ * sólo la geometría —el plano pudo cambiar de revisión—; las cargas y la
+ * armadura cargadas a mano quedan como estaban. Lo que ya no aparece en la
+ * planta no se borra (pudo tener cálculos): se informa.
+ */
+export function incorporarPlanta(proyecto: Proyecto, piezas: PiezaPlantaLeida[], archivo: string): ResultadoPlanta {
+  const porMarca = new Map(proyecto.elementos.filter((e) => e.cad).map((e) => [e.cad!.marca, e]));
+  const marcas = new Set(piezas.map((p) => p.origen.marca));
+  const creados: Partial<Record<PiezaCad, number>> = {};
+  const nuevos: ElementoProyecto[] = [];
+  const cambiados = new Map<string, ElementoProyecto>();
+
+  for (const p of piezas) {
+    const cad: OrigenCad = { ...p.origen, archivo };
+    const existente = porMarca.get(p.origen.marca);
+    if (!existente) {
+      const vacios = Object.fromEntries(p.aMano.map((k) => [k, ""]));
+      nuevos.push({
+        ...crearElemento(p.origen.marca, "Fundaciones"),
+        cad,
+        calculos: p.verificacion ? [crearCalculo(p.verificacion, { ...p.materiales, ...vacios, ...p.geometria })] : [],
+      });
+      creados[p.origen.pieza] = (creados[p.origen.pieza] ?? 0) + 1;
+      continue;
+    }
+    let calculos = existente.calculos;
+    if (p.verificacion) {
+      const previo = calculos.find((c) => c.verificacion === p.verificacion);
+      calculos = previo
+        ? calculos.map((c) => (c === previo ? { ...c, campos: { ...c.campos, ...p.geometria }, editado: ahora() } : c))
+        : [
+            ...calculos,
+            crearCalculo(p.verificacion, {
+              ...p.materiales,
+              ...Object.fromEntries(p.aMano.map((k) => [k, ""])),
+              ...p.geometria,
+            }),
+          ];
+    }
+    cambiados.set(existente.id, { ...existente, cad, calculos, editado: ahora() });
+  }
+
+  const yaNoEstan = proyecto.elementos.filter((e) => e.cad && !marcas.has(e.cad.marca)).map((e) => e.nombre);
+  if (nuevos.length === 0 && cambiados.size === 0) return { proyecto, creados, actualizados: 0, yaNoEstan };
+  return {
+    proyecto: tocado({
+      ...proyecto,
+      elementos: [...proyecto.elementos.map((e) => cambiados.get(e.id) ?? e), ...nuevos],
+    }),
+    creados,
+    actualizados: cambiados.size,
+    yaNoEstan,
+  };
+}
+
 /** Cuántos cálculos tiene el proyecto, sumando los de todos sus elementos. */
 export function contarCalculos(proyecto: Proyecto): number {
   return proyecto.elementos.reduce((total, e) => total + e.calculos.length, 0);
@@ -265,6 +428,7 @@ function esProyecto(v: unknown): v is Proyecto {
   if (typeof m.fckMPa !== "number" || typeof m.fykMPa !== "number") return false;
   if (typeof m.recubrimientoM !== "number") return false;
   if (!Array.isArray(v.elementos)) return false;
+  if (v.suelo !== undefined && !soloNumeros(v.suelo)) return false;
   return v.elementos.every(esElemento);
 }
 
@@ -272,11 +436,32 @@ function esElemento(v: unknown): v is ElementoProyecto {
   if (!esObjeto(v)) return false;
   if (typeof v.id !== "string" || typeof v.nombre !== "string") return false;
   if (!Array.isArray(v.calculos)) return false;
+  if (v.ifc !== undefined && !esOrigenIfc(v.ifc)) return false;
+  if (v.cad !== undefined && !esOrigenCad(v.cad)) return false;
+  if (v.pilar !== undefined && !soloNumeros(v.pilar)) return false;
   return v.calculos.every((c) => {
     if (!esObjeto(c)) return false;
     if (typeof c.id !== "string" || typeof c.verificacion !== "string") return false;
     return esObjeto(c.campos);
   });
+}
+
+function esOrigenIfc(v: unknown): boolean {
+  if (!esObjeto(v) || typeof v.globalId !== "string" || v.globalId === "") return false;
+  if (!(CLASES_IFC as readonly unknown[]).includes(v.clase)) return false;
+  return v.seccion === undefined || (esObjeto(v.seccion) && typeof v.seccion.tipo === "string");
+}
+
+/** Un objeto cuyos valores son todos números finitos (pilar, suelo). */
+function soloNumeros(v: unknown): boolean {
+  return esObjeto(v) && Object.values(v).every((x) => typeof x === "number" && Number.isFinite(x));
+}
+
+function esOrigenCad(v: unknown): boolean {
+  if (!esObjeto(v) || typeof v.marca !== "string" || v.marca === "") return false;
+  if (!(PIEZAS_CAD as readonly unknown[]).includes(v.pieza)) return false;
+  if (typeof v.archivo !== "string") return false;
+  return v.sinVerificacion === undefined || typeof v.sinVerificacion === "string";
 }
 
 /**

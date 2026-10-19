@@ -62,10 +62,11 @@ Independientes, contra `main`:
   archivo que un script de Dynamo (Revit 2026) usa para colocar las familias
   de la oficina. Decidido así en vez de generar un IFC: un IFC abierto en
   Revit entra como formas no editables. Hecho: lector de DXF (`lib/dxf/`),
-  rótulos y pilotes, cabezales y vigas (`lib/cad-revit/`). Falta: elegir la
-  zona del dibujo (el DXF trae planta de pilotes, de fundaciones y planilla),
-  la pantalla con la planta interpretada y la lista de diferencias, la
-  exportación y el script de Dynamo. Criterios dados por el usuario:
+  rótulos y pilotes, cabezales, vigas y zonas (`lib/cad-revit/`), y la
+  pantalla `/cad-revit` con la planta interpretada y la lista de diferencias.
+  Falta: la exportación y el script de Dynamo, y decidir si en Revit las
+  vigas entran dentro del cabezal (en el tramo modelado, VC1, VC3 y VR24
+  medían 125 a 326 mm más que de cara a cara). Criterios dados por el usuario:
   - Cara superior de cabezales y vigas a una cota común, salvo el CT14
     (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
   - Pilotes 10 cm dentro de la pieza que tienen encima, 12 m de largo

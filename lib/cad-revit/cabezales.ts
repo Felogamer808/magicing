@@ -226,7 +226,8 @@ export function ubicarCabezales(rot: Rotulo[], pil: Pilote[], segs: Segmento[], 
         const f = (x: number) => Math.round(x);
         avisos.push({
           texto: `${r.nombre}: dibujado ${f(dibujado[0])}x${f(dibujado[1])}, el rótulo dice ${f(c.rect.largo)}x${f(c.rect.ancho)}. Se usa el rótulo.`,
-          posicion: r.posicion,
+          // Sobre la pieza, no sobre su rótulo: lo que hay que mirar es el cabezal.
+          posicion: c.rect.centro,
         });
       }
       continue;

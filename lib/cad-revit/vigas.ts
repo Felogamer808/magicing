@@ -232,7 +232,7 @@ export function ubicarVigas(rot: Rotulo[], segs: Segmento[], cabezales: Cabezal[
     if (anchoDistinto) {
       avisos.push({
         texto: `${r.nombre}: dibujada de ${Math.round(c.anchoDibujado)} de ancho, el rótulo dice ${r.anchoAlto[0]}. Se usa el rótulo.`,
-        posicion: r.posicion,
+        posicion: desdeEjes([(u0 + u1) / 2, vEje], c.angulo),
       });
     }
   }

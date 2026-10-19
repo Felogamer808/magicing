@@ -33,6 +33,7 @@ import {
   IFCRECTANGLEPROFILEDEF,
   IFCRELCONTAINEDINSPATIALSTRUCTURE,
   IFCRELDEFINESBYPROPERTIES,
+  IFCRELDEFINESBYTYPE,
   IFCSIUNIT,
   IFCSLAB,
   IFCUNITASSIGNMENT,
@@ -103,23 +104,28 @@ export async function leerIfc(bytes: Uint8Array): Promise<LecturaIfc> {
 export function leerModelo(api: IfcAPI, modelo: number): LecturaIfc {
   const escala = escalaLongitud(api, modelo);
   const nivelDe = niveles(api, modelo);
-  const marcaDe = marcas(api, modelo);
+  const propiedadesDe = propiedades(api, modelo);
   const elementos: ElementoIfcConId[] = [];
   const estructurales = new Set<number>();
 
-  for (const clase of CLASES_IFC) {
-    for (const id of ids(api.GetLineIDsWithType(modelo, TIPO_DE_CLASE[clase], true))) {
+  for (const claseEntidad of CLASES_IFC) {
+    for (const id of ids(api.GetLineIDsWithType(modelo, TIPO_DE_CLASE[claseEntidad], true))) {
       estructurales.add(id);
       const l = linea(api, modelo, id);
       const globalId = texto(l?.GlobalId);
       if (!l || !globalId) continue;
-      const seccion = escala === null ? undefined : leerSeccion(api, modelo, l, clase, escala);
+      const props = propiedadesDe(id);
+      const clase = claseDeclarada(props) ?? claseEntidad;
+      const seccion =
+        escala === null
+          ? undefined
+          : (leerSeccion(api, modelo, l, clase, escala) ?? seccionDeParametros(props, clase, escala));
       const nivel = nivelDe.get(id);
       elementos.push({
         expressId: id,
         globalId,
         clase,
-        nombre: marcaDe.get(id) ?? texto(l.Name) ?? texto(l.Tag) ?? `${clase} #${id}`,
+        nombre: marca(props) ?? texto(l.Name) ?? texto(l.Tag) ?? `${clase} #${id}`,
         ...(nivel ? { nivel } : {}),
         ...(seccion ? { seccion } : {}),
       });
@@ -192,36 +198,124 @@ function niveles(api: IfcAPI, modelo: number): Map<number, string> {
   return nivelDe;
 }
 
-/** Propiedades que guardan la Marca de Revit: "Mark" en inglés, "Marca" en español. */
-const NOMBRES_MARCA = new Set(["mark", "marca"]);
+// ---------------------------------------------------------------------------
+// Propiedades de Revit
+// ---------------------------------------------------------------------------
+
+/** Nombre de la propiedad en minúsculas → su valor. */
+type Propiedades = Map<string, unknown>;
 
 /**
- * expressID del elemento → su Marca ("VR4", "CT5").
+ * Las propiedades de cada elemento: las de su tipo y, encima, las suyas. Los
+ * nombres van en minúsculas, porque se buscan por nombre y Revit no es parejo
+ * con las mayúsculas entre idiomas y versiones.
  *
- * Es como se nombra la pieza en los planos. El Name que exporta Revit es
- * "Familia:Tipo:Id", que no sirve para encontrarla, y el Tag es el Id. La
- * Marca llega sólo si se exporta con "Exportar conjuntos de propiedades de
- * Revit"; si no viene, se usa el Name.
+ * Llegan sólo si se exporta con "Exportar conjuntos de propiedades de Revit".
  */
-function marcas(api: IfcAPI, modelo: number): Map<number, string> {
-  const marcaDe = new Map<number, string>();
+function propiedades(api: IfcAPI, modelo: number): (id: number) => Propiedades {
+  const leerConjunto = (ref: unknown, destino: Propiedades) => {
+    const conjunto = linea(api, modelo, ref);
+    if (conjunto?.type !== IFCPROPERTYSET) return;
+    for (const r of lista(conjunto.HasProperties)) {
+      const p = linea(api, modelo, r);
+      const nombre = texto(p?.Name)?.toLowerCase();
+      if (p?.type === IFCPROPERTYSINGLEVALUE && nombre && !destino.has(nombre)) destino.set(nombre, valor(p.NominalValue));
+    }
+  };
+
+  const delElemento = new Map<number, Propiedades>();
   for (const id of ids(api.GetLineIDsWithType(modelo, IFCRELDEFINESBYPROPERTIES))) {
     const rel = linea(api, modelo, id);
-    const conjunto = linea(api, modelo, rel?.RelatingPropertyDefinition);
-    if (!rel || conjunto?.type !== IFCPROPERTYSET) continue;
-    let marca: string | undefined;
-    for (const ref of lista(conjunto.HasProperties)) {
-      const p = linea(api, modelo, ref);
-      const nombre = texto(p?.Name)?.toLowerCase();
-      if (p?.type === IFCPROPERTYSINGLEVALUE && nombre && NOMBRES_MARCA.has(nombre)) marca = texto(p.NominalValue);
-    }
-    if (!marca) continue;
-    for (const ref of lista(rel.RelatedObjects)) {
+    for (const ref of lista(rel?.RelatedObjects)) {
       const idElemento = referencia(ref);
-      if (idElemento !== undefined && !marcaDe.has(idElemento)) marcaDe.set(idElemento, marca);
+      if (idElemento === undefined) continue;
+      const props = delElemento.get(idElemento) ?? new Map();
+      leerConjunto(rel?.RelatingPropertyDefinition, props);
+      delElemento.set(idElemento, props);
     }
   }
-  return marcaDe;
+
+  const tipoDe = new Map<number, number>();
+  for (const id of ids(api.GetLineIDsWithType(modelo, IFCRELDEFINESBYTYPE))) {
+    const rel = linea(api, modelo, id);
+    const idTipo = referencia(rel?.RelatingType);
+    if (idTipo === undefined) continue;
+    for (const ref of lista(rel?.RelatedObjects)) {
+      const idElemento = referencia(ref);
+      if (idElemento !== undefined) tipoDe.set(idElemento, idTipo);
+    }
+  }
+
+  const delTipo = new Map<number, Propiedades>();
+  return (id) => {
+    const idTipo = tipoDe.get(id);
+    let deTipo: Propiedades = new Map();
+    if (idTipo !== undefined) {
+      deTipo = delTipo.get(idTipo) ?? new Map();
+      if (!delTipo.has(idTipo)) {
+        for (const ref of lista(linea(api, modelo, idTipo)?.HasPropertySets)) leerConjunto(ref, deTipo);
+        delTipo.set(idTipo, deTipo);
+      }
+    }
+    return new Map([...deTipo, ...(delElemento.get(id) ?? [])]);
+  };
+}
+
+/**
+ * La Marca de Revit ("VR4", "CT5"): "Mark" en inglés, "Marca" en español.
+ *
+ * Es como se nombra la pieza en los planos. El Name que exporta Revit es
+ * "Familia:Tipo:Id", que no sirve para encontrarla, y el Tag es el Id.
+ */
+function marca(props: Propiedades): string | undefined {
+  const m = props.get("mark") ?? props.get("marca");
+  return typeof m === "string" && m.trim() ? m.trim() : undefined;
+}
+
+/**
+ * La clase que declara quien modeló con el parámetro `IfcExportAs`.
+ *
+ * Revit 2026 lo exporta como propiedad pero puede no respetarlo: con la
+ * configuración de la oficina, cabezales y pilotes salían como IfcSlab
+ * BASESLAB aunque la familia dijera IfcFooting e IfcPile. La intención está
+ * escrita en el archivo, así que se usa. Sólo cuenta si nombra una de las
+ * clases que se leen.
+ */
+function claseDeclarada(props: Propiedades): ClaseIfc | undefined {
+  const declarada = props.get("ifcexportas");
+  if (typeof declarada !== "string") return undefined;
+  return CLASES_IFC.find((c) => c.toLowerCase() === declarada.trim().toLowerCase());
+}
+
+/**
+ * La sección según los parámetros de la familia, para cuando la geometría no
+ * se puede leer (Revit exporta como malla las piezas unidas a otras).
+ *
+ * Sólo con nombres exactos: `#Ancho` y `#Altura` en vigas, `#Profundidad` en
+ * cabezales —la convención de las familias de la oficina— y `Diameter` en
+ * pilotes y pilares circulares, que es el de las familias de Revit. Un nombre
+ * parecido no alcanza: se prefiere no tener sección a tenerla de otro dato.
+ * Vienen en la unidad de longitud del proyecto.
+ */
+function seccionDeParametros(props: Propiedades, clase: ClaseIfc, escala: number): SeccionIfc | undefined {
+  const m = (nombre: string) => {
+    const n = Number(props.get(nombre));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * escala * 1e4) / 1e4 : undefined;
+  };
+  if (clase === "IfcBeam" || clase === "IfcMember") {
+    const anchoM = m("#ancho");
+    const altoM = m("#altura");
+    return anchoM && altoM ? { tipo: "rectangular", anchoM, altoM } : undefined;
+  }
+  if (clase === "IfcFooting") {
+    const espesorM = m("#profundidad");
+    return espesorM ? { tipo: "espesor", espesorM } : undefined;
+  }
+  if (clase === "IfcPile" || clase === "IfcColumn") {
+    const diametroM = m("diameter");
+    return diametroM ? { tipo: "circular", diametroM } : undefined;
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------

@@ -219,6 +219,13 @@ crea un elemento por cada pieza estructural (`IfcBeam`, `IfcColumn`, `IfcSlab`,
 - **Nombre**: la Marca de Revit ("Mark" o "Marca" en cualquier conjunto de
   propiedades) si viene; si no, el Name, que en Revit es "Familia:Tipo:Id". La
   Marca sólo llega exportando con "Exportar conjuntos de propiedades de Revit".
+- **Clase declarada**: si la pieza trae el parámetro `IfcExportAs` con una de
+  las clases que se leen, manda sobre la entidad. Revit 2026 puede no
+  respetarlo al exportar (cabezales y pilotes salían como `IfcSlab BASESLAB`).
+- **Sección desde parámetros**, sólo si la geometría no se puede leer (Revit
+  exporta como malla las piezas unidas): `#Ancho`/`#Altura` en vigas y
+  `#Profundidad` en cabezales (convención de las familias de la oficina),
+  `Diameter` en pilotes y pilares. Nombres exactos, nada parecido.
 - **El IFC no se guarda** (`lib/ifc/memoria.ts`): vive mientras la pestaña está
   abierta. Al recargar, el visor pide cargarlo de nuevo.
 - **Estado** (`lib/proyectos/estado.ts`): se deriva cada vez, con el mismo

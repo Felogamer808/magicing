@@ -28,7 +28,9 @@ describe("leerIfc", () => {
       "IfcColumn",
       "IfcColumn",
       "IfcFooting",
+      "IfcFooting",
       "IfcMember",
+      "IfcPile",
       "IfcSlab",
       "IfcWall",
     ]);
@@ -77,9 +79,27 @@ describe("leerIfc", () => {
     });
   });
 
+  /**
+   * Revit 2026, con la configuración de la oficina, exportó cabezales y
+   * pilotes como IfcSlab BASESLAB aunque sus familias declaran IfcExportAs.
+   * Sin esto el pilote figuraba como losa de 10 m de "espesor".
+   */
+  describe("piezas que Revit exporta con otra clase de la que declaran", () => {
+    it("toma la clase de IfcExportAs", () => {
+      expect(por("P01")?.clase).toBe("IfcPile");
+      expect(por("CT5")?.clase).toBe("IfcFooting");
+      // Reutiliza la geometría de Z-1 en el archivo de prueba: 600 de canto.
+      expect(por("CT5")?.seccion).toEqual({ tipo: "espesor", espesorM: 0.6 });
+    });
+
+    it("si la geometría es una malla, la sección sale del parámetro de la familia", () => {
+      expect(por("P01")?.seccion).toEqual({ tipo: "circular", diametroM: 0.4 });
+    });
+  });
+
   it("al incorporarlo a un proyecto, el GlobalId repetido entra una sola vez", () => {
     const r = incorporarIfc(crearProyecto("Prueba"), lectura.elementos);
-    expect(r.proyecto.elementos).toHaveLength(8);
+    expect(r.proyecto.elementos).toHaveLength(10);
     expect(r.yaEstaban).toBe(0);
     expect(r.repetidos).toBe(1);
     expect(r.creados).toEqual({
@@ -87,7 +107,8 @@ describe("leerIfc", () => {
       IfcColumn: 2,
       IfcSlab: 1,
       IfcWall: 1,
-      IfcFooting: 1,
+      IfcFooting: 2,
+      IfcPile: 1,
       IfcMember: 1,
     });
     // Lo que se lee para la geometría no se guarda en el proyecto.

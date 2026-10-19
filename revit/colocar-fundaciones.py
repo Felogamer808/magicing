@@ -39,8 +39,6 @@ FAMILIA_PILOTE = "M_Pile-Steel Pipe"
 # Va en "Comments" de todo lo que se crea, para reconocerlo después.
 MARCA = "MagicIng CAD-Revit"
 
-LONGITUD = SpecTypeId.Length.TypeId
-
 
 # ---------------------------------------------------------------------------
 # Utilidades
@@ -61,11 +59,21 @@ def parametro(elemento, nombre):
     raise Exception("El parámetro '%s' no existe o es de sólo lectura en '%s'." % (nombre, nombre_tipo(elemento) if isinstance(elemento, FamilySymbol) else elemento.Name))
 
 
+def es_medida(p):
+    """True si Revit guarda el valor en sus unidades internas (pies): Length,
+    pero también Pipe Size, Section Dimension… como el Diameter y el Depth de
+    M_Pile-Steel Pipe. False si es un número suelto, como los #Ancho, #Altura…
+    de la oficina, que ya están en mm."""
+    tipo_dato = p.Definition.GetDataType()
+    if tipo_dato.TypeId == SpecTypeId.Number.TypeId:
+        return False
+    return UnitUtils.IsMeasurableSpec(tipo_dato)
+
+
 def poner_mm(elemento, nombre, mm):
-    """Escribe una medida en mm, sea el parámetro de longitud o de número
-    (los #Ancho, #Altura… de la oficina son números en mm)."""
+    """Escribe una medida en mm, sea el parámetro una medida o un número."""
     p = parametro(elemento, nombre)
-    if p.Definition.GetDataType().TypeId == LONGITUD:
+    if es_medida(p):
         p.Set(en_pies(mm / 1000.0))
     else:
         p.Set(float(mm))
@@ -75,7 +83,7 @@ def leer_mm(elemento, nombre):
     p = elemento.LookupParameter(nombre)
     if p is None:
         return None
-    if p.Definition.GetDataType().TypeId == LONGITUD:
+    if es_medida(p):
         return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Millimeters)
     return p.AsDouble()
 
@@ -134,14 +142,21 @@ def tipo_por_nombre(familia, nombre, medidas_mm):
 
 def tipo_pilote(diametro_mm, largo_mm, avisos):
     tipos = tipos_de(FAMILIA_PILOTE)
+    nombre = u"⌀%d" % diametro_mm
+    # Primero por nombre (la convención de la oficina), después por diámetro.
     elegido = None
     for t in tipos:
-        d = leer_mm(t, "Diameter")
-        if d is not None and abs(d - diametro_mm) < 0.5:
+        if nombre_tipo(t) == nombre:
             elegido = t
             break
     if elegido is None:
-        elegido = tipos[0].Duplicate(u"⌀%d" % diametro_mm)
+        for t in tipos:
+            d = leer_mm(t, "Diameter")
+            if d is not None and abs(d - diametro_mm) < 0.5:
+                elegido = t
+                break
+    if elegido is None:
+        elegido = tipos[0].Duplicate(nombre)
         poner_mm(elegido, "Diameter", diametro_mm)
         creados.append(u"%s: ⌀%d" % (FAMILIA_PILOTE, diametro_mm))
     # El largo es de tipo: cambia todos los pilotes de ese diámetro del proyecto.

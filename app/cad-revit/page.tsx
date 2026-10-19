@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { CampoMetros } from "@/components/cad-revit/CampoMetros";
 import { ListaAvisos } from "@/components/cad-revit/ListaAvisos";
+import { LlevarAProyecto } from "@/components/cad-revit/LlevarAProyecto";
 import { PanelPieza } from "@/components/cad-revit/PanelPieza";
 import { PlantaInterpretada, type Seleccion } from "@/components/cad-revit/PlantaInterpretada";
 import type { LecturaDxf, Punto } from "@/lib/dxf/leer";
@@ -255,6 +256,7 @@ export default function CadRevitPage() {
               </button>
             </div>
           </div>
+          <LlevarAProyecto resultado={resultado} escala={opciones.escala} largoPiloteM={largoPilote} archivo={archivo ?? "planta.dxf"} />
           <details className="rounded-md border px-4 py-3 text-sm">
             <summary className="cursor-pointer font-medium">Cómo llevarlo a Revit</summary>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">

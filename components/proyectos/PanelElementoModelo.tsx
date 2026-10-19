@@ -55,7 +55,7 @@ export function PanelElementoModelo({
       </p>
 
       {elemento.calculos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Sin cálculos todavía.</p>
+        <p className="text-xs text-muted-foreground">{elemento.cad?.sinVerificacion ?? "Sin cálculos todavía."}</p>
       ) : (
         <ul className="space-y-1.5">
           {elemento.calculos.map((calculo) => {

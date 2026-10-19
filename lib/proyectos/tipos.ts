@@ -90,6 +90,35 @@ export interface OrigenIfc {
   seccion?: SeccionIfc;
 }
 
+/** Qué pieza de una planta de fundaciones es, al traerla desde CAD → Revit. */
+export const PIEZAS_CAD = ["cabezal", "nodo", "viga", "pilote"] as const;
+export type PiezaCad = (typeof PIEZAS_CAD)[number];
+
+/** Vínculo del elemento con la planta del CAD de la que salió. */
+export interface OrigenCad {
+  /**
+   * La marca de la pieza en Revit ("CT9-1", "VR4", "CT9-1-P2"): es lo que
+   * permite volver a traer la planta —otra revisión del mismo plano— sin
+   * duplicar elementos.
+   */
+  marca: string;
+  pieza: PiezaCad;
+  /** El DXF del que salió la última vez. */
+  archivo: string;
+  /**
+   * Por qué no tiene verificación: no hay una para esta pieza todavía (un
+   * cabezal de un pilote, una viga centradora sobre pilotes). El estado es
+   * "no evaluable" y no "sin verificar", porque no falta nada por hacer.
+   */
+  sinVerificacion?: string;
+  /** Viga: la marca de la pieza en cada extremo (cabezal o nodo), o null. */
+  extremos?: [string | null, string | null];
+  /** Pilote: la marca de la pieza que tiene encima. */
+  bajo?: string;
+  /** Cabezal: lados y canto, m (para el peso propio que baja a los pilotes). */
+  medidasM?: [number, number, number];
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -102,6 +131,8 @@ export interface ElementoProyecto {
   nota?: string;
   /** Sólo en los elementos importados de un IFC. */
   ifc?: OrigenIfc;
+  /** Sólo en los elementos traídos de una planta de CAD (página CAD → Revit). */
+  cad?: OrigenCad;
   calculos: CalculoGuardado[];
   creado: string;
   editado: string;

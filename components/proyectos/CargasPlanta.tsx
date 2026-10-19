@@ -45,8 +45,9 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
       <CardContent className="space-y-4 text-sm">
         <p className="text-xs text-muted-foreground">
           G y Q características, sin mayorar. De acá salen el Nd de cada cabezal (1,35·G + 1,5·Q), el Nk de cada pilote
-          ((G + Q + peso propio del cabezal a 25 kN/m³) / nº de pilotes) y los Nd de los extremos de cada viga de atado. El
-          lado del pilar lo usan las verificaciones de cabezales.
+          ((G + Q + peso propio del cabezal a 25 kN/m³) / nº de pilotes), los Nd de los extremos de cada viga de atado y el
+          N₁d de cada centradora. Bajo el pilar medianero de una centradora con e cargada, al pilote le baja la reacción de
+          la palanca en lugar de G + Q. El lado del pilar lo usan las verificaciones de cabezales.
         </p>
         <p className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Nd a mano</span>: si el pilar tiene combinaciones que 1,35·G + 1,5·Q

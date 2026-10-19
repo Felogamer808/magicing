@@ -125,3 +125,36 @@ describe("resolver de la viga centradora sobre pilotes", () => {
     expect(resolverVigaCentradoraPilotes({ ...porDefecto, excentricidad: "0" })).not.toBeNull();
   });
 });
+
+/**
+ * Contraste con la planilla ALTAMIRA_Fundaciones_02_Calculo_REV08.xlsx, hojas
+ * Centradoras y Vigas (EHE-08 + JM § 25.5.2). Entradas: N₁d = Nd ELU máx del
+ * pilar (hoja Pilares), l − e del plano REV08 (`piezasDePlanta`), e del pilar
+ * de Robot llevado al DXF con el corrimiento (+55588, −58426) mm, y la
+ * armadura adoptada en la planilla.
+ *
+ * La palanca es la misma, así que el Md coincide en las VC con un pilote
+ * medianero (VC1, VC2, VC5, VC6). En VC3 y VC4 el medianero es un cabezal de 2
+ * pilotes y la planilla toma el F de Robot con tres ecuaciones: la palanca
+ * plana da −8 % y +5 %. El cortante no se compara: la planilla lo saca de Robot.
+ */
+describe("viga centradora sobre pilotes: contraste con la planilla REV08", () => {
+  const casos = [
+    { vc: "VC1", b: 1.0, h: 0.6, e: 0.657, luz: 3.389, nd: 494.7, lado: 0.149, d: 0.4, arm: [9, 20], md: 378.8, r1: 645 },
+    { vc: "VC2", b: 0.8, h: 0.6, e: 0.748, luz: 4.772, nd: 783.4, lado: 0.2, d: 0.5, arm: [8, 25], md: 664.1, r1: 970.9 },
+    { vc: "VC5", b: 0.9, h: 0.7, e: 0.492, luz: 5.296, nd: 1186.7, lado: 0.213, d: 0.6, arm: [8, 25], md: 704.8, r1: 1390 },
+    { vc: "VC6", b: 0.9, h: 0.8, e: 0.782, luz: 3.131, nd: 1515.8, lado: 0.142, d: 0.6, arm: [17, 20], md: 1335.7, r1: 1942 },
+  ] as const;
+  for (const c of casos) {
+    it(`${c.vc}: Md y R del pilote como la planilla, y la armadura adoptada alcanza`, () => {
+      const r = calcularVigaCentradoraPilotes(materiales, {
+        ...VC2,
+        b: c.b, h: c.h, excentricidadM: c.e, luzApoyosM: c.luz, n1dKN: c.nd, ladoPilarM: c.lado, diametroPiloteM: c.d,
+        superior: { numero: c.arm[0], diametroMm: c.arm[1] },
+      });
+      expect(Math.abs(r.momentoKNm / c.md - 1)).toBeLessThan(0.01);
+      expect(Math.abs(r.reaccionPiloteKN / c.r1 - 1)).toBeLessThan(0.035);
+      expect(r.flexion.verificaAs).toBe(true);
+    });
+  }
+});

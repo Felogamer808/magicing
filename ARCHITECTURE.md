@@ -212,7 +212,13 @@ crea un elemento por cada pieza estructural (`IfcBeam`, `IfcColumn`, `IfcSlab`,
   subió `VERSION_FORMATO`; el salto a 2 queda para los vínculos entre elementos.
 - **Sección**: sólo la que se lee sin interpretar (un único sólido extruido,
   perfil rectangular o circular; losas y zapatas, su espesor). Se muestra, no
-  entra en los campos de ninguna verificación.
+  entra en los campos de ninguna verificación. Los recortes que Revit pone en
+  las uniones (`IfcBooleanClippingResult`) se atraviesan hasta el sólido base.
+  En vigas, el alto es el lado del perfil que queda vertical en el mundo
+  (Revit apoya el perfil con su X vertical; otros exportadores con el Y).
+- **Nombre**: la Marca de Revit ("Mark" o "Marca" en cualquier conjunto de
+  propiedades) si viene; si no, el Name, que en Revit es "Familia:Tipo:Id". La
+  Marca sólo llega exportando con "Exportar conjuntos de propiedades de Revit".
 - **El IFC no se guarda** (`lib/ifc/memoria.ts`): vive mientras la pestaña está
   abierta. Al recargar, el visor pide cargarlo de nuevo.
 - **Estado** (`lib/proyectos/estado.ts`): se deriva cada vez, con el mismo

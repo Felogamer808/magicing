@@ -11,8 +11,12 @@
  */
 
 import {
+  IFCAXIS2PLACEMENT3D,
   IFCBEAM,
+  IFCBOOLEANCLIPPINGRESULT,
+  IFCBOOLEANRESULT,
   IFCBUILDINGSTOREY,
+  IFCCARTESIANTRANSFORMATIONOPERATOR3D,
   IFCCIRCLEPROFILEDEF,
   IFCCOLUMN,
   IFCCONVERSIONBASEDUNIT,
@@ -20,11 +24,15 @@ import {
   IFCEXTRUDEDAREASOLID,
   IFCFEATUREELEMENT,
   IFCFOOTING,
+  IFCLOCALPLACEMENT,
   IFCMAPPEDITEM,
   IFCMEMBER,
   IFCPILE,
+  IFCPROPERTYSET,
+  IFCPROPERTYSINGLEVALUE,
   IFCRECTANGLEPROFILEDEF,
   IFCRELCONTAINEDINSPATIALSTRUCTURE,
+  IFCRELDEFINESBYPROPERTIES,
   IFCSIUNIT,
   IFCSLAB,
   IFCUNITASSIGNMENT,
@@ -95,6 +103,7 @@ export async function leerIfc(bytes: Uint8Array): Promise<LecturaIfc> {
 export function leerModelo(api: IfcAPI, modelo: number): LecturaIfc {
   const escala = escalaLongitud(api, modelo);
   const nivelDe = niveles(api, modelo);
+  const marcaDe = marcas(api, modelo);
   const elementos: ElementoIfcConId[] = [];
   const estructurales = new Set<number>();
 
@@ -110,7 +119,7 @@ export function leerModelo(api: IfcAPI, modelo: number): LecturaIfc {
         expressId: id,
         globalId,
         clase,
-        nombre: texto(l.Name) ?? texto(l.Tag) ?? `${clase} #${id}`,
+        nombre: marcaDe.get(id) ?? texto(l.Name) ?? texto(l.Tag) ?? `${clase} #${id}`,
         ...(nivel ? { nivel } : {}),
         ...(seccion ? { seccion } : {}),
       });
@@ -183,18 +192,52 @@ function niveles(api: IfcAPI, modelo: number): Map<number, string> {
   return nivelDe;
 }
 
+/** Propiedades que guardan la Marca de Revit: "Mark" en inglés, "Marca" en español. */
+const NOMBRES_MARCA = new Set(["mark", "marca"]);
+
+/**
+ * expressID del elemento → su Marca ("VR4", "CT5").
+ *
+ * Es como se nombra la pieza en los planos. El Name que exporta Revit es
+ * "Familia:Tipo:Id", que no sirve para encontrarla, y el Tag es el Id. La
+ * Marca llega sólo si se exporta con "Exportar conjuntos de propiedades de
+ * Revit"; si no viene, se usa el Name.
+ */
+function marcas(api: IfcAPI, modelo: number): Map<number, string> {
+  const marcaDe = new Map<number, string>();
+  for (const id of ids(api.GetLineIDsWithType(modelo, IFCRELDEFINESBYPROPERTIES))) {
+    const rel = linea(api, modelo, id);
+    const conjunto = linea(api, modelo, rel?.RelatingPropertyDefinition);
+    if (!rel || conjunto?.type !== IFCPROPERTYSET) continue;
+    let marca: string | undefined;
+    for (const ref of lista(conjunto.HasProperties)) {
+      const p = linea(api, modelo, ref);
+      const nombre = texto(p?.Name)?.toLowerCase();
+      if (p?.type === IFCPROPERTYSINGLEVALUE && nombre && NOMBRES_MARCA.has(nombre)) marca = texto(p.NominalValue);
+    }
+    if (!marca) continue;
+    for (const ref of lista(rel.RelatedObjects)) {
+      const idElemento = referencia(ref);
+      if (idElemento !== undefined && !marcaDe.has(idElemento)) marcaDe.set(idElemento, marca);
+    }
+  }
+  return marcaDe;
+}
+
 // ---------------------------------------------------------------------------
 // Sección
 // ---------------------------------------------------------------------------
 
 /**
  * La sección que se puede leer sin interpretar: el cuerpo es un único sólido
- * extruido y su perfil es un rectángulo o un círculo. Cualquier otra cosa
- * (varios sólidos, perfiles I, Brep) queda sin sección antes que con una
- * equivocada.
+ * extruido —quizás recortado— y su perfil es un rectángulo o un círculo.
+ * Cualquier otra cosa (varios sólidos, perfiles I, Brep) queda sin sección
+ * antes que con una equivocada.
  *
  * Losas y zapatas dan su espesor (lo que se extruye). Los muros, el menor lado
- * del rectángulo: el mayor es su largo. El resto, el perfil entero.
+ * del rectángulo: el mayor es su largo. Vigas y miembros, ancho × alto según
+ * qué lado del perfil queda vertical. Pilares y pilotes, el perfil tal cual:
+ * en una pieza vertical no hay un lado "alto".
  */
 function leerSeccion(
   api: IfcAPI,
@@ -203,8 +246,9 @@ function leerSeccion(
   clase: ClaseIfc,
   escala: number
 ): SeccionIfc | undefined {
-  const solido = solidoExtruido(api, modelo, elemento);
-  if (!solido) return undefined;
+  const cuerpo = solidoExtruido(api, modelo, elemento);
+  if (!cuerpo) return undefined;
+  const { solido, giro } = cuerpo;
   const m = (v: number | undefined) =>
     v !== undefined && v > 0 ? Math.round(v * escala * 1e4) / 1e4 : undefined;
 
@@ -219,6 +263,16 @@ function leerSeccion(
     const y = m(numero(perfil.YDim));
     if (!x || !y) return undefined;
     if (clase === "IfcWall") return { tipo: "espesor", espesorM: Math.min(x, y) };
+    if (clase === "IfcBeam" || clase === "IfcMember") {
+      // XDim corre por el eje X del perfil y YDim por el Y. Cuál de los dos es
+      // la altura depende de cómo quedó apoyado el perfil en el mundo: Revit
+      // pone el X vertical, otros exportadores el Y. Se mira, no se supone.
+      const mundo = componer(giroDeUbicacion(api, modelo, elemento.ObjectPlacement), giro, giroDeEjes(api, modelo, solido.Position));
+      const zX = Math.abs(mundo[2][0]);
+      const zY = Math.abs(mundo[2][1]);
+      if (Math.max(zX, zY) < 0.5) return undefined; // perfil girado: no hay un lado claramente vertical
+      return zX > zY ? { tipo: "rectangular", anchoM: y, altoM: x } : { tipo: "rectangular", anchoM: x, altoM: y };
+    }
     return { tipo: "rectangular", anchoM: x, altoM: y };
   }
   if (perfil?.type === IFCCIRCLEPROFILEDEF && clase !== "IfcWall") {
@@ -229,8 +283,19 @@ function leerSeccion(
   return undefined;
 }
 
-/** El único sólido extruido de la representación 'Body', directo o a través de un IfcMappedItem. */
-function solidoExtruido(api: IfcAPI, modelo: number, elemento: Linea): Linea | null {
+/**
+ * El único sólido extruido de la representación 'Body', con el giro que le
+ * agrega un IfcMappedItem si lo hay.
+ *
+ * Un recorte (IfcBooleanClippingResult: Revit recorta las vigas donde se unen
+ * a otra pieza) no cambia la sección: se toma el sólido de base, que es su
+ * primer operando, por más recortes que tenga encima.
+ */
+function solidoExtruido(
+  api: IfcAPI,
+  modelo: number,
+  elemento: Linea
+): { solido: Linea; giro: Giro } | null {
   const forma = linea(api, modelo, elemento.Representation);
   for (const ref of lista(forma?.Representations)) {
     const rep = linea(api, modelo, ref);
@@ -238,15 +303,82 @@ function solidoExtruido(api: IfcAPI, modelo: number, elemento: Linea): Linea | n
     let items = lista(rep.Items);
     if (items.length !== 1) return null;
     let item = linea(api, modelo, items[0]);
+    let giro = IDENTIDAD;
     if (item?.type === IFCMAPPEDITEM) {
       const fuente = linea(api, modelo, item.MappingSource);
+      giro = componer(giroDeOperador(api, modelo, item.MappingTarget), giroDeEjes(api, modelo, fuente?.MappingOrigin));
       items = lista(linea(api, modelo, fuente?.MappedRepresentation)?.Items);
       if (items.length !== 1) return null;
       item = linea(api, modelo, items[0]);
     }
-    return item?.type === IFCEXTRUDEDAREASOLID ? item : null;
+    while (item && (item.type === IFCBOOLEANCLIPPINGRESULT || item.type === IFCBOOLEANRESULT)) {
+      if (enumerado(item.Operator) !== "DIFFERENCE") return null;
+      item = linea(api, modelo, item.FirstOperand);
+    }
+    return item?.type === IFCEXTRUDEDAREASOLID ? { solido: item, giro } : null;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Giros: sólo hace falta saber hacia dónde apunta cada eje, no dónde está
+// ---------------------------------------------------------------------------
+
+/** Matriz 3×3 por filas: la columna j es el eje j local, escrito en el sistema de arriba. */
+type Giro = number[][];
+
+const IDENTIDAD: Giro = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+];
+
+function componer(...giros: Giro[]): Giro {
+  return giros.reduce((a, b) => a.map((fila) => [0, 1, 2].map((j) => fila.reduce((s, v, k) => s + v * b[k][j], 0))));
+}
+
+function normalizar(v: number[]): number[] {
+  const n = Math.hypot(...v);
+  return n > 0 ? v.map((x) => x / n) : v;
+}
+
+function vectorDe(api: IfcAPI, modelo: number, ref: unknown): number[] | undefined {
+  const d = linea(api, modelo, ref);
+  const r = lista(d?.DirectionRatios).map((x) => Number(typeof x === "number" ? x : valor(x)));
+  return r.length >= 2 && r.every(Number.isFinite) ? [r[0], r[1], r[2] ?? 0] : undefined;
+}
+
+/** Giro de un IfcAxis2Placement3D: Axis es el Z local, RefDirection marca el X. */
+function giroDeEjes(api: IfcAPI, modelo: number, ref: unknown): Giro {
+  const ejes = linea(api, modelo, ref);
+  if (!ejes || ejes.type !== IFCAXIS2PLACEMENT3D) return IDENTIDAD;
+  const z = normalizar(vectorDe(api, modelo, ejes.Axis) ?? [0, 0, 1]);
+  const ref0 = vectorDe(api, modelo, ejes.RefDirection) ?? [1, 0, 0];
+  const p = ref0[0] * z[0] + ref0[1] * z[1] + ref0[2] * z[2];
+  const x = normalizar(ref0.map((v, i) => v - p * z[i]));
+  const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+  return [0, 1, 2].map((i) => [x[i], y[i], z[i]]);
+}
+
+/** Giro de la cadena de IfcLocalPlacement, desde el elemento hasta la raíz. */
+function giroDeUbicacion(api: IfcAPI, modelo: number, ref: unknown): Giro {
+  const giros: Giro[] = [];
+  let ubicacion = linea(api, modelo, ref);
+  for (let i = 0; ubicacion?.type === IFCLOCALPLACEMENT && i < 64; i++) {
+    giros.unshift(giroDeEjes(api, modelo, ubicacion.RelativePlacement));
+    ubicacion = linea(api, modelo, ubicacion.PlacementRelTo);
+  }
+  return giros.length ? componer(...giros) : IDENTIDAD;
+}
+
+/** Giro de un IfcCartesianTransformationOperator3D (el destino de un IfcMappedItem). */
+function giroDeOperador(api: IfcAPI, modelo: number, ref: unknown): Giro {
+  const op = linea(api, modelo, ref);
+  if (!op || op.type !== IFCCARTESIANTRANSFORMATIONOPERATOR3D) return IDENTIDAD;
+  const x = normalizar(vectorDe(api, modelo, op.Axis1) ?? [1, 0, 0]);
+  const z = normalizar(vectorDe(api, modelo, op.Axis3) ?? [0, 0, 1]);
+  const y = normalizar(vectorDe(api, modelo, op.Axis2) ?? [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]]);
+  return [0, 1, 2].map((i) => [x[i], y[i], z[i]]);
 }
 
 // ---------------------------------------------------------------------------

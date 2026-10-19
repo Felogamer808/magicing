@@ -8,6 +8,8 @@ import { crearProyecto, incorporarIfc } from "@/lib/proyectos/modelo";
  * `prueba.ifc` está escrito a mano, en mm como exporta Revit: dos niveles,
  * una viga, dos pilares (uno circular), una losa, un muro, una zapata, una
  * riostra sin Name y fuera de los niveles, una puerta y un GlobalId repetido.
+ * Más una viga armada como la exporta Revit (VR4), que es la que dejó a la
+ * vista que el perfil no siempre se apoya igual.
  */
 let lectura: LecturaIfc;
 
@@ -20,6 +22,7 @@ const por = (nombre: string) => lectura.elementos.find((e) => e.nombre === nombr
 describe("leerIfc", () => {
   it("lee sólo los elementos estructurales y cuenta lo que saltea", () => {
     expect(lectura.elementos.map((e) => e.clase).sort()).toEqual([
+      "IfcBeam",
       "IfcBeam",
       "IfcBeam",
       "IfcColumn",
@@ -56,13 +59,31 @@ describe("leerIfc", () => {
     expect(por("Z-1")?.seccion).toEqual({ tipo: "espesor", espesorM: 0.6 });
   });
 
+  describe("una viga exportada por Revit", () => {
+    /** El Name de Revit es "Familia:Tipo:Id"; en los planos la pieza se llama por su Marca. */
+    it("se nombra por su Marca, no por el Name", () => {
+      const viga = lectura.elementos.find((e) => e.globalId === "1Yb3lFz0j4_O9qWUcQ7vF2");
+      expect(viga?.nombre).toBe("VR4");
+      expect(viga?.nivel).toBe("Nivel 2");
+    });
+
+    /**
+     * Revit apoya el perfil con su X vertical: XDim = 450 es la altura. Leer
+     * XDim como ancho daba 0,45 × 0,30, al revés. Y el recorte (Clipping) no
+     * tiene que dejarla sin sección.
+     */
+    it("da ancho × alto según qué lado del perfil queda vertical, aunque esté recortada", () => {
+      expect(por("VR4")?.seccion).toEqual({ tipo: "rectangular", anchoM: 0.3, altoM: 0.45 });
+    });
+  });
+
   it("al incorporarlo a un proyecto, el GlobalId repetido entra una sola vez", () => {
     const r = incorporarIfc(crearProyecto("Prueba"), lectura.elementos);
-    expect(r.proyecto.elementos).toHaveLength(7);
+    expect(r.proyecto.elementos).toHaveLength(8);
     expect(r.yaEstaban).toBe(0);
     expect(r.repetidos).toBe(1);
     expect(r.creados).toEqual({
-      IfcBeam: 1,
+      IfcBeam: 2,
       IfcColumn: 2,
       IfcSlab: 1,
       IfcWall: 1,

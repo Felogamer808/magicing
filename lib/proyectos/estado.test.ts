@@ -37,6 +37,20 @@ describe("estadoDeCalculo", () => {
     expect(estadoDeCalculo(vigaSinResolver)).toBe("no-evaluable");
   });
 
+  /**
+   * Lo que guarda la página del cabezal, tal cual (prueba en el navegador,
+   * 2026-10-21): trae "norma", que no es un campo del cálculo. Antes quedaba
+   * "no evaluable" y la pieza no se pintaba, aunque la página dijera "No cumple".
+   */
+  it("un cálculo guardado desde la página, con la norma elegida, se evalúa", () => {
+    const desdeLaPagina = crearCalculo("cabezales", {
+      ...{ norma: "EC2", fck: "30", fyk: "500", rg: "0.03", anchoPilar: "0.3", ladoX: "1.8", ladoY: "0.8", hCab: "0.75" },
+      ...{ dPilote: "0.5", ndPilar: "480", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", nEstV: "10" },
+      ...{ phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10", formaAnclaje: "recta" },
+    });
+    expect(estadoDeCalculo(desdeLaPagina)).toBe("no-verifica");
+  });
+
   it("con datos con los que la página no calcula, tampoco", () => {
     expect(estadoDeCalculo(crearCalculo("zapatas", { A: "" }))).toBe("no-evaluable");
     expect(estadoDeCalculo(crearCalculo("zapatas", { campoQueNoExiste: "1" }))).toBe("no-evaluable");

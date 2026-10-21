@@ -26,6 +26,9 @@ import type { Interpretacion } from "./interpretar";
 export const FORMATO_EXPORTACION = "magicing-cad-revit";
 export const VERSION_EXPORTACION = 1;
 
+/** Cuánto entra la cabeza del pilote en la pieza de arriba, m (criterio del usuario). */
+export const PENETRACION_PILOTE_M = 0.1;
+
 /**
  * Desvío máximo respecto de X o de Y que se toma por error de dibujo, grados.
  * En el REV08 las dos vigas que Revit marcó se desvían 0,009° y 0,018°;

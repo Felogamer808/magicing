@@ -96,14 +96,25 @@ function derivados(
   centradoras: Map<string, ElementoProyecto[]>
 ): Record<string, Record<string, string>> {
   const cad = e.cad!;
+  // Un campo derivado sólo se maneja desde el proyecto si su fuente se cargó
+  // ahí: el pilar (aunque después se haya vaciado: queda {}) o el suelo. Si
+  // nunca se cargó, lo que se escribió en la página del cálculo no se pisa
+  // (prueba en el navegador, 2026-10-21: el Nd del CT9-2 cargado en la página
+  // se borraba al editar otra pieza).
   if (cad.pieza === "cabezal") {
+    if (!e.pilar) return {};
     const nd = ndPilar(e.pilar);
     const ndTexto = nd === null ? "" : kN(nd);
+    // Los lados, sólo si alguno se cargó en el proyecto.
+    const conLados = e.pilar.ladoPilotesM !== undefined || e.pilar.ladoTransversalM !== undefined;
     return {
-      cabezales: { ndPilar: ndTexto, anchoPilar: texto(e.pilar?.ladoPilotesM) },
+      cabezales: { ndPilar: ndTexto, ...(conLados ? { anchoPilar: texto(e.pilar.ladoPilotesM) } : {}) },
       // Con un pilote no hay dirección que una pilotes: el primer lado va en x,
       // el largo del cabezal (ver proyecto.ts).
-      "cabezal-un-pilote": { ndPilar: ndTexto, pilarX: texto(e.pilar?.ladoPilotesM), pilarY: texto(e.pilar?.ladoTransversalM) },
+      "cabezal-un-pilote": {
+        ndPilar: ndTexto,
+        ...(conLados ? { pilarX: texto(e.pilar.ladoPilotesM), pilarY: texto(e.pilar.ladoTransversalM) } : {}),
+      },
     };
   }
   if (cad.pieza === "pilote") {
@@ -114,18 +125,21 @@ function derivados(
     const s = proyecto.suelo;
     return {
       pilotes: {
-        Nk: nk === null ? "" : kN(nk),
-        friccion: texto(s?.friccionKNm2),
-        punta: texto(s?.puntaKNm2),
-        factorSeguridad: texto(s?.factorSeguridad),
+        ...(pieza?.pilar ? { Nk: nk === null ? "" : kN(nk) } : {}),
+        ...(s ? { friccion: texto(s.friccionKNm2), punta: texto(s.puntaKNm2), factorSeguridad: texto(s.factorSeguridad) } : {}),
       },
     };
   }
   if (cad.pieza === "viga") {
-    const [a, b] = (cad.extremos ?? [null, null]).map((m) => (m ? ndPilar(porMarca.get(m)?.pilar) : null));
+    const extremos = (cad.extremos ?? [null, null]).map((m) => (m ? porMarca.get(m) : undefined));
+    const nd = (x: ElementoProyecto | undefined) => {
+      const n = ndPilar(x?.pilar);
+      return n === null ? "" : kN(n);
+    };
+    const [a, b] = extremos;
     return {
-      "viga-atado": { n1d: a === null ? "" : kN(a), n2d: b === null ? "" : kN(b) },
-      "viga-centradora-pilotes": { n1d: a === null ? "" : kN(a) },
+      "viga-atado": { ...(a?.pilar ? { n1d: nd(a) } : {}), ...(b?.pilar ? { n2d: nd(b) } : {}) },
+      "viga-centradora-pilotes": a?.pilar ? { n1d: nd(a) } : {},
     };
   }
   return {};

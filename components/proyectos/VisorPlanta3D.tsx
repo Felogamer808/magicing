@@ -14,12 +14,15 @@ export function VisorPlanta3D({
   estados,
   seleccionado,
   onSeleccionar,
+  className = "h-[75vh] min-h-[22rem]",
 }: {
   piezas: Pieza3D[];
   /** Estado por marca. */
   estados: Map<string, EstadoElemento>;
   seleccionado: string | null;
   onSeleccionar: (marca: string | null) => void;
+  /** Alto del lienzo: en pantalla completa, todo lo que haya. */
+  className?: string;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const visor = useRef<VisorPlanta | null>(null);
@@ -61,7 +64,7 @@ export function VisorPlanta3D({
   }, []);
 
   return (
-    <div className="relative h-[60vh] min-h-[22rem] w-full overflow-hidden rounded-md border">
+    <div className={`relative w-full overflow-hidden rounded-md border ${className}`}>
       <div ref={contenedor} className="absolute inset-0" />
       {listo !== "listo" && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-muted-foreground">

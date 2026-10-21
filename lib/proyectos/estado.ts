@@ -29,6 +29,11 @@ export const ROTULO_ESTADO: Record<EstadoElemento, string> = {
   "no-evaluable": "No evaluable",
 };
 
+/** Los campos guardados sin lo que no es un dato del cálculo (la norma elegida). */
+export function camposParaCalcular(campos: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(campos).filter(([clave]) => clave !== "norma"));
+}
+
 /**
  * `no-evaluable` cubre dos casos que para el color son lo mismo: una
  * verificación sin resolver por campos todavía, y datos con los que la página
@@ -41,8 +46,7 @@ export function estadoDeCalculo(calculo: CalculoGuardado): EstadoCalculo {
   // y el selector sólo la muestra en la revisión. completarCampos rechaza las
   // claves que no conoce, así que con la norma adentro todo cálculo guardado
   // desde la página quedaba "no evaluable".
-  const campos = Object.fromEntries(Object.entries(calculo.campos).filter(([clave]) => clave !== "norma"));
-  const r = calcularCimentacion(calculo.verificacion, campos);
+  const r = calcularCimentacion(calculo.verificacion, camposParaCalcular(calculo.campos));
   if (!r.ok) return "no-evaluable";
   return r.cumple ? "verifica" : "no-verifica";
 }

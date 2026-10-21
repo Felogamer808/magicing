@@ -36,7 +36,13 @@ export const ROTULO_ESTADO: Record<EstadoElemento, string> = {
  */
 export function estadoDeCalculo(calculo: CalculoGuardado): EstadoCalculo {
   if (!esCimentacion(calculo.verificacion)) return "no-evaluable";
-  const r = calcularCimentacion(calculo.verificacion, calculo.campos);
+  // La página guarda también la norma elegida ("norma"), que no es un dato
+  // del cálculo: cada verificación de cimentaciones calcula con su única norma
+  // y el selector sólo la muestra en la revisión. completarCampos rechaza las
+  // claves que no conoce, así que con la norma adentro todo cálculo guardado
+  // desde la página quedaba "no evaluable".
+  const campos = Object.fromEntries(Object.entries(calculo.campos).filter(([clave]) => clave !== "norma"));
+  const r = calcularCimentacion(calculo.verificacion, campos);
   if (!r.ok) return "no-evaluable";
   return r.cumple ? "verifica" : "no-verifica";
 }

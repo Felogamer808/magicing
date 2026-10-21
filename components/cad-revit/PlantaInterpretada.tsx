@@ -45,6 +45,7 @@ export function PlantaInterpretada({
   onSeleccionar,
   foco,
   estados,
+  llenar = false,
 }: {
   interpretacion: Interpretacion;
   seleccion: Seleccion;
@@ -53,6 +54,8 @@ export function PlantaInterpretada({
   foco: Punto | null;
   /** Si hay un proyecto elegido: el estado de cada pieza, que manda sobre el color. */
   estados?: EstadosPlanta | null;
+  /** Ocupar todo el lugar que tenga (pantalla completa) en vez de tomar la proporción de la planta. */
+  llenar?: boolean;
 }) {
   const { zona, dibujo, pilotes, cabezales, vigas, nodos, avisos } = interpretacion;
   const margen = Math.max(zona.caja.max[0] - zona.caja.min[0], zona.caja.max[1] - zona.caja.min[1]) * 0.05;
@@ -109,8 +112,8 @@ export function PlantaInterpretada({
     // La caja toma la proporción de la planta: una planta ancha en una caja
     // alta queda chica y rodeada de vacío.
     <div
-      className="relative max-h-[75vh] min-h-[18rem] w-full overflow-hidden rounded-md border bg-background"
-      style={{ aspectRatio: `${completa.ancho} / ${completa.alto}` }}
+      className={`relative w-full overflow-hidden rounded-md border bg-background ${llenar ? "h-full" : "max-h-[75vh] min-h-[18rem]"}`}
+      style={llenar ? undefined : { aspectRatio: `${completa.ancho} / ${completa.alto}` }}
     >
       <svg
         ref={svg}

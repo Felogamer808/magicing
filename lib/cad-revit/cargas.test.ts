@@ -71,6 +71,23 @@ describe("derivarCargas", () => {
     expect(campos(cargado, "VR4")).toMatchObject({ n1d: nd(extremos[0]), n2d: nd(extremos[1]) });
   });
 
+  /**
+   * Prueba en el navegador, 2026-10-21: el Nd y el ancho del pilar del CT9-2
+   * se cargaron en la página del cálculo, sin cargas en el proyecto. Al
+   * editar otra pieza, derivarCargas los vaciaba.
+   */
+  it("lo cargado en la página sin cargas del pilar en el proyecto no se pisa", () => {
+    const aMano: Proyecto = {
+      ...planta,
+      elementos: planta.elementos.map((e) =>
+        e.cad?.marca === "CT9-2" ? { ...e, calculos: [{ ...e.calculos[0], campos: { ...e.calculos[0].campos, ndPilar: "480", anchoPilar: "0.3" } }] } : e
+      ),
+    };
+    const despues = derivarCargas(conPilar(aMano, "CT9-1", { gKN: 400, qKN: 100 }));
+    expect(campos(despues, "CT9-2")).toMatchObject({ ndPilar: "480", anchoPilar: "0.3" });
+    expect(campos(despues, "CT9-1").ndPilar).toBe("690");
+  });
+
   it("sin cargas, los campos derivados quedan vacíos y la pieza no se evalúa", () => {
     const sin = derivarCargas(planta);
     expect(campos(sin, "CT9-1").ndPilar).toBe("");

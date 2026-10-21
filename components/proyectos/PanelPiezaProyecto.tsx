@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { Calculator } from "lucide-react";
+import { ArmaduraPanel } from "@/components/proyectos/ArmaduraPanel";
 import { CampoNumeroOpcional } from "@/components/proyectos/CampoNumeroOpcional";
 import { CroquisCabezal } from "@/components/proyectos/CroquisCabezal";
 import { MarcaEstado } from "@/components/proyectos/MarcaEstado";
+import { completarDiametros } from "@/lib/cad-revit/armadura";
 import { derivarCargas, ndPilar } from "@/lib/cad-revit/cargas";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
-import { camposDe, esCimentacion } from "@/lib/mcp/cimentaciones";
 import { estadoDeElemento, ROTULO_ESTADO } from "@/lib/proyectos/estado";
 import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import { actualizarProyecto } from "@/lib/proyectos/modelo";
@@ -18,15 +19,6 @@ import { registroVerificaciones } from "@/lib/verificaciones/registry";
 export type PiezaElegida = { tipo: "cabezal" | "viga" | "nodo"; indice: number; marca: string };
 
 const mm = (m: number) => Math.round(m * 1000);
-
-/** Los campos que todavía están vacíos, por su nombre en el formulario. */
-function faltan(c: CalculoGuardado): string[] {
-  if (!esCimentacion(c.verificacion)) return [];
-  return camposDe(c.verificacion)
-    // Sólo lo que entró vacío a propósito: un campo ausente toma su valor por defecto.
-    .filter((d) => c.campos[d.clave] !== undefined && c.campos[d.clave].trim() === "")
-    .map((d) => d.etiqueta);
-}
 
 /**
  * Lo que se hace con una pieza tocada en la planta: ver qué es y cómo está,
@@ -71,6 +63,20 @@ export function PanelPiezaProyecto({
     const nuevo = { ...elemento!.pilar, [clave]: n };
     if (n === undefined) delete nuevo[clave];
     const p = { ...proyecto, elementos: proyecto.elementos.map((x) => (x.id === elemento!.id ? { ...x, pilar: nuevo } : x)) };
+    guardar(derivarCargas(actualizarProyecto(p, {})));
+  }
+
+  /** Cambia campos del cálculo; los diámetros vacíos toman el valor típico. */
+  function campos(c: CalculoGuardado, cambios: Record<string, string>) {
+    const nuevos = completarDiametros(c.verificacion, { ...c.campos, ...cambios });
+    const p = {
+      ...proyecto,
+      elementos: proyecto.elementos.map((x) =>
+        x.id === elemento!.id
+          ? { ...x, calculos: x.calculos.map((y) => (y.id === c.id ? { ...y, campos: nuevos, editado: new Date().toISOString() } : y)) }
+          : x
+      ),
+    };
     guardar(derivarCargas(actualizarProyecto(p, {})));
   }
 
@@ -154,20 +160,18 @@ export function PanelPiezaProyecto({
 
       {elemento.calculos.map((c) => {
         const meta = registroVerificaciones.find((v) => v.id === c.verificacion);
-        const vacios = faltan(c);
         return (
-          <div key={c.id} className="space-y-2">
+          <div key={c.id} className="space-y-3 border-t pt-3">
+            <p className="font-medium">{meta?.nombre ?? c.verificacion}: armadura</p>
+            <ArmaduraPanel calculo={c} nombre={elemento.nombre} onCambiar={(cambios) => campos(c, cambios)} />
             <button
               type="button"
               onClick={() => abrir(c)}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm text-primary-foreground transition-opacity hover:opacity-90"
+              className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-input px-3 text-xs transition-colors hover:bg-secondary"
             >
-              <Calculator className="h-4 w-4" />
-              {meta?.nombre ?? c.verificacion}: armadura y resultado
+              <Calculator className="h-3.5 w-3.5" />
+              Ver el cálculo completo
             </button>
-            {vacios.length > 0 && (
-              <p className="text-xs text-muted-foreground">Falta cargar: {vacios.join(", ")}.</p>
-            )}
           </div>
         );
       })}

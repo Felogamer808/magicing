@@ -7,8 +7,17 @@ import { ROTULO_ESTADO, type EstadoElemento } from "@/lib/proyectos/estado";
 const ORDEN: EstadoElemento[] = ["verifica", "no-verifica", "sin-verificar", "no-evaluable"];
 
 /** Cuántas piezas de la planta hay en cada estado, con el color de la planta. */
-export function LeyendaEstados({ estados, proyecto }: { estados: EstadosPlanta; proyecto: string }) {
-  const todos = [...estados.cabezales, ...estados.vigas, ...estados.pilotes];
+export function LeyendaEstados({
+  estados,
+  proyecto,
+  pilotesVerificados,
+}: {
+  estados: EstadosPlanta;
+  proyecto: string;
+  /** Con "sólo descargas" los pilotes no cuentan. */
+  pilotesVerificados: boolean;
+}) {
+  const todos = [...estados.cabezales, ...estados.vigas, ...(pilotesVerificados ? estados.pilotes : [])];
   const cuenta = (e: EstadoElemento | null) => todos.filter((x) => x === e).length;
   const fuera = cuenta(null);
   return (

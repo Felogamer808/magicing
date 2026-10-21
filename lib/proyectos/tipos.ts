@@ -21,6 +21,7 @@
  * reemplazarlos.
  */
 
+import type { Interpretacion } from "@/lib/cad-revit/interpretar";
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
 /**
@@ -152,6 +153,41 @@ export interface SueloPilotes {
   factorSeguridad?: number;
 }
 
+/**
+ * Cómo se tratan los pilotes de una planta de CAD (criterio del usuario,
+ * 2026-10-21): por defecto la oficina le pasa la descarga a la pilotera y, como
+ * mucho, elige el diámetro. Verificarlos (terreno y armadura) es opcional.
+ */
+export const MODOS_PILOTES = ["descargas", "verificar"] as const;
+export type ModoPilotes = (typeof MODOS_PILOTES)[number];
+
+/** Una fila de la tabla de la pilotera: hasta cuánto toma un pilote de ese diámetro. */
+export interface CapacidadPilote {
+  diametroM: number;
+  /** Carga admisible en servicio, kN: se compara con la descarga (Nk). */
+  cargaKN: number;
+}
+
+export interface PilotesProyecto {
+  /** Sin definir: "descargas". */
+  modo?: ModoPilotes;
+  /** Tabla de la pilotera de este proyecto, si la hay. */
+  capacidades?: CapacidadPilote[];
+}
+
+/**
+ * La planta de fundaciones interpretada, guardada con el proyecto para que el
+ * proyecto la dibuje sin volver a subir el DXF. Sin los textos del fondo: la
+ * planta no los dibuja. Coordenadas en unidades del dibujo; la escala pasa a metros.
+ */
+export interface PlantaGuardada {
+  archivo: string;
+  escala: number;
+  interpretacion: Interpretacion;
+  /** ISO. */
+  guardada: string;
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -183,6 +219,10 @@ export interface Proyecto {
   materiales: MaterialesProyecto;
   /** Terreno para los pilotes de una planta de CAD. */
   suelo?: SueloPilotes;
+  /** Modo de los pilotes y tabla de la pilotera. */
+  pilotes?: PilotesProyecto;
+  /** La planta de CAD de la que salieron los elementos, para dibujarla. */
+  planta?: PlantaGuardada;
   elementos: ElementoProyecto[];
   creado: string;
   editado: string;

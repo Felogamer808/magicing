@@ -12,6 +12,9 @@ import { Logo } from "@/components/Logo";
 import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
 import { CargasPlanta } from "@/components/proyectos/CargasPlanta";
+import { PilotesPlanta } from "@/components/proyectos/PilotesPlanta";
+import { PlantaProyecto } from "@/components/proyectos/PlantaProyecto";
+import { modoPilotes } from "@/lib/cad-revit/descargas";
 import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
 import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
@@ -73,6 +76,11 @@ export default function ProyectoPage() {
     onCambio: (n: number) =>
       guardar(actualizarProyecto(proyecto, { materiales: { ...proyecto.materiales, [clave]: n } })),
   });
+
+  // Con "sólo descargas" los pilotes de la planta no se verifican: no se listan uno por uno.
+  const ocultarPilotes = modoPilotes(proyecto) === "descargas";
+  const elementosVisibles = proyecto.elementos.filter((e) => !(ocultarPilotes && e.cad?.pieza === "pilote"));
+  const pilotesOcultos = proyecto.elementos.length - elementosVisibles.length;
 
   function agregar(e: React.FormEvent) {
     e.preventDefault();
@@ -211,7 +219,11 @@ export default function ProyectoPage() {
         </Card>
       </div>
 
+      <PlantaProyecto proyecto={proyecto} guardar={guardar} />
+
       <CargasPlanta proyecto={proyecto} guardar={guardar} />
+
+      <PilotesPlanta proyecto={proyecto} guardar={guardar} />
 
       <Card>
         <CardHeader>
@@ -255,7 +267,13 @@ export default function ProyectoPage() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {proyecto.elementos.map((elemento) => (
+              {pilotesOcultos > 0 && (
+                <li className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                  {pilotesOcultos} pilotes de la planta: con «Sólo descargas» no se verifican. Sus descargas están en la tarjeta
+                  Pilotes.
+                </li>
+              )}
+              {elementosVisibles.map((elemento) => (
                 <li
                   key={elemento.id}
                   className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"

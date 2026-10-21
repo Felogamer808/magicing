@@ -20,8 +20,9 @@
 
 import type { Punto } from "@/lib/dxf/leer";
 import { estadoDeElemento, type EstadoElemento } from "@/lib/proyectos/estado";
-import type { MaterialesProyecto, Proyecto } from "@/lib/proyectos/tipos";
+import type { MaterialesProyecto, PlantaGuardada, Proyecto } from "@/lib/proyectos/tipos";
 import type { PiezaPlantaLeida } from "@/lib/proyectos/modelo";
+import { modoPilotes } from "./descargas";
 import { contiene } from "./geometria";
 import type { Interpretacion } from "./interpretar";
 import { numerarMarcas } from "./exportar";
@@ -355,6 +356,21 @@ export function estadosDePlanta(r: Interpretacion, proyecto: Proyecto): EstadosP
   return {
     cabezales: marcas.cabezales.map(estado),
     vigas: marcas.vigas.map(estado),
-    pilotes: marcas.pilotes.map(estado),
+    // Con "sólo descargas" los pilotes no se verifican: no se pintan.
+    pilotes: modoPilotes(proyecto) === "descargas" ? marcas.pilotes.map(() => null) : marcas.pilotes.map(estado),
+  };
+}
+
+/**
+ * La planta para guardar con el proyecto: la interpretación sin lo que la
+ * planta no dibuja (textos, círculos del fondo, bloques). Con el REV08 queda
+ * en unas decenas de KB.
+ */
+export function plantaParaGuardar(r: Interpretacion, escala: number, archivo: string): PlantaGuardada {
+  return {
+    archivo,
+    escala,
+    guardada: new Date().toISOString(),
+    interpretacion: { ...r, dibujo: r.dibujo.filter((e) => e.tipo === "polilinea" || e.tipo === "linea") },
   };
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FolderInput } from "lucide-react";
 import type { Interpretacion } from "@/lib/cad-revit/interpretar";
 import { derivarCargas } from "@/lib/cad-revit/cargas";
-import { piezasDePlanta } from "@/lib/cad-revit/proyecto";
+import { piezasDePlanta, plantaParaGuardar } from "@/lib/cad-revit/proyecto";
 import { useProyectos } from "@/lib/proyectos/almacen";
 import { crearProyecto, incorporarPlanta, type ResultadoPlanta } from "@/lib/proyectos/modelo";
 import type { PiezaCad } from "@/lib/proyectos/tipos";
@@ -54,7 +54,8 @@ export function LlevarAProyecto({
     // Las piezas nuevas toman las cargas ya cargadas (una viga nueva entre
     // dos cabezales que ya tenían su pilar).
     const conCargas = derivarCargas(r.proyecto);
-    if (conCargas !== proyecto || !elegido) guardar(conCargas);
+    // La planta queda con el proyecto: así la dibuja sin volver a subir el DXF.
+    guardar({ ...conCargas, planta: plantaParaGuardar(resultado, escala, archivo) });
     onDestino(r.proyecto.id);
     setHecho({ ...r, id: r.proyecto.id, nombre: r.proyecto.nombre });
   }

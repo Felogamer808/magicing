@@ -10,6 +10,7 @@ import { PanelPieza } from "@/components/cad-revit/PanelPieza";
 import { PlantaInterpretada, type Seleccion } from "@/components/cad-revit/PlantaInterpretada";
 import type { LecturaDxf, Punto } from "@/lib/dxf/leer";
 import { exportarParaRevit } from "@/lib/cad-revit/exportar";
+import { modoPilotes } from "@/lib/cad-revit/descargas";
 import { estadosDePlanta } from "@/lib/cad-revit/proyecto";
 import { useProyectos } from "@/lib/proyectos/almacen";
 import { interpretar, opcionesSugeridas, zonas, type OpcionesInterpretacion } from "@/lib/cad-revit/interpretar";
@@ -268,7 +269,7 @@ export default function CadRevitPage() {
             destino={idProyecto}
             onDestino={setIdProyecto}
           />
-          {estados && proyecto && <LeyendaEstados estados={estados} proyecto={proyecto.nombre} />}
+          {estados && proyecto && <LeyendaEstados estados={estados} proyecto={proyecto.nombre} pilotesVerificados={modoPilotes(proyecto) === "verificar"} />}
           <details className="rounded-md border px-4 py-3 text-sm">
             <summary className="cursor-pointer font-medium">Cómo llevarlo a Revit</summary>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">

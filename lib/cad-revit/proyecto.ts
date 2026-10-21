@@ -22,6 +22,7 @@ import type { Punto } from "@/lib/dxf/leer";
 import { estadoDeElemento, type EstadoElemento } from "@/lib/proyectos/estado";
 import type { MaterialesProyecto, Proyecto } from "@/lib/proyectos/tipos";
 import type { PiezaPlantaLeida } from "@/lib/proyectos/modelo";
+import { modoPilotes } from "./descargas";
 import { contiene } from "./geometria";
 import type { Interpretacion } from "./interpretar";
 import { numerarMarcas } from "./exportar";
@@ -355,6 +356,7 @@ export function estadosDePlanta(r: Interpretacion, proyecto: Proyecto): EstadosP
   return {
     cabezales: marcas.cabezales.map(estado),
     vigas: marcas.vigas.map(estado),
-    pilotes: marcas.pilotes.map(estado),
+    // Con "sólo descargas" los pilotes no se verifican: no se pintan.
+    pilotes: modoPilotes(proyecto) === "descargas" ? marcas.pilotes.map(() => null) : marcas.pilotes.map(estado),
   };
 }

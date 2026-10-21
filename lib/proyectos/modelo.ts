@@ -10,6 +10,7 @@
 import {
   CLASES_IFC,
   MATERIALES_POR_DEFECTO,
+  MODOS_PILOTES,
   PIEZAS_CAD,
   VERSION_FORMATO,
   type ArchivoProyectos,
@@ -429,6 +430,7 @@ function esProyecto(v: unknown): v is Proyecto {
   if (typeof m.recubrimientoM !== "number") return false;
   if (!Array.isArray(v.elementos)) return false;
   if (v.suelo !== undefined && !soloNumeros(v.suelo)) return false;
+  if (v.pilotes !== undefined && !esPilotesProyecto(v.pilotes)) return false;
   return v.elementos.every(esElemento);
 }
 
@@ -450,6 +452,12 @@ function esOrigenIfc(v: unknown): boolean {
   if (!esObjeto(v) || typeof v.globalId !== "string" || v.globalId === "") return false;
   if (!(CLASES_IFC as readonly unknown[]).includes(v.clase)) return false;
   return v.seccion === undefined || (esObjeto(v.seccion) && typeof v.seccion.tipo === "string");
+}
+
+function esPilotesProyecto(v: unknown): boolean {
+  if (!esObjeto(v)) return false;
+  if (v.modo !== undefined && !(MODOS_PILOTES as readonly unknown[]).includes(v.modo)) return false;
+  return v.capacidades === undefined || (Array.isArray(v.capacidades) && v.capacidades.every(soloNumeros));
 }
 
 /** Un objeto cuyos valores son todos números finitos (pilar, suelo). */

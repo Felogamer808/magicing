@@ -152,6 +152,28 @@ export interface SueloPilotes {
   factorSeguridad?: number;
 }
 
+/**
+ * Cómo se tratan los pilotes de una planta de CAD (criterio del usuario,
+ * 2026-10-21): por defecto la oficina le pasa la descarga a la pilotera y, como
+ * mucho, elige el diámetro. Verificarlos (terreno y armadura) es opcional.
+ */
+export const MODOS_PILOTES = ["descargas", "verificar"] as const;
+export type ModoPilotes = (typeof MODOS_PILOTES)[number];
+
+/** Una fila de la tabla de la pilotera: hasta cuánto toma un pilote de ese diámetro. */
+export interface CapacidadPilote {
+  diametroM: number;
+  /** Carga admisible en servicio, kN: se compara con la descarga (Nk). */
+  cargaKN: number;
+}
+
+export interface PilotesProyecto {
+  /** Sin definir: "descargas". */
+  modo?: ModoPilotes;
+  /** Tabla de la pilotera de este proyecto, si la hay. */
+  capacidades?: CapacidadPilote[];
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -183,6 +205,8 @@ export interface Proyecto {
   materiales: MaterialesProyecto;
   /** Terreno para los pilotes de una planta de CAD. */
   suelo?: SueloPilotes;
+  /** Modo de los pilotes y tabla de la pilotera. */
+  pilotes?: PilotesProyecto;
   elementos: ElementoProyecto[];
   creado: string;
   editado: string;

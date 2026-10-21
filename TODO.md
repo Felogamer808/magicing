@@ -82,6 +82,10 @@ Independientes, contra `main`:
     (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
   - El CT14 (ascensor) usa la familia **Cimentacion-Rectangular**, no
     "Cabezal ascensor" (2026-10-19).
+  - **Pilotes** (2026-10-21): por defecto **sólo descargas** para la pilotera
+    (no se verifican); verificarlos es opcional por proyecto. Tabla de
+    capacidad por diámetro de la pilotera, por proyecto: dice si el diámetro
+    alcanza y cuál es el más chico que alcanzaría.
   - **Cargas de los pilares** (2026-10-19): por ahora se cargan **a mano en
     MagicIng**. Después, un Excel que las saque de Robot.
   - Probado en Revit 2026 sobre una copia de FUNDACIONES MAGICING: 21

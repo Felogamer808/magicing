@@ -31,6 +31,7 @@ export function LlevarAProyecto({
   archivo,
   destino,
   onDestino,
+  desniveles,
 }: {
   resultado: Interpretacion;
   escala: number;
@@ -39,6 +40,8 @@ export function LlevarAProyecto({
   /** Id del proyecto elegido, o "" para uno nuevo. Lo tiene la página: también pinta la planta. */
   destino: string;
   onDestino: (id: string) => void;
+  /** Desnivel por índice de cabezal, para que el 3D del proyecto los baje como Revit. */
+  desniveles: Record<number, number>;
 }) {
   const { proyectos, guardar } = useProyectos();
   const [nombreNuevo, setNombreNuevo] = useState(archivo.replace(/\.dxf$/i, ""));
@@ -55,7 +58,7 @@ export function LlevarAProyecto({
     // dos cabezales que ya tenían su pilar).
     const conCargas = derivarCargas(r.proyecto);
     // La planta queda con el proyecto: así la dibuja sin volver a subir el DXF.
-    guardar({ ...conCargas, planta: plantaParaGuardar(resultado, escala, archivo) });
+    guardar({ ...conCargas, planta: plantaParaGuardar(resultado, escala, archivo, { desniveles, largoPiloteM }) });
     onDestino(r.proyecto.id);
     setHecho({ ...r, id: r.proyecto.id, nombre: r.proyecto.nombre });
   }

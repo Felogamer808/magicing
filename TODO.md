@@ -87,6 +87,10 @@ Independientes, contra `main`:
     el DXF, pintada por estado. Tocar una pieza abre su panel: G, Q, Nd a mano,
     el pilar sobre un croquis del cabezal (lados A y B, A = dirección de los
     pilotes) y el botón a su cálculo con lo que falta cargar.
+  - **3D de la fundación** (2026-10-21): paso 1 del objetivo "modelo 3D que
+    se completa con colores". Hecho para la planta de CAD. Siguen: paso 2,
+    que el IFC de Revit se entienda solo (familias CTn, bxh, ⌀); paso 3,
+    vigas y pilares de la estructura.
   - **Pilotes** (2026-10-21): por defecto **sólo descargas** para la pilotera
     (no se verifican); verificarlos es opcional por proyecto. Tabla de
     capacidad por diámetro de la pilotera, por proyecto: dice si el diámetro

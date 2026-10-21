@@ -308,6 +308,11 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
   sin textos se guarda al llevar la planta; el proyecto la dibuja y, al tocar
   una pieza, carga el pilar (lados A y B sobre un croquis: A en la dirección de
   los pilotes o del largo con un pilote) y abre su cálculo.
+- **3D de la planta** (`modelo3d.ts` → `visor3d.ts` → `VisorPlanta3D`): las
+  piezas con la geometría de `exportarParaRevit` (lo mismo que coloca Dynamo),
+  más un tramo de pilar sobre cada cabezal y nodo ("pilar:" + marca), que al
+  tocarlo elige la pieza. La cámara, los colores y el clic son de
+  `lib/visor/escena.ts` (`Escena3D`), compartida con el visor del IFC.
 - **Pilotes** (`descargas.ts`, `PilotesPlanta`): por proyecto, "sólo descargas"
   (por defecto: Nk de cada pilote, máxima por diámetro, tabla de la pilotera y
   diámetro sugerido; no se verifican ni se pintan) o "verificar" (suelo y

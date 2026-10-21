@@ -184,6 +184,10 @@ export interface PlantaGuardada {
   archivo: string;
   escala: number;
   interpretacion: Interpretacion;
+  /** Desnivel de la cara superior por índice de cabezal, m (el CT14 de ascensor, −1,30). */
+  desniveles?: Record<number, number>;
+  /** Largo de los pilotes, m. */
+  largoPiloteM?: number;
   /** ISO. */
   guardada: string;
 }

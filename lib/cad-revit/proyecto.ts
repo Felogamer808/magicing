@@ -24,7 +24,9 @@ import type { MaterialesProyecto, PlantaGuardada, Proyecto } from "@/lib/proyect
 import type { PiezaPlantaLeida } from "@/lib/proyectos/modelo";
 import { modoPilotes } from "./descargas";
 import { contiene } from "./geometria";
+import type { Cabezal } from "./cabezales";
 import type { Interpretacion } from "./interpretar";
+import type { Pilote } from "./rotulos";
 import { numerarMarcas } from "./exportar";
 
 /** Campos de cada verificación que se cargan a mano: entran vacíos. */
@@ -366,11 +368,31 @@ export function estadosDePlanta(r: Interpretacion, proyecto: Proyecto): EstadosP
  * planta no dibuja (textos, círculos del fondo, bloques). Con el REV08 queda
  * en unas decenas de KB.
  */
-export function plantaParaGuardar(r: Interpretacion, escala: number, archivo: string): PlantaGuardada {
+export function plantaParaGuardar(
+  r: Interpretacion,
+  escala: number,
+  archivo: string,
+  extra: { desniveles?: Record<number, number>; largoPiloteM?: number } = {}
+): PlantaGuardada {
   return {
     archivo,
     escala,
+    ...extra,
     guardada: new Date().toISOString(),
     interpretacion: { ...r, dibujo: r.dibujo.filter((e) => e.tipo === "polilinea" || e.tipo === "linea") },
   };
+}
+
+/**
+ * Dirección del lado A del pilar, en grados del dibujo: la línea que une los
+ * pilotes (cabezal de 2) o el largo del cabezal (de 1 y el resto). Es la misma
+ * dirección que la verificación llama "lado en la dirección de los pilotes"
+ * o "x", así que A y B se cargan sin conversión.
+ */
+export function direccionLadoA(c: Cabezal, pilotes: Pilote[]): number {
+  if (c.pilotes.length === 2) {
+    const [p, q] = c.pilotes.map((k) => pilotes[k].centro);
+    return (Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
+  }
+  return c.rect.angulo;
 }

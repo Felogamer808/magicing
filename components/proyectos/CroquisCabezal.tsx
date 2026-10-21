@@ -4,22 +4,10 @@ import type { Punto } from "@/lib/dxf/leer";
 import { esquinas } from "@/lib/cad-revit/geometria";
 import type { Cabezal } from "@/lib/cad-revit/cabezales";
 import type { Pilote } from "@/lib/cad-revit/rotulos";
+import { direccionLadoA } from "@/lib/cad-revit/proyecto";
 
 /** Lado del pilar que se dibuja si todavía no se cargó, m. */
 const PILAR_POR_DEFECTO_M = 0.3;
-
-/**
- * Dirección del lado A del pilar, en grados del dibujo: la línea que une los
- * pilotes (cabezal de 2) o el largo del cabezal (de 1). Es la misma dirección
- * que la verificación llama "lado en la dirección de los pilotes" o "x".
- */
-export function direccionLadoA(c: Cabezal, pilotes: Pilote[]): number {
-  if (c.pilotes.length === 2) {
-    const [p, q] = c.pilotes.map((k) => pilotes[k].centro);
-    return (Math.atan2(q[1] - p[1], q[0] - p[0]) * 180) / Math.PI;
-  }
-  return c.rect.angulo;
-}
 
 /**
  * El cabezal como está en la planta, con sus pilotes y el pilar en el centro.

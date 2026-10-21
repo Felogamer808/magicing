@@ -303,6 +303,15 @@ exporta para que un script de Dynamo coloque las familias (pendiente).
 - **Estado en la planta** (`estadosDePlanta`, `marcasDePlanta`): con un proyecto
   elegido, la página pinta cada pieza con `estadoDeElemento` (los colores del
   visor IFC) y una leyenda con los totales.
+- **Planta en el proyecto** (`plantaParaGuardar` → `Proyecto.planta`,
+  `PlantaProyecto`, `PanelPiezaProyecto`, `CroquisCabezal`): la interpretación
+  sin textos se guarda al llevar la planta; el proyecto la dibuja y, al tocar
+  una pieza, carga el pilar (lados A y B sobre un croquis: A en la dirección de
+  los pilotes o del largo con un pilote) y abre su cálculo.
+- **Pilotes** (`descargas.ts`, `PilotesPlanta`): por proyecto, "sólo descargas"
+  (por defecto: Nk de cada pilote, máxima por diámetro, tabla de la pilotera y
+  diámetro sugerido; no se verifican ni se pintan) o "verificar" (suelo y
+  armadura, como antes).
 
 ## Decisiones que conviene conocer
 

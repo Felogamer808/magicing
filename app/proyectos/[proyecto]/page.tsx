@@ -13,6 +13,7 @@ import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { CampoMaterial } from "@/components/proyectos/CampoMaterial";
 import { CargasPlanta } from "@/components/proyectos/CargasPlanta";
 import { PilotesPlanta } from "@/components/proyectos/PilotesPlanta";
+import { PlantaProyecto } from "@/components/proyectos/PlantaProyecto";
 import { modoPilotes } from "@/lib/cad-revit/descargas";
 import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
 import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
@@ -217,6 +218,8 @@ export default function ProyectoPage() {
           </CardContent>
         </Card>
       </div>
+
+      <PlantaProyecto proyecto={proyecto} guardar={guardar} />
 
       <CargasPlanta proyecto={proyecto} guardar={guardar} />
 

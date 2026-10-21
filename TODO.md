@@ -82,6 +82,11 @@ Independientes, contra `main`:
     (ascensor) 1,30 m más abajo; canto de cada pieza según su rótulo.
   - El CT14 (ascensor) usa la familia **Cimentacion-Rectangular**, no
     "Cabezal ascensor" (2026-10-19).
+  - **Planta en el proyecto** (2026-10-21): al llevar la planta se guarda su
+    dibujo (`Proyecto.planta`, unas decenas de KB); el proyecto la dibuja sin
+    el DXF, pintada por estado. Tocar una pieza abre su panel: G, Q, Nd a mano,
+    el pilar sobre un croquis del cabezal (lados A y B, A = dirección de los
+    pilotes) y el botón a su cálculo con lo que falta cargar.
   - **Pilotes** (2026-10-21): por defecto **sólo descargas** para la pilotera
     (no se verifican); verificarlos es opcional por proyecto. Tabla de
     capacidad por diámetro de la pilotera, por proyecto: dice si el diámetro

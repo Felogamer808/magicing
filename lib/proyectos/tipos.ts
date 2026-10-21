@@ -21,6 +21,7 @@
  * reemplazarlos.
  */
 
+import type { Interpretacion } from "@/lib/cad-revit/interpretar";
 import type { IdVerificacion } from "@/lib/verificaciones/registry";
 
 /**
@@ -174,6 +175,19 @@ export interface PilotesProyecto {
   capacidades?: CapacidadPilote[];
 }
 
+/**
+ * La planta de fundaciones interpretada, guardada con el proyecto para que el
+ * proyecto la dibuje sin volver a subir el DXF. Sin los textos del fondo: la
+ * planta no los dibuja. Coordenadas en unidades del dibujo; la escala pasa a metros.
+ */
+export interface PlantaGuardada {
+  archivo: string;
+  escala: number;
+  interpretacion: Interpretacion;
+  /** ISO. */
+  guardada: string;
+}
+
 export interface ElementoProyecto {
   id: string;
   /** Como se lo llama en los planos: "V-203", "P12", "Z-4". */
@@ -207,6 +221,8 @@ export interface Proyecto {
   suelo?: SueloPilotes;
   /** Modo de los pilotes y tabla de la pilotera. */
   pilotes?: PilotesProyecto;
+  /** La planta de CAD de la que salieron los elementos, para dibujarla. */
+  planta?: PlantaGuardada;
   elementos: ElementoProyecto[];
   creado: string;
   editado: string;

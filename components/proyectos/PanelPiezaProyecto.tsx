@@ -105,6 +105,9 @@ export function PanelPiezaProyecto({
   const conPilar = pieza.tipo === "cabezal" || pieza.tipo === "nodo";
   const conLados = pieza.tipo === "cabezal" && elemento.calculos.length > 0;
   const nd = ndPilar(elemento.pilar);
+  // Medianero de una centradora: al cabezal no va el Nd sino R₁d (cargas.ts).
+  const ndCabezal = elemento.calculos.find((c) => c.verificacion === "cabezales")?.campos.ndPilar;
+  const conPalanca = nd !== null && ndCabezal !== undefined && ndCabezal !== String(Math.round(nd * 10) / 10);
   const celda = "h-8 w-24 px-2 text-right tabular-nums";
   const campo = (etiqueta: string, clave: keyof PilarCargado, unidad: string) => (
     <label className="flex items-center justify-between gap-3">
@@ -155,6 +158,13 @@ export function PanelPiezaProyecto({
             {elemento.pilar?.ndKN !== undefined ? " (a mano)" : nd !== null ? " (1,35·G + 1,5·Q)" : ""}. Dejá «Nd a mano» vacío salvo que
             una combinación del modelo (con viento, por ejemplo) supere a 1,35·G + 1,5·Q.
           </p>
+          {conPalanca && (
+            <p className="text-xs text-muted-foreground">
+              {ndCabezal === ""
+                ? "Es el nodo medianero de una viga centradora: el cabezal se verifica con su reacción R₁d, que falta (cargá e en la VC; con dos VC en el nodo no se calcula)."
+                : `Es el nodo medianero de una viga centradora: el cabezal se verifica con su reacción R₁d = ${fmt(Number(ndCabezal), 1)} kN, centrada, no con el Nd.`}
+            </p>
+          )}
         </div>
       )}
 

@@ -146,6 +146,24 @@ export interface ResultadoVigaCentradoraPilotes {
 
 const redondearAbajo = (x: number, paso: number) => Math.floor(x / paso + 1e-9) * paso;
 
+/** Lo que define la palanca, sin armadura ni materiales. */
+export type PalancaCalculo = Pick<
+  DatosVigaCentradoraPilotes,
+  "b" | "h" | "excentricidadM" | "luzApoyosM" | "n1dKN" | "excentricidadAccidentalM"
+>;
+
+/**
+ * R₁ = (N₁d·l + q·l²/2 + M_acc)/(l − e), kN: la reacción de cálculo sobre el
+ * apoyo medianero. Una sola copia: la usa también el cabezal medianero, que se
+ * verifica con ella (lib/cad-revit/cargas.ts). Infinity si l − e ≤ 0.
+ */
+export function reaccionApoyoMedianero(p: PalancaCalculo): number {
+  if (!(p.luzApoyosM > 0 && p.excentricidadM >= 0)) return Infinity;
+  const l = p.excentricidadM + p.luzApoyosM;
+  const q = GAMMA_G * PESO_ESPECIFICO_VIGA_KNM3 * p.b * p.h;
+  return (p.n1dKN * l + (q * l ** 2) / 2 + p.n1dKN * p.excentricidadAccidentalM) / p.luzApoyosM;
+}
+
 export function calcularVigaCentradoraPilotes(
   materiales: MaterialesDerivados,
   datos: DatosVigaCentradoraPilotes
@@ -160,7 +178,7 @@ export function calcularVigaCentradoraPilotes(
   const momentoAccidentalKNm = n * datos.excentricidadAccidentalM;
   const momentoExcentricidadKNm = n * e;
 
-  const reaccionPiloteKN = geometriaValida ? (n * l + (q * l ** 2) / 2 + momentoAccidentalKNm) / luzApoyosM : Infinity;
+  const reaccionPiloteKN = reaccionApoyoMedianero(datos);
   const alivioLejanoKN = reaccionPiloteKN - n - q * l;
 
   // Momento negativo máximo: en el pilote. En el tramo decrece siempre (la

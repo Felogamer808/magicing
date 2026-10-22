@@ -16,6 +16,10 @@
  *   R₁ = ((G + Q)·l + q·l²/2)/(l − e) con q = 25·b·h, en lugar de G + Q; sin
  *   e cargada sigue G + Q. Con dos centradoras en el mismo nodo la palanca ya
  *   no es plana: el Nk queda vacío (criterio del usuario, 2026-10-19).
+ * - Cabezal de 2 pilotes medianero de una centradora (CT11, CT12 del REV08):
+ *   el pilar cae descentrado y la VC centra ese momento, así que el cabezal
+ *   se verifica con R₁d = (N₁d·l + q·l²/2 + M_acc)/(l − e), la misma de la
+ *   VC, centrada, en lugar del Nd (criterio del usuario, 2026-10-22).
  * - Suelo (fs, qp, FS): uno para todo el proyecto.
  *
  * La combinación la remite el Anejo 19, art. 2.4.3 (1), pág. 21, al Anejo 18,
@@ -26,6 +30,7 @@
  * viejo que ya no corresponde.
  */
 
+import { reaccionApoyoMedianero } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
 import { GAMMA_G, GAMMA_Q } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { CalculoGuardado, ElementoProyecto, PilarCargado, Proyecto } from "@/lib/proyectos/tipos";
 import { aNumero } from "@/lib/verificaciones/formato";
@@ -87,6 +92,21 @@ function palancaDe(vc: ElementoProyecto): PalancaCentradora | null {
   return { excentricidadM: e, luzApoyosM: luz, qKNm: PESO_ESPECIFICO_HA_KNM3 * b * h };
 }
 
+/**
+ * R₁d de una centradora con el Nd de su pilar medianero, kN, o null si en su
+ * cálculo falta e, la luz, la sección o e_acc: sin palanca completa no hay
+ * reacción que dar.
+ */
+function reaccionCalculoDe(vc: ElementoProyecto, ndKN: number): number | null {
+  const c = vc.calculos.find((x) => x.verificacion === "viga-centradora-pilotes")?.campos;
+  if (!c) return null;
+  const [e, luz, b, h, eacc] = [c.excentricidad, c.luzApoyos, c.b, c.h, c.eacc].map((t) =>
+    (t ?? "").trim() === "" ? NaN : aNumero(t)
+  );
+  if (![e, luz, b, h, eacc].every(Number.isFinite) || e < 0 || luz <= 0 || b <= 0 || h <= 0 || eacc < 0) return null;
+  return reaccionApoyoMedianero({ b, h, excentricidadM: e, luzApoyosM: luz, n1dKN: ndKN, excentricidadAccidentalM: eacc });
+}
+
 /** Los campos derivados de un elemento, según su verificación. */
 function derivados(
   e: ElementoProyecto,
@@ -105,10 +125,17 @@ function derivados(
     if (!e.pilar) return {};
     const nd = ndPilar(e.pilar);
     const ndTexto = nd === null ? "" : kN(nd);
+    // Cabezal de 2 pilotes como nodo medianero de una centradora: la VC centra
+    // el momento del pilar descentrado y el cabezal recibe R₁d centrada, no el
+    // Nd. Sin palanca completa, o con dos centradoras (no es plana), queda
+    // vacío: verificarlo con el Nd sería del lado inseguro.
+    const vcs = centradoras.get(cad.marca) ?? [];
+    const r1d = vcs.length === 1 && nd !== null ? reaccionCalculoDe(vcs[0], nd) : null;
+    const ndCabezal = vcs.length === 0 ? ndTexto : r1d === null ? "" : kN(r1d);
     // Los lados, sólo si alguno se cargó en el proyecto.
     const conLados = e.pilar.ladoPilotesM !== undefined || e.pilar.ladoTransversalM !== undefined;
     return {
-      cabezales: { ndPilar: ndTexto, ...(conLados ? { anchoPilar: texto(e.pilar.ladoPilotesM) } : {}) },
+      cabezales: { ndPilar: ndCabezal, ...(conLados ? { anchoPilar: texto(e.pilar.ladoPilotesM) } : {}) },
       // Con un pilote no hay dirección que una pilotes: el primer lado va en x,
       // el largo del cabezal (ver proyecto.ts).
       "cabezal-un-pilote": {

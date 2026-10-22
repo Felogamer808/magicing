@@ -110,9 +110,12 @@ Independientes, contra `main`:
     de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. VC sobre pilotes hecha (2026-10-19, ver
     "Para no volver a preguntarlos"). Falta: cabezales de 4 y 6 pilotes (hoy no
     evaluables); la armadura se carga pieza por pieza en su formulario.
-  - **Pendiente de la VC sobre pilotes**: (1) el cabezal medianero de 2
-    pilotes (CT11, CT12) se verifica con el Nd del pilar, sin la reacción de la
-    palanca ni el pilar descentrado; (2) con dos centradoras en el mismo nodo
+  - **Cabezal medianero de 2 pilotes** (CT11, CT12; hecho, 2026-10-22): la VC
+    centra el momento del pilar descentrado, así que el cabezal se verifica
+    con R₁d de la palanca, centrada, en lugar del Nd (`cargas.ts`). Sin e en
+    la VC o con dos VC en el nodo queda sin evaluar. El cabezal de 1 pilote
+    medianero sigue con el Nd.
+  - **Pendiente de la VC sobre pilotes**: (2) con dos centradoras en el mismo nodo
     el Nk del pilote queda vacío (la palanca deja de ser plana: tres
     ecuaciones, como la planilla); (3) no se comprueba el anclaje de la
     armadura superior más allá del pilar; (4) sin fisuración en servicio.

@@ -164,6 +164,40 @@ describe("derivarCargas con una viga centradora", () => {
     expect(campos(sinE, piloteCT6).Nk).toBe("500");
   });
 
+  describe("con un cabezal de 2 pilotes como nodo medianero", () => {
+    // VC9 de CT9-1 (2 pilotes) a CT2; los campos de la palanca, como en la página.
+    const vr = elemento(planta, "VR4");
+    const vc = (marca: string, e: string): ElementoProyecto => ({
+      ...vr,
+      cad: { ...vr.cad!, marca, extremos: ["CT9-1", "CT2"] },
+      calculos: [
+        {
+          ...vr.calculos[0],
+          verificacion: "viga-centradora-pilotes",
+          campos: { excentricidad: e, luzApoyos: "2", b: "0.4", h: "0.6", eacc: "0.1" },
+        },
+      ],
+    });
+    const conVCs = (...vcs: ElementoProyecto[]): Proyecto =>
+      conPilar({ ...planta, elementos: [...planta.elementos, ...vcs] }, "CT9-1", { gKN: 400, qKN: 100 });
+
+    /**
+     * Nd = 690; l = 2,5; q = 1,35·25·0,4·0,6 = 8,1 kN/m; M_acc = 69.
+     * R₁d = (690·2,5 + 8,1·2,5²/2 + 69)/2 = 1819,31/2 = 909,7 kN.
+     */
+    it("el cabezal se verifica con R₁d de la palanca, no con el Nd", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"))), "CT9-1").ndPilar).toBe("909.7");
+    });
+
+    it("sin e en la centradora, el cabezal queda sin evaluar", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", ""))), "CT9-1").ndPilar).toBe("");
+    });
+
+    it("con dos centradoras en el nodo, el cabezal queda sin evaluar", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"), vc("VC10", "0.5"))), "CT9-1").ndPilar).toBe("");
+    });
+  });
+
   it("con e y armadura, la centradora se evalúa", () => {
     const c = {
       ...campos(cargado, "VC1"),

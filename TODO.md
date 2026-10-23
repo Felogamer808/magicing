@@ -108,8 +108,18 @@ Independientes, contra `main`:
     así que compresión localizada (6.7) y tracción transversal por mitad del
     canto (6.5.3), pilote como cuadrado de igual área, y con a > H/2 (fuera
     de la ec. 6.59) T sale de la ec. 6.58 con b = lado del cabezal. VC sobre pilotes hecha (2026-10-19, ver
-    "Para no volver a preguntarlos"). Falta: cabezales de 4 y 6 pilotes (hoy no
-    evaluables); la armadura se carga pieza por pieza en su formulario.
+    "Para no volver a preguntarlos"). Cabezales de 3 o más pilotes hechos
+    (2026-10-23, `cabezal-n-pilotes`): un modelo general para cualquier
+    cantidad y disposición, ver "Criterios". La armadura se carga pieza por
+    pieza en su formulario.
+  - **Cabezal de núcleo** (pendiente): los núcleos bajan muros con N, Mx y My,
+    no un pilar centrado. Las memorias de PEA 2022/2024/2025 los resuelven con
+    reparto rígido N/n ± M·x/Σx² (o losa rígida sobre resortes en Robot) y
+    fajas, con pilotes que pueden quedar traccionados. Es una verificación
+    aparte: preguntar el modelo antes de implementarla.
+  - **σ del tirante en cabezales** (pendiente de confirmar): el de 2 y el de n
+    pilotes usan mín(fyd; 0,8·fyk) = 400 MPa con B500, más conservador que el
+    fyd del art. 6.5.3. Las memorias usan 400 MPa (EHE-08).
   - **Cabezal medianero de 2 pilotes** (CT11, CT12; hecho, 2026-10-22): la VC
     centra el momento del pilar descentrado, así que el cabezal se verifica
     con R₁d de la palanca, centrada, en lugar del Nd (`cargas.ts`). Sin e en
@@ -232,6 +242,11 @@ Para no volver a preguntarlos:
   pilar al centro de la pieza lejana, e a mano; medianero por regla
   automática; sin axil de atado; cortante del voladizo con β = a_v/2d; el
   pilote medianero recibe (G + Q)·l/(l − e) + la reacción del pp en servicio.
+- Cabezal de 3 o más pilotes (2026-10-23): pilar en el centro del grupo, Ri =
+  (Nd + 1,35·PP)/n, sin momentos; T = Σ Ri·(|ui| − a/4)/(0,85·d) por
+  dirección, sobre el peor lado; nudo con k1/k2/k3 según los tirantes que
+  ancla; malla de caras del art. 9.7 con el canto como espesor; parrilla ≥ 1/4
+  y superior ≥ 1/10 de las bandas como criterio de oficina (EHE-08), declarado.
 - Viga con carga en voladizo: página aparte, sólo Anejo 19; z = h − d′; la
   carga mínima que estabiliza el apoyo lejano se carga ya ponderada como
   favorable (el coeficiente es del Anejo 18, que no está entre las fuentes).

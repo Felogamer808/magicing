@@ -33,7 +33,7 @@ export function DiagramaCabezalNPilotes({ ladoAM, ladoBM, pilarAM, pilarBM, diam
   const cb = n ? pilotes.reduce((s, p) => s + p.bM, 0) / n : 0;
 
   return (
-    <svg viewBox={`0 0 ${W + 80} ${H + 70}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
+    <svg viewBox={`0 0 ${W + 120} ${H + 70}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       <rect x={x0} y={y0} width={W} height={H} stroke="var(--mat-hormigon-borde)" strokeWidth="2.2" fill="var(--mat-hormigon)" />
       {pilotes.map((p, i) => (
         <g key={i}>

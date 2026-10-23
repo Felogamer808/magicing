@@ -7,12 +7,13 @@
  * - cabezal de 2 pilotes → "cabezales" (bielas y tirantes, Anejo 19);
  * - cabezal de 1 pilote → "cabezal-un-pilote" (compresión localizada y
  *   tracción transversal, Anejo 19), con lado x = largo del rectángulo;
+ * - cabezal de 3 o más pilotes → "cabezal-n-pilotes" (2026-10-23), con A =
+ *   largo del rectángulo y los centros de los pilotes en esos ejes;
  * - cada pilote → "pilotes";
  * - viga riostra (VR) → "viga-atado", con la luz de cara a cara;
  * - viga centradora (VC) → "viga-centradora-pilotes" (ver `centradora`);
  * - el resto queda "no evaluable" hasta que haya una verificación para él:
- *   cabezales de 3 o más pilotes y los nodos de pilar sobre viga (de ellos se
- *   verifica el pilote).
+ *   los nodos de pilar sobre viga (de ellos se verifica el pilote).
  *
  * Las marcas son las mismas que van a Revit (`numerarMarcas`), así un
  * elemento del proyecto y su pieza en Revit se llaman igual.
@@ -23,7 +24,8 @@ import { estadoDeElemento, type EstadoElemento } from "@/lib/proyectos/estado";
 import type { MaterialesProyecto, PlantaGuardada, Proyecto } from "@/lib/proyectos/tipos";
 import type { PiezaPlantaLeida } from "@/lib/proyectos/modelo";
 import { modoPilotes } from "./descargas";
-import { contiene } from "./geometria";
+import { escribirPilotes } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-n-pilotes";
+import { aEjes, contiene } from "./geometria";
 import type { Cabezal } from "./cabezales";
 import type { Interpretacion } from "./interpretar";
 import type { Pilote } from "./rotulos";
@@ -33,6 +35,9 @@ import { numerarMarcas } from "./exportar";
 export const A_MANO = {
   cabezales: ["anchoPilar", "ndPilar", "nPrinc", "phiPrinc", "nSec", "phiSec", "nEstV", "phiEstV", "nCercos", "nEstH", "phiEstH"],
   "cabezal-un-pilote": ["pilarX", "pilarY", "ndPilar", "nCercosSup", "phiCercosSup", "nCercosInf", "phiCercosInf"],
+  "cabezal-n-pilotes": [
+    "pilarA", "pilarB", "ndPilar", "nA", "phiA", "nB", "phiB", "phiPar", "sPar", "phiSup", "sSup", "phiEstV", "sEstV", "nEstH", "phiEstH",
+  ],
   pilotes: ["friccion", "punta", "factorSeguridad", "numero", "diametroBarra", "diametroEstribo", "Nk"],
   "viga-atado": ["n1d", "n2d", "numeroCara", "diametroCara", "diametroEstribo", "numeroRamas"],
   "viga-centradora-pilotes": [
@@ -138,20 +143,34 @@ export function piezasDePlanta(r: Interpretacion, o: OpcionesPlanta): PiezaPlant
       });
       return;
     }
-    if (n !== 2) {
+    if (n === 0) {
       piezas.push({
-        origen: {
-          marca,
-          pieza: "cabezal",
-          medidasM,
-          sinVerificacion:
-            n === 0
-              ? "Cabezal sin pilotes: revisar la planta."
-              : `Cabezal de ${n} pilotes: todavía no hay verificación para él.`,
-        },
+        origen: { marca, pieza: "cabezal", medidasM, sinVerificacion: "Cabezal sin pilotes: revisar la planta." },
         geometria: {},
         aMano: [],
         materiales: {},
+      });
+      return;
+    }
+    if (n >= 3) {
+      // Los pilotes en los ejes del cabezal: A a lo largo, desde su centro.
+      const centro = aEjes(c.rect.centro, c.rect.angulo);
+      const pilotes = c.pilotes.map((k) => {
+        const p = aEjes(r.pilotes[k].centro, c.rect.angulo);
+        return { aM: (p[0] - centro[0]) * e, bM: (p[1] - centro[1]) * e };
+      });
+      piezas.push({
+        origen: { marca, pieza: "cabezal", medidasM },
+        verificacion: "cabezal-n-pilotes",
+        geometria: {
+          ladoA: m(c.rect.largo * e),
+          ladoB: m(c.rect.ancho * e),
+          hCab: m(c.canto * e),
+          dPilote: m(r.pilotes[c.pilotes[0]].diametro * e),
+          pilotes: escribirPilotes(pilotes),
+        },
+        aMano: A_MANO["cabezal-n-pilotes"],
+        materiales: { fck: String(mat.fckMPa), fyk: String(mat.fykMPa), rg: m(mat.recubrimientoM) },
       });
       return;
     }

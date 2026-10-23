@@ -27,6 +27,20 @@ import {
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { aNumero } from "@/lib/verificaciones/formato";
 import { BETA_1_EMPOTRAMIENTO_PARCIAL } from "@/lib/calc/hormigon/comun/coeficientes";
+import {
+  anchoEficazAla,
+  rasanteAlaAlma,
+  type AnchoEficaz,
+  type GeometriaAla,
+  type ResultadoRasante,
+  type TipoSeccion,
+} from "@/lib/calc/hormigon/vigas/seccion-t";
+import { areaBarraCm2 } from "@/lib/calc/armaduras";
+
+/** Lee el tipo de sección del campo; sin campo (cálculos viejos), rectangular. */
+export function tipoSeccionDesdeCampo(valor: string | undefined): TipoSeccion {
+  return valor === "t" || valor === "t-invertida" ? valor : "rectangular";
+}
 
 /** Arma los grupos de armadura para el motor: la 2ª capa sólo entra si tiene barras cargadas. */
 export function armarGrupos(
@@ -61,8 +75,23 @@ export interface EntradasVigaFlexionCortante {
   numeroRamas: number;
 }
 
+/** La T con su ancho eficaz y el rasante del lado del ala comprimida. */
+export interface ResueltoSeccionT {
+  tipo: Exclude<TipoSeccion, "rectangular">;
+  ala: GeometriaAla;
+  anchoEficaz: AnchoEficaz;
+  /** Momento que comprime el ala: el positivo en la T, el negativo en la T invertida. */
+  momentoAlaComprimidaKNm: number;
+  /** Armadura transversal del ala que cruza la unión con el alma (cm²/m) */
+  asTransversalAlaCm2PorM: number;
+  /** null si ese momento es 0 o la sección está sobrearmada */
+  rasante: ResultadoRasante | null;
+}
+
 export interface ResueltoVigaFlexionCortante {
   v: EntradasVigaFlexionCortante;
+  /** null en la sección rectangular */
+  seccionT: ResueltoSeccionT | null;
   materiales: MaterialesDerivados;
   gruposPositiva: ArmaduraElegida[];
   gruposNegativa: ArmaduraElegida[];
@@ -129,8 +158,34 @@ export function resolverVigaFlexionCortante(
     return null;
   }
 
+  // Sección en T: b es el alma y el ala se carga aparte. En la T el ala va
+  // arriba y la comprime el momento positivo; en la T invertida, abajo, y la
+  // comprime el negativo.
+  const tipo = tipoSeccionDesdeCampo(campos.tipoSeccion);
+  let ala: GeometriaAla | null = null;
+  let asTransversalAlaCm2PorM = 0;
+  if (tipo !== "rectangular") {
+    ala = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M: n("l0") };
+    const t = { diametro: n("diametroAla"), separacion: n("separacionAla"), capas: n("capasAla") };
+    const alaValida = ala.anchoM >= v.b && ala.espesorM > 0 && ala.espesorM < v.h && ala.l0M > 0;
+    const transversalValida = [t.diametro, t.separacion, t.capas].every((x) => Number.isFinite(x) && x > 0);
+    if (!alaValida || !transversalValida) return null;
+    asTransversalAlaCm2PorM = (t.capas * areaBarraCm2(t.diametro)) / t.separacion;
+  }
+  const anchoEficaz = ala ? anchoEficazAla(v.b, ala) : null;
+  const alaArriba = tipo === "t";
+  const seccionTPara = (positivo: boolean) =>
+    anchoEficaz && ala
+      ? { anchoEficazM: anchoEficaz.anchoEficazM, espesorAlaM: ala.espesorM, alaComprimida: positivo === alaArriba }
+      : undefined;
+
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
   const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
+  // Las barras de la cara del ala se reparten en el ancho eficaz (art. 9.2.1.2 (2)).
+  const geometriaCara = (positivo: boolean) => {
+    const t = seccionTPara(positivo);
+    return t && !t.alaComprimida ? { ...geometria, b: t.anchoEficazM } : geometria;
+  };
   const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
   const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
   // Cada momento con su canto útil: d⁺ hasta la armadura inferior para el
@@ -138,12 +193,13 @@ export function resolverVigaFlexionCortante(
   // los dos. El cortante va con d⁻ porque su ρl ya sale de la armadura
   // superior: se verifica la sección de apoyo, y d y ρl tienen que referirse
   // a la misma armadura de tracción (Anejo 19, art. 6.2.2 (1)).
-  const d = calcularCantoUtil(geometria, gruposPositiva);
-  const dNegativo = calcularCantoUtil(geometria, gruposNegativa);
+  const d = calcularCantoUtil(geometriaCara(true), gruposPositiva);
+  const dNegativo = calcularCantoUtil(geometriaCara(false), gruposNegativa);
 
   const flexionPositiva = calcularFlexion(materiales, geometria, d, {
     momento: v.momentoPos,
     armaduraReal: gruposPositiva,
+    seccionT: seccionTPara(true),
   });
   // En construcción monolítica el apoyo nunca se dimensiona por debajo de
   // β1·M+, aunque el cálculo dé un momento negativo menor o nulo. El campo es
@@ -157,6 +213,7 @@ export function resolverVigaFlexionCortante(
   const flexionNegativa = calcularFlexion(materiales, geometria, dNegativo, {
     momento: momentoNegativoCalculo,
     armaduraReal: gruposNegativa,
+    seccionT: seccionTPara(false),
   });
   const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     vd: v.vd,
@@ -164,8 +221,32 @@ export function resolverVigaFlexionCortante(
     numeroRamas: v.numeroRamas,
   });
 
+  // Rasante entre ala y alma con el momento que comprime el ala (art. 6.2.4).
+  let seccionT: ResueltoSeccionT | null = null;
+  if (tipo !== "rectangular" && ala && anchoEficaz) {
+    const flexionAla = alaArriba ? flexionPositiva : flexionNegativa;
+    const momentoAlaComprimidaKNm = alaArriba ? v.momentoPos : momentoNegativoCalculo;
+    const rasante =
+      flexionAla.alaComprimida && momentoAlaComprimidaKNm > 0 && !flexionAla.sobrearmada
+        ? rasanteAlaAlma({
+            momentoKNm: momentoAlaComprimidaKNm,
+            flexion: flexionAla.alaComprimida,
+            anchoAlmaM: v.b,
+            anchoEficazM: anchoEficaz.anchoEficazM,
+            espesorAlaM: ala.espesorM,
+            l0M: ala.l0M,
+            fckMPa: materiales.fck,
+            fcdMPa: materiales.fcd,
+            fydMPa: materiales.fyd,
+            fctmMPa: materiales.fctm,
+            asTransversalRealCm2PorM: asTransversalAlaCm2PorM,
+          })
+        : null;
+    seccionT = { tipo, ala, anchoEficaz, momentoAlaComprimidaKNm, asTransversalAlaCm2PorM, rasante };
+  }
+
   return {
-    v, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
+    v, seccionT, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
     momentoNegativoCalculo, gobiernaMinimoApoyo,
   };
 }

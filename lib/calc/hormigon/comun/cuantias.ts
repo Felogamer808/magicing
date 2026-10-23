@@ -27,7 +27,14 @@ export function resistenciaFlexotraccionMPa(fctmMPa: number, hM: number): number
  * sumaba un mínimo geométrico y uno mecánico de la EHE‑08 (art. 42.3).
  */
 export function armaduraMinimaTraccionCm2(bM: number, hM: number, fctmFlMPa: number, fydMPa: number): number {
-  const moduloResistente = (bM * hM ** 2) / 6;
-  const brazo = 0.8 * hM;
-  return 100 ** 2 * (moduloResistente / brazo) * (fctmFlMPa / fydMPa);
+  return armaduraMinimaPorModuloCm2((bM * hM ** 2) / 6, hM, fctmFlMPa, fydMPa);
+}
+
+/**
+ * La misma ec. (9.1) con el módulo resistente W de cualquier sección (m³):
+ * As,min = (W / 0,8·h) · fctm,fl / fyd. En una T, W depende de qué cara
+ * tracciona.
+ */
+export function armaduraMinimaPorModuloCm2(moduloM3: number, hM: number, fctmFlMPa: number, fydMPa: number): number {
+  return 100 ** 2 * (moduloM3 / (0.8 * hM)) * (fctmFlMPa / fydMPa);
 }

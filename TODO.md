@@ -113,11 +113,11 @@ Independientes, contra `main`:
   - **Cabezal medianero de 2 pilotes** (CT11, CT12; hecho, 2026-10-22): la VC
     centra el momento del pilar descentrado, así que el cabezal se verifica
     con R₁d de la palanca, centrada, en lugar del Nd (`cargas.ts`). Sin e en
-    la VC o con dos VC en el nodo queda sin evaluar. El cabezal de 1 pilote
-    medianero sigue con el Nd.
-  - **Pendiente de la VC sobre pilotes**: (2) con dos centradoras en el mismo nodo
-    el Nk del pilote queda vacío (la palanca deja de ser plana: tres
-    ecuaciones, como la planilla); (3) no se comprueba el anclaje de la
+    la VC queda sin evaluar. El cabezal de 1 pilote medianero sigue con el Nd.
+  - **Dos centradoras en el mismo nodo** (hecho, 2026-10-23): superposición de
+    las dos palancas, R₁ = N + ΔR_x + ΔR_y, con M_acc en las dos direcciones;
+    en el Nk del pilote y en el R₁d del cabezal. Supone las VC en cruz.
+  - **Pendiente de la VC sobre pilotes**: (3) no se comprueba el anclaje de la
     armadura superior más allá del pilar; (4) sin fisuración en servicio.
     Contraste con la planilla REV08: Md al 1 % en VC1, VC2, VC5 y VC6; en VC3
     y VC4 (medianero de 2 pilotes) −8 % y +5 % porque la planilla usa el F de

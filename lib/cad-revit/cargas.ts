@@ -14,8 +14,13 @@
  * - Viga centradora: N₁d es el Nd del pilar del extremo medianero (el primero
  *   de `extremos`). Su pilote recibe la reacción de la palanca en servicio,
  *   R₁ = ((G + Q)·l + q·l²/2)/(l − e) con q = 25·b·h, en lugar de G + Q; sin
- *   e cargada sigue G + Q. Con dos centradoras en el mismo nodo la palanca ya
- *   no es plana: el Nk queda vacío (criterio del usuario, 2026-10-19).
+ *   e cargada sigue G + Q.
+ * - Dos centradoras en el mismo nodo (pilar de esquina, descentrado en x y en
+ *   y): la pieza medianera y los dos apoyos lejanos son tres apoyos de una
+ *   placa rígida. Con las VC en cruz, sus tres ecuaciones dan la
+ *   superposición R₁ = N + ΔR_x + ΔR_y, con ΔRᵢ = R₁ᵢ − N el exceso de cada VC
+ *   calculada sola (su M_acc incluida: en las dos direcciones). Vale para el
+ *   Nk del pilote y para el R₁d del cabezal (criterio del usuario, 2026-10-23).
  * - Cabezal de 2 pilotes medianero de una centradora (CT11, CT12 del REV08):
  *   el pilar cae descentrado y la VC centra ese momento, así que el cabezal
  *   se verifica con R₁d = (N₁d·l + q·l²/2 + M_acc)/(l − e), la misma de la
@@ -70,15 +75,16 @@ export function reaccionPalanca(nKN: number, p: PalancaCentradora): number {
 
 /**
  * Nk de cada pilote bajo la pieza, kN, o null si falta G o Q. Si el pilar es
- * el medianero de una centradora, en lugar de G + Q baja la reacción de la
+ * el medianero de una o dos centradoras, a G + Q se suma el exceso de cada
  * palanca.
  */
-export function nkPilote(pieza: ElementoProyecto, pilotes: number, palanca?: PalancaCentradora): number | null {
+export function nkPilote(pieza: ElementoProyecto, pilotes: number, palancas: readonly PalancaCentradora[] = []): number | null {
   const p = pieza.pilar;
   if (p?.gKN === undefined || p.qKN === undefined || pilotes === 0) return null;
   const m = pieza.cad?.medidasM;
   const pesoPropio = pieza.cad?.pieza === "cabezal" && m ? PESO_ESPECIFICO_HA_KNM3 * m[0] * m[1] * m[2] : 0;
-  const pilar = palanca ? reaccionPalanca(p.gKN + p.qKN, palanca) : p.gKN + p.qKN;
+  const n = p.gKN + p.qKN;
+  const pilar = palancas.reduce((r, palanca) => r + reaccionPalanca(n, palanca) - n, n);
   return (pilar + pesoPropio) / pilotes;
 }
 
@@ -127,10 +133,12 @@ function derivados(
     const ndTexto = nd === null ? "" : kN(nd);
     // Cabezal de 2 pilotes como nodo medianero de una centradora: la VC centra
     // el momento del pilar descentrado y el cabezal recibe R₁d centrada, no el
-    // Nd. Sin palanca completa, o con dos centradoras (no es plana), queda
-    // vacío: verificarlo con el Nd sería del lado inseguro.
+    // Nd; con dos, N + ΔR_x + ΔR_y. Si a alguna le falta la palanca queda
+    // vacío: verificarlo con menos carga sería del lado inseguro.
     const vcs = centradoras.get(cad.marca) ?? [];
-    const r1d = vcs.length === 1 && nd !== null ? reaccionCalculoDe(vcs[0], nd) : null;
+    const reacciones = nd === null ? [] : vcs.map((vc) => reaccionCalculoDe(vc, nd));
+    const completas = nd !== null && reacciones.every((r) => r !== null);
+    const r1d = completas ? reacciones.reduce((s: number, r) => s + r! - nd, nd) : null;
     const ndCabezal = vcs.length === 0 ? ndTexto : r1d === null ? "" : kN(r1d);
     // Los lados, sólo si alguno se cargó en el proyecto.
     const conLados = e.pilar.ladoPilotesM !== undefined || e.pilar.ladoTransversalM !== undefined;
@@ -147,8 +155,9 @@ function derivados(
   if (cad.pieza === "pilote") {
     const pieza = cad.bajo ? porMarca.get(cad.bajo) : undefined;
     const vcs = cad.bajo ? (centradoras.get(cad.bajo) ?? []) : [];
-    const palanca = vcs.length === 1 ? palancaDe(vcs[0]) : null;
-    const nk = !pieza || vcs.length > 1 ? null : nkPilote(pieza, pilotesBajo.get(cad.bajo!) ?? 0, palanca ?? undefined);
+    // Una VC sin e cargada no suma palanca (sigue G + Q, como con una sola).
+    const palancas = vcs.map(palancaDe).filter((p): p is PalancaCentradora => p !== null);
+    const nk = !pieza ? null : nkPilote(pieza, pilotesBajo.get(cad.bajo!) ?? 0, palancas);
     const s = proyecto.suelo;
     return {
       pilotes: {

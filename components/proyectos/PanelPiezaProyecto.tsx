@@ -161,7 +161,7 @@ export function PanelPiezaProyecto({
           {conPalanca && (
             <p className="text-xs text-muted-foreground">
               {ndCabezal === ""
-                ? "Es el nodo medianero de una viga centradora: el cabezal se verifica con su reacción R₁d, que falta (cargá e en la VC; con dos VC en el nodo no se calcula)."
+                ? "Es el nodo medianero de una viga centradora: el cabezal se verifica con su reacción R₁d, que falta (cargá e en cada VC que llega al nodo)."
                 : `Es el nodo medianero de una viga centradora: el cabezal se verifica con su reacción R₁d = ${fmt(Number(ndCabezal), 1)} kN, centrada, no con el Nd.`}
             </p>
           )}

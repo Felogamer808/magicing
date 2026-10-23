@@ -193,8 +193,21 @@ describe("derivarCargas con una viga centradora", () => {
       expect(campos(derivarCargas(conVCs(vc("VC9", ""))), "CT9-1").ndPilar).toBe("");
     });
 
-    it("con dos centradoras en el nodo, el cabezal queda sin evaluar", () => {
-      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"), vc("VC10", "0.5"))), "CT9-1").ndPilar).toBe("");
+    /** Superposición: ΔR = 909,66 − 690 = 219,66 por VC; 690 + 2·219,66 = 1129,3 kN. */
+    it("con dos centradoras en el nodo, el cabezal recibe N + ΔR_x + ΔR_y", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"), vc("VC10", "0.5"))), "CT9-1").ndPilar).toBe("1129.3");
+    });
+
+    it("con dos centradoras y a una le falta e, el cabezal queda sin evaluar", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"), vc("VC10", ""))), "CT9-1").ndPilar).toBe("");
+    });
+
+    /**
+     * En servicio, q = 25·0,4·0,6 = 6 kN/m: R₁ = (500·2,5 + 6·2,5²/2)/2 = 634,375,
+     * ΔR = 134,375 por VC. (500 + 2·134,375 + 27 de peso propio)/2 = 397,9 kN.
+     */
+    it("con dos centradoras, cada pilote recibe G + Q + ΔR_x + ΔR_y repartido", () => {
+      expect(campos(derivarCargas(conVCs(vc("VC9", "0.5"), vc("VC10", "0.5"))), "CT9-1-P1").Nk).toBe("397.9");
     });
   });
 

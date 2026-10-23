@@ -15,6 +15,8 @@ const datos = {
   estriboVerticalMm: 8,
   separacionVerticalM: 0.2,
   estribosHorizontales: { numero: 4, diametroMm: 10 },
+  parrilla: { diametroMm: 12, separacionM: 0.2 },
+  superior: { diametroMm: 10, separacionM: 0.25 },
 };
 const geometria = (pilotes: GeometriaCabezalN["pilotes"], ladoAM: number, ladoBM: number): GeometriaCabezalN => ({
   ladoAM, ladoBM, hM: 0.8, pilarAM: 0.4, pilarBM: 0.4, diametroPiloteM: 0.5, recubrimientoM: 0.05, pilotes,
@@ -46,6 +48,8 @@ describe("cabezal de n pilotes: la generalización del de 2", () => {
       estriboVerticalMm: 8,
       separacionVerticalM: 0.2,
       estribosHorizontales: { numero: 5, diametroMm: 10 },
+      parrilla: { diametroMm: 10, separacionM: 0.2 },
+      superior: { diametroMm: 10, separacionM: 0.2 },
     }
   );
 
@@ -101,6 +105,22 @@ describe("cabezal de 4 pilotes en cuadro", () => {
   /** 0,95 − 0,625 + 0,25 − 0,05 = 0,525 m hasta el borde. */
   it("el anclaje arranca en la cara interior del pilote", () => {
     expect(r.direccionA.disponibleAnclajeMm).toBeCloseTo(525, 6);
+  });
+
+  /** Art. 9.7 con el canto como espesor: 0,001·0,80 m = 8 cm²/m por cara. */
+  it("la malla de caras se mide con el canto", () => {
+    expect(r.malla.asNecCm2).toBeCloseTo(8, 9);
+  });
+
+  /**
+   * Bandas 8Ø16 = 16,08 cm². Parrilla Ø12 c/0,20 en 1,9 − 2·0,05 = 1,8 m:
+   * 10 barras, 11,31 cm² ≥ 16,08/4. Superior Ø10 c/0,25: 8 barras, 6,28 ≥ 1,61.
+   */
+  it("parrilla ≥ 1/4 y superior ≥ 1/10 de las bandas", () => {
+    expect(r.parrillaA.asNecCm2).toBeCloseTo(r.direccionA.asRealCm2 / 4, 9);
+    expect(r.parrillaA.asRealCm2).toBeCloseTo(10 * Math.PI * 1.2 ** 2 / 4, 9);
+    expect(r.superiorB.asRealCm2).toBeCloseTo(8 * Math.PI / 4, 9);
+    expect(r.parrillaA.verifica && r.superiorA.verifica).toBe(true);
   });
 });
 

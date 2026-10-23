@@ -71,6 +71,7 @@ export type IdVerificacion =
   | "pilotes"
   | "cabezales"
   | "cabezal-un-pilote"
+  | "cabezal-n-pilotes"
   | "muros-contencion"
   | "muros"
   | "pilares"
@@ -446,6 +447,16 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Modelo de bielas y tirantes: armadura principal, secundaria y de reparto.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/cabezal-pilotes",
+    disponible: true,
+  },
+  {
+    id: "cabezal-n-pilotes",
+    nombre: "Cabezal de 3 o más pilotes",
+    seccion: "hormigon-armado",
+    categoria: "Cimentaciones",
+    descripcion: "Bielas y tirantes para cualquier cantidad y disposición de pilotes: armadura en las dos direcciones, bielas y nudos.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/cabezal-n-pilotes",
     disponible: true,
   },
   {

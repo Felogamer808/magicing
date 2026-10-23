@@ -25,7 +25,13 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  *   ecs. (6.60) a (6.62), págs. 99-100.
  * - Armadura inferior en A y en B, cada una contra su T, anclada por el
  *   art. 8.4 desde la cara interior del pilote más externo. Malla de caras del
- *   art. 9.7 por analogía, como el de 2.
+ *   art. 9.7 por analogía, como el de 2, con el canto H como espesor: el
+ *   bloque trabaja como placa (con el lado menor, un cabezal de 1,9 m pedía
+ *   19 cm²/m por cara).
+ * - Criterio de oficina, no del Anejo 19 (que no trae reglas de encepados):
+ *   parrilla entre bandas ≥ 1/4 de la armadura de las bandas y armadura
+ *   superior ≥ 1/10 de la inferior, en cada dirección. Son las de la
+ *   EHE-08, art. 58.4.1.2.2, tomadas como práctica constructiva.
  *
  * La capa en A va abajo; la de B, encima: su canto útil es menor en φA.
  */
@@ -65,7 +71,22 @@ export interface DatosCabezalN {
   separacionVerticalM: number;
   /** Cercos horizontales de las caras, repartidos en el canto */
   estribosHorizontales: BarrasCabezal;
+  /** Parrilla inferior entre bandas y malla superior: diámetro y separación, iguales en las dos direcciones */
+  parrilla: MallaCabezal;
+  superior: MallaCabezal;
   formaAnclaje?: FormaAnclaje;
+}
+
+export interface MallaCabezal {
+  diametroMm: number;
+  separacionM: number;
+}
+
+/** Una malla de criterio contra la armadura de referencia, en una dirección (cm²). */
+export interface ResultadoCriterioCabezalN {
+  asNecCm2: number;
+  asRealCm2: number;
+  verifica: boolean;
 }
 
 export interface ResultadoDireccionCabezalN {
@@ -124,6 +145,12 @@ export interface ResultadoCabezalN {
   verificaBielas: boolean;
   verificaNudos: boolean;
   malla: ResultadoMallaCabezalN;
+  /** Parrilla entre bandas ≥ 1/4 de las bandas, en A y en B */
+  parrillaA: ResultadoCriterioCabezalN;
+  parrillaB: ResultadoCriterioCabezalN;
+  /** Superior ≥ 1/10 de la inferior (bandas), en A y en B */
+  superiorA: ResultadoCriterioCabezalN;
+  superiorB: ResultadoCriterioCabezalN;
 }
 
 const areaCm2 = (n: number, diametroMm: number) => (n * Math.PI * (diametroMm / 10) ** 2) / 4;
@@ -240,16 +267,29 @@ export function calcularCabezalNPilotes(
     };
   });
 
-  // Malla de caras, art. 9.7 (1) y (2), pág. 152, por analogía: el espesor es
-  // el lado menor del cabezal.
-  const espesor = Math.min(g.ladoAM, g.ladoBM);
+  // Malla de caras, art. 9.7 (1) y (2), pág. 152, por analogía, con el canto
+  // como espesor (criterio del usuario, 2026-10-23).
+  const espesor = g.hM;
   const asNecCm2 = Math.max(0.001 * espesor * 1e4, 1.5);
   const separacionMaxM = Math.min(0.3, 2 * espesor);
   const separacionHorizontalM = (g.hM - 0.15) / Math.max(datos.estribosHorizontales.numero - 1, 1);
   const asVerticalCm2 = areaCm2(1, phiV) / datos.separacionVerticalM;
   const asHorizontalCm2 = areaCm2(1, phiH) / separacionHorizontalM;
 
+  // Parrilla y superior, criterio de oficina: barras paralelas a una
+  // dirección, repartidas a lo ancho del otro lado.
+  const malla = (m: MallaCabezal, ancho: number) => areaCm2(Math.floor((ancho - 2 * rec) / m.separacionM + 1e-9) + 1, m.diametroMm);
+  const criterio = (asNecCm2: number, asRealCm2: number): ResultadoCriterioCabezalN => ({
+    asNecCm2,
+    asRealCm2,
+    verifica: asRealCm2 >= asNecCm2,
+  });
+
   return {
+    parrillaA: criterio(direccionA.asRealCm2 / 4, malla(datos.parrilla, g.ladoBM)),
+    parrillaB: criterio(direccionB.asRealCm2 / 4, malla(datos.parrilla, g.ladoAM)),
+    superiorA: criterio(direccionA.asRealCm2 / 10, malla(datos.superior, g.ladoBM)),
+    superiorB: criterio(direccionB.asRealCm2 / 10, malla(datos.superior, g.ladoAM)),
     pesoPropioKN,
     reaccionPiloteKN,
     pilarAM,

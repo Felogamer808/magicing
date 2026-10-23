@@ -39,6 +39,38 @@ describe("piezasDePlanta", () => {
     expect(ct2.aMano).toEqual(A_MANO["cabezal-un-pilote"]);
   });
 
+  /**
+   * Un CT de 4 pilotes, girado 90° en el dibujo: 2,5 de largo sobre el eje y,
+   * pilotes a ±0,8 a lo largo y ±0,4 a lo ancho. En los ejes del cabezal A es
+   * el largo, así que (x, y) del dibujo pasan a (y, −x).
+   */
+  it("un cabezal de 3 o más pilotes va a la verificación general con los pilotes en sus ejes", () => {
+    const base = r.pilotes.length;
+    const centros: [number, number][] = [[10400, 20800], [9600, 20800], [10400, 19200], [9600, 19200]];
+    const conCuatro = {
+      ...r,
+      pilotes: [...r.pilotes, ...centros.map((c) => ({ centro: c, diametro: 500 }))],
+      cabezales: [
+        ...r.cabezales,
+        {
+          ...r.cabezales[0],
+          nombre: "CT20",
+          rect: { centro: [10000, 20000] as [number, number], angulo: 90, largo: 2500, ancho: 1300 },
+          medidas: [2500, 1300, 900] as [number, number, number],
+          canto: 900,
+          pilotes: [0, 1, 2, 3].map((i) => base + i),
+        },
+      ],
+    };
+    const ct = piezasDePlanta(conCuatro, { escala: 0.001, largoPiloteM: 12, materiales }).find((p) => p.verificacion === "cabezal-n-pilotes")!;
+    expect(ct.origen.sinVerificacion).toBeUndefined();
+    expect(ct.geometria).toEqual({
+      ladoA: "2.5", ladoB: "1.3", hCab: "0.9", dPilote: "0.5",
+      pilotes: "0.8 -0.4; 0.8 0.4; -0.8 -0.4; -0.8 0.4",
+    });
+    expect(ct.aMano).toEqual(A_MANO["cabezal-n-pilotes"]);
+  });
+
   /** VR4 de cara a cara entre los dos CT9: de x = 0,9 a x = 5,1. */
   it("una riostra va a viga de atado, con la luz de cara a cara y los cabezales que ata", () => {
     const vr4 = pieza("VR4");

@@ -93,6 +93,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nivel: "probada",
     nota: "Sin planilla: se contrasta a mano en los tests. El Anejo 19 deja los encepados fuera de su alcance (art. 9.8.1); se usan la compresión localizada (art. 6.7) y la tracción transversal (art. 6.5.3), sin cuantía mínima propia; con a > H/2 la T sale de la ec. 6.58 con b = lado del cabezal. La excentricidad accidental la toman las vigas de atado.",
   },
+  "cabezal-n-pilotes": {
+    nivel: "probada",
+    nota: "Sin planilla: es la generalización del cabezal de 2 pilotes (con 2 da lo mismo, test) y se contrasta a mano con 4, 5 y 6 pilotes. El Anejo 19 deja los encepados fuera (art. 9.8.1): bielas y tirantes del art. 6.5 con el pilar en el centro del grupo y reparto N/n, sin momentos (los núcleos, que bajan muros con momento, no entran). El tirante se dimensiona con mín(fyd; 0,8·fyk), como el de 2. Malla de caras del art. 9.7 por analogía con el canto como espesor. Parrilla entre bandas ≥ 1/4 y superior ≥ 1/10: criterio de oficina tomado de la EHE-08, no del Anejo 19.",
+  },
 
   "zapata-corrida": {
     nivel: "probada",

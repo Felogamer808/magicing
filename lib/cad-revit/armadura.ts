@@ -18,6 +18,7 @@ import { A_MANO } from "./proyecto";
 export const CAMPOS_DERIVADOS: Record<string, readonly string[]> = {
   cabezales: ["ndPilar", "anchoPilar"],
   "cabezal-un-pilote": ["ndPilar", "pilarX", "pilarY"],
+  "cabezal-n-pilotes": ["ndPilar", "pilarA", "pilarB"],
   pilotes: ["Nk", "friccion", "punta", "factorSeguridad"],
   "viga-atado": ["n1d", "n2d"],
   "viga-centradora-pilotes": ["n1d"],
@@ -27,6 +28,7 @@ export const CAMPOS_DERIVADOS: Record<string, readonly string[]> = {
 const DONDE_SE_CARGAN: Record<string, string> = {
   cabezales: "G, Q y lado A del pilar (arriba)",
   "cabezal-un-pilote": "G, Q y lados A y B del pilar (arriba)",
+  "cabezal-n-pilotes": "G, Q y lados A y B del pilar (arriba)",
   pilotes: "cargas del pilar y suelo (tarjeta Pilotes)",
   "viga-atado": "G y Q de los pilares de los extremos",
   "viga-centradora-pilotes": "G y Q del pilar medianero",

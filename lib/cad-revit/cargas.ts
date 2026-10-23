@@ -144,6 +144,11 @@ function derivados(
     const conLados = e.pilar.ladoPilotesM !== undefined || e.pilar.ladoTransversalM !== undefined;
     return {
       cabezales: { ndPilar: ndCabezal, ...(conLados ? { anchoPilar: texto(e.pilar.ladoPilotesM) } : {}) },
+      // De 3 o más pilotes: A es el largo del cabezal, como el lado A del panel.
+      "cabezal-n-pilotes": {
+        ndPilar: ndCabezal,
+        ...(conLados ? { pilarA: texto(e.pilar.ladoPilotesM), pilarB: texto(e.pilar.ladoTransversalM) } : {}),
+      },
       // Con un pilote no hay dirección que una pilotes: el primer lado va en x,
       // el largo del cabezal (ver proyecto.ts).
       "cabezal-un-pilote": {

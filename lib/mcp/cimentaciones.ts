@@ -21,6 +21,8 @@ import { comprobarPilote, recomendarPilote } from "@/lib/verificaciones/recomend
 import { comprobarCabezal, recomendarCabezal } from "@/lib/verificaciones/recomendaciones/cabezal-pilotes";
 import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
 import { comprobarCabezalUnPilote, recomendarCabezalUnPilote } from "@/lib/verificaciones/recomendaciones/cabezal-un-pilote";
+import { resolverCabezalNPilotes } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-n-pilotes";
+import { comprobarCabezalNPilotes, recomendarCabezalNPilotes } from "@/lib/verificaciones/recomendaciones/cabezal-n-pilotes";
 import { resolverVigaCentradoraPilotes } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora-pilotes";
 import { comprobarVigaCentradoraPilotes, recomendarVigaCentradoraPilotes } from "@/lib/verificaciones/recomendaciones/viga-centradora-pilotes";
 import { comprobarArmaduraTirante } from "@/lib/verificaciones/recomendaciones/armadura-tirante";
@@ -135,6 +137,10 @@ const CALCULOS: Record<IdCimentacion, (c: Campos) => Calculado | null> = {
   "cabezal-un-pilote": (c) => {
     const r = resolverCabezalUnPilote(c);
     return r && { comprobaciones: comprobarCabezalUnPilote(c) ?? [], recomendaciones: recomendarCabezalUnPilote(c), resultado: r.r };
+  },
+  "cabezal-n-pilotes": (c) => {
+    const r = resolverCabezalNPilotes(c);
+    return r && { comprobaciones: comprobarCabezalNPilotes(c) ?? [], recomendaciones: recomendarCabezalNPilotes(c), resultado: r.r };
   },
 };
 

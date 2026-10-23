@@ -106,7 +106,7 @@ export function PanelPiezaProyecto({
   const conLados = pieza.tipo === "cabezal" && elemento.calculos.length > 0;
   const nd = ndPilar(elemento.pilar);
   // Medianero de una centradora: al cabezal no va el Nd sino R₁d (cargas.ts).
-  const ndCabezal = elemento.calculos.find((c) => c.verificacion === "cabezales")?.campos.ndPilar;
+  const ndCabezal = elemento.calculos.find((c) => c.verificacion === "cabezales" || c.verificacion === "cabezal-n-pilotes")?.campos.ndPilar;
   const conPalanca = nd !== null && ndCabezal !== undefined && ndCabezal !== String(Math.round(nd * 10) / 10);
   const celda = "h-8 w-24 px-2 text-right tabular-nums";
   const campo = (etiqueta: string, clave: keyof PilarCargado, unidad: string) => (

@@ -16,7 +16,12 @@ import {
 } from "@/lib/calc/hormigon/comun/cortante";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
 import { EPSILON_CU3, ES_MPA, LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
-import { armaduraMinimaTraccionCm2, resistenciaFlexotraccionMPa } from "@/lib/calc/hormigon/comun/cuantias";
+import {
+  armaduraMinimaPorModuloCm2,
+  armaduraMinimaTraccionCm2,
+  resistenciaFlexotraccionMPa,
+} from "@/lib/calc/hormigon/comun/cuantias";
+import { flexionAlaComprimida, moduloResistenteT, propiedadesT } from "@/lib/calc/hormigon/vigas/seccion-t";
 
 /** Separación libre mínima entre barras (EC2 8.2): el mayor entre el diámetro de barra y 20 mm. */
 function separacionMinM(diametroMm: number): number {
@@ -151,22 +156,37 @@ export function calcularFlexion(
 ): ResultadoFlexion {
   const { b, h } = geometria;
   const { fcd, fyd, fctm } = materiales;
-  const { momento, armaduraReal, asAdicionalCm2 = 0 } = datos;
+  const { momento, armaduraReal, asAdicionalCm2 = 0, seccionT } = datos;
 
-  const mu = momento / (b * d ** 2 * fcd * 1000);
+  // Con el ala comprimida de una T el bloque puede quedar en el ala o bajar
+  // al alma (seccion-t.ts). Con el ala traccionada, o sin ala, es un
+  // rectángulo de ancho b, que en una T es el alma.
+  const ala = seccionT?.alaComprimida
+    ? flexionAlaComprimida(momento, b, seccionT.anchoEficazM, seccionT.espesorAlaM, d, fcd, fyd)
+    : undefined;
+  const mu = ala ? ala.mu : momento / (b * d ** 2 * fcd * 1000);
   const muLim = momentoReducidoLimite(fyd);
   const sobrearmada = mu > muLim;
   // Sobrearmada no hay ω válido: se deja NaN a propósito, y no un número que
   // parezca una armadura, para que nada aguas abajo lo use como resultado.
-  const omega = sobrearmada ? NaN : 1 - Math.sqrt(1 - 2 * mu);
-  const asCalculadoCm2 = (100 ** 2 * omega * b * d * fcd) / fyd;
+  const omega = sobrearmada ? NaN : ala ? ala.omega : 1 - Math.sqrt(1 - 2 * mu);
+  const asCalculadoCm2 = sobrearmada ? NaN : ala ? ala.asCalculadoCm2 : (100 ** 2 * omega * b * d * fcd) / fyd;
 
-  // El mínimo se aplica igual a la armadura positiva y a la negativa: en una
-  // sección rectangular W es el mismo respecto de las dos caras.
+  // En un rectángulo W es el mismo respecto de las dos caras; en una T
+  // depende de cuál tracciona (ec. (9.1): W de la sección bruta respecto de
+  // la fibra más traccionada), con el ala de ancho b_eff.
   const fctmFlMPa = resistenciaFlexotraccionMPa(fctm, h);
-  const asMinCm2 = armaduraMinimaTraccionCm2(b, h, fctmFlMPa, fyd);
+  const asMinCm2 = seccionT
+    ? armaduraMinimaPorModuloCm2(
+        moduloResistenteT(propiedadesT(b, h, seccionT.anchoEficazM, seccionT.espesorAlaM), h, !seccionT.alaComprimida),
+        h, fctmFlMPa, fyd
+      )
+    : armaduraMinimaTraccionCm2(b, h, fctmFlMPa, fyd);
 
-  const disposicion = calcularDisposicionArmadura(geometria, armaduraReal);
+  // Las barras de la cara del ala se reparten en el ancho eficaz (art.
+  // 9.2.1.2 (2)); las de la cara del alma, en el alma.
+  const geometriaBarras = seccionT && !seccionT.alaComprimida ? { ...geometria, b: seccionT.anchoEficazM } : geometria;
+  const disposicion = calcularDisposicionArmadura(geometriaBarras, armaduraReal);
 
   // La armadura de torsión se suma a la de flexión (no se toma el máximo): son
   // esfuerzos concomitantes que traccionan las mismas barras.
@@ -176,8 +196,8 @@ export function calcularFlexion(
   const verificaAs = !sobrearmada && asRealCm2 >= asNecCm2;
 
   // Geometría del agotamiento, para poder dibujarlo: ω·d = 0,8·x y z = d·(1 − ω/2).
-  const xM = (omega * d) / LAMBDA_BLOQUE;
-  const zM = d * (1 - omega / 2);
+  const xM = sobrearmada ? NaN : ala ? ala.xM : (omega * d) / LAMBDA_BLOQUE;
+  const zM = sobrearmada ? NaN : ala ? ala.zM : d * (1 - omega / 2);
   const deformacionAcero = xM > 0 ? (EPSILON_CU3 * (d - xM)) / xM : sobrearmada ? NaN : Infinity;
 
   return {
@@ -200,6 +220,7 @@ export function calcularFlexion(
     capacidadPorGrupo: disposicion.capacidadPorGrupo,
     distanciaCentroideM: disposicion.distanciaCentroideM,
     verificaEntraEnAncho: disposicion.verificaEntraEnAncho,
+    ...(ala ? { alaComprimida: ala } : {}),
   };
 }
 

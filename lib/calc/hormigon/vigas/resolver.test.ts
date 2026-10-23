@@ -66,3 +66,56 @@ describe("el cortante va con d⁻", () => {
     expect(r.cortante.k).toBeCloseTo(1 + Math.sqrt(200 / 544), 9);
   });
 });
+
+describe("sección en T y en T invertida", () => {
+  const T = {
+    ...BASE, tipoSeccion: "t", anchoAla: "1.5", espesorAla: "0.15", l0: "6",
+    diametroAla: "8", separacionAla: "0.2", capasAla: "1",
+  };
+
+  it("sin el campo calcula como siempre: rectangular", () => {
+    const r = resolverVigaFlexionCortante(BASE);
+    expect(r?.seccionT).toBeNull();
+    expect(r?.flexionPositiva.alaComprimida).toBeUndefined();
+  });
+
+  it("T: con positivo el ala colabora y pide menos armadura que el rectángulo del alma", () => {
+    const t = resolverVigaFlexionCortante(T)!;
+    const rect = resolverVigaFlexionCortante(BASE)!;
+    expect(t.seccionT?.anchoEficaz.anchoEficazM).toBeCloseTo(1.5, 9);
+    expect(t.flexionPositiva.alaComprimida?.bloqueEnAla).toBe(true);
+    expect(t.flexionPositiva.asCalculadoCm2).toBeLessThan(rect.flexionPositiva.asCalculadoCm2);
+    // El negativo tracciona el ala: no colabora a compresión.
+    expect(t.flexionNegativa.alaComprimida).toBeUndefined();
+  });
+
+  it("T: el mínimo de cada cara sale del W de la T respecto de esa fibra", () => {
+    const t = resolverVigaFlexionCortante(T)!;
+    // La fibra del ala está más cerca del baricentro: W mayor y mínimo mayor arriba.
+    expect(t.flexionNegativa.asMinCm2).toBeGreaterThan(t.flexionPositiva.asMinCm2);
+  });
+
+  it("T: el rasante sale del momento positivo, con Δx = l0/4", () => {
+    const t = resolverVigaFlexionCortante(T)!;
+    expect(t.seccionT?.momentoAlaComprimidaKNm).toBe(200);
+    expect(t.seccionT?.rasante?.deltaXM).toBeCloseTo(1.5, 9);
+    // 1 capa Ø8 c/0,20 = 2,51 cm²/m
+    expect(t.seccionT?.asTransversalAlaCm2PorM).toBeCloseTo(2.513, 3);
+  });
+
+  it("T invertida: el positivo es un rectángulo del alma y el ala colabora con el negativo", () => {
+    const inv = resolverVigaFlexionCortante({ ...T, tipoSeccion: "t-invertida", momentoNeg: "150" })!;
+    const rect = resolverVigaFlexionCortante({ ...BASE, momentoNeg: "150" })!;
+    expect(inv.flexionPositiva.alaComprimida).toBeUndefined();
+    expect(inv.flexionNegativa.alaComprimida).toBeDefined();
+    expect(inv.seccionT?.momentoAlaComprimidaKNm).toBe(150);
+    // Las barras inferiores van en el ala: con el mismo canto útil, la misma armadura por momento.
+    expect(inv.flexionPositiva.asCalculadoCm2).toBeCloseTo(rect.flexionPositiva.asCalculadoCm2, 6);
+  });
+
+  it("sin datos válidos del ala no calcula", () => {
+    expect(resolverVigaFlexionCortante({ ...T, anchoAla: "0.2" })).toBeNull();
+    expect(resolverVigaFlexionCortante({ ...T, espesorAla: "0.7" })).toBeNull();
+    expect(resolverVigaFlexionCortante({ ...T, l0: "" })).toBeNull();
+  });
+});

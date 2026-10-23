@@ -51,7 +51,23 @@ export interface DatosFlexion {
   armaduraReal: readonly ArmaduraElegida[];
   /** Armadura longitudinal extra a sumar al As necesario (cm²), p. ej. la parte que aporta la torsión. */
   asAdicionalCm2?: number;
+  /**
+   * Sección en T (o T invertida): el ala y si este momento la comprime. Sin
+   * esto la sección es un rectángulo de ancho b. Con el ala, b es el alma.
+   */
+  seccionT?: SeccionTFlexion;
 }
+
+export interface SeccionTFlexion {
+  /** b_eff, ec. (5.7) (m) */
+  anchoEficazM: number;
+  /** hf (m) */
+  espesorAlaM: number;
+  /** El momento comprime el ala: colabora. Si no, el ala está traccionada y lleva las barras. */
+  alaComprimida: boolean;
+}
+
+import type { FlexionAlaComprimida } from "@/lib/calc/hormigon/vigas/seccion-t";
 
 export interface ResultadoFlexion {
   /** Canto útil (m), calculado a partir de h, recubrimiento y diámetro de la armadura real */
@@ -106,6 +122,8 @@ export interface ResultadoFlexion {
   distanciaCentroideM: number;
   /** La armadura entra en el ancho disponible (aunque sea en varias filas). */
   verificaEntraEnAncho: boolean;
+  /** Con el ala comprimida de una T: cómo se repartió la compresión entre ala y alma. */
+  alaComprimida?: FlexionAlaComprimida;
 }
 
 export interface FilaArmadura {

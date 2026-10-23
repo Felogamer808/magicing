@@ -33,9 +33,23 @@ interface SeccionVigaDiagramaProps {
   noEntra?: { inferior: boolean; superior: boolean };
   /** Omitir el resumen de armaduras al pie, cuando la página ya lo muestra. */
   sinResumen?: boolean;
+  /**
+   * Sección en T: el ala arriba (T) o abajo (T invertida). Con ala, bM es el
+   * ancho del alma. Las barras de la cara del ala se dibujan repartidas en el
+   * ancho eficaz, como las reparte el cálculo.
+   */
+  ala?: AlaDiagrama;
 }
 
-export type ElementoSeccionViga = "b" | "h" | "recubrimiento" | "inferior" | "superior" | "estribo";
+export interface AlaDiagrama {
+  anchoM: number;
+  espesorM: number;
+  arriba: boolean;
+  /** b_eff: se marca si es menor que el ancho real. */
+  anchoEficazM?: number;
+}
+
+export type ElementoSeccionViga = "b" | "h" | "recubrimiento" | "inferior" | "superior" | "estribo" | "ala" | "hf";
 
 function distribuir(n: number, desde: number, hasta: number): number[] {
   if (n <= 1) return [(desde + hasta) / 2];
@@ -85,6 +99,7 @@ export function SeccionVigaDiagrama({
   resaltar = null,
   noEntra = { inferior: false, superior: false },
   sinResumen = false,
+  ala,
 }: SeccionVigaDiagramaProps) {
   const arrowId = useId();
 
@@ -95,19 +110,34 @@ export function SeccionVigaDiagrama({
   const PAD_LEFT = 52;
   const PAD_TOP = 34;
   const PAD_RIGHT = 46;
-  const PAD_BOTTOM = noEntra.inferior ? 40 : 28;
+  const conAla = ala !== undefined && ala.anchoM > bM && ala.espesorM > 0 && ala.espesorM < hM;
+  // Con ala, la cota del alma va al pie, debajo de la del recubrimiento.
+  const PAD_BOTTOM = (noEntra.inferior ? 40 : 28) + (conAla ? 18 : 0);
 
-  const escala = Math.min(MAX_W / bM, MAX_H / hM);
+  const anchoTotalM = conAla ? ala.anchoM : bM;
+  const escala = Math.min(MAX_W / anchoTotalM, MAX_H / hM);
   const w = bM * escala;
   const h = hM * escala;
+  const wTotal = anchoTotalM * escala;
 
-  const x0 = PAD_LEFT;
+  // xa0..xa1 es el ancho total (el ala, si la hay); x0..x1, el alma centrada.
+  const xa0 = PAD_LEFT;
+  const xa1 = xa0 + wTotal;
+  const x0 = xa0 + (wTotal - w) / 2;
   const y0 = PAD_TOP;
   const x1 = x0 + w;
   const y1 = y0 + h;
+  const hf = conAla ? ala.espesorM * escala : 0;
+  const yAla0 = conAla ? (ala.arriba ? y0 : y1 - hf) : y0;
+  const yAla1 = yAla0 + hf;
 
-  const viewW = x1 + PAD_RIGHT;
+  const viewW = xa1 + PAD_RIGHT;
   const viewH = y1 + PAD_BOTTOM;
+  const contornoT = conAla
+    ? ala.arriba
+      ? `M${xa0} ${y0} H${xa1} V${yAla1} H${x1} V${y1} H${x0} V${yAla1} H${xa0} Z`
+      : `M${x0} ${y0} H${x1} V${yAla0} H${xa1} V${y1} H${xa0} V${yAla0} H${x0} Z`
+    : undefined;
 
   const cover = Math.min(recubrimientoM * escala, w / 2 - 6, h / 2 - 6);
   const coverX0 = x0 + Math.max(cover, 4);
@@ -119,6 +149,17 @@ export function SeccionVigaDiagrama({
   const filasPos = ubicarFilas(armaduraPositiva.capas, coverY1, -1);
   // Filas de la armadura negativa: la 0 pegada al borde superior, las siguientes hacia abajo.
   const filasNeg = ubicarFilas(armaduraNegativa.capas, coverY0, 1);
+
+  // Las barras de la cara del ala se reparten en el ancho eficaz, centrado.
+  const anchoBarrasAla = conAla ? Math.min(ala.anchoEficazM ?? ala.anchoM, ala.anchoM) * escala : w;
+  const centro = (x0 + x1) / 2;
+  const tramoBarras = (cara: "inferior" | "superior") =>
+    conAla && (cara === "superior") === ala.arriba
+      ? [centro - anchoBarrasAla / 2 + Math.max(cover, 4), centro + anchoBarrasAla / 2 - Math.max(cover, 4)]
+      : [coverX0, coverX1];
+  const [negX0, negX1] = tramoBarras("superior");
+  const [posX0, posX1] = tramoBarras("inferior");
+  const marcaEficaz = conAla && ala.anchoEficazM !== undefined && ala.anchoEficazM < ala.anchoM - 1e-9;
 
   const yCentroidePos = filasPos[0]?.y ?? coverY1;
   const yCentroideNeg = filasNeg[0]?.y ?? coverY0;
@@ -148,33 +189,45 @@ export function SeccionVigaDiagrama({
           </marker>
         </defs>
 
-        {/* cota b */}
-        <g {...cota("b")}>
-          <path d={`M${x0} ${y0 - 16} L${x0} ${y0 - 4}`} />
-          <path d={`M${x1} ${y0 - 16} L${x1} ${y0 - 4}`} />
+        {/* cota del ancho de arriba: el alma, o el ala con la sección en T */}
+        <g {...cota(conAla ? "ala" : "b")}>
+          <path d={`M${xa0} ${y0 - 16} L${xa0} ${y0 - 4}`} />
+          <path d={`M${xa1} ${y0 - 16} L${xa1} ${y0 - 4}`} />
           <path
-            d={`M${x0} ${y0 - 10} L${x1} ${y0 - 10}`}
+            d={`M${xa0} ${y0 - 10} L${xa1} ${y0 - 10}`}
             markerStart={`url(#${arrowId})`}
             markerEnd={`url(#${arrowId})`}
           />
         </g>
         <text
-          x={(x0 + x1) / 2}
+          x={(xa0 + xa1) / 2}
           y={y0 - 18}
           textAnchor="middle"
           className="fill-current font-mono"
           fontSize="10.5"
-          {...textoCota("b")}
+          {...textoCota(conAla ? "ala" : "b")}
         >
-          b = {fmtM(bM)}
+          {conAla ? `ala = ${fmtM(ala.anchoM)}` : `b = ${fmtM(bM)}`}
         </text>
+        {conAla && (
+          <g>
+            <g {...cota("b")}>
+              <path d={`M${x0} ${y1 + 18} L${x0} ${y1 + 30}`} />
+              <path d={`M${x1} ${y1 + 18} L${x1} ${y1 + 30}`} />
+              <path d={`M${x0} ${y1 + 24} L${x1} ${y1 + 24}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
+            </g>
+            <text x={x1 + 4} y={y1 + 27} className="fill-current font-mono" fontSize="9.5" {...textoCota("b")}>
+              bw = {fmtM(bM)}
+            </text>
+          </g>
+        )}
 
         {/* cota h */}
         <g {...cota("h")}>
-          <path d={`M${x0 - 16} ${y0} L${x0 - 4} ${y0}`} />
-          <path d={`M${x0 - 16} ${y1} L${x0 - 4} ${y1}`} />
+          <path d={`M${xa0 - 16} ${y0} L${xa0 - 4} ${y0}`} />
+          <path d={`M${xa0 - 16} ${y1} L${xa0 - 4} ${y1}`} />
           <path
-            d={`M${x0 - 10} ${y0} L${x0 - 10} ${y1}`}
+            d={`M${xa0 - 10} ${y0} L${xa0 - 10} ${y1}`}
             markerStart={`url(#${arrowId})`}
             markerEnd={`url(#${arrowId})`}
           />
@@ -192,7 +245,24 @@ export function SeccionVigaDiagrama({
         </text>
 
         {/* sección de hormigón */}
-        <CapaMaterial x={x0} y={y0} ancho={w} alto={h} material="hormigon" />
+        {contornoT ? (
+          <CapaMaterial d={contornoT} material="hormigon" />
+        ) : (
+          <CapaMaterial x={x0} y={y0} ancho={w} alto={h} material="hormigon" />
+        )}
+        {/* hf, junto al vuelo del ala, del lado libre: después del relleno para que no lo tape */}
+        {conAla && (
+          <text x={xa0 + 2} y={ala.arriba ? yAla1 + 11 : yAla0 - 5} className="fill-current font-mono" fontSize="9.5" {...textoCota("hf")}>
+            hf = {fmtM(ala.espesorM)}
+          </text>
+        )}
+        {/* b_eff, si el ala real es más ancha */}
+        {marcaEficaz && (
+          <g stroke="currentColor" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.7">
+            <path d={`M${centro - anchoBarrasAla / 2} ${yAla0 - 4} L${centro - anchoBarrasAla / 2} ${yAla1 + 4}`} />
+            <path d={`M${centro + anchoBarrasAla / 2} ${yAla0 - 4} L${centro + anchoBarrasAla / 2} ${yAla1 + 4}`} />
+          </g>
+        )}
 
         {/* estribo */}
         <rect
@@ -217,13 +287,13 @@ export function SeccionVigaDiagrama({
 
         {/* cota d: de la fibra comprimida al centroide de la armadura positiva */}
         <g stroke="currentColor" strokeWidth="0.75" opacity="0.6" strokeDasharray="2 2">
-          <path d={`M${x1 + 8} ${y0} L${x1 + 8} ${yCentroidePos}`} />
+          <path d={`M${xa1 + 8} ${y0} L${xa1 + 8} ${yCentroidePos}`} />
         </g>
         <g stroke="currentColor" strokeWidth="0.75" opacity="0.6">
-          <path d={`M${x1} ${y0} L${x1 + 12} ${y0}`} />
-          <path d={`M${x1} ${yCentroidePos} L${x1 + 12} ${yCentroidePos}`} />
+          <path d={`M${xa1} ${y0} L${xa1 + 12} ${y0}`} />
+          <path d={`M${x1} ${yCentroidePos} L${xa1 + 12} ${yCentroidePos}`} />
         </g>
-        <text x={x1 + 14} y={(y0 + yCentroidePos) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
+        <text x={xa1 + 14} y={(y0 + yCentroidePos) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
           {dNegativoM !== undefined ? "d⁺" : "d"}
         </text>
 
@@ -231,13 +301,13 @@ export function SeccionVigaDiagrama({
         {dNegativoM !== undefined && (
           <g>
             <g stroke="currentColor" strokeWidth="0.75" opacity="0.6" strokeDasharray="2 2">
-              <path d={`M${x1 + 26} ${y1} L${x1 + 26} ${yCentroideNeg}`} />
+              <path d={`M${xa1 + 26} ${y1} L${xa1 + 26} ${yCentroideNeg}`} />
             </g>
             <g stroke="currentColor" strokeWidth="0.75" opacity="0.6">
-              <path d={`M${x1} ${y1} L${x1 + 30} ${y1}`} />
-              <path d={`M${x1} ${yCentroideNeg} L${x1 + 30} ${yCentroideNeg}`} />
+              <path d={`M${xa1} ${y1} L${xa1 + 30} ${y1}`} />
+              <path d={`M${x1} ${yCentroideNeg} L${xa1 + 30} ${yCentroideNeg}`} />
             </g>
-            <text x={x1 + 32} y={(y1 + yCentroideNeg) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
+            <text x={xa1 + 32} y={(y1 + yCentroideNeg) / 2 + 3} className="fill-current font-mono" fontSize="9.5">
               d⁻
             </text>
           </g>
@@ -245,14 +315,14 @@ export function SeccionVigaDiagrama({
 
         {/* armadura negativa (superior), una fila por capa */}
         {filasNeg.map((fila, i) =>
-          distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
+          distribuir(fila.numero, negX0 + fila.radio, negX1 - fila.radio).map((x, j) => (
             <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("superior")} stroke={halo("superior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
           ))
         )}
 
         {/* armadura positiva (inferior), una fila por capa */}
         {filasPos.map((fila, i) =>
-          distribuir(fila.numero, coverX0 + fila.radio, coverX1 - fila.radio).map((x, j) => (
+          distribuir(fila.numero, posX0 + fila.radio, posX1 - fila.radio).map((x, j) => (
             <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("inferior")} stroke={halo("inferior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
           ))
         )}

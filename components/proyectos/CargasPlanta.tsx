@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampoNumeroOpcional } from "@/components/proyectos/CampoNumeroOpcional";
-import { derivarCargas, ndPilar } from "@/lib/cad-revit/cargas";
+import { derivarCargas, ndPilar, PSI2_POR_DEFECTO } from "@/lib/cad-revit/cargas";
 import { actualizarProyecto } from "@/lib/proyectos/modelo";
 import type { ElementoProyecto, PilarCargado, Proyecto } from "@/lib/proyectos/tipos";
 import { fmt } from "@/lib/verificaciones/formato";
@@ -48,7 +48,18 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
           no cubre —viento, por ejemplo—, cargá acá la envolvente ELU del modelo. Gana sobre la combinación en el cabezal y en
           las vigas de atado; el Nk de los pilotes sigue saliendo de G + Q.
         </p>
-
+        <label className="flex items-center gap-3 text-xs">
+          <span>
+            <span className="font-medium">ψ2</span> de la combinación cuasipermanente (fisuración de las centradoras:
+            Nqp = G + ψ2·Q). Vacío = {String(PSI2_POR_DEFECTO).replace(".", ",")}, vivienda y oficinas.
+          </span>
+          <CampoNumeroOpcional
+            etiqueta="ψ2 del proyecto"
+            className={celda}
+            valor={proyecto.psi2}
+            onCambio={(n) => cambiar({ ...proyecto, psi2: n })}
+          />
+        </label>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[40rem] text-left">
@@ -66,7 +77,7 @@ export function CargasPlanta({ proyecto, guardar }: { proyecto: Proyecto; guarda
             <tbody>
               {piezas.map((e) => {
                 const nd = ndPilar(e.pilar);
-                const conLado = e.calculos.some((c) => c.verificacion === "cabezales" || c.verificacion === "cabezal-un-pilote");
+                const conLado = e.calculos.some((c) => ["cabezales", "cabezal-un-pilote", "cabezal-n-pilotes"].includes(c.verificacion));
                 return (
                   <tr key={e.id} className="border-t">
                     <td className="py-1 pr-2 font-medium">

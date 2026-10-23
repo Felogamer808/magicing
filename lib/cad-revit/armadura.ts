@@ -21,7 +21,7 @@ export const CAMPOS_DERIVADOS: Record<string, readonly string[]> = {
   "cabezal-n-pilotes": ["ndPilar", "pilarA", "pilarB"],
   pilotes: ["Nk", "friccion", "punta", "factorSeguridad"],
   "viga-atado": ["n1d", "n2d"],
-  "viga-centradora-pilotes": ["n1d"],
+  "viga-centradora-pilotes": ["n1d", "nqp"],
 };
 
 /** Dónde se cargan los datos derivados que faltan, en vez de su nombre interno. */

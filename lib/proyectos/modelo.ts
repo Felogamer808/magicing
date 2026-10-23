@@ -430,6 +430,7 @@ function esProyecto(v: unknown): v is Proyecto {
   if (typeof m.recubrimientoM !== "number") return false;
   if (!Array.isArray(v.elementos)) return false;
   if (v.suelo !== undefined && !soloNumeros(v.suelo)) return false;
+  if (v.psi2 !== undefined && (typeof v.psi2 !== "number" || !Number.isFinite(v.psi2))) return false;
   if (v.pilotes !== undefined && !esPilotesProyecto(v.pilotes)) return false;
   if (v.planta !== undefined && !esPlantaGuardada(v.planta)) return false;
   return v.elementos.every(esElemento);

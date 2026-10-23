@@ -1,5 +1,9 @@
 import { aNumero } from "@/lib/verificaciones/formato";
-import { calcularVigaCentradoraPilotes } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
+import {
+  calcularVigaCentradoraPilotes,
+  WMAX_POR_EXPOSICION,
+  type ExposicionCentradora,
+} from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 /**
@@ -22,13 +26,16 @@ export function resolverVigaCentradoraPilotes(campos: Record<string, string>) {
     numeroSup: num("numeroSup"), diametroSup: num("diametroSup"),
     numeroInf: num("numeroInf"), diametroInf: num("diametroInf"),
     diametroEstribo: num("diametroEstribo"), numeroRamas: num("numeroRamas"),
+    nqp: num("nqp"),
   };
+  const exposicion = (campos.exposicion ?? "") as ExposicionCentradora;
+  if (!(exposicion in WMAX_POR_EXPOSICION)) return null;
   if (!Object.values(v).every((x) => Number.isFinite(x))) return null;
   const positivos = [
     v.fck, v.fyk, v.b, v.h, v.luzApoyos, v.ladoPilar, v.dPilote, v.n1d,
     v.numeroSup, v.diametroSup, v.numeroInf, v.diametroInf, v.diametroEstribo, v.numeroRamas,
   ];
-  if (positivos.some((x) => x <= 0) || v.recubrimiento < 0 || v.excentricidad < 0 || v.eacc < 0) return null;
+  if (positivos.some((x) => x <= 0) || v.recubrimiento < 0 || v.excentricidad < 0 || v.eacc < 0 || v.nqp < 0) return null;
 
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
   const r = calcularVigaCentradoraPilotes(materiales, {
@@ -40,6 +47,9 @@ export function resolverVigaCentradoraPilotes(campos: Record<string, string>) {
     inferior: { numero: v.numeroInf, diametroMm: v.diametroInf },
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
+    formaAnclaje: campos.formaAnclaje === "gancho" ? "gancho" : "recta",
+    nqpKN: v.nqp,
+    wMaxMm: WMAX_POR_EXPOSICION[exposicion],
   });
   if (!r.geometriaValida) return null;
   return { v, r, materiales };

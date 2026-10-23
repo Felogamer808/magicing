@@ -41,7 +41,7 @@ export const A_MANO = {
   pilotes: ["friccion", "punta", "factorSeguridad", "numero", "diametroBarra", "diametroEstribo", "Nk"],
   "viga-atado": ["n1d", "n2d", "numeroCara", "diametroCara", "diametroEstribo", "numeroRamas"],
   "viga-centradora-pilotes": [
-    "excentricidad", "ladoPilar", "n1d", "numeroSup", "diametroSup", "numeroInf", "diametroInf", "diametroEstribo", "numeroRamas",
+    "excentricidad", "ladoPilar", "n1d", "nqp", "numeroSup", "diametroSup", "numeroInf", "diametroInf", "diametroEstribo", "numeroRamas",
   ],
 } as const;
 

@@ -127,8 +127,14 @@ Independientes, contra `main`:
   - **Dos centradoras en el mismo nodo** (hecho, 2026-10-23): superposición de
     las dos palancas, R₁ = N + ΔR_x + ΔR_y, con M_acc en las dos direcciones;
     en el Nk del pilote y en el R₁d del cabezal. Supone las VC en cruz.
-  - **Pendiente de la VC sobre pilotes**: (3) no se comprueba el anclaje de la
-    armadura superior más allá del pilar; (4) sin fisuración en servicio.
+  - **Anclaje de la superior y fisuración de la VC** (hecho, 2026-10-23): el
+    anclaje va de la cara interior del pilar a la exterior, donde termina la
+    viga (el largo de cálculo sigue desde el eje), por los arts. 6.5.4 (7) y
+    8.4; la fisuración, por el art. 7.3.4 en el pilote con Nqp = G + ψ2·Q (ψ2
+    por proyecto, 0,3 sin dato) y wmax de la tabla 27.2 (XC2: 0,3 mm). Con
+    barras gruesas sobre un pilar chico el anclaje no entra ni con patilla
+    (Ø25 sobre 0,40 m: lbd ≈ 960 mm contra 880): falta ofrecer la horquilla o
+    la barra en U que vuelve por abajo.
     Contraste con la planilla REV08: Md al 1 % en VC1, VC2, VC5 y VC6; en VC3
     y VC4 (medianero de 2 pilotes) −8 % y +5 % porque la planilla usa el F de
     Robot. El voladizo pilar–pilote, por la ec. (6.19), pide estribos densos

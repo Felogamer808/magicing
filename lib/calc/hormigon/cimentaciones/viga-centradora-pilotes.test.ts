@@ -23,6 +23,8 @@ const VC2: DatosVigaCentradoraPilotes = {
   inferior: { numero: 8, diametroMm: 25 },
   diametroEstriboMm: 8,
   numeroRamas: 4,
+  nqpKN: 550,
+  wMaxMm: 0.3,
 };
 
 describe("viga centradora sobre pilotes: palanca", () => {
@@ -157,4 +159,31 @@ describe("viga centradora sobre pilotes: contraste con la planilla REV08", () =>
       expect(r.flexion.verificaAs).toBe(true);
     });
   }
+});
+
+describe("viga centradora sobre pilotes: anclaje superior y fisuración", () => {
+  const r = calcularVigaCentradoraPilotes(materiales, VC2);
+
+  /** Pilar de 0,40 y rec 0,04: 360 mm de recta. h = 0,60 > 0,25: adherencia mala. */
+  it("ancla desde la cara interior del pilar hasta la exterior", () => {
+    expect(r.anclajeSuperior.situacion).toBe("mala");
+    expect(r.anclajeSuperior.disponibleMm).toBeCloseTo(360, 9);
+    const sigma = (r.momentoKNm * 10) / (r.flexion.zM * r.flexion.asRealCm2);
+    expect(r.anclajeSuperior.sigmaSdMPa).toBeCloseTo(Math.min(sigma, materiales.fyd), 9);
+    expect(r.anclajeSuperior.verifica).toBe(r.anclajeSuperior.disponibleMm >= r.anclajeSuperior.lbdMm);
+  });
+
+  /** La patilla baja hasta h − 2·rec = 0,52 m. */
+  it("con patilla suma la pata", () => {
+    const g = calcularVigaCentradoraPilotes(materiales, { ...VC2, formaAnclaje: "gancho" });
+    expect(g.anclajeSuperior.disponibleMm).toBeCloseTo(880, 9);
+  });
+
+  /** Mqp = 550·0,748 + 25·0,8·0,6·0,748²/2 = 411,4 + 3,357 = 414,76 kN·m, sin M_acc. */
+  it("fisura con el momento cuasipermanente en el pilote", () => {
+    expect(r.fisuracion.mqpKNm).toBeCloseTo(414.757, 3);
+    expect(r.fisuracion.resultado.wkMm).toBeGreaterThan(0);
+    const menos = calcularVigaCentradoraPilotes(materiales, { ...VC2, nqpKN: 300 });
+    expect(menos.fisuracion.resultado.wkMm).toBeLessThan(r.fisuracion.resultado.wkMm);
+  });
 });

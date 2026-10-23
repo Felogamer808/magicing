@@ -217,6 +217,9 @@ export const CAMPOS_CIMENTACIONES = {
     { clave: "diametroInf", etiqueta: "Inferior: Ø", unidad: "mm", porDefecto: "16" },
     { clave: "diametroEstribo", etiqueta: "Ø estribo", unidad: "mm", porDefecto: "8" },
     { clave: "numeroRamas", etiqueta: "Ramas", porDefecto: "4" },
+    { clave: "formaAnclaje", etiqueta: "Superior sobre el pilar", porDefecto: "recta", opciones: ["recta","gancho"], descripcion: "recta = barra recta; gancho = patilla a 90°." },
+    { clave: "nqp", etiqueta: "Nqp del pilar medianero (G + ψ2·Q)", unidad: "kN", porDefecto: "570", descripcion: "Axil en combinación cuasipermanente, sin mayorar: para la fisuración." },
+    { clave: "exposicion", etiqueta: "Clase de exposición", porDefecto: "XC2", opciones: ["X0","XC1","XC2","XC3","XC4","XS1","XS2","XD1","XD2","XD3","XS3"], descripcion: "Fija wmax por la tabla 27.2: 0,4 mm en X0/XC1, 0,3 en XC2-XC4, 0,2 en XS1-XD3, 0,1 en XS3." },
   ],
   "losa-fundacion": [
     { clave: "fck", etiqueta: "fck", unidad: "MPa", porDefecto: "25" },

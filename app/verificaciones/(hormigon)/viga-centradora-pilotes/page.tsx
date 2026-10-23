@@ -5,6 +5,9 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { WMAX_POR_EXPOSICION } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
+import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
@@ -22,6 +25,8 @@ import {
 } from "@/lib/verificaciones/recomendaciones/viga-centradora-pilotes";
 
 const meta = registroVerificaciones.find((v) => v.id === "viga-centradora-pilotes")!;
+
+const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
@@ -52,15 +57,18 @@ export default function VigaCentradoraPilotesPage() {
   const [diametroInf, setDiametroInf] = useCampo("diametroInf", "16");
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "4");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
+  const [nqp, setNqp] = useCampo("nqp", "570");
+  const [exposicion, setExposicion] = useCampo("exposicion", "XC2");
 
   const campos = useMemo(
     () => ({
       fck, fyk, b, h, recubrimiento, excentricidad, luzApoyos, ladoPilar, dPilote, n1d, eacc,
-      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas,
+      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, nqp, exposicion,
     }),
     [
       fck, fyk, b, h, recubrimiento, excentricidad, luzApoyos, ladoPilar, dPilote, n1d, eacc,
-      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas,
+      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, nqp, exposicion,
     ]
   );
   const resultado = useMemo(() => resolverVigaCentradoraPilotes(campos), [campos]);
@@ -131,6 +139,14 @@ export default function VigaCentradoraPilotesPage() {
               <div className="grid max-w-xl grid-cols-2 gap-4">
                 <CampoNumerico id="n1d" etiqueta="N₁d pilar" sufijo="kN" valor={n1d} onChange={setN1d} />
                 <CampoNumerico id="eacc" etiqueta="e_acc" sufijo="m" valor={eacc} onChange={setEacc} />
+                <CampoNumerico id="nqp" etiqueta="Nqp pilar (G + ψ2·Q)" sufijo="kN" valor={nqp} onChange={setNqp} />
+                <CampoSeleccion
+                  id="exposicion"
+                  etiqueta="Clase de exposición"
+                  valor={exposicion}
+                  opciones={Object.keys(WMAX_POR_EXPOSICION)}
+                  onChange={setExposicion}
+                />
               </div>
             </Subgrupo>
           </div>
@@ -144,6 +160,13 @@ export default function VigaCentradoraPilotesPage() {
             <CampoDiametro id="diametroInf" etiqueta="Inferior · Ø" valor={diametroInf} onChange={setDiametroInf} />
             <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
             <CampoNumerico id="numeroRamas" etiqueta="Ramas" valor={numeroRamas} onChange={setNumeroRamas} />
+            <CampoSeleccion
+              id="formaAnclaje"
+              etiqueta="Superior sobre el pilar"
+              valor={FORMAS[formaAnclaje]}
+              opciones={Object.values(FORMAS)}
+              onChange={(x) => setFormaAnclaje(x === FORMAS.gancho ? "gancho" : "recta")}
+            />
           </div>
         </Etapa>
 
@@ -155,6 +178,7 @@ export default function VigaCentradoraPilotesPage() {
               { etiqueta: "b × h", valor: `${b} × ${h} m` },
               { etiqueta: "e / l − e", valor: `${excentricidad} / ${luzApoyos} m` },
               { etiqueta: "N₁d / e_acc", valor: `${n1d} kN / ${eacc} m` },
+              { etiqueta: "Nqp / exposición", valor: `${nqp} kN / ${exposicion}` },
               ...(r
                 ? [
                     { etiqueta: "l", valor: `${fmt(r.luzM, 3)} m`, derivado: true },
@@ -171,6 +195,8 @@ export default function VigaCentradoraPilotesPage() {
               "Sin axil de atado: lo toman las riostras.",
               "Flexión (art. 6.1) y mínimo de la ec. (9.1) con el motor de vigas; cortante del tramo por el art. 6.2 sin reducción.",
               "Voladizo pilar–pilote: β = a_v/2d (art. 6.2.2 (6), pág. 77; 6.2.3 (8), pág. 80), con a_v entre caras y el pilote como el cuadrado de igual área; VEd sin β ≤ VRd,max y ≤ ec. (6.5).",
+              "Anclaje de la superior sobre el pilar medianero: desde la cara interior del pilar (art. 6.5.4 (7), pág. 100) hasta la cara exterior, donde termina la viga, menos el recubrimiento; con patilla suma la pata hasta h − 2·rec. σsd = Md/(z·As) con tope fyd; adherencia mala con h > 250 mm (fig. A19.8.2).",
+              "Fisuración en la sección del pilote por el art. 7.3.4: Mqp = Nqp·e + qk·e²/2 con Nqp = G + ψ2·Q, sin M_acc ni mayorar el peso propio. wmax de la tabla 27.2 según la clase de exposición.",
             ]}
             avisos={avisos}
           />
@@ -306,6 +332,47 @@ export default function VigaCentradoraPilotesPage() {
                         etiqueta: v.sinReduccion ? "A/s (celosía, ec. 6.8)" : "A/s (ec. 6.19, en 0,75·a_v)",
                         valor: `${fmt(v.a90NecCm2PorM)} cm²/m → c/ ${fmt(v.separacionM, 2)} m`,
                       },
+                    ]}
+                  />
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Anclaje de la superior sobre el pilar" detalle="art. 6.5.4 (7) y 8.4">
+                <div>
+                  <ResultadoCheck
+                    etiqueta="Desde la cara interior del pilar hasta el extremo de la viga"
+                    verifica={r.anclajeSuperior.verifica}
+                    detalle={`${FORMAS[formaAnclaje].toLowerCase()} · adherencia ${r.anclajeSuperior.situacion} · σsd = ${fmt(r.anclajeSuperior.sigmaSdMPa)} MPa`}
+                    comparacion={{
+                      real: { etiqueta: "disponible", valor: r.anclajeSuperior.disponibleMm },
+                      limite: { etiqueta: "lbd", valor: r.anclajeSuperior.lbdMm },
+                      unidad: "mm", exige: "≥", decimales: 0,
+                    }}
+                    recomendaciones={rec.anclaje}
+                  />
+                </div>
+              </Subgrupo>
+
+              <Subgrupo titulo="Fisuración en el pilote" detalle="art. 7.3.4 · cuasipermanente">
+                <div>
+                  <ResultadoCheck
+                    etiqueta="Abertura característica de fisura"
+                    verifica={r.fisuracion.resultado.verifica}
+                    detalle={`Mqp = Nqp·e + qk·e²/2 = ${fmt(r.fisuracion.mqpKNm)} kN·m · ${exposicion}`}
+                    comparacion={{
+                      real: { etiqueta: "wk", valor: r.fisuracion.resultado.wkMm },
+                      limite: { etiqueta: "wmax", valor: r.fisuracion.wMaxMm },
+                      unidad: "mm", exige: "≤", decimales: 3,
+                    }}
+                    recomendaciones={rec.fisuracion}
+                  />
+                  <PanelFormulas
+                    titulo="Ver desarrollo"
+                    filas={[
+                      { etiqueta: "σs en servicio (sección fisurada)", valor: `${fmt(r.fisuracion.resultado.sigmaSMPa)} MPa` },
+                      { etiqueta: "ρp,ef", valor: fmt(r.fisuracion.resultado.rhoPEf, 4) },
+                      { etiqueta: "s_r,max", valor: `${fmt(r.fisuracion.resultado.srMaxMm, 0)} mm` },
+                      { etiqueta: "εsm − εcm", valor: fmt(r.fisuracion.resultado.epsilonSmMenosCm * 1000, 3) + " ‰" },
                     ]}
                   />
                 </div>

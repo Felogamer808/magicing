@@ -2,7 +2,15 @@ import { resolverVigaFlexionCortante, type ResueltoVigaFlexionCortante } from "@
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
 
-export type ClaveViga = "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior" | "ramas";
+export type ClaveViga =
+  | "positiva"
+  | "negativa"
+  | "bielas"
+  | "anchoInferior"
+  | "anchoSuperior"
+  | "ramas"
+  | "rasanteBielas"
+  | "rasanteArmadura";
 export type RecomendacionesViga = Partial<Record<ClaveViga, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveViga, string> = {
@@ -12,15 +20,26 @@ const NOMBRES: Record<ClaveViga, string> = {
   anchoInferior: "armadura inferior en el ancho",
   anchoSuperior: "armadura superior en el ancho",
   ramas: "separación transversal entre ramas",
+  rasanteBielas: "bielas del ala",
+  rasanteArmadura: "armadura transversal del ala",
 };
 
-const utilizaciones = (r: ResueltoVigaFlexionCortante): Record<ClaveViga, number> => ({
+const utilizaciones = (r: ResueltoVigaFlexionCortante): Partial<Record<ClaveViga, number>> => ({
   positiva: r.flexionPositiva.asNecCm2 / r.flexionPositiva.asRealCm2,
   negativa: r.flexionNegativa.asNecCm2 / r.flexionNegativa.asRealCm2,
   bielas: r.v.vd / r.cortante.vRdMax,
   anchoInferior: siNo(r.flexionPositiva.verificaEntraEnAncho),
   anchoSuperior: siNo(r.flexionNegativa.verificaEntraEnAncho),
   ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,
+  // Sólo con sección en T y el ala comprimida por un momento.
+  ...(r.seccionT?.rasante
+    ? {
+        rasanteBielas: r.seccionT.rasante.vEdMPa / r.seccionT.rasante.vRdMaxMPa,
+        ...(r.seccionT.rasante.requiereArmadura
+          ? { rasanteArmadura: r.seccionT.rasante.asNecCm2PorM / r.seccionT.rasante.asRealCm2PorM }
+          : {}),
+      }
+    : {}),
 });
 
 // ── Palancas ────────────────────────────────────────────────────────────────
@@ -107,6 +126,28 @@ export const masBarrasFinas = (c: Cara): Palanca<Campos> => ({
   },
 });
 
+/** Ala más gruesa: más sección para el rasante y más compresión en el ala. */
+const ESPESOR_ALA = palancaValor(campo("espesorAla"), {
+  paso: 0.01,
+  tope: (hf) => hf + 0.1,
+  decimales: 2,
+  rotulo: "hf = ",
+  texto: m,
+  efectoColateral: "Ala más gruesa: más peso propio; en una prefabricada no se puede cambiar.",
+});
+const textoAla = (e: Campos, d = leer(e, "diametroAla"), s = leer(e, "separacionAla"), c = leer(e, "capasAla")) =>
+  `${c > 1 ? `${c} capas ` : ""}Ø${d} c/${s.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+const SEPARACION_ALA = palancaValor(campo("separacionAla"), {
+  paso: -0.01,
+  tope: () => 0.05,
+  decimales: 2,
+  rotulo: "Transversal del ala: ",
+  texto: (s, e) => textoAla(e, leer(e, "diametroAla"), s),
+});
+const DIAMETRO_ALA = palancaDiametro(campo("diametroAla"), "mayor", (e, d) => textoAla(e, d), {
+  rotulo: "Transversal del ala: ",
+});
+
 function palancasPorClave(clave: ClaveViga): readonly Palanca<Campos>[] {
   switch (clave) {
     case "positiva":
@@ -122,6 +163,10 @@ function palancasPorClave(clave: ClaveViga): readonly Palanca<Campos>[] {
       return [masBarrasFinas("Neg"), ANCHO];
     case "ramas":
       return [RAMAS];
+    case "rasanteBielas":
+      return [ESPESOR_ALA, FCK];
+    case "rasanteArmadura":
+      return [SEPARACION_ALA, DIAMETRO_ALA, ESPESOR_ALA];
   }
 }
 

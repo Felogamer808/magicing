@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -23,7 +24,8 @@ import { EstriboLongitudinal, EstriboTransversal } from "@/components/verificaci
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
-import { armarGrupos, resolverVigaFlexionCortante } from "@/lib/calc/hormigon/vigas/resolver";
+import { armarGrupos, resolverVigaFlexionCortante, tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
+import { anchoEficazAla, type TipoSeccion } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { recomendarVigaFlexionCortante } from "@/lib/verificaciones/recomendaciones/vigas-flexion-cortante";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
@@ -39,11 +41,22 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
+/** Rótulos del tipo de sección; el campo guarda la clave. */
+const TIPOS_SECCION: Record<TipoSeccion, string> = {
+  rectangular: "Rectangular",
+  t: "T (ala arriba)",
+  "t-invertida": "T invertida (ala abajo)",
+};
+const tipoPorRotulo = (rotulo: string): TipoSeccion =>
+  (Object.keys(TIPOS_SECCION) as TipoSeccion[]).find((k) => TIPOS_SECCION[k] === rotulo) ?? "rectangular";
+
 /** Qué parte de los dibujos corresponde a cada campo, para resaltarla con el foco. */
 const ELEMENTO_DE_CAMPO: Record<string, ElementoSeccionViga | "positivo" | "negativo"> = {
   b: "b",
   h: "h",
   recubrimiento: "recubrimiento",
+  anchoAla: "ala",
+  espesorAla: "hf",
   numeroPos: "inferior",
   diametroPos: "inferior",
   numeroPos2: "inferior",
@@ -91,6 +104,17 @@ export default function VigasFlexionCortantePage() {
   const [h, setH] = useCampo("h", "0.7");
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.04");
 
+  // Sección en T: b pasa a ser el alma y el ala se carga aparte.
+  const [tipoSeccion, setTipoSeccion] = useCampo<TipoSeccion>("tipoSeccion", "rectangular");
+  const [anchoAla, setAnchoAla] = useCampo("anchoAla", "1.5");
+  const [espesorAla, setEspesorAla] = useCampo("espesorAla", "0.15");
+  const [l0, setL0] = useCampo("l0", "6");
+  const [diametroAla, setDiametroAla] = useCampo("diametroAla", "8");
+  const [separacionAla, setSeparacionAla] = useCampo("separacionAla", "0.2");
+  const [capasAla, setCapasAla] = useCampo("capasAla", "1");
+  const tipo = tipoSeccionDesdeCampo(tipoSeccion);
+  const conAla = tipo !== "rectangular";
+
   const [momentoPos, setMomentoPos] = useCampo("momentoPos", "32");
   const [numeroPos, setNumeroPos] = useCampo("numeroPos", "10");
   const [diametroPos, setDiametroPos] = useCampo("diametroPos", "10");
@@ -121,12 +145,14 @@ export default function VigasFlexionCortantePage() {
       momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
       momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
       vd, diametroEstribo, numeroRamas, monolitica,
+      tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla,
     }),
     [
     fck, fyk, b, h, recubrimiento,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas, monolitica,
+    tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla,
     ]
   );
   const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
@@ -169,10 +195,19 @@ export default function VigasFlexionCortantePage() {
     }
 
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
+    // Con ala, las barras de su cara se reparten en el ancho eficaz, como en el cálculo.
+    const datosAla = { anchoM: aNumero(anchoAla), espesorM: aNumero(espesorAla), l0M: aNumero(l0) };
+    const alaValida = conAla && datosAla.anchoM >= v.b && datosAla.espesorM > 0 && datosAla.espesorM < v.h && datosAla.l0M > 0;
+    const anchoEficazM = alaValida ? anchoEficazAla(v.b, datosAla).anchoEficazM : v.b;
+    const alaArriba = tipo === "t";
     const gruposPositiva = armarGrupos(v.numeroPos, v.diametroPos, v.numeroPos2, v.diametroPos2);
     const gruposNegativa = armarGrupos(v.numeroNeg, v.diametroNeg, v.numeroNeg2, v.diametroNeg2);
-    const disposicionPositiva = calcularDisposicionArmadura(geometria, gruposPositiva);
-    const disposicionNegativa = calcularDisposicionArmadura(geometria, gruposNegativa);
+    const disposicionPositiva = calcularDisposicionArmadura(
+      alaValida && !alaArriba ? { ...geometria, b: anchoEficazM } : geometria, gruposPositiva
+    );
+    const disposicionNegativa = calcularDisposicionArmadura(
+      alaValida && alaArriba ? { ...geometria, b: anchoEficazM } : geometria, gruposNegativa
+    );
     const d = geometria.h - disposicionPositiva.distanciaCentroideM;
     const dNegativo = geometria.h - disposicionNegativa.distanciaCentroideM;
 
@@ -185,9 +220,10 @@ export default function VigasFlexionCortantePage() {
       armaduraPositiva: { capas: disposicionPositiva.filas },
       armaduraNegativa: { capas: disposicionNegativa.filas },
       diametroEstriboMm: v.diametroEstribo,
+      ...(alaValida ? { ala: { anchoM: datosAla.anchoM, espesorM: datosAla.espesorM, arriba: alaArriba, anchoEficazM } } : {}),
     };
   }, [
-    b, h, recubrimiento,
+    b, h, recubrimiento, conAla, tipo, anchoAla, espesorAla, l0,
     numeroPos, diametroPos, numeroPos2, diametroPos2,
     numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     diametroEstribo,
@@ -257,7 +293,7 @@ export default function VigasFlexionCortantePage() {
           id="geometria"
           numero={1}
           titulo="Geometría y materiales"
-          descripcion="La sección rectangular y los materiales que la forman."
+          descripcion="La sección —rectangular, en T o en T invertida— y los materiales que la forman."
         >
           <DatosConDibujo
             datos={
@@ -269,8 +305,15 @@ export default function VigasFlexionCortantePage() {
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Sección">
+                  <CampoSeleccion
+                    id="tipoSeccion"
+                    etiqueta="Tipo de sección"
+                    valor={TIPOS_SECCION[tipo]}
+                    opciones={Object.values(TIPOS_SECCION)}
+                    onChange={(x) => setTipoSeccion(tipoPorRotulo(x))}
+                  />
                   <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                    <CampoNumerico id="b" etiqueta={conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
                     <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                     <CampoNumerico
                       id="recubrimiento"
@@ -284,6 +327,22 @@ export default function VigasFlexionCortantePage() {
                     El recubrimiento se mide de la cara exterior al estribo.
                   </p>
                 </Subgrupo>
+                {conAla && (
+                  <Subgrupo titulo={tipo === "t" ? "Ala superior" : "Ala inferior"}>
+                    <div className="grid grid-cols-3 gap-4">
+                      <CampoNumerico id="anchoAla" etiqueta="Ancho del ala" sufijo="m" valor={anchoAla} onChange={setAnchoAla} />
+                      <CampoNumerico id="espesorAla" etiqueta="hf" sufijo="m" valor={espesorAla} onChange={setEspesorAla} />
+                      <CampoNumerico id="l0" etiqueta="l0" sufijo="m" valor={l0} onChange={setL0} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      El ancho del ala es el real, de borde a borde, con los vuelos iguales a los dos lados.
+                      l0 es la distancia entre puntos de momento nulo de la zona donde el ala está
+                      comprimida (fig. A19.5.2): 0,85·l en un vano extremo, 0,7·l en uno interior,
+                      0,15·(l1 + l2) sobre un apoyo. El ancho eficaz sale de la ec. (5.7) y nunca supera el
+                      real.
+                    </p>
+                  </Subgrupo>
+                )}
               </>
             }
             dibujo={dibujoSeccion}
@@ -378,6 +437,22 @@ export default function VigasFlexionCortantePage() {
             dibujo={dibujoSeccion}
           />
 
+          {conAla && (
+            <div className="mt-10 max-w-xl">
+              <Subgrupo titulo="Transversal del ala">
+                <div className="grid grid-cols-3 gap-4">
+                  <CampoDiametro id="diametroAla" etiqueta="Ø" valor={diametroAla} onChange={setDiametroAla} />
+                  <CampoNumerico id="separacionAla" etiqueta="Separación" sufijo="m" valor={separacionAla} onChange={setSeparacionAla} />
+                  <CampoNumerico id="capasAla" etiqueta="Capas" valor={capasAla} onChange={setCapasAla} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Las barras del ala que cruzan la unión con el alma, por metro de viga. Son las que toman
+                  el rasante entre ala y alma (art. 6.2.4).
+                </p>
+              </Subgrupo>
+            </div>
+          )}
+
           <div className="mt-10">
             <DatosConDibujo
               datos={
@@ -414,7 +489,16 @@ export default function VigasFlexionCortantePage() {
             norma={norma}
             datos={[
               { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
-              { etiqueta: "b × h", valor: `${b} × ${h} m` },
+              { etiqueta: "Sección", valor: TIPOS_SECCION[tipo] },
+              { etiqueta: conAla ? "bw × h" : "b × h", valor: `${b} × ${h} m` },
+              ...(conAla
+                ? [
+                    { etiqueta: "Ala: ancho × hf, l0", valor: `${anchoAla} × ${espesorAla} m, ${l0} m` },
+                    ...(resultado?.seccionT
+                      ? [{ etiqueta: "Ancho eficaz b_eff", valor: `${fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m`, derivado: true }]
+                      : []),
+                  ]
+                : []),
               { etiqueta: "Recubrimiento", valor: `${recubrimiento} m` },
               ...(resultado
                 ? [
@@ -429,6 +513,18 @@ export default function VigasFlexionCortantePage() {
               "γc = 1,5 y γs = 1,15: fcd = fck/γc, fyd = fyk/γs.",
               "Flexión con bloque rectangular de compresión de canto 0,8·x y tensión fcd.",
               "Cuantía mínima de tracción As,min = W/z · fctm,fl/fyd, con z = 0,8·h (Anejo 19, art. 9.2.1.1 (1), ec. (9.1)).",
+              ...(conAla
+                ? [
+                    "Sección en T: ancho eficaz del ala por la ec. (5.7), con alas iguales a los dos lados y tope en el ancho real.",
+                    tipo === "t"
+                      ? "El ala está arriba: colabora con el momento positivo. Con el negativo queda traccionada y su armadura se reparte en el ancho eficaz (art. 9.2.1.2 (2))."
+                      : "El ala está abajo: colabora con el momento negativo. Con el positivo queda traccionada y su armadura se reparte en el ancho eficaz (art. 9.2.1.2 (2)).",
+                    "Con el ala comprimida, si el bloque baja al alma los vuelos toman (b_eff − bw)·hf·fcd y el alma el resto.",
+                    "W de la ec. (9.1) con la T de ancho b_eff, respecto de la fibra que tracciona en cada caso.",
+                    "Rasante entre ala y alma por el art. 6.2.4: ΔFd = compresión en el vuelo de un lado con el momento máximo, en Δx = l0/4; cot θf el mayor que cumple la ec. (6.22). No combina con la flexión transversal del ala (6.2.4 (5)).",
+                    "El cortante del alma usa bw. El ala como apoyo de losas (talón de la T invertida) no se verifica acá.",
+                  ]
+                : []),
               "Canto útil d⁺ hasta la armadura inferior para M+; d⁻ hasta la superior para M− y para el cortante.",
               "Cortante por el art. 6.2.3: estribos verticales, θ = 45° y z = 0,9·d. Si VEd > VRd,c los estribos toman el cortante entero (ec. 6.8), sin sumar el hormigón.",
               "fywd = mín(fyd; 0,8·fyk), que es lo que habilita ν1 = 0,6 en VRd,max (nota del art. 6.2.3(3)).",
@@ -477,6 +573,24 @@ export default function VigasFlexionCortantePage() {
                     utilizacion: resultado.cortante.separacionTransversalM / resultado.cortante.separacionTransversalMaxM,
                     conPropuestas: !!rec.ramas,
                   },
+                  ...(resultado.seccionT?.rasante
+                    ? [
+                        {
+                          etiqueta: "bielas del ala",
+                          estado: resultado.seccionT.rasante.verificaBielas ? ("cumple" as const) : ("no-cumple" as const),
+                          utilizacion: resultado.seccionT.rasante.vEdMPa / resultado.seccionT.rasante.vRdMaxMPa,
+                          conPropuestas: !!rec.rasanteBielas,
+                        },
+                        {
+                          etiqueta: "armadura transversal del ala",
+                          estado: resultado.seccionT.rasante.verificaArmadura ? ("cumple" as const) : ("no-cumple" as const),
+                          ...(resultado.seccionT.rasante.requiereArmadura
+                            ? { utilizacion: resultado.seccionT.rasante.asNecCm2PorM / resultado.seccionT.rasante.asRealCm2PorM }
+                            : {}),
+                          conPropuestas: !!rec.rasanteArmadura,
+                        },
+                      ]
+                    : []),
                   {
                     etiqueta: "armadura inferior en el ancho",
                     estado: resultado.flexionPositiva.verificaEntraEnAncho ? "cumple" : "no-cumple",
@@ -534,12 +648,20 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "ω", valor: fmt(resultado.flexionPositiva.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionPositiva.asCalculadoCm2)} cm²` },
                       { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionPositiva.fctmFlMPa, 2)} MPa` },
-                      {
-                        etiqueta: "As,min",
-                        formula: "b·h/4,8 · fctm,fl/fyd",
-                        sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionPositiva.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
-                        valor: `${fmt(resultado.flexionPositiva.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
-                      },
+                      ...(resultado.flexionPositiva.alaComprimida
+                        ? [
+                            { etiqueta: "Bloque comprimido", valor: resultado.flexionPositiva.alaComprimida.bloqueEnAla ? "dentro del ala (rectángulo de b_eff)" : "baja al alma" },
+                            { etiqueta: "Compresión en los vuelos del ala", valor: `${fmt(resultado.flexionPositiva.alaComprimida.compresionVuelosKN)} kN` },
+                          ]
+                        : []),
+                      conAla
+                        ? { etiqueta: "As,min", formula: "W/(0,8·h) · fctm,fl/fyd, W de la T", valor: `${fmt(resultado.flexionPositiva.asMinCm2)} cm² (Anejo 19, 9.2.1.1)` }
+                        : {
+                            etiqueta: "As,min",
+                            formula: "b·h/4,8 · fctm,fl/fyd",
+                            sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionPositiva.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
+                            valor: `${fmt(resultado.flexionPositiva.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
+                          },
                     ]}
                   />
                   <ResultadoCheck
@@ -566,12 +688,20 @@ export default function VigasFlexionCortantePage() {
                       { etiqueta: "ω", valor: fmt(resultado.flexionNegativa.omega, 5) },
                       { etiqueta: "As calculado", valor: `${fmt(resultado.flexionNegativa.asCalculadoCm2)} cm²` },
                       { etiqueta: "fctm,fl", valor: `${fmt(resultado.flexionNegativa.fctmFlMPa, 2)} MPa` },
-                      {
-                        etiqueta: "As,min",
-                        formula: "b·h/4,8 · fctm,fl/fyd",
-                        sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionNegativa.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
-                        valor: `${fmt(resultado.flexionNegativa.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
-                      },
+                      ...(resultado.flexionNegativa.alaComprimida
+                        ? [
+                            { etiqueta: "Bloque comprimido", valor: resultado.flexionNegativa.alaComprimida.bloqueEnAla ? "dentro del ala (rectángulo de b_eff)" : "baja al alma" },
+                            { etiqueta: "Compresión en los vuelos del ala", valor: `${fmt(resultado.flexionNegativa.alaComprimida.compresionVuelosKN)} kN` },
+                          ]
+                        : []),
+                      conAla
+                        ? { etiqueta: "As,min", formula: "W/(0,8·h) · fctm,fl/fyd, W de la T", valor: `${fmt(resultado.flexionNegativa.asMinCm2)} cm² (Anejo 19, 9.2.1.1)` }
+                        : {
+                            etiqueta: "As,min",
+                            formula: "b·h/4,8 · fctm,fl/fyd",
+                            sustitucion: `${fmt(aNumero(b), 2)}·${fmt(aNumero(h), 2)}/4,8 · ${fmt(resultado.flexionNegativa.fctmFlMPa, 2)}/${fmt(resultado.materiales.fyd, 1)}`,
+                            valor: `${fmt(resultado.flexionNegativa.asMinCm2)} cm² (Anejo 19, 9.2.1.1)`,
+                          },
                     ]}
                   />
                   <ResultadoCheck
@@ -597,6 +727,79 @@ export default function VigasFlexionCortantePage() {
                   />
                 </div>
               </Subgrupo>
+
+              {resultado.seccionT && (
+                <Subgrupo titulo="Ala de la T" detalle={`b_eff = ${fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m`}>
+                  <div>
+                    <PanelFormulas
+                      titulo="Ver desarrollo del ancho eficaz"
+                      filas={[
+                        { etiqueta: "Vuelo real de cada lado b_i", valor: `${fmt(resultado.seccionT.anchoEficaz.vueloM, 3)} m` },
+                        {
+                          etiqueta: "b_eff,i",
+                          formula: "0,2·b_i + 0,1·l0 ≤ 0,2·l0; ≤ b_i  (5.7a, 5.7b)",
+                          valor: `${fmt(resultado.seccionT.anchoEficaz.vueloEficazM, 3)} m`,
+                        },
+                        {
+                          etiqueta: "b_eff",
+                          formula: "Σ b_eff,i + bw ≤ b  (5.7)",
+                          valor: `${fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m${resultado.seccionT.anchoEficaz.mandaAnchoReal ? " (manda el ancho real)" : ""}`,
+                        },
+                      ]}
+                    />
+                    {resultado.seccionT.rasante ? (
+                      <>
+                        <ResultadoCheck
+                          etiqueta="Rasante ala–alma · bielas del ala"
+                          verifica={resultado.seccionT.rasante.verificaBielas}
+                          detalle={`Anejo 19, art. 6.2.4 (4), ec. (6.22), con cot θf = ${fmt(resultado.seccionT.rasante.cotTheta, 2)}.`}
+                          comparacion={{
+                            real: { etiqueta: "vEd", valor: resultado.seccionT.rasante.vEdMPa },
+                            limite: { etiqueta: "ν·fcd·senθf·cosθf", valor: resultado.seccionT.rasante.vRdMaxMPa },
+                            unidad: "MPa", exige: "≤", decimales: 3,
+                          }}
+                          recomendaciones={rec.rasanteBielas}
+                        />
+                        {resultado.seccionT.rasante.requiereArmadura ? (
+                          <ResultadoCheck
+                            etiqueta="Rasante ala–alma · armadura transversal del ala"
+                            verifica={resultado.seccionT.rasante.verificaArmadura}
+                            detalle="Anejo 19, art. 6.2.4 (4), ec. (6.21): Asf·fyd/sf ≥ vEd·hf/cot θf."
+                            comparacion={{
+                              real: { etiqueta: "Asf/sf real", valor: resultado.seccionT.rasante.asRealCm2PorM },
+                              limite: { etiqueta: "Asf/sf nec", valor: resultado.seccionT.rasante.asNecCm2PorM },
+                              unidad: "cm²/m", exige: "≥",
+                            }}
+                            recomendaciones={rec.rasanteArmadura}
+                          />
+                        ) : (
+                          <ResultadoCheck
+                            etiqueta="Rasante ala–alma · armadura transversal del ala"
+                            verifica
+                            detalle={`vEd = ${fmt(resultado.seccionT.rasante.vEdMPa, 3)} ≤ 0,4·fctd = ${fmt(resultado.seccionT.rasante.limiteSinArmaduraMPa, 3)} MPa: no hace falta armadura adicional a la de flexión (art. 6.2.4 (6)).`}
+                          />
+                        )}
+                        <PanelFormulas
+                          titulo="Ver desarrollo del rasante"
+                          filas={[
+                            { etiqueta: "Momento que comprime el ala", valor: `${fmt(resultado.seccionT.momentoAlaComprimidaKNm, 1)} kN·m` },
+                            { etiqueta: "ΔFd: compresión en el vuelo de un lado", valor: `${fmt(resultado.seccionT.rasante.deltaFKN)} kN` },
+                            { etiqueta: "Δx = l0/4", valor: `${fmt(resultado.seccionT.rasante.deltaXM, 3)} m` },
+                            { etiqueta: "vEd = ΔFd/(hf·Δx)  (6.20)", valor: `${fmt(resultado.seccionT.rasante.vEdMPa, 3)} MPa` },
+                            { etiqueta: "0,4·fctd  (6.2.4 (6))", valor: `${fmt(resultado.seccionT.rasante.limiteSinArmaduraMPa, 3)} MPa` },
+                            { etiqueta: "cot θf adoptado", valor: fmt(resultado.seccionT.rasante.cotTheta, 2) },
+                            { etiqueta: "Transversal del ala colocada", valor: `${fmt(resultado.seccionT.asTransversalAlaCm2PorM)} cm²/m` },
+                          ]}
+                        />
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Sin momento que comprima el ala no hay rasante entre ala y alma que verificar.
+                      </p>
+                    )}
+                  </div>
+                </Subgrupo>
+              )}
 
               <Subgrupo titulo="Condiciones constructivas" detalle="disposición del armado, sin magnitudes que comparar">
                 <div>
@@ -655,7 +858,7 @@ export default function VigasFlexionCortantePage() {
                 />
               </Subgrupo>
 
-              {!resultado.flexionPositiva.sobrearmada && (
+              {!resultado.flexionPositiva.sobrearmada && !conAla && (
               <Subgrupo titulo="Estado de rotura con el momento positivo">
                 <div className="mx-auto w-full max-w-xl">
                   <DiagramaRotura
@@ -675,6 +878,7 @@ export default function VigasFlexionCortantePage() {
               </Subgrupo>
               )}
 
+              {!conAla && (
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}
                 datos={{
@@ -686,6 +890,7 @@ export default function VigasFlexionCortantePage() {
                   asRealPosCm2: resultado.flexionPositiva.asRealCm2,
                 }}
               />
+              )}
             </div>
           )}
         </Etapa>

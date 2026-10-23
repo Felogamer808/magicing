@@ -1,5 +1,4 @@
 import { SeccionVigaDiagrama } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
-import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { resolverVigaFlexionCortante } from "@/lib/calc/hormigon/vigas/resolver";
 import { describirCapas, fmt } from "@/lib/verificaciones/formato";
 import type { CapituloCalculo, RegistroPresentadores } from "@/components/memoria/tipos";
@@ -23,15 +22,12 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
   const r = resolverVigaFlexionCortante(campos);
   if (!r) return null;
 
-  const { v, d, flexionPositiva: pos, flexionNegativa: neg, cortante } = r;
-  const disposicionPositiva = calcularDisposicionArmadura(
-    { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo },
-    r.gruposPositiva
-  );
-  const disposicionNegativa = calcularDisposicionArmadura(
-    { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo },
-    r.gruposNegativa
-  );
+  const { v, d, flexionPositiva: pos, flexionNegativa: neg, cortante, seccionT } = r;
+  // Las capas salen del cálculo: en una T las de la cara del ala se reparten
+  // en el ancho eficaz y no en el alma.
+  const disposicionPositiva = { filas: pos.capas };
+  const disposicionNegativa = { filas: neg.capas };
+  const rasante = seccionT?.rasante;
 
   return {
     datos: [
@@ -45,7 +41,15 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
       {
         titulo: "Geometría",
         filas: [
-          { etiqueta: "Ancho b", valor: `${fmt(v.b, 3)} m` },
+          ...(seccionT
+            ? [
+                { etiqueta: "Sección", valor: seccionT.tipo === "t" ? "T (ala arriba)" : "T invertida (ala abajo)" },
+                { etiqueta: "Ancho del alma bw", valor: `${fmt(v.b, 3)} m` },
+                { etiqueta: "Ala: ancho real × hf", valor: `${fmt(seccionT.ala.anchoM, 3)} × ${fmt(seccionT.ala.espesorM, 3)} m` },
+                { etiqueta: "l0", valor: `${fmt(seccionT.ala.l0M, 2)} m` },
+                { etiqueta: "Ancho eficaz b_eff (ec. 5.7)", valor: `${fmt(seccionT.anchoEficaz.anchoEficazM, 3)} m` },
+              ]
+            : [{ etiqueta: "Ancho b", valor: `${fmt(v.b, 3)} m` }]),
           { etiqueta: "Canto h", valor: `${fmt(v.h, 3)} m` },
           { etiqueta: "Recubrimiento", valor: `${fmt(v.recubrimiento * 100, 1)} cm` },
           { etiqueta: "Canto útil d", valor: `${fmt(d, 3)} m` },
@@ -117,6 +121,22 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
         verifica: cortante.verificaSeparacionTransversal,
         detalle: `st ${fmt(cortante.separacionTransversalM * 100, 1)} cm ≤ st,max ${fmt(cortante.separacionTransversalMaxM * 100, 1)} cm (0,75·d ≤ 600 mm, ec. 9.8)`,
       },
+      ...(rasante
+        ? [
+            {
+              etiqueta: "Rasante ala–alma — bielas del ala",
+              verifica: rasante.verificaBielas,
+              detalle: `vEd ${fmt(rasante.vEdMPa, 3)} MPa ≤ ${fmt(rasante.vRdMaxMPa, 3)} MPa (ec. 6.22, cot θf = ${fmt(rasante.cotTheta, 2)}, Δx = l0/4)`,
+            },
+            {
+              etiqueta: "Rasante ala–alma — armadura transversal del ala",
+              verifica: rasante.verificaArmadura,
+              detalle: rasante.requiereArmadura
+                ? `Asf/sf real ${fmt(rasante.asRealCm2PorM)} cm²/m ≥ necesaria ${fmt(rasante.asNecCm2PorM)} cm²/m (ec. 6.21)`
+                : `vEd ${fmt(rasante.vEdMPa, 3)} ≤ 0,4·fctd = ${fmt(rasante.limiteSinArmaduraMPa, 3)} MPa: sin armadura adicional (6.2.4 (6))`,
+            },
+          ]
+        : []),
     ],
     formulas: [
       { etiqueta: "d", formula: "h − distancia al centroide de la armadura", valor: `${fmt(d, 3)} m` },
@@ -138,6 +158,9 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
         armaduraPositiva={{ capas: disposicionPositiva.filas }}
         armaduraNegativa={{ capas: disposicionNegativa.filas }}
         diametroEstriboMm={v.diametroEstribo}
+        {...(seccionT
+          ? { ala: { anchoM: seccionT.ala.anchoM, espesorM: seccionT.ala.espesorM, arriba: seccionT.tipo === "t", anchoEficazM: seccionT.anchoEficaz.anchoEficazM } }
+          : {})}
       />
     ),
   };

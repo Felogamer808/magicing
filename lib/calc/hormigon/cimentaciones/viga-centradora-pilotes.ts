@@ -6,6 +6,8 @@ import type {
   ResultadoFlexion,
 } from "@/lib/calc/hormigon/comun/types";
 import { calcularCantoUtil, calcularCortante, calcularFlexion, TOPE_SEPARACION_OFICINA_M } from "@/lib/calc/hormigon/vigas/flexion-cortante";
+import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularFisuracion, type ResultadoFisuracion } from "@/lib/calc/hormigon/fisuracion";
 
 /**
  * Viga centradora sobre pilotes.
@@ -47,6 +49,19 @@ import { calcularCantoUtil, calcularCortante, calcularFlexion, TOPE_SEPARACION_O
  *   reducción. Las barras superiores siguen de largo sobre el pilote, así que
  *   están ancladas en el apoyo, que es la condición de los dos artículos.
  *
+ * Criterios del usuario (2026-10-23):
+ * - Anclaje de la armadura superior en el nudo bajo el pilar medianero: empieza
+ *   en la cara interior del pilar (art. 6.5.4 (7), pág. 100) y dispone hasta
+ *   la cara exterior, donde termina el hormigón de la viga (el largo de
+ *   cálculo se cuenta desde el eje, pero la viga llega al ras del pilar),
+ *   menos el recubrimiento; con patilla suma la pata hasta h − 2·rec. σsd =
+ *   M/(z·As) con el M del pilote, tope fyd; adherencia mala con h > 250 mm
+ *   (fig. A19.8.2, pág. 124).
+ * - Fisuración en la sección del pilote, art. 7.3.4, con la combinación
+ *   cuasipermanente: Mqp = Nqp·e + qk·e²/2, sin M_acc ni mayorar el peso
+ *   propio. wmax de la tabla 27.2 del Código según la exposición (0,3 mm en
+ *   XC2, la habitual de una VC enterrada).
+ *
  * El momento es negativo (tracciona arriba) en el voladizo y en el tramo
  * siempre que ΔN > 0. Si el peso propio pesa más que la palanca, el tramo
  * puede flectar hacia abajo: se calcula ese momento y, si existe, lo toma la
@@ -55,6 +70,18 @@ import { calcularCantoUtil, calcularCortante, calcularFlexion, TOPE_SEPARACION_O
 
 /** Peso específico del hormigón armado de la viga, kN/m³ (criterio del usuario). */
 export const PESO_ESPECIFICO_VIGA_KNM3 = 25;
+
+/**
+ * wmax en hormigón armado, combinación cuasipermanente: tabla 27.2 del Código
+ * Estructural, a la que remite el art. 7.3.1 (5), pág. 109 (mm).
+ */
+export const WMAX_POR_EXPOSICION = {
+  X0: 0.4, XC1: 0.4,
+  XC2: 0.3, XC3: 0.3, XC4: 0.3,
+  XS1: 0.2, XS2: 0.2, XD1: 0.2, XD2: 0.2, XD3: 0.2,
+  XS3: 0.1,
+} as const;
+export type ExposicionCentradora = keyof typeof WMAX_POR_EXPOSICION;
 
 /** Diámetro mínimo de la armadura de flexión, art. 9.8.3 (1), pág. 154 (mm). */
 export const DIAMETRO_MINIMO_CENTRADORA_MM = 12;
@@ -83,6 +110,29 @@ export interface DatosVigaCentradoraPilotes {
   inferior: ArmaduraElegida;
   diametroEstriboMm: number;
   numeroRamas: number;
+  /** Extremo de la armadura superior sobre el pilar medianero. Por defecto, recta. */
+  formaAnclaje?: FormaAnclaje;
+  /** Nqp: axil del pilar medianero en combinación cuasipermanente, G + ψ2·Q (kN) */
+  nqpKN: number;
+  /** Abertura de fisura admisible, tabla 27.2 (mm) */
+  wMaxMm: number;
+}
+
+export interface AnclajeSuperiorCentradora {
+  /** Fig. A19.8.2: barras de arriba en una pieza de más de 250 mm */
+  situacion: "buena" | "mala";
+  sigmaSdMPa: number;
+  lbdMm: number;
+  /** De la cara interior del pilar a la exterior menos el recubrimiento (+ patilla) (mm) */
+  disponibleMm: number;
+  verifica: boolean;
+}
+
+export interface FisuracionCentradora {
+  /** Mqp = Nqp·e + qk·e²/2 en la sección del pilote (kN·m) */
+  mqpKNm: number;
+  wMaxMm: number;
+  resultado: ResultadoFisuracion;
 }
 
 export interface CortanteVoladizo {
@@ -142,6 +192,8 @@ export interface ResultadoVigaCentradoraPilotes {
   /** Estribos: la menor de las dos separaciones (m) */
   separacionEstribosM: number;
   verificaDiametro: boolean;
+  anclajeSuperior: AnclajeSuperiorCentradora;
+  fisuracion: FisuracionCentradora;
 }
 
 const redondearAbajo = (x: number, paso: number) => Math.floor(x / paso + 1e-9) * paso;
@@ -263,7 +315,48 @@ export function calcularVigaCentradoraPilotes(
     sinReduccion,
   };
 
+  // ------------------------------------------------------------ anclaje superior
+  // Art. 6.5.4 (7) y 8.4: desde la cara interior del pilar hasta su cara
+  // exterior, que es donde termina la viga.
+  const { superior, diametroEstriboMm: phiT } = datos;
+  const phiS = superior.diametroMm;
+  const forma = datos.formaAnclaje ?? "recta";
+  const situacion = h > 0.25 ? "mala" : "buena";
+  const sigmaSdMPa = Math.min((momentoKNm * 10) / (flexion.zM * flexion.asRealCm2), materiales.fyd);
+  const libreMm = superior.numero > 1
+    ? ((b - 2 * (recubrimiento + phiT / 1000)) * 1000 - superior.numero * phiS) / (superior.numero - 1)
+    : Infinity;
+  const cdMm = Math.min((recubrimiento + phiT / 1000) * 1000, libreMm / 2);
+  const { lbdMm } = calcularAnclaje(
+    { fckMPa: fck, fykMPa: materiales.fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
+    { diametroMm: phiS, situacion, forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
+  );
+  const pataM = forma === "gancho" ? Math.max(h - 2 * recubrimiento, 0) : 0;
+  const disponibleMm = (datos.ladoPilarM - recubrimiento + pataM) * 1000;
+  const anclajeSuperior: AnclajeSuperiorCentradora = {
+    situacion,
+    sigmaSdMPa,
+    lbdMm,
+    disponibleMm,
+    verifica: disponibleMm >= lbdMm,
+  };
+
+  // ------------------------------------------------------------ fisuración
+  // Art. 7.3.4 en la sección del pilote, combinación cuasipermanente.
+  const mqpKNm = datos.nqpKN * e + (PESO_ESPECIFICO_VIGA_KNM3 * b * h * e ** 2) / 2;
+  const fisuracion: FisuracionCentradora = {
+    mqpKNm,
+    wMaxMm: datos.wMaxMm,
+    resultado: calcularFisuracion(
+      materiales,
+      { recubrimientoM: recubrimiento + phiT / 1000, k2: 0.5, wAdmMm: datos.wMaxMm, esGPa: 200 },
+      { hM: h, bM: b, n1: superior.numero, diametro1Mm: phiS, n2: 0, diametro2Mm: 0, mqpKNm }
+    ),
+  };
+
   return {
+    anclajeSuperior,
+    fisuracion,
     luzM: l,
     pesoVigaKNPorM: q,
     momentoAccidentalKNm,

@@ -25,6 +25,8 @@
  *   el pilar cae descentrado y la VC centra ese momento, así que el cabezal
  *   se verifica con R₁d = (N₁d·l + q·l²/2 + M_acc)/(l − e), la misma de la
  *   VC, centrada, en lugar del Nd (criterio del usuario, 2026-10-22).
+ * - Nqp de la centradora (fisuración) = G + ψ2·Q del pilar medianero, con ψ2
+ *   por proyecto (0,3 sin dato). El Nd a mano no entra: es una envolvente ELU.
  * - Suelo (fs, qp, FS): uno para todo el proyecto.
  *
  * La combinación la remite el Anejo 19, art. 2.4.3 (1), pág. 21, al Anejo 18,
@@ -42,6 +44,19 @@ import { aNumero } from "@/lib/verificaciones/formato";
 
 /** Peso específico del hormigón armado del cabezal, kN/m³ (criterio del usuario). */
 export const PESO_ESPECIFICO_HA_KNM3 = 25;
+
+/**
+ * ψ2 si el proyecto no tiene uno: vivienda y oficinas (categorías A y B). Lo
+ * fija el Anejo 18, que no está entre las fuentes; el valor es el del usuario
+ * (2026-10-23), editable por proyecto.
+ */
+export const PSI2_POR_DEFECTO = 0.3;
+
+/** Nqp del pilar = G + ψ2·Q, kN, o null si falta G o Q. Sin Nd a mano: es servicio. */
+export function nqpPilar(p: PilarCargado | undefined, psi2: number): number | null {
+  if (p?.gKN === undefined || p.qKN === undefined) return null;
+  return p.gKN + psi2 * p.qKN;
+}
 
 /** Al décimo de kN, como lo escribiría alguien en el campo. */
 const kN = (x: number) => String(Math.round(x * 10) / 10);
@@ -178,9 +193,10 @@ function derivados(
       return n === null ? "" : kN(n);
     };
     const [a, b] = extremos;
+    const nqp = nqpPilar(a?.pilar, proyecto.psi2 ?? PSI2_POR_DEFECTO);
     return {
       "viga-atado": { ...(a?.pilar ? { n1d: nd(a) } : {}), ...(b?.pilar ? { n2d: nd(b) } : {}) },
-      "viga-centradora-pilotes": a?.pilar ? { n1d: nd(a) } : {},
+      "viga-centradora-pilotes": a?.pilar ? { n1d: nd(a), nqp: nqp === null ? "" : kN(nqp) } : {},
     };
   }
   return {};
@@ -213,8 +229,12 @@ export function derivarCargas(proyecto: Proyecto): Proyecto {
     const porVerificacion = derivados(e, proyecto, porMarca, pilotesBajo, centradoras);
     let tocado = false;
     const calculos = e.calculos.map((c): CalculoGuardado => {
-      const nuevos = porVerificacion[c.verificacion];
-      if (!nuevos || Object.entries(nuevos).every(([k, v]) => c.campos[k] === v)) return c;
+      // Una centradora guardada antes de que existiera Nqp (2026-10-23) no lo
+      // tiene: vacío, para que no tome el valor por defecto de la página.
+      const sinNqp: Record<string, string> =
+        c.verificacion === "viga-centradora-pilotes" && c.campos.nqp === undefined ? { nqp: "" } : {};
+      const nuevos = { ...sinNqp, ...porVerificacion[c.verificacion] };
+      if (Object.entries(nuevos).every(([k, v]) => c.campos[k] === v)) return c;
       tocado = true;
       return { ...c, campos: { ...c.campos, ...nuevos } };
     });

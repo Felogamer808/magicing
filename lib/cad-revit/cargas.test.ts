@@ -211,6 +211,19 @@ describe("derivarCargas con una viga centradora", () => {
     });
   });
 
+  /** Nqp = G + ψ2·Q: 400 + 0,3·100 = 430 sin dato; con ψ2 = 0,6, 460. */
+  it("Nqp de la centradora con el ψ2 del proyecto", () => {
+    expect(campos(cargado, "VC1").nqp).toBe("430");
+    const conPsi = derivarCargas({ ...conE(conPilar(conVC, "CT6", { gKN: 400, qKN: 100 }), "0.5"), psi2: 0.6 });
+    expect(campos(conPsi, "VC1").nqp).toBe("460");
+  });
+
+  it("con Nd a mano y sin G ni Q, el Nqp queda vacío", () => {
+    const soloNd = derivarCargas(conE(conPilar(conVC, "CT6", { ndKN: 700 }), "0.5"));
+    expect(campos(soloNd, "VC1").n1d).toBe("700");
+    expect(campos(soloNd, "VC1").nqp).toBe("");
+  });
+
   it("con e y armadura, la centradora se evalúa", () => {
     const c = {
       ...campos(cargado, "VC1"),

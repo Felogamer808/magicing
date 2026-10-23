@@ -223,6 +223,8 @@ export interface Proyecto {
   materiales: MaterialesProyecto;
   /** Terreno para los pilotes de una planta de CAD. */
   suelo?: SueloPilotes;
+  /** ψ2 de las cargas variables, para la combinación cuasipermanente (Nqp = G + ψ2·Q). Sin dato, 0,3. */
+  psi2?: number;
   /** Modo de los pilotes y tabla de la pilotera. */
   pilotes?: PilotesProyecto;
   /** La planta de CAD de la que salieron los elementos, para dibujarla. */

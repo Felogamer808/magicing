@@ -4,7 +4,7 @@ import {
 } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora-pilotes";
 import type { ResultadoFlexion } from "@/lib/calc/hormigon/comun/types";
 import { evaluar, recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
-import { campo, m, palancaDiametro, palancaFck, palancaValor, EFECTO_H, type Campos } from "./palancas";
+import { CITA_PATILLA, campo, m, palancaDiametro, palancaFck, palancaOpcion, palancaValor, EFECTO_H, type Campos } from "./palancas";
 import { RAMAS } from "./vigas-flexion-cortante";
 
 export type ClaveVigaCentradoraPilotes =
@@ -13,7 +13,9 @@ export type ClaveVigaCentradoraPilotes =
   | "diametro"
   | "bielasTramo"
   | "bielasVoladizo"
-  | "ramas";
+  | "ramas"
+  | "anclaje"
+  | "fisuracion";
 export type RecomendacionesVigaCentradoraPilotes = Partial<Record<ClaveVigaCentradoraPilotes, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveVigaCentradoraPilotes, string> = {
@@ -23,6 +25,8 @@ const NOMBRES: Record<ClaveVigaCentradoraPilotes, string> = {
   bielasTramo: "bielas del alma en el tramo",
   bielasVoladizo: "bielas del voladizo pilar–pilote",
   ramas: "separación transversal entre ramas",
+  anclaje: "anclaje de la superior sobre el pilar",
+  fisuracion: "fisuración en el pilote",
 };
 
 const aprovechamiento = (f: ResultadoFlexion) => (f.sobrearmada ? Infinity : f.aprovechamiento);
@@ -36,6 +40,8 @@ function utilizaciones({ r }: ResueltoVigaCentradoraPilotes): Partial<Record<Cla
     bielasTramo: r.cortanteTramoKN / r.cortanteTramo.vRdMax,
     bielasVoladizo: v.vEdKN / Math.min(v.vRdMaxKN, v.vLimite65KN),
     ramas: r.cortanteTramo.separacionTransversalM / r.cortanteTramo.separacionTransversalMaxM,
+    anclaje: r.anclajeSuperior.lbdMm / r.anclajeSuperior.disponibleMm,
+    fisuracion: r.fisuracion.resultado.wkMm / r.fisuracion.wMaxMm,
   };
 }
 
@@ -60,6 +66,12 @@ const ANCHO = palancaValor(campo("b"), {
   efectoColateral: "Más sección: crece la armadura mínima y el peso propio.",
 });
 const FCK = palancaFck(campo("fck"));
+const PATILLA = palancaOpcion<Campos>(
+  (e) => e.formaAnclaje !== "gancho",
+  (e) => ({ ...e, formaAnclaje: "gancho" }),
+  "Terminar la superior en patilla a 90° sobre el pilar (hoy recta)",
+  { cita: CITA_PATILLA }
+);
 
 function palancasPorClave(clave: ClaveVigaCentradoraPilotes): readonly Palanca<Campos>[] {
   switch (clave) {
@@ -74,6 +86,12 @@ function palancasPorClave(clave: ClaveVigaCentradoraPilotes): readonly Palanca<C
       return [ANCHO, CANTO, FCK];
     case "ramas":
       return [RAMAS];
+    case "anclaje":
+      // Más barras bajan σsd y con ella lbd; la patilla suma la pata.
+      return [PATILLA, ...barras("numeroSup", "diametroSup", "Superior: ")];
+    case "fisuracion":
+      // Más barras más finas: más acero y fisuras más juntas.
+      return [...barras("numeroSup", "diametroSup", "Superior: "), CANTO];
   }
 }
 

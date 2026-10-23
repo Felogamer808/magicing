@@ -57,6 +57,24 @@ export interface ResultadoTorsion {
   alPorCaraCm2: number;
 }
 
+/** Ala de una T para la flexión dentro de la viga con torsión. */
+export interface AlaVigaTorsion {
+  anchoEficazM: number;
+  espesorAlaM: number;
+  /** T (ala arriba) o T invertida (ala abajo) */
+  alaArriba: boolean;
+}
+
+export interface ResultadoTorsionVuelo {
+  /** Parte del torsor que toma este vuelo (kN·m) */
+  tdKNm: number;
+  /** El modelo de pared delgada no entra en el espesor del ala: Ak ≤ 0 */
+  modelable: boolean;
+  torsion: ResultadoTorsion;
+  /** Td del vuelo > TRd,c del vuelo: hay que disponer cercos cerrados en el ala */
+  requiereArmadura: boolean;
+}
+
 export interface ResultadoVigaTorsion {
   /** Canto útil hasta la armadura inferior: momento positivo (m). */
   d: number;
@@ -155,6 +173,8 @@ export function calcularVigaConTorsion(
     momentoPositivo: number;
     momentoNegativo: number;
     cortante: Omit<DatosCortante, "atPorRamaCm2PorM" | "pasoSeparacionM">;
+    /** Sección en T: la flexión cuenta el ala, como en la viga sin torsión. */
+    ala?: AlaVigaTorsion;
   }
 ): ResultadoVigaTorsion {
   // Borde exterior → eje de la barra longitudinal más gruesa de las esquinas:
@@ -172,8 +192,15 @@ export function calcularVigaConTorsion(
   // los dos. El cortante va con d⁻ porque su ρl ya sale de la armadura
   // superior: se verifica la sección de apoyo, y d y ρl tienen que referirse
   // a la misma armadura de tracción (Anejo 19, art. 6.2.2 (1)).
-  const d = calcularCantoUtil(geometria, [datos.armaduraPositiva]);
-  const dNegativo = calcularCantoUtil(geometria, [datos.armaduraNegativa]);
+  // Con ala, la flexión es la de la T y las barras de la cara del ala se
+  // reparten en el ancho eficaz (art. 9.2.1.2 (2)), igual que sin torsión.
+  const { ala } = datos;
+  const seccionT = (positivo: boolean) =>
+    ala ? { anchoEficazM: ala.anchoEficazM, espesorAlaM: ala.espesorAlaM, alaComprimida: positivo === ala.alaArriba } : undefined;
+  const geometriaCara = (positivo: boolean) =>
+    ala && positivo !== ala.alaArriba ? { ...geometria, b: ala.anchoEficazM } : geometria;
+  const d = calcularCantoUtil(geometriaCara(true), [datos.armaduraPositiva]);
+  const dNegativo = calcularCantoUtil(geometriaCara(false), [datos.armaduraNegativa]);
 
   const comunes: Pick<DatosFlexion, "asAdicionalCm2"> = { asAdicionalCm2: torsion.alPorCaraCm2 };
 
@@ -181,11 +208,13 @@ export function calcularVigaConTorsion(
     momento: datos.momentoPositivo,
     armaduraReal: [datos.armaduraPositiva],
     ...comunes,
+    seccionT: seccionT(true),
   });
   const flexionNegativa = calcularFlexion(materiales, geometria, dNegativo, {
     momento: datos.momentoNegativo,
     armaduraReal: [datos.armaduraNegativa],
     ...comunes,
+    seccionT: seccionT(false),
   });
 
   const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
@@ -225,4 +254,31 @@ export function calcularVigaConTorsion(
     soloArmaduraMinima: interaccionFisuracion <= 1,
     verificaInteraccionBielas: interaccionBielas <= 1,
   };
+}
+
+/**
+ * Un vuelo del ala con su parte del torsor, como sección de pared delgada
+ * equivalente (art. 6.3.1 (5): cada subsección se calcula por separado).
+ *
+ * Las bielas siempre se comprueban. Si el torsor no pasa del de fisuración
+ * no hace falta armadura; si pasa, se informan At/s y Al como cercos
+ * cerrados a disponer en el ala (criterio del usuario, 2026-10-23).
+ *
+ * El espesor eficaz tiene el mismo mínimo 2·c que el alma. En un ala fina
+ * puede no dejar núcleo (Ak ≤ 0): el modelo no aplica y se dice.
+ */
+export function calcularTorsionVuelo(
+  materiales: MaterialesDerivados,
+  vueloM: number,
+  espesorAlaM: number,
+  tdKNm: number,
+  distanciaEjeArmaduraM: number
+): ResultadoTorsionVuelo {
+  const torsion = calcularTorsion(
+    materiales,
+    { b: vueloM, h: espesorAlaM, recubrimiento: 0, diametroEstriboMm: 0 },
+    { td: tdKNm, distanciaEjeArmaduraM }
+  );
+  const modelable = torsion.aeM2 > 0 && vueloM - torsion.tM > 0 && espesorAlaM - torsion.tM > 0;
+  return { tdKNm, modelable, torsion, requiereArmadura: modelable && tdKNm > torsion.tRdCKNm };
 }

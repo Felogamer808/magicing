@@ -25,7 +25,12 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
 import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { armarGrupos, resolverVigaFlexionCortante, tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
-import { anchoEficazAla, type TipoSeccion } from "@/lib/calc/hormigon/vigas/seccion-t";
+import {
+  anchoEficazAla,
+  ROTULOS_TIPO_SECCION as TIPOS_SECCION,
+  tipoSeccionPorRotulo as tipoPorRotulo,
+  type TipoSeccion,
+} from "@/lib/calc/hormigon/vigas/seccion-t";
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { recomendarVigaFlexionCortante } from "@/lib/verificaciones/recomendaciones/vigas-flexion-cortante";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
@@ -40,15 +45,6 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
-
-/** Rótulos del tipo de sección; el campo guarda la clave. */
-const TIPOS_SECCION: Record<TipoSeccion, string> = {
-  rectangular: "Rectangular",
-  t: "T (ala arriba)",
-  "t-invertida": "T invertida (ala abajo)",
-};
-const tipoPorRotulo = (rotulo: string): TipoSeccion =>
-  (Object.keys(TIPOS_SECCION) as TipoSeccion[]).find((k) => TIPOS_SECCION[k] === rotulo) ?? "rectangular";
 
 /** Qué parte de los dibujos corresponde a cada campo, para resaltarla con el foco. */
 const ELEMENTO_DE_CAMPO: Record<string, ElementoSeccionViga | "positivo" | "negativo"> = {

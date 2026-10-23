@@ -1,9 +1,18 @@
 import { resolverVigaTorsion, type ResueltoVigaTorsion } from "@/lib/calc/hormigon/vigas/resolver-torsion";
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import type { Campos } from "./palancas";
-import { ANCHO, CANTO, FCK, RAMAS, diametroMayor, masBarras, masBarrasFinas } from "./vigas-flexion-cortante";
+import { ANCHO, CANTO, ESPESOR_ALA, FCK, RAMAS, diametroMayor, masBarras, masBarrasFinas } from "./vigas-flexion-cortante";
 
-export type ClaveTorsion = "bielasTorsion" | "interaccion" | "positiva" | "negativa" | "bielas" | "anchoInferior" | "anchoSuperior" | "ramas";
+export type ClaveTorsion =
+  | "bielasTorsion"
+  | "interaccion"
+  | "positiva"
+  | "negativa"
+  | "bielas"
+  | "anchoInferior"
+  | "anchoSuperior"
+  | "ramas"
+  | "bielasVuelo";
 export type RecomendacionesTorsion = Partial<Record<ClaveTorsion, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveTorsion, string> = {
@@ -15,10 +24,12 @@ const NOMBRES: Record<ClaveTorsion, string> = {
   anchoInferior: "armadura inferior en el ancho",
   anchoSuperior: "armadura superior en el ancho",
   ramas: "separación transversal entre ramas",
+  bielasVuelo: "bielas de torsión del vuelo",
 };
 
-const utilizaciones = (r: ResueltoVigaTorsion): Record<ClaveTorsion, number> => ({
-  bielasTorsion: r.v.td / r.torsion.tRdMaxKNm,
+const utilizaciones = (r: ResueltoVigaTorsion): Partial<Record<ClaveTorsion, number>> => ({
+  // Con sección en T el alma toma sólo su parte del torsor.
+  bielasTorsion: (r.seccionT?.tdAlma ?? r.v.td) / r.torsion.tRdMaxKNm,
   interaccion: r.interaccionBielas,
   positiva: r.flexionPositiva.asNecCm2 / r.flexionPositiva.asRealCm2,
   negativa: r.flexionNegativa.asNecCm2 / r.flexionNegativa.asRealCm2,
@@ -26,6 +37,9 @@ const utilizaciones = (r: ResueltoVigaTorsion): Record<ClaveTorsion, number> => 
   anchoInferior: siNo(r.flexionPositiva.verificaEntraEnAncho),
   anchoSuperior: siNo(r.flexionNegativa.verificaEntraEnAncho),
   ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,
+  ...(r.seccionT?.vuelo?.modelable
+    ? { bielasVuelo: r.seccionT.vuelo.tdKNm / r.seccionT.vuelo.torsion.tRdMaxKNm }
+    : {}),
 });
 
 function palancasPorClave(clave: ClaveTorsion): readonly Palanca<Campos>[] {
@@ -45,6 +59,8 @@ function palancasPorClave(clave: ClaveTorsion): readonly Palanca<Campos>[] {
       return [masBarrasFinas("Neg"), ANCHO];
     case "ramas":
       return [RAMAS];
+    case "bielasVuelo":
+      return [ESPESOR_ALA, FCK];
   }
 }
 

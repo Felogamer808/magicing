@@ -21,6 +21,16 @@ import { LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
 
 export type TipoSeccion = "rectangular" | "t" | "t-invertida";
 
+/** Rótulos del tipo de sección en pantalla; el campo guarda la clave. */
+export const ROTULOS_TIPO_SECCION: Record<TipoSeccion, string> = {
+  rectangular: "Rectangular",
+  t: "T (ala arriba)",
+  "t-invertida": "T invertida (ala abajo)",
+};
+
+export const tipoSeccionPorRotulo = (rotulo: string): TipoSeccion =>
+  (Object.keys(ROTULOS_TIPO_SECCION) as TipoSeccion[]).find((k) => ROTULOS_TIPO_SECCION[k] === rotulo) ?? "rectangular";
+
 export interface GeometriaAla {
   /** Ancho real del ala, de borde a borde (m) */
   anchoM: number;
@@ -242,5 +252,59 @@ export function rasanteAlaAlma(d: DatosRasante): ResultadoRasante {
     asNecCm2PorM,
     asRealCm2PorM: d.asTransversalRealCm2PorM,
     verificaArmadura: d.asTransversalRealCm2PorM >= asNecCm2PorM - 1e-12,
+  };
+}
+
+/**
+ * Coeficiente β de Saint-Venant para la rigidez a torsión de un rectángulo
+ * macizo, K = β·a·b³ con a el lado mayor y b el menor. Serie exacta de la
+ * teoría de la elasticidad:
+ *   β = 1/3 · [1 − 192/(π⁵·r) · Σ tanh(n·π·r/2)/n⁵],  n impar, r = a/b
+ *
+ * No es del Anejo 19: el art. 6.3.1 (4) pide repartir según las rigideces no
+ * fisuradas sin dar una fórmula, y ésta es la de la mecánica (criterio del
+ * usuario, 2026-10-23).
+ */
+export function betaSaintVenant(ladoMayorM: number, ladoMenorM: number): number {
+  const r = ladoMayorM / ladoMenorM;
+  let suma = 0;
+  for (let n = 1; n <= 39; n += 2) suma += Math.tanh((n * Math.PI * r) / 2) / n ** 5;
+  return (1 - (192 / (Math.PI ** 5 * r)) * suma) / 3;
+}
+
+/** Rigidez a torsión no fisurada de un rectángulo, sin el módulo G (m⁴). */
+export function rigidezTorsionRectangulo(ladoAM: number, ladoBM: number): number {
+  const mayor = Math.max(ladoAM, ladoBM);
+  const menor = Math.min(ladoAM, ladoBM);
+  if (!(menor > 0)) return 0;
+  return betaSaintVenant(mayor, menor) * mayor * menor ** 3;
+}
+
+export interface RepartoTorsionT {
+  /** Rigidez del alma de canto total h × bw (m⁴) */
+  rigidezAlmaM4: number;
+  /** Rigidez de cada vuelo eficaz b_eff,i × hf (m⁴) */
+  rigidezVueloM4: number;
+  /** Fracción del torsor que toma el alma */
+  fraccionAlma: number;
+  /** Fracción que toma cada vuelo */
+  fraccionVuelo: number;
+}
+
+/**
+ * Reparto del torsor entre el alma y los dos vuelos, art. 6.3.1 (3) y (4),
+ * pág. 84: proporcional a las rigideces no fisuradas. El alma va con su canto
+ * total (es la que tiene los estribos) y cada vuelo con el ancho eficaz de la
+ * flexión (criterio del usuario, 2026-10-23).
+ */
+export function repartoTorsionT(anchoAlmaM: number, cantoM: number, vueloEficazM: number, espesorAlaM: number): RepartoTorsionT {
+  const rigidezAlmaM4 = rigidezTorsionRectangulo(cantoM, anchoAlmaM);
+  const rigidezVueloM4 = vueloEficazM > 0 ? rigidezTorsionRectangulo(vueloEficazM, espesorAlaM) : 0;
+  const total = rigidezAlmaM4 + 2 * rigidezVueloM4;
+  return {
+    rigidezAlmaM4,
+    rigidezVueloM4,
+    fraccionAlma: rigidezAlmaM4 / total,
+    fraccionVuelo: rigidezVueloM4 / total,
   };
 }

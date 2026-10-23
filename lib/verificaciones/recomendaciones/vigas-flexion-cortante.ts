@@ -127,7 +127,7 @@ export const masBarrasFinas = (c: Cara): Palanca<Campos> => ({
 });
 
 /** Ala más gruesa: más sección para el rasante y más compresión en el ala. */
-const ESPESOR_ALA = palancaValor(campo("espesorAla"), {
+export const ESPESOR_ALA = palancaValor(campo("espesorAla"), {
   paso: 0.01,
   tope: (hf) => hf + 0.1,
   decimales: 2,

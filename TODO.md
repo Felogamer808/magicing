@@ -219,13 +219,13 @@ Independientes, contra `main`:
 - **MCP para el resto de las familias.** El servidor (`mcp/servidor.ts`) cubre
   sólo cimentaciones (2026-10-10). Sumar vigas, losas, muros, acero, madera y
   pretensado sigue los pasos de `ARCHITECTURE.md` → "Servidor MCP".
-- **Vigas en T: lo que quedó fuera de la primera versión** (2026-10-23). La página
-  de flexión y cortante ya tiene T y T invertida. Faltan: la torsión con
-  sección en T (se divide en rectángulos, art. 6.3.1 (3)); el ala de la T
-  invertida como apoyo de losas o vigas (talón, región D); vigas en L (un solo
-  vuelo); el rasante combinado con la flexión transversal del ala (art. 6.2.4
-  (5)); y el diagrama de rotura y los vínculos a fisuración y deformaciones,
-  que siguen siendo rectangulares y por eso se ocultan con ala.
+- **Vigas en T: lo que quedó fuera** (2026-10-23). Flexión y cortante y
+  torsión ya tienen T y T invertida. Faltan: el ala de la T invertida como
+  apoyo de losas o vigas (talón, región D); vigas en L (un solo vuelo); el
+  rasante combinado con la flexión transversal del ala (art. 6.2.4 (5)), y
+  el rasante también en la página de torsión; y el diagrama de rotura y los
+  vínculos a fisuración y deformaciones, que siguen siendo rectangulares y
+  por eso se ocultan con ala.
 - **Contrastar un caso propio** de zapata aislada y medianería: quedan en
   "probada" hasta que alguien lo haga.
 

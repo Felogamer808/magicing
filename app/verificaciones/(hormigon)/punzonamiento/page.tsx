@@ -21,6 +21,7 @@ import {
   CroquisSeccionPunzonamiento,
 } from "@/components/verificaciones/croquis/CroquisPunzonamiento";
 import { PlantaPunzonamiento } from "@/components/verificaciones/hormigon/PlantaPunzonamiento";
+import { PropuestaCapitel } from "@/components/verificaciones/hormigon/PropuestaCapitel";
 import { BETA_RECOMENDADO, K_MAX_ARMADURA, type PosicionPilar } from "@/lib/calc/hormigon/losas/punzonamiento";
 import { resolverPunzonamiento } from "@/lib/calc/hormigon/losas/resolver-punzonamiento";
 import { recomendarPunzonamiento } from "@/lib/verificaciones/recomendaciones/punzonamiento";
@@ -93,6 +94,19 @@ export default function PunzonamientoPage() {
   const rec = useMemo(() => recomendarPunzonamiento(campos), [campos]);
 
   const hayBorde = posicion !== "interior";
+
+  // El capitel se ofrece sólo cuando la losa no se resuelve sola ni con
+  // armadura (criterio del usuario, 2026-10-26).
+  const arm = resultado?.r.armadura;
+  const motivoCapitel = !resultado
+    ? null
+    : !resultado.r.caraPilar.verifica
+      ? "La biela en la cara del pilar no verifica, y eso no se levanta con armadura."
+      : arm?.fueraDeAlcance
+        ? "Ninguna armadura alcanza: vEd supera el techo de 1,5·vRd,c."
+        : arm && !arm.verifica
+          ? "La armadura de punzonamiento cargada no alcanza."
+          : null;
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -267,7 +281,7 @@ export default function PunzonamientoPage() {
               "El perímetro crítico a 2d se recorta contra los bordes libres (art. 6.4.2(4)).",
               "Los negativos tienen que estar dispuestos en un ancho de c + 3d a cada lado del pilar (art. 6.4.4(1)).",
               "Cercos verticales (α = 90°).",
-              "No contempla huecos a menos de 6d, capiteles ni el término k1·σcp de axil o pretensado (omitirlo queda del lado seguro).",
+              "No contempla huecos a menos de 6d ni el término k1·σcp de axil o pretensado (omitirlo queda del lado seguro). Los capiteles van en su propia verificación.",
             ]}
             avisos={avisos}
           />
@@ -282,6 +296,8 @@ export default function PunzonamientoPage() {
           ) : (
             <div className="space-y-10">
               <ConclusionAutomatica />
+
+              {motivoCapitel && <PropuestaCapitel motivo={motivoCapitel} />}
 
               <PanelMetricas
                 horizontal

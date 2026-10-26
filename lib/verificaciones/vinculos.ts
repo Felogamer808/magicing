@@ -111,6 +111,26 @@ export function camposVigaCentradoraDesdeZapata(campos: Record<string, string>):
   return destino;
 }
 
+/**
+ * Del punzonamiento que no da al mismo pilar con capitel (criterio del usuario,
+ * 2026-10-26). Viajan la losa, el pilar, los negativos y la carga, que en las
+ * dos páginas se llaman igual. El capitel no existía, así que su vuelo y su
+ * canto se dejan en blanco: con los de ejemplo se vería un resultado que nadie
+ * eligió. La armadura de punzonamiento no viaja: el capitel es sólo hormigón.
+ */
+export const RUTA_CAPITELES = "/verificaciones/capiteles";
+export const BLANQUEAR_CAPITELES = ["lH1", "lH2", "hH"];
+
+export function camposCapitelDesdePunzonamiento(campos: Record<string, string>): Record<string, string> {
+  const copiar = [
+    "posicion", "fck", "espesor", "recubrimiento", "c1", "c2", "distBordeC1", "distBordeC2",
+    "phiNegY", "sNegY", "phiNegZ", "sNegZ", "vEd", "betaModo", "beta",
+  ];
+  const destino: Record<string, string> = { forma: "Rectangular" };
+  for (const nombre of copiar) if (campos[nombre] !== undefined) destino[nombre] = campos[nombre];
+  return destino;
+}
+
 /** Número a texto con el formato que esperan los campos (coma decimal admitida). */
 const txt = (n: number, decimales: number) => n.toFixed(decimales);
 

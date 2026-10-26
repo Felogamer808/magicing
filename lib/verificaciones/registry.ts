@@ -60,6 +60,7 @@ export type IdVerificacion =
   | "zona-parcialmente-cargada"
   | "losas"
   | "punzonamiento"
+  | "capiteles"
   | "secciones-mixtas"
   | "zapatas"
   | "zapata-corrida"
@@ -324,6 +325,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Losa maciza sobre pilar interior, de borde o de esquina: biela en la cara del pilar, perímetro crítico a 2d, armadura de punzonamiento y perímetro uout.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/punzonamiento",
+    disponible: true,
+  },
+  {
+    id: "capiteles",
+    nombre: "Capiteles",
+    seccion: "hormigon-armado",
+    categoria: "Losas",
+    descripcion:
+      "Punzonamiento de losa con capitel, rectangular o circular: capitel chico o grande, secciones críticas en la losa y en el capitel, y biela en la cara del pilar.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/capiteles",
     disponible: true,
   },
   {

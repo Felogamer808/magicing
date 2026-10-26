@@ -6,8 +6,7 @@ import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombina
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
-import { WMAX_POR_EXPOSICION } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
-import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { WMAX_POR_EXPOSICION, type FormaAnclajeCentradora } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
@@ -26,7 +25,14 @@ import {
 
 const meta = registroVerificaciones.find((v) => v.id === "viga-centradora-pilotes")!;
 
-const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
+const FORMAS: Record<FormaAnclajeCentradora, string> = {
+  recta: "Barra recta",
+  gancho: "Patilla a 90°",
+  u: "La misma barra en U",
+  horquilla: "Horquillas solapadas",
+};
+const formaPorNombre = (nombre: string) =>
+  (Object.keys(FORMAS) as FormaAnclajeCentradora[]).find((f) => FORMAS[f] === nombre) ?? "recta";
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
@@ -57,18 +63,19 @@ export default function VigaCentradoraPilotesPage() {
   const [diametroInf, setDiametroInf] = useCampo("diametroInf", "16");
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "4");
-  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
+  const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclajeCentradora>("formaAnclaje", "recta");
+  const [diametroHorquilla, setDiametroHorquilla] = useCampo("diametroHorquilla", "25");
   const [nqp, setNqp] = useCampo("nqp", "570");
   const [exposicion, setExposicion] = useCampo("exposicion", "XC2");
 
   const campos = useMemo(
     () => ({
       fck, fyk, b, h, recubrimiento, excentricidad, luzApoyos, ladoPilar, dPilote, n1d, eacc,
-      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, nqp, exposicion,
+      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, diametroHorquilla, nqp, exposicion,
     }),
     [
       fck, fyk, b, h, recubrimiento, excentricidad, luzApoyos, ladoPilar, dPilote, n1d, eacc,
-      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, nqp, exposicion,
+      numeroSup, diametroSup, numeroInf, diametroInf, diametroEstribo, numeroRamas, formaAnclaje, diametroHorquilla, nqp, exposicion,
     ]
   );
   const resultado = useMemo(() => resolverVigaCentradoraPilotes(campos), [campos]);
@@ -165,8 +172,11 @@ export default function VigaCentradoraPilotesPage() {
               etiqueta="Superior sobre el pilar"
               valor={FORMAS[formaAnclaje]}
               opciones={Object.values(FORMAS)}
-              onChange={(x) => setFormaAnclaje(x === FORMAS.gancho ? "gancho" : "recta")}
+              onChange={(x) => setFormaAnclaje(formaPorNombre(x))}
             />
+            {formaAnclaje === "horquilla" && (
+              <CampoDiametro id="diametroHorquilla" etiqueta="Ø horquillas" valor={diametroHorquilla} onChange={setDiametroHorquilla} />
+            )}
           </div>
         </Etapa>
 
@@ -340,16 +350,60 @@ export default function VigaCentradoraPilotesPage() {
               <Subgrupo titulo="Anclaje de la superior sobre el pilar" detalle="art. 6.5.4 (7) y 8.4">
                 <div>
                   <ResultadoCheck
-                    etiqueta="Desde la cara interior del pilar hasta el extremo de la viga"
+                    etiqueta={
+                      r.anclajeSuperior.forma === "u"
+                        ? `En U: la curva entra en el canto (vuelve ${fmt(r.anclajeSuperior.retornoMm, 0)} mm por abajo)`
+                        : "Desde la cara interior del pilar hasta el extremo de la viga"
+                    }
                     verifica={r.anclajeSuperior.verifica}
                     detalle={`${FORMAS[formaAnclaje].toLowerCase()} · adherencia ${r.anclajeSuperior.situacion} · σsd = ${fmt(r.anclajeSuperior.sigmaSdMPa)} MPa`}
-                    comparacion={{
-                      real: { etiqueta: "disponible", valor: r.anclajeSuperior.disponibleMm },
-                      limite: { etiqueta: "lbd", valor: r.anclajeSuperior.lbdMm },
-                      unidad: "mm", exige: "≥", decimales: 0,
-                    }}
+                    comparacion={
+                      r.anclajeSuperior.forma === "u" && r.anclajeSuperior.mandril
+                        ? {
+                            real: { etiqueta: "ocupa", valor: r.anclajeSuperior.mandril.ocupaMm },
+                            limite: { etiqueta: "h − 2·rec", valor: r.anclajeSuperior.mandril.disponibleCantoMm },
+                            unidad: "mm", exige: "≤", decimales: 0,
+                          }
+                        : {
+                            real: { etiqueta: "disponible", valor: r.anclajeSuperior.disponibleMm },
+                            limite: { etiqueta: "lbd", valor: r.anclajeSuperior.lbdMm },
+                            unidad: "mm", exige: "≥", decimales: 0,
+                          }
+                    }
                     recomendaciones={rec.anclaje}
                   />
+                  {r.anclajeSuperior.forma !== "recta" && (
+                    <PanelFormulas
+                      titulo="Ver desarrollo del extremo"
+                      filas={[
+                        ...(r.anclajeSuperior.forma === "u"
+                          ? [{ etiqueta: "Retorno por abajo (para completar lbd)", valor: `${fmt(r.anclajeSuperior.retornoMm, 0)} mm` }]
+                          : []),
+                        ...(r.anclajeSuperior.horquillas
+                          ? [
+                              { etiqueta: `Solape l0 con α6 = ${fmt(r.anclajeSuperior.horquillas.alfa6, 2)} (art. 8.7.3)`, valor: `${fmt(r.anclajeSuperior.horquillas.l0Mm, 0)} mm por rama` },
+                              {
+                                etiqueta: `Horquillas ${numeroSup} Ø${fmt(r.anclajeSuperior.horquillas.diametroMm, 0)} contra Td/fyd`,
+                                valor: `${fmt(r.anclajeSuperior.horquillas.asRealCm2)} ≥ ${fmt(r.anclajeSuperior.horquillas.asNecCm2)} cm²`,
+                              },
+                            ]
+                          : []),
+                        ...(r.anclajeSuperior.mandril
+                          ? [
+                              { etiqueta: "Mandril de la tabla A19.8.1", valor: `${fmt(r.anclajeSuperior.mandril.tablaMm, 0)} mm` },
+                              {
+                                etiqueta: "Mandril por la ec. (8.1)",
+                                valor: r.anclajeSuperior.mandril.ec81Mm > 0 ? `${fmt(r.anclajeSuperior.mandril.ec81Mm, 0)} mm` : "no hace falta (≤ 5φ tras la curva)",
+                              },
+                              {
+                                etiqueta: "La curva en el canto (h − 2·rec)",
+                                valor: `${fmt(r.anclajeSuperior.mandril.ocupaMm, 0)} ${r.anclajeSuperior.mandril.entra ? "≤" : ">"} ${fmt(r.anclajeSuperior.mandril.disponibleCantoMm, 0)} mm`,
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                  )}
                 </div>
               </Subgrupo>
 

@@ -40,10 +40,21 @@ export const DIAMETROS_MM = [6, 8, 10, 12, 16, 20, 25, 32] as const;
 /** Un campo de diámetro de barra (Ø): se elige de la lista, no se escribe. */
 export const esDiametro = (clave: string) => /^(phi|diametro)/.test(clave);
 
+/**
+ * Detalles que también se eligen en el panel pero no entran vacíos: sin tocar
+ * valen lo de la página (barra recta, horquillas del Ø de la superior típica).
+ */
+const OPCIONALES_EN_PANEL: Record<string, readonly string[]> = {
+  "viga-centradora-pilotes": ["formaAnclaje", "diametroHorquilla"],
+};
+
 /** Los campos de la verificación que se cargan en el panel, en el orden de la página. */
 export function camposDelPanel(verificacion: string): DefinicionCampo[] {
   if (!esCimentacion(verificacion)) return [];
-  const aMano = (A_MANO as Record<string, readonly string[]>)[verificacion] ?? [];
+  const aMano = [
+    ...((A_MANO as Record<string, readonly string[]>)[verificacion] ?? []),
+    ...(OPCIONALES_EN_PANEL[verificacion] ?? []),
+  ];
   const derivados = CAMPOS_DERIVADOS[verificacion] ?? [];
   return camposDe(verificacion).filter((d) => aMano.includes(d.clave) && !derivados.includes(d.clave));
 }

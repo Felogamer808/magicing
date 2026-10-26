@@ -1,6 +1,7 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import {
   calcularVigaCentradoraPilotes,
+  FORMAS_ANCLAJE_CENTRADORA,
   WMAX_POR_EXPOSICION,
   type ExposicionCentradora,
 } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
@@ -47,7 +48,8 @@ export function resolverVigaCentradoraPilotes(campos: Record<string, string>) {
     inferior: { numero: v.numeroInf, diametroMm: v.diametroInf },
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
-    formaAnclaje: campos.formaAnclaje === "gancho" ? "gancho" : "recta",
+    formaAnclaje: FORMAS_ANCLAJE_CENTRADORA.find((f) => f === campos.formaAnclaje) ?? "recta",
+    diametroHorquillaMm: Number.isFinite(num("diametroHorquilla")) && num("diametroHorquilla") > 0 ? num("diametroHorquilla") : undefined,
     nqpKN: v.nqp,
     wMaxMm: WMAX_POR_EXPOSICION[exposicion],
   });

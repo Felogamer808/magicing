@@ -187,3 +187,46 @@ describe("viga centradora sobre pilotes: anclaje superior y fisuración", () => 
     expect(menos.fisuracion.resultado.wkMm).toBeLessThan(r.fisuracion.resultado.wkMm);
   });
 });
+describe("viga centradora sobre pilotes: U, horquillas y mandril", () => {
+  // VC2: 8Ø25, b 0,80, rec 0,04, estribo Ø8. Libre entre barras (800 − 2·48 − 8·25)/7 = 72 mm.
+  const recta = calcularVigaCentradoraPilotes(materiales, VC2).anclajeSuperior;
+  const u = calcularVigaCentradoraPilotes(materiales, { ...VC2, formaAnclaje: "u" }).anclajeSuperior;
+
+  /** Recta 360 + bajada 520 y vuelve por abajo lo que falte, redondeado a 10 mm. */
+  it("en U dimensiona el retorno por abajo", () => {
+    expect(u.retornoMm).toBe(Math.ceil((u.lbdMm - 880) / 10) * 10);
+    expect(u.disponibleMm).toBeGreaterThanOrEqual(u.lbdMm);
+    expect(recta.mandril).toBeNull();
+  });
+
+  /**
+   * Tabla A19.8.1: Ø25 > 16 → 7φ = 175 mm. Ec. (8.1) con ab = mín(97/2; 48 + 12,5)
+   * = 48,5 mm, Fbt = σsd·π·25²/4 y fcd = 20 MPa (fck 30 < 55).
+   */
+  it("el mandril sale de la ec. (8.1) y la U entra en el canto", () => {
+    const m = u.mandril!;
+    expect(m.tablaMm).toBe(175);
+    const fbt = u.sigmaSdMPa * (Math.PI * 25 ** 2) / 4;
+    expect(m.ec81Mm).toBeCloseTo((fbt * (1 / 48.5 + 1 / 50)) / materiales.fcd, 6);
+    expect(m.necesarioMm).toBe(Math.max(175, m.ec81Mm));
+    expect(m.ocupaMm).toBeCloseTo(m.necesarioMm + 50, 9);
+    expect(m.disponibleCantoMm).toBeCloseTo(520, 9);
+    expect(u.verifica).toBe(m.entra);
+  });
+
+  /** 8 horquillas Ø20 = 25,13 cm², todas solapadas en la misma sección: α6 = 1,5. */
+  it("con horquillas solapa todo en la misma sección", () => {
+    const hq = calcularVigaCentradoraPilotes(materiales, { ...VC2, formaAnclaje: "horquilla", diametroHorquillaMm: 20 }).anclajeSuperior;
+    const h = hq.horquillas!;
+    expect(h.alfa6).toBe(1.5);
+    expect(h.asRealCm2).toBeCloseTo(8 * Math.PI, 9);
+    expect(h.disponibleHorquillaMm).toBeCloseTo(360 + 520 + h.l0Mm, 9);
+    expect(h.l0Mm).toBeGreaterThan(recta.lbdMm);
+  });
+
+  it("un canto chico no deja entrar la curva", () => {
+    const bajo = calcularVigaCentradoraPilotes(materiales, { ...VC2, h: 0.3, formaAnclaje: "u" }).anclajeSuperior;
+    expect(bajo.mandril!.entra).toBe(false);
+    expect(bajo.verifica).toBe(false);
+  });
+});

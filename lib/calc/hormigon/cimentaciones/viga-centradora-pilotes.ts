@@ -6,7 +6,7 @@ import type {
   ResultadoFlexion,
 } from "@/lib/calc/hormigon/comun/types";
 import { calcularCantoUtil, calcularCortante, calcularFlexion, TOPE_SEPARACION_OFICINA_M } from "@/lib/calc/hormigon/vigas/flexion-cortante";
-import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularAnclaje, calcularSolape, mandrilMinimoMm, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularFisuracion, type ResultadoFisuracion } from "@/lib/calc/hormigon/fisuracion";
 
 /**
@@ -57,6 +57,11 @@ import { calcularFisuracion, type ResultadoFisuracion } from "@/lib/calc/hormigo
  *   menos el recubrimiento; con patilla suma la pata hasta h − 2·rec. σsd =
  *   M/(z·As) con el M del pilote, tope fyd; adherencia mala con h > 250 mm
  *   (fig. A19.8.2, pág. 124).
+ * - Extremo (2026-10-26): recta, patilla, la misma barra en U (se dimensiona
+ *   lo que vuelve por abajo) u horquillas solapadas (art. 8.7.3, α6 = 1,5).
+ *   Con curva, el mandril de la tabla A19.8.1 y la ec. (8.1) del art. 8.3 si
+ *   la barra sigue anclando más de 5φ tras la curva; la curva tiene que entrar
+ *   en h − 2·rec.
  * - Fisuración en la sección del pilote, art. 7.3.4, con la combinación
  *   cuasipermanente: Mqp = Nqp·e + qk·e²/2, sin M_acc ni mayorar el peso
  *   propio. wmax de la tabla 27.2 del Código según la exposición (0,3 mm en
@@ -111,20 +116,63 @@ export interface DatosVigaCentradoraPilotes {
   diametroEstriboMm: number;
   numeroRamas: number;
   /** Extremo de la armadura superior sobre el pilar medianero. Por defecto, recta. */
-  formaAnclaje?: FormaAnclaje;
+  formaAnclaje?: FormaAnclajeCentradora;
+  /** Ø de las horquillas, una por barra superior (mm). Sin dato, el de la superior. */
+  diametroHorquillaMm?: number;
   /** Nqp: axil del pilar medianero en combinación cuasipermanente, G + ψ2·Q (kN) */
   nqpKN: number;
   /** Abertura de fisura admisible, tabla 27.2 (mm) */
   wMaxMm: number;
 }
 
+/**
+ * Extremo de la superior sobre el pilar: recta, patilla a 90°, la misma barra
+ * en U (baja por el extremo y vuelve por abajo) u horquillas aparte solapadas.
+ */
+export type FormaAnclajeCentradora = FormaAnclaje | "u" | "horquilla";
+export const FORMAS_ANCLAJE_CENTRADORA: readonly FormaAnclajeCentradora[] = ["recta", "gancho", "u", "horquilla"];
+
+/** Art. 8.3: el mandril de la tabla A19.8.1 y, si la barra sigue anclando más de 5φ tras la curva, la ec. (8.1). */
+export interface MandrilCentradora {
+  diametroBarraMm: number;
+  tablaMm: number;
+  /** Ec. (8.1); 0 si no hace falta comprobarla (art. 8.3 (3)) */
+  ec81Mm: number;
+  necesarioMm: number;
+  /** Lo que ocupa la curva en el canto, contra h − 2·rec (mm) */
+  ocupaMm: number;
+  disponibleCantoMm: number;
+  entra: boolean;
+}
+
+/** Horquillas solapadas con la superior, art. 8.7.3 con todas las barras solapadas en la misma sección. */
+export interface HorquillasCentradora {
+  diametroMm: number;
+  /** l0 de la superior con la rama de arriba de la horquilla (mm) */
+  l0Mm: number;
+  alfa6: number;
+  /** Las horquillas toman Td: As de horquillas ≥ Td/fyd (cm²) */
+  asNecCm2: number;
+  asRealCm2: number;
+  /** Anclaje de la propia horquilla con su curva (como gancho) */
+  lbdHorquillaMm: number;
+  /** Recta + bajada + rama de abajo de largo l0 (mm) */
+  disponibleHorquillaMm: number;
+}
+
 export interface AnclajeSuperiorCentradora {
+  forma: FormaAnclajeCentradora;
   /** Fig. A19.8.2: barras de arriba en una pieza de más de 250 mm */
   situacion: "buena" | "mala";
   sigmaSdMPa: number;
   lbdMm: number;
-  /** De la cara interior del pilar a la exterior menos el recubrimiento (+ patilla) (mm) */
+  /** De la cara interior del pilar a la exterior menos el recubrimiento, más lo que sume la forma (mm) */
   disponibleMm: number;
+  /** En U: lo que tiene que volver por abajo para completar lbd (mm) */
+  retornoMm: number;
+  horquillas: HorquillasCentradora | null;
+  /** Sólo con curvas (patilla, U, horquilla) */
+  mandril: MandrilCentradora | null;
   verifica: boolean;
 }
 
@@ -326,19 +374,90 @@ export function calcularVigaCentradoraPilotes(
   const libreMm = superior.numero > 1
     ? ((b - 2 * (recubrimiento + phiT / 1000)) * 1000 - superior.numero * phiS) / (superior.numero - 1)
     : Infinity;
-  const cdMm = Math.min((recubrimiento + phiT / 1000) * 1000, libreMm / 2);
-  const { lbdMm } = calcularAnclaje(
-    { fckMPa: fck, fykMPa: materiales.fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
-    { diametroMm: phiS, situacion, forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
-  );
-  const pataM = forma === "gancho" ? Math.max(h - 2 * recubrimiento, 0) : 0;
-  const disponibleMm = (datos.ladoPilarM - recubrimiento + pataM) * 1000;
+  const recLateralMm = (recubrimiento + phiT / 1000) * 1000;
+  const cdMm = Math.min(recLateralMm, libreMm / 2);
+  const matAnclaje = { fckMPa: fck, fykMPa: materiales.fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS };
+  const anclar = (phi: number, sigma: number, conCurva: boolean) =>
+    calcularAnclaje(matAnclaje, {
+      diametroMm: phi, situacion, forma: conCurva ? "gancho" : "recta", esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa: sigma,
+    });
+  const curva = forma !== "recta";
+  const { lbdMm } = anclar(phiS, sigmaSdMPa, curva);
+  const rectaMm = (datos.ladoPilarM - recubrimiento) * 1000;
+  const bajadaMm = Math.max(h - 2 * recubrimiento, 0) * 1000;
+  const cantoLibreMm = bajadaMm;
+
+  // Mandril, art. 8.3, pág. 122. La ec. (8.1) sólo si la barra todavía tiene
+  // que anclar más de 5φ después de la curva (art. 8.3 (3)). ab: media
+  // separación entre ejes, o recubrimiento + φ/2 en la barra de borde; fcd con
+  // tope el de fck = 55.
+  const fcd55 = fcd * (Math.min(fck, 55) / fck);
+  const mandril = (phi: number, sigma: number, tras: number, curvas: 1 | 2): MandrilCentradora => {
+    const tablaMm = mandrilMinimoMm(phi);
+    const abMm = Math.min(Number.isFinite(libreMm) ? (libreMm + phi) / 2 : Infinity, recLateralMm + phi / 2);
+    const fbtN = sigma * ((Math.PI * phi ** 2) / 4);
+    const ec81Mm = tras > 5 * phi ? (fbtN * (1 / abMm + 1 / (2 * phi))) / fcd55 : 0;
+    const necesarioMm = Math.max(tablaMm, ec81Mm);
+    // Una curva: medio mandril más la barra; la U, el mandril entero más dos barras.
+    const ocupaMm = curvas === 1 ? necesarioMm / 2 + phi : necesarioMm + 2 * phi;
+    return { diametroBarraMm: phi, tablaMm, ec81Mm, necesarioMm, ocupaMm, disponibleCantoMm: cantoLibreMm, entra: ocupaMm <= cantoLibreMm };
+  };
+
+  let disponibleMm = rectaMm;
+  let retornoMm = 0;
+  let horquillas: HorquillasCentradora | null = null;
+  let mandrilR: MandrilCentradora | null = null;
+  let verificaAnclaje: boolean;
+  const tdKN = (sigmaSdMPa * flexion.asRealCm2) / 10;
+  if (forma === "recta") {
+    verificaAnclaje = disponibleMm >= lbdMm;
+  } else if (forma === "gancho") {
+    disponibleMm = rectaMm + bajadaMm;
+    mandrilR = mandril(phiS, sigmaSdMPa, lbdMm - rectaMm, 1);
+    verificaAnclaje = disponibleMm >= lbdMm && mandrilR.entra;
+  } else if (forma === "u") {
+    // La misma barra vuelve por abajo lo que falte: se dimensiona, no se
+    // verifica contra un largo (la viga sigue hacia el pilote).
+    retornoMm = Math.ceil(Math.max(lbdMm - rectaMm - bajadaMm, 0) / 10) * 10;
+    disponibleMm = rectaMm + bajadaMm + retornoMm;
+    mandrilR = mandril(phiS, sigmaSdMPa, lbdMm - rectaMm, 2);
+    verificaAnclaje = mandrilR.entra;
+  } else {
+    // Horquillas: la superior llega recta hasta el extremo y se solapa con la
+    // rama de arriba de una horquilla por barra, art. 8.7.3, todas en la misma
+    // sección (α6 = 1,5). La horquilla ancla con su curva: recta + bajada + la
+    // rama de abajo, del mismo largo l0.
+    const phiH = datos.diametroHorquillaMm ?? phiS;
+    const rectaS = anclar(phiS, sigmaSdMPa, false);
+    const { l0Mm, alfa6 } = calcularSolape(rectaS, Math.max(phiS, phiH), 100);
+    const asRealCm2 = (superior.numero * Math.PI * (phiH / 10) ** 2) / 4;
+    const sigmaH = Math.min((tdKN * 10) / asRealCm2, materiales.fyd);
+    const h1 = anclar(phiH, sigmaH, true);
+    const disponibleHorquillaMm = rectaMm + bajadaMm + l0Mm;
+    horquillas = {
+      diametroMm: phiH,
+      l0Mm,
+      alfa6,
+      asNecCm2: (tdKN * 10) / materiales.fyd,
+      asRealCm2,
+      lbdHorquillaMm: h1.lbdMm,
+      disponibleHorquillaMm,
+    };
+    mandrilR = mandril(phiH, sigmaH, h1.lbdMm - rectaMm, 2);
+    disponibleMm = disponibleHorquillaMm;
+    verificaAnclaje = asRealCm2 >= horquillas.asNecCm2 && disponibleHorquillaMm >= h1.lbdMm && mandrilR.entra;
+  }
+
   const anclajeSuperior: AnclajeSuperiorCentradora = {
+    forma,
     situacion,
     sigmaSdMPa,
-    lbdMm,
+    lbdMm: horquillas ? horquillas.lbdHorquillaMm : lbdMm,
     disponibleMm,
-    verifica: disponibleMm >= lbdMm,
+    retornoMm,
+    horquillas,
+    mandril: mandrilR,
+    verifica: verificaAnclaje,
   };
 
   // ------------------------------------------------------------ fisuración

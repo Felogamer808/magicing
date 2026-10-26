@@ -17,6 +17,10 @@ describe("armadura en el panel", () => {
     ]);
     expect(camposDelPanel("viga-centradora-pilotes").map((d) => d.clave)).toContain("excentricidad");
     expect(camposDelPanel("viga-centradora-pilotes").map((d) => d.clave)).not.toContain("n1d");
+    // El extremo de la superior se elige en el panel aunque no entre vacío.
+    expect(camposDelPanel("viga-centradora-pilotes").map((d) => d.clave)).toEqual(
+      expect.arrayContaining(["formaAnclaje", "diametroHorquilla"])
+    );
   });
 
   it("los derivados existen como campos de su verificación", () => {

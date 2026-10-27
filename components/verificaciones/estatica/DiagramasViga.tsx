@@ -26,6 +26,23 @@ interface Props {
   nodos: readonly NodoViga[];
   cargas: readonly CargaViga[];
   resultado: ResultadoViga;
+  /**
+   * Envolvente: si viene, cada diagrama dibuja su curva máxima y su mínima en
+   * vez de las de `resultado`, sobre las abscisas propias.
+   */
+  envolvente?: EnvolventeDiagramas;
+}
+
+interface Curva {
+  max: readonly number[];
+  min: readonly number[];
+}
+
+export interface EnvolventeDiagramas {
+  xs: readonly number[];
+  cortante: Curva;
+  momento: Curva;
+  flecha: Curva;
 }
 
 /**
@@ -71,7 +88,7 @@ const num = (n: number, d = 1) =>
     minimumFractionDigits: 0,
   });
 
-export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
+export function DiagramasViga({ largoM, nodos, cargas, resultado, envolvente }: Props) {
   return (
     <figure className="w-full">
       <Lienzo
@@ -81,6 +98,7 @@ export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
         nodos={nodos}
         cargas={cargas}
         resultado={resultado}
+        envolvente={envolvente}
       />
       <Lienzo
         ancho={ANCHO_ESCRITORIO}
@@ -89,6 +107,7 @@ export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
         nodos={nodos}
         cargas={cargas}
         resultado={resultado}
+        envolvente={envolvente}
       />
     </figure>
   );
@@ -96,17 +115,27 @@ export function DiagramasViga({ largoM, nodos, cargas, resultado }: Props) {
 
 // --------------------------------------------------------------------------
 
-function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { ancho: number; clase: string }) {
+function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado, envolvente }: Props & { ancho: number; clase: string }) {
   const utilX = ancho - IZQ - DER;
   const px = (x: number) => IZQ + (x / largoM) * utilX;
+  const xs = envolvente ? [...envolvente.xs] : resultado.puntos.map((p) => p.xM);
+  // Con envolvente el extremo rotulado es el de mayor módulo entre las dos curvas.
+  const extremoDe = (c: Curva) => {
+    let mejor = { xM: 0, valor: 0 };
+    xs.forEach((xM, k) => {
+      for (const valor of [c.max[k], c.min[k]]) if (Math.abs(valor) > Math.abs(mejor.valor)) mejor = { xM, valor };
+    });
+    return mejor;
+  };
 
   const paneles = [
     {
       clave: "cortante" as const,
       titulo: "Cortante V",
       unidad: "kN",
-      valores: resultado.puntos.map((p) => p.cortanteKN),
-      extremo: resultado.cortanteMax,
+      valores: envolvente ? [...envolvente.cortante.max] : resultado.puntos.map((p) => p.cortanteKN),
+      valoresMin: envolvente ? [...envolvente.cortante.min] : undefined,
+      extremo: envolvente ? extremoDe(envolvente.cortante) : resultado.cortanteMax,
       trazo: "stroke-brillante",
       relleno: "fill-brillante/15",
     },
@@ -114,8 +143,9 @@ function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { an
       clave: "momento" as const,
       titulo: "Flector M (del lado traccionado)",
       unidad: "kN·m",
-      valores: resultado.puntos.map((p) => p.momentoKNm),
-      extremo:
+      valores: envolvente ? [...envolvente.momento.max] : resultado.puntos.map((p) => p.momentoKNm),
+      valoresMin: envolvente ? [...envolvente.momento.min] : undefined,
+      extremo: envolvente ? extremoDe(envolvente.momento) :
         Math.abs(resultado.momentoMin.valor) > Math.abs(resultado.momentoMax.valor)
           ? resultado.momentoMin
           : resultado.momentoMax,
@@ -126,8 +156,9 @@ function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { an
       clave: "flecha" as const,
       titulo: "Deformada δ",
       unidad: "mm",
-      valores: resultado.puntos.map((p) => p.flechaMm),
-      extremo: resultado.flechaMax,
+      valores: envolvente ? [...envolvente.flecha.max] : resultado.puntos.map((p) => p.flechaMm),
+      valoresMin: envolvente ? [...envolvente.flecha.min] : undefined,
+      extremo: envolvente ? extremoDe(envolvente.flecha) : resultado.flechaMax,
       trazo: "stroke-exito",
       relleno: "fill-exito/10",
     },
@@ -148,7 +179,8 @@ function Lienzo({ ancho, clase, largoM, nodos, cargas, resultado }: Props & { an
           titulo={panel.titulo}
           unidad={panel.unidad}
           valores={panel.valores}
-          xs={resultado.puntos.map((p) => p.xM)}
+          valoresMin={panel.valoresMin}
+          xs={xs}
           extremo={panel.extremo}
           // El flector se dibuja invertido para que quede del lado traccionado.
           invertido={panel.clave === "momento"}
@@ -289,6 +321,7 @@ function Panel({
   titulo,
   unidad,
   valores,
+  valoresMin,
   xs,
   extremo,
   invertido,
@@ -301,6 +334,8 @@ function Panel({
   titulo: string;
   unidad: string;
   valores: number[];
+  /** La curva mínima de una envolvente: se dibuja igual, sobre la misma escala. */
+  valoresMin?: number[];
   xs: number[];
   extremo: { xM: number; valor: number };
   invertido: boolean;
@@ -311,16 +346,19 @@ function Panel({
   px: (x: number) => number;
 }) {
   const yCero = top + 52;
-  const pico = Math.max(...valores.map(Math.abs), Math.abs(extremo.valor));
+  const pico = Math.max(...valores.map(Math.abs), ...(valoresMin ?? []).map(Math.abs), Math.abs(extremo.valor));
   // Una viga descargada da todo cero: sin este piso la escala se iría a infinito.
   const escala = pico < 1e-9 ? 0 : AMPLITUD / pico;
   const signo = invertido ? 1 : -1;
   const py = (v: number) => yCero + signo * v * escala;
 
-  const puntos = valores.map((v, i) => `${px(xs[i]).toFixed(2)},${py(v).toFixed(2)}`).join(" ");
-  const area = `M${px(xs[0]).toFixed(2)},${yCero} L${puntos.split(" ").join(" L")} L${px(
+  const trazar = (vs: number[]) => vs.map((v, i) => `${px(xs[i]).toFixed(2)},${py(v).toFixed(2)}`).join(" ");
+  const cerrar = (pts: string) => `M${px(xs[0]).toFixed(2)},${yCero} L${pts.split(" ").join(" L")} L${px(
     xs[xs.length - 1]
   ).toFixed(2)},${yCero} Z`;
+  const puntos = trazar(valores);
+  const area = cerrar(puntos);
+  const puntosMin = valoresMin ? trazar(valoresMin) : null;
 
   const xe = px(extremo.xM);
   const ye = py(extremo.valor);
@@ -339,6 +377,12 @@ function Panel({
 
       <path d={area} className={relleno} />
       <polyline points={puntos} className={`fill-none ${trazo}`} strokeWidth={1.4} />
+      {puntosMin && (
+        <>
+          <path d={cerrar(puntosMin)} className={relleno} />
+          <polyline points={puntosMin} className={`fill-none ${trazo}`} strokeWidth={1.4} />
+        </>
+      )}
       <line
         x1={px(xs[0])} y1={yCero} x2={px(xs[xs.length - 1])} y2={yCero}
         className="stroke-muted-foreground" strokeWidth={0.8}

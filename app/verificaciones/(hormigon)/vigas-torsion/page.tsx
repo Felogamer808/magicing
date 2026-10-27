@@ -236,7 +236,7 @@ export default function VigasTorsionPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <CampoNumerico id="b" etiqueta={conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
                     <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     El recubrimiento se mide de la cara exterior al estribo.

@@ -166,7 +166,7 @@ export default function FisuracionPage() {
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                 <CampoNumerico id="b" etiqueta={seccion.conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
-                <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
+                <CampoNumerico id="rg" etiqueta="Recubrimiento geom." sufijo="m" valor={rg} onChange={setRg} />
                 <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
               </div>
               {seccion.conAla && (

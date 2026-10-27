@@ -109,7 +109,7 @@ export default function CabezalPilotesPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                     <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-                    <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
+                    <CampoNumerico id="rg" etiqueta="Recubrimiento geom." sufijo="m" valor={rg} onChange={setRg} />
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Cabezal y pilotes">

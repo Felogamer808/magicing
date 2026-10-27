@@ -28,17 +28,17 @@ interface CamposAlaTProps {
   almaTxt: string;
   cantoTxt: string;
   /**
-   * De qué lado queda el ala con el momento que se verifica; null si todavía
-   * no se puede decir. Se muestra porque cambia todo el cálculo.
+   * Qué hace el ala con el momento que se verifica (comprimida o traccionada),
+   * en las palabras de cada página: cambia todo el cálculo, así que se dice.
    */
-  alaComprimida: boolean | null;
+  textoLado?: string;
 }
 
 /**
  * El ala de la T en las páginas de servicio: ancho real, espesor y el l0 de
  * la fig. A19.5.2 para b_eff. Son los mismos datos que en flexión y cortante.
  */
-export function CamposAlaT({ seccion, almaTxt, cantoTxt, alaComprimida }: CamposAlaTProps) {
+export function CamposAlaT({ seccion, almaTxt, cantoTxt, textoLado }: CamposAlaTProps) {
   if (!seccion.conAla) return null;
   const { tramo, campos } = seccion;
   const l0 = tramo === "manual" ? aNumero(campos.l0) : calcularL0(tramo, aNumero(campos.luz1), aNumero(campos.luz2));
@@ -53,10 +53,7 @@ export function CamposAlaT({ seccion, almaTxt, cantoTxt, alaComprimida }: Campos
       </div>
       <p className="text-xs text-muted-foreground">
         El ancho del ala es el real, de borde a borde, con los vuelos iguales a los dos lados.
-        {alaComprimida !== null &&
-          (alaComprimida
-            ? " Con este momento el ala queda comprimida: ensancha la compresión de la sección fisurada."
-            : " Con este momento el ala queda traccionada: ahí van las barras, y de ahí sale el área eficaz que rodea la armadura.")}
+        {textoLado && ` ${textoLado}`}
       </p>
       <div className="space-y-3 rounded-md border border-border/60 p-3">
         <p className="text-sm font-medium">Ancho eficaz: ¿cuánta ala trabaja?</p>

@@ -54,6 +54,23 @@ function areaPerimetroT(
 }
 
 /**
+ * Tamaño teórico h0 = 2·Ac/u (mm) de la sección cargada. Es físico —el
+ * hormigón que seca y la cara por donde seca—, así que con T va con el ancho
+ * real del ala, no con b_eff. Lo usa también la página, que muestra h0, φ y
+ * εcs antes de que el resto del formulario cierre.
+ */
+export function h0DesdeCampos(campos: Record<string, string>): number {
+  const num = (clave: string) => aNumero(campos[clave] ?? "");
+  const exposicion = exposicionDesdeNombre(campos.exposicion ?? "");
+  const seccion = leerSeccionT(campos, num("b"), num("h"));
+  const { acM2, uM } =
+    seccion && seccion !== "rectangular"
+      ? areaPerimetroT(exposicion, num("b"), num("h"), seccion.ala.anchoM, seccion.ala.espesorM, seccion.tipo === "t")
+      : { acM2: num("b") * num("h"), uM: perimetroExpuestoM(exposicion, num("b"), num("h")) };
+  return tamanoTeoricoMm(acM2, uM);
+}
+
+/**
  * Deformaciones a partir de los campos de la página, tal como se cargaron.
  *
  * Vive acá y no en la página porque lo corren la pantalla y las
@@ -80,13 +97,7 @@ export function resolverDeformaciones(campos: Record<string, string>) {
     seccion === "rectangular" ? null : { ...seccion, alaComprimida: alaComprimidaCon(seccion.tipo, momentoPositivo) };
 
   const cemento = cementoDesdeNombre(t("cemento"));
-  const exposicion = exposicionDesdeNombre(t("exposicion"));
-  // h0 = 2·Ac/u es físico: el hormigón que seca y la cara por donde seca. Por
-  // eso va con el ancho real del ala, no con b_eff.
-  const { acM2, uM } = seccionT
-    ? areaPerimetroT(exposicion, num("b"), num("h"), seccionT.ala.anchoM, seccionT.ala.espesorM, seccionT.tipo === "t")
-    : { acM2: num("b") * num("h"), uM: perimetroExpuestoM(exposicion, num("b"), num("h")) };
-  const h0Mm = tamanoTeoricoMm(acM2, uM);
+  const h0Mm = h0DesdeCampos(campos);
   const fluencia = calcularFluencia({ fckMPa: num("fck"), hrPct: num("hr"), t0Dias: num("t0"), claseCemento: cemento, h0Mm });
   const retraccion = calcularRetraccion({ fckMPa: num("fck"), hrPct: num("hr"), claseCemento: cemento, h0Mm });
 

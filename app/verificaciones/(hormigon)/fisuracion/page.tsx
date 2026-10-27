@@ -178,7 +178,16 @@ export default function FisuracionPage() {
                     opciones={Object.values(ROTULOS_SIGNO_MOMENTO)}
                     onChange={(x) => setSignoMomento(signoMomentoPorRotulo(x))}
                   />
-                  <CamposAlaT seccion={seccion} almaTxt={b} cantoTxt={h} alaComprimida={alaComprimida} />
+                  <CamposAlaT
+                    seccion={seccion}
+                    almaTxt={b}
+                    cantoTxt={h}
+                    textoLado={
+                      alaComprimida
+                        ? "Con este momento el ala queda comprimida: ensancha la compresión de la sección fisurada."
+                        : "Con este momento el ala queda traccionada: ahí van las barras, y de ahí sale el área eficaz que rodea la armadura."
+                    }
+                  />
                 </>
               )}
               </div>

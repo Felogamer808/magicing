@@ -30,15 +30,19 @@ import {
   NOMBRE_EXPOSICION,
   calcularFluencia,
   calcularRetraccion,
-  perimetroExpuestoM,
-  tamanoTeoricoMm,
   type ClaseCemento,
   type ExposicionSeccion,
 } from "@/lib/calc/hormigon/comun/diferidas";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { CroquisArmaduraFlexion, CroquisMateriales } from "@/components/verificaciones/croquis/CroquisViga";
 import { areaBarrasCm2, resolverDeformaciones, sistemaDesdeNombre } from "@/lib/calc/hormigon/resolver-deformaciones";
-import { cementoDesdeNombre, exposicionDesdeNombre } from "@/lib/calc/hormigon/comun/diferidas";
+import { cementoDesdeNombre } from "@/lib/calc/hormigon/comun/diferidas";
+import { h0DesdeCampos } from "@/lib/calc/hormigon/resolver-deformaciones";
+import { alaComprimidaCon } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { useSeccionT } from "@/lib/hooks/useSeccionT";
+import { CampoTipoSeccion } from "@/components/verificaciones/hormigon/CampoTipoSeccion";
+import { CamposAlaT } from "@/components/verificaciones/hormigon/CamposAlaT";
+import { CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
 import { recomendarDeformaciones } from "@/lib/verificaciones/recomendaciones/deformaciones";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -74,6 +78,8 @@ export default function DeformacionesPage() {
   const [fyk, setFyk] = useCampo("fyk", "500");
   const [esGPa, setEsGPa] = useCampo("esGPa", "200");
   const [b, setB] = useCampo("b", "0.3");
+  // Sección en T: b pasa a ser el alma y el ala se carga como en flexión.
+  const seccion = useSeccionT();
   const [h, setH] = useCampo("h", "0.5");
   const [d, setD] = useCampo("d", "0.45");
   const [dComp, setDComp] = useCampo("dComp", "0.05");
@@ -116,14 +122,11 @@ export default function DeformacionesPage() {
   const [coefManual, setCoefManual] = useCampo("coefManual", "0.104");
 
   const cemento = cementoDesdeNombre(cementoTxt);
-  const exposicion = exposicionDesdeNombre(exposicionTxt);
 
   // h0 y φ dependen de la sección, así que se arman acá y no dentro del useMemo
   // del resultado: se muestran aunque el resto del formulario todavía no cierre.
-  const h0Mm = tamanoTeoricoMm(
-    aNumero(b) * aNumero(h),
-    perimetroExpuestoM(exposicion, aNumero(b), aNumero(h))
-  );
+  // Con T, h0 va con la sección real (el ala entera), igual que en el resolver.
+  const h0Mm = h0DesdeCampos({ b, h, exposicion: exposicionTxt, ...seccion.campos });
   const fluencia = useMemo(
     () =>
       calcularFluencia({
@@ -146,6 +149,8 @@ export default function DeformacionesPage() {
     [fck, hr, cemento, h0Mm]
   );
   const sistema = sistemaDesdeNombre(sistemaTxt);
+  // El método mira el centro de vano (momento positivo), salvo en voladizo.
+  const alaComprimida = seccion.conAla ? alaComprimidaCon(seccion.tipo, sistema !== "voladizo") : null;
   const esquemaElegido = COEF_FLECHA.find((c) => c.nombre === esquemaTxt);
   const coefFlecha = esquemaElegido ? esquemaElegido.valor : aNumero(coefManual);
 
@@ -163,8 +168,9 @@ export default function DeformacionesPage() {
     () => ({
       fck, fyk, esGPa, b, h, d, dComp, luz, numeroAs, phiAs, capa2, numeroAs2, phiAs2, numeroAsComp, phiAsComp, asReq, alaEnT, tabiques, mqp, hr, t0,
       sistema: sistemaTxt, cemento: cementoTxt, exposicion: exposicionTxt, esquema: esquemaTxt, coefManual,
+      ...seccion.campos,
     }),
-    [fck, fyk, esGPa, b, h, d, dComp, luz, numeroAs, phiAs, capa2, numeroAs2, phiAs2, numeroAsComp, phiAsComp, asReq, alaEnT, tabiques, mqp, hr, t0, sistemaTxt, cementoTxt, exposicionTxt, esquemaTxt, coefManual]
+    [fck, fyk, esGPa, b, h, d, dComp, luz, numeroAs, phiAs, capa2, numeroAs2, phiAs2, numeroAsComp, phiAsComp, asReq, alaEnT, tabiques, mqp, hr, t0, sistemaTxt, cementoTxt, exposicionTxt, esquemaTxt, coefManual, seccion.campos]
   );
   const resultado = useMemo(() => resolverDeformaciones(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -214,12 +220,49 @@ export default function DeformacionesPage() {
         </Etapa>
 
         <Etapa id="seccion" numero={2} titulo="Sección y luz" descripcion="Cantos útiles medidos a cada armadura y la luz efectiva del vano.">
-          <div className="grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-3">
-            <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+          <div className="max-w-3xl space-y-4">
+          <div className="max-w-sm">
+            <CampoTipoSeccion seccion={seccion} />
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <CampoNumerico id="b" etiqueta={seccion.conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
             <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
             <CampoNumerico id="d" etiqueta="d (canto útil)" sufijo="m" valor={d} onChange={setD} />
             <CampoNumerico id="dComp" etiqueta="d' (a la comprimida)" sufijo="m" valor={dComp} onChange={setDComp} />
             <CampoNumerico id="luz" etiqueta="Luz efectiva leff" sufijo="m" valor={luz} onChange={setLuz} />
+          </div>
+          {seccion.conAla && (
+            <Subgrupo titulo={seccion.tipo === "t" ? "Ala superior" : "Ala inferior"}>
+              <DatosConDibujo
+                datos={(
+                  <CamposAlaT
+                    seccion={seccion}
+                    almaTxt={b}
+                    cantoTxt={h}
+                    textoLado={
+                      alaComprimida
+                        ? "En el centro de vano el ala queda comprimida: entra en la compresión de la sección fisurada y la hace más rígida."
+                        : sistemaEsVoladizo
+                          ? "En el arranque del voladizo el ala queda traccionada: suma rigidez y Mcr antes de fisurar; fisurada, comprime sólo el alma."
+                          : "En el centro de vano el ala queda traccionada: suma rigidez y Mcr antes de fisurar; fisurada, comprime sólo el alma."
+                    }
+                  />
+                )}
+                dibujo={
+                  aNumero(b) > 0 && aNumero(h) > 0 && aNumero(seccion.campos.anchoAla) > 0 && aNumero(seccion.campos.espesorAla) > 0 ? (
+                    <CroquisSeccionT
+                      invertida={seccion.tipo === "t-invertida"}
+                      anchoAlaM={aNumero(seccion.campos.anchoAla)}
+                      almaM={aNumero(b)}
+                      cantoM={aNumero(h)}
+                      espesorAlaM={aNumero(seccion.campos.espesorAla)}
+                      anchoEficazM={resultado?.seccionT?.anchoEficaz.anchoEficazM}
+                    />
+                  ) : null
+                }
+              />
+            </Subgrupo>
+          )}
           </div>
         </Etapa>
 
@@ -318,7 +361,17 @@ export default function DeformacionesPage() {
             <div className="sm:col-span-2">
               <CampoSeleccion id="sistema" etiqueta="Sistema estructural (tabla A19.7.4)" valor={sistemaTxt} opciones={OPCIONES_SISTEMA} onChange={setSistemaTxt} />
             </div>
-            <CampoSeleccion id="alaEnT" etiqueta="Sección en T con ala/alma > 3" valor={alaEnT} opciones={["No", "Sí"]} onChange={setAlaEnT} />
+            {seccion.conAla ? (
+              <p className="self-end text-sm text-muted-foreground">
+                {resultado?.seccionT
+                  ? `b_eff/bw = ${fmt(resultado.seccionT.anchoEficaz.anchoEficazM / resultado.n.b, 2)}: ${
+                      resultado.luzCanto.factorAla < 1 ? "mayor que 3, l/d × 0,8." : "no pasa de 3, sin corrección."
+                    }`
+                  : "El factor 0,8 sale de la geometría del ala."}
+              </p>
+            ) : (
+              <CampoSeleccion id="alaEnT" etiqueta="Sección en T con ala/alma > 3" valor={alaEnT} opciones={["No", "Sí"]} onChange={setAlaEnT} />
+            )}
             <CampoSeleccion id="tabiques" etiqueta="Soporta tabiques frágiles" valor={tabiques} opciones={["No", "Sí"]} onChange={setTabiques} />
             <div className="sm:col-span-2">
               <PanelAyuda titulo="Qué corrige cada opción">
@@ -421,7 +474,14 @@ export default function DeformacionesPage() {
             norma={norma}
             datos={[
               { etiqueta: "fck / fyk / Es", valor: `${fck} / ${fyk} MPa / ${esGPa} GPa` },
-              { etiqueta: "Sección b × h", valor: `${b} × ${h} m · d ${d} m · d' ${dComp} m` },
+              { etiqueta: resultado?.seccionT ? "Alma bw × h" : "Sección b × h", valor: `${b} × ${h} m · d ${d} m · d' ${dComp} m` },
+              ...(resultado?.seccionT
+                ? [{
+                    etiqueta: resultado.seccionT.tipo === "t" ? "Ala superior" : "Ala inferior",
+                    valor: `${seccion.campos.anchoAla} × ${seccion.campos.espesorAla} m, b_eff ${fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m, ${resultado.seccionT.alaComprimida ? "comprimida" : "traccionada"}`,
+                    derivado: true,
+                  }]
+                : []),
               { etiqueta: "Luz efectiva", valor: `${luz} m` },
               { etiqueta: "As / A's", valor: `${fmt(asProvCm2)} / ${fmt(asCompCm2)} cm²` },
               { etiqueta: "As necesaria ELU", valor: `${asReq} cm²` },
@@ -434,7 +494,18 @@ export default function DeformacionesPage() {
             hipotesis={[
               "Anejo 19, art. 7.4.2 (luz/canto) y 7.4.3 (flecha calculada).",
               "Momento de la combinación cuasipermanente, no el de cálculo.",
-              "ρ y ρ' geométricas sobre b·d, con la armadura del centro de vano (en voladizo, la del arranque).",
+              resultado?.seccionT
+                ? "ρ y ρ' geométricas sobre bw·d, el alma sola: el Anejo 19 no fija el ancho en una T y así queda del lado seguro."
+                : "ρ y ρ' geométricas sobre b·d, con la armadura del centro de vano (en voladizo, la del arranque).",
+              ...(resultado?.seccionT
+                ? [
+                    "Sección en T con b_eff (art. 5.3.2.1) en las inercias y en Mcr; h0 con el ala real, que es la que seca.",
+                    resultado.seccionT.alaComprimida
+                      ? "Ala comprimida: entra en la compresión de la sección fisurada."
+                      : "Ala traccionada: sube la inercia sin fisurar y Mcr; fisurada, comprime sólo el alma.",
+                    "Factor 0,8 de l/d siempre que b_eff/bw > 3 (art. 7.4.2 (2)), con el ala comprimida o traccionada.",
+                  ]
+                : []),
               "Fluencia y retracción a tiempo infinito (βc = 1), por el Apéndice B; sin corrección por temperatura de la ec. (B.10).",
               "Flecha diferida = total − instantánea: lo que se puede dañar se construye apenas desencofrado. Es del lado de la seguridad.",
               "Límites L/250 para la flecha total (art. 7.4.1(4)) y L/500 para la diferida (art. 7.4.1(5)).",

@@ -83,9 +83,9 @@ export default function VigaLibrePage() {
           id="viga"
           numero={1}
           titulo="Tramos y cargas"
-          descripcion="Se arma tramo por tramo, con el apoyo de cada nudo. Un voladizo es un tramo con el extremo libre."
+          descripcion="Se arma sobre el dibujo: agregá tramos y cargas, y tocá cualquier elemento para editarlo."
         >
-          <div className="max-w-3xl">
+          <div>
             <EditorVigaLibre modelo={modelo} onChange={(m) => setCrudo(JSON.stringify(m))} />
           </div>
         </Etapa>

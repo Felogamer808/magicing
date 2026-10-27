@@ -150,7 +150,7 @@ export default function CapitelesPage() {
                 <Subgrupo titulo="Losa y material">
                   <div className="grid grid-cols-3 gap-4">
                     <CampoNumerico id="espesor" etiqueta="Espesor h" sufijo="m" valor={espesor} onChange={setEspesor} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                   </div>
                 </Subgrupo>

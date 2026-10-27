@@ -131,7 +131,7 @@ export default function LosaFundacionPage() {
                     <CampoNumerico id="longitud" etiqueta="Longitud" sufijo="m" valor={longitud} onChange={setLongitud} />
                     <CampoNumerico id="anchoTributario" etiqueta="Ancho tributario" sufijo="m" valor={anchoTributario} onChange={setAnchoTributario} />
                     <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                   </div>
                 </Subgrupo>
               </>

@@ -169,7 +169,7 @@ export default function ZapataCombinadaPage() {
           { etiqueta: "Inferior", valor: `${numeroInferior} Ø${diametroInferior} en B` },
           { etiqueta: "Superior", valor: `${numeroSuperior} Ø${diametroSuperior} en B` },
           { etiqueta: "Transversal", valor: `Ø${diametroTransversal} c/${separacionTransversal} m · ${FORMAS[formaAnclaje].toLowerCase()}` },
-          { etiqueta: "Recubrimiento", valor: `${recubrimiento} m` },
+          { etiqueta: "Recubrimiento geom.", valor: `${recubrimiento} m` },
         ]}
       />
     ) : (
@@ -240,7 +240,7 @@ export default function ZapataCombinadaPage() {
                       <CampoNumerico id="A" etiqueta="L (largo, entre pilares)" sufijo="m" valor={A} onChange={setA} />
                       <CampoNumerico id="B" etiqueta="B (ancho)" sufijo="m" valor={B} onChange={setB} />
                       <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-                      <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                      <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                     </div>
                   </Subgrupo>
                   <Subgrupo titulo="Pilares a lo ancho">

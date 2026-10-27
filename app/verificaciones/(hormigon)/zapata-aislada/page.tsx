@@ -283,7 +283,7 @@ export default function ZapataAisladaPage() {
           { etiqueta: "A2 · dir. B", valor: `${v.nB} Ø${v.fB} c/${fmt(sep(v.A, v.nB, v.fB), 2)} m` },
           { etiqueta: "Extremo", valor: FORMAS[formaAnclaje].toLowerCase() },
           { etiqueta: "d A / d B", valor: `${fmt(dA, 2)} / ${fmt(dB, 2)} m` },
-          { etiqueta: "Recubrimiento", valor: `${fmt(v.rec, 2)} m` },
+          { etiqueta: "Recubrimiento geom.", valor: `${fmt(v.rec, 2)} m` },
         ]}
       />
     );
@@ -329,7 +329,7 @@ export default function ZapataAisladaPage() {
                     <CampoNumerico id="A" etiqueta="A" sufijo="m" valor={A} onChange={setA} />
                     <CampoNumerico id="B" etiqueta="B" sufijo="m" valor={B} onChange={setB} />
                     <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Pilar">

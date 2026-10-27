@@ -203,7 +203,7 @@ export default function ZapataCorridaPage() {
         { etiqueta: "A1 · extremo", valor: FORMAS[formaAnclaje].toLowerCase() },
         { etiqueta: "A2 · reparto", valor: `${numeroSecundario} Ø${diametroSecundario} en todo A` },
         { etiqueta: "d", valor: `${fmt(diagrama.dM, 2)} m` },
-        { etiqueta: "Recubrimiento", valor: `${fmt(aNumero(recubrimiento), 2)} m` },
+        { etiqueta: "Recubrimiento geom.", valor: `${fmt(aNumero(recubrimiento), 2)} m` },
       ]}
     />
   ) : (
@@ -244,7 +244,7 @@ export default function ZapataCorridaPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="A" etiqueta="A (ancho)" sufijo="m" valor={A} onChange={setA} />
                     <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                     <CampoNumerico id="anchoPilar" etiqueta="Espesor del muro" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
                     <div className="col-span-2">
                       <CampoSeleccion

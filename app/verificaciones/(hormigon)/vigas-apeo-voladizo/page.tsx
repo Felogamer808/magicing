@@ -144,7 +144,7 @@ export default function VigaApeoVoladizoPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                     <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
-                    <CampoNumerico id="rec" etiqueta="Recubrimiento" sufijo="m" valor={rec} onChange={setRec} />
+                    <CampoNumerico id="rec" etiqueta="Recubrimiento geom." sufijo="m" valor={rec} onChange={setRec} />
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Viga">

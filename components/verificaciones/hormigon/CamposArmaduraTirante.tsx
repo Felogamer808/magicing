@@ -36,7 +36,7 @@ export function CamposArmaduraTirante({
         ) : (
           <CampoNumerico id="separacionTirante" etiqueta="Separación" sufijo="m" valor={cantidadOSeparacion.valor} onChange={cantidadOSeparacion.onChange} />
         )}
-        <CampoNumerico id="recubrimientoTirante" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento.valor} onChange={recubrimiento.onChange} />
+        <CampoNumerico id="recubrimientoTirante" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento.valor} onChange={recubrimiento.onChange} />
         <CampoSeleccion id="adherenciaTirante" etiqueta="Adherencia" valor={adherencia.valor} opciones={ADHERENCIAS_TIRANTE} onChange={adherencia.onChange} />
         <CampoSeleccion id="extremoTirante" etiqueta="Extremo en el apoyo" valor={extremo.valor} opciones={EXTREMOS_TIRANTE} onChange={extremo.onChange} />
         {conPatilla && (

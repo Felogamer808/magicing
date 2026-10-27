@@ -51,7 +51,7 @@ function vigaFlexionCortante(campos: Record<string, string>): CapituloCalculo | 
               ]
             : [{ etiqueta: "Ancho b", valor: `${fmt(v.b, 3)} m` }]),
           { etiqueta: "Canto h", valor: `${fmt(v.h, 3)} m` },
-          { etiqueta: "Recubrimiento", valor: `${fmt(v.recubrimiento * 100, 1)} cm` },
+          { etiqueta: "Recubrimiento geom.", valor: `${fmt(v.recubrimiento * 100, 1)} cm` },
           { etiqueta: "Canto útil d", valor: `${fmt(d, 3)} m` },
         ],
       },

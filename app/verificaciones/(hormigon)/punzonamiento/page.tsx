@@ -180,7 +180,7 @@ export default function PunzonamientoPage() {
                 <Subgrupo titulo="Losa y materiales">
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="espesor" etiqueta="Espesor h" sufijo="m" valor={espesor} onChange={setEspesor} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                     <CampoNumerico id="fyk" etiqueta="fyk armadura" sufijo="MPa" valor={fyk} onChange={setFyk} />
                   </div>

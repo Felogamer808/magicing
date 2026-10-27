@@ -127,6 +127,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   "longitudes-anclaje": { nivel: "probada", nota: "Pendiente de auditoría contra el articulado." },
 
   punzonamiento: { nivel: "probada" },
+  capiteles: {
+    nivel: "probada",
+    nota: "Sin planilla: se contrasta contra las ecs. (6.33) a (6.37) y contra el punzonamiento común sin capitel (tests). Sólo hormigón, sin armadura de punzonamiento. En borde y esquina el capitel chico rectangular usa el perímetro a 2d de su borde, porque las (6.34) y (6.35) son de pilar interior; el pilar circular de borde o esquina se lleva a un cuadrado de igual área para u0.",
+  },
   "vigas-apeo-bielas": { nivel: "probada" },
   "vigas-apeo-voladizo": {
     nivel: "probada",

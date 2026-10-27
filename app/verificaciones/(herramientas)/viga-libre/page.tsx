@@ -12,7 +12,14 @@ import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { DiagramasViga } from "@/components/verificaciones/estatica/DiagramasViga";
 import { EditorVigaLibre } from "@/components/verificaciones/estatica/EditorVigaLibre";
-import { COMBINACIONES_LIBRE, calcularVigaLibre, type ResultadoVigaLibre } from "@/lib/calc/estatica/viga-libre";
+import { Button } from "@/components/ui/button";
+import {
+  COMBINACIONES_LIBRE,
+  calcularEnvolventeVigaLibre,
+  envolventeTodoCargado,
+  type EnvolventeVigaLibre,
+  type ExtremoEnvolvente,
+} from "@/lib/calc/estatica/viga-libre";
 import { datosDelModelo, leerModelo } from "@/lib/verificaciones/viga-libre-modelo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -34,7 +41,22 @@ const NOMBRE_APOYO: Record<string, string> = {
 /** El −10⁻¹⁵ del solver se imprime "−0,00": se aplasta al formatear, como en el formulario. */
 const sinCeroNegativo = (n: number) => (Math.abs(n) < 5e-9 ? 0 : n);
 
-type Estado = ({ ok: true } & ResultadoVigaLibre) | { ok: false; motivo: string };
+/** Un valor si mínimo y máximo coinciden; si no, "mín … máx". */
+const rango = (min: number, max: number, unidad: string) =>
+  Math.abs(max - min) < 1e-6
+    ? `${fmt(sinCeroNegativo(max), 2)} ${unidad}`
+    : `${fmt(sinCeroNegativo(min), 2)} … ${fmt(sinCeroNegativo(max), 2)} ${unidad}`;
+
+type Estado = { ok: true; env: EnvolventeVigaLibre } | { ok: false; motivo: string };
+
+/** "Q en tramos 1 y 3", para decir qué disposición da cada extremo. */
+function disposicion(e: ExtremoEnvolvente, nTramos: number, alternada: boolean) {
+  if (!alternada) return `x = ${fmt(e.xM, 2)} m`;
+  const t = e.tramosConQ;
+  const texto =
+    t.length === 0 ? "sin Q" : t.length === nTramos ? "Q en todos" : `Q en ${t.length === 1 ? "tramo" : "tramos"} ${t.join(", ")}`;
+  return `x = ${fmt(e.xM, 2)} m · ${texto}`;
+}
 
 export default function VigaLibrePage() {
   const [norma, setNorma] = useCampo("norma", "Estática");
@@ -42,6 +64,8 @@ export default function VigaLibrePage() {
   const [combinacionId, setCombinacionId] = useCampo("combinacion", "elu");
   const [eGPa, setEGPa] = useCampo("eGPa", "30");
   const [iCm4, setICm4] = useCampo("iCm4", "540000");
+  const [alternar, setAlternar] = useCampo("alternarQ", "si");
+  const alternada = alternar === "si";
 
   const modelo = leerModelo(crudo);
   const combinacion = COMBINACIONES_LIBRE.find((c) => c.id === combinacionId) ?? COMBINACIONES_LIBRE[0];
@@ -54,14 +78,20 @@ export default function VigaLibrePage() {
     estado = leido;
   } else {
     try {
-      estado = { ok: true, ...calcularVigaLibre(leido.datos, combinacion) };
+      estado = {
+        ok: true,
+        env: alternada ? calcularEnvolventeVigaLibre(leido.datos, combinacion) : envolventeTodoCargado(leido.datos, combinacion),
+      };
     } catch (e) {
       estado = { ok: false, motivo: e instanceof Error ? e.message : "No se pudo resolver la viga." };
     }
   }
 
   const avisos: AvisoRevision[] = estado.ok ? [] : [{ tipo: "error", texto: estado.motivo }];
-  const r = estado.ok ? estado.resultado : null;
+  const env = estado.ok ? estado.env : null;
+  const nTramos = modelo.tramos.length;
+  const largoM = env ? env.todoCargado.entrada.largoM : 0;
+  const flechaMod = env ? Math.abs(env.flechaMax.valor) : 0;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -110,12 +140,15 @@ export default function VigaLibrePage() {
               { etiqueta: "Tramos", valor: modelo.tramos.map((t) => `${t.luz} m`).join(" + ") },
               { etiqueta: "Cargas", valor: `${modelo.cargas.filter((c) => c.caso === "G").length} G · ${modelo.cargas.filter((c) => c.caso === "Q").length} Q` },
               { etiqueta: "Combinación", valor: combinacion.nombre },
+              { etiqueta: "Sobrecarga Q", valor: alternada ? "Alternada por tramo (envolvente)" : "En todos los tramos" },
               { etiqueta: "EI", valor: Number.isFinite(eiKNm2) ? `${fmt(eiKNm2, 0)} kN·m²` : "—", derivado: true },
             ]}
             hipotesis={[
               "Rigidez directa con elementos de Euler-Bernoulli, el mismo motor que el formulario de vigas: exacto para cargas puntuales y distribuidas lineales.",
-              "La combinación carga todos los tramos a la vez. Todavía no hay alternancia de la sobrecarga: el máximo negativo en apoyos y el positivo en vanos pueden quedar cortos en vigas continuas.",
-              "γG = 1,35 y γQ = 1,5 en ELU, los mismos coeficientes del resto de la app.",
+              alternada
+                ? "Q alternada tramo por tramo, voladizos incluidos: la envolvente es el peor de las 2ⁿ disposiciones en cada sección, como pide el Anejo 19, art. 5.1.3 (1), pág. 45."
+                : "Q en todos los tramos a la vez: en vigas continuas el negativo en apoyos y el positivo en vanos pueden quedar cortos. Para dimensionar, alternar Q.",
+              "G con el mismo coeficiente en toda la viga (1,35 en ELU); sólo Q se alterna. γQ = 1,5. Son los coeficientes del resto de la app.",
               "EI constante en toda la viga. Cargas positivas hacia abajo; el flector se dibuja del lado traccionado.",
             ]}
             avisos={avisos}
@@ -124,7 +157,8 @@ export default function VigaLibrePage() {
 
         <Etapa id="resultados" numero={4} titulo="Resultados">
           <div className="space-y-8">
-            <div className="max-w-xs">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="w-full max-w-xs">
               <CampoSeleccion
                 id="combinacion"
                 etiqueta="Combinación"
@@ -135,8 +169,17 @@ export default function VigaLibrePage() {
                   if (c) setCombinacionId(c.id);
                 }}
               />
+              </div>
+              <div className="flex gap-2">
+                <Button variant={alternada ? "default" : "outline"} size="sm" onClick={() => setAlternar("si")}>
+                  Q alternada por tramo
+                </Button>
+                <Button variant={alternada ? "outline" : "default"} size="sm" onClick={() => setAlternar("no")}>
+                  Q en todos los tramos
+                </Button>
+              </div>
             </div>
-            {!estado.ok || !r ? (
+            {!estado.ok || !env ? (
               <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
                 <EstadoVerificacionChip estado="datos-insuficientes" />
                 <span className="text-muted-foreground">{estado.ok ? "" : estado.motivo}</span>
@@ -146,22 +189,29 @@ export default function VigaLibrePage() {
                 <PanelMetricas
                   horizontal
                   metricas={[
-                    { etiqueta: "Momento máx. +", valor: `${fmt(sinCeroNegativo(r.momentoMax.valor), 2)} kN·m`, nota: `x = ${fmt(r.momentoMax.xM, 2)} m` },
-                    { etiqueta: "Momento máx. −", valor: `${fmt(sinCeroNegativo(r.momentoMin.valor), 2)} kN·m`, nota: `x = ${fmt(r.momentoMin.xM, 2)} m` },
-                    { etiqueta: "Cortante máx.", valor: `${fmt(sinCeroNegativo(r.cortanteMax.valor), 2)} kN`, nota: `x = ${fmt(r.cortanteMax.xM, 2)} m` },
+                    { etiqueta: "Momento máx. +", valor: `${fmt(sinCeroNegativo(env.momentoMax.valor), 2)} kN·m`, nota: disposicion(env.momentoMax, nTramos, alternada) },
+                    { etiqueta: "Momento máx. −", valor: `${fmt(sinCeroNegativo(env.momentoMin.valor), 2)} kN·m`, nota: disposicion(env.momentoMin, nTramos, alternada) },
+                    { etiqueta: "Cortante máx.", valor: `${fmt(sinCeroNegativo(env.cortanteMax.valor), 2)} kN`, nota: disposicion(env.cortanteMax, nTramos, alternada) },
                     combinacion.flechaConSentido
                       ? {
                           etiqueta: "Flecha máx.",
-                          valor: `${fmt(sinCeroNegativo(r.flechaMax.valor), 2)} mm`,
-                          nota: Number.isFinite(r.relacionLSobreFlecha) ? `L / ${fmt(r.relacionLSobreFlecha, 0)}` : "sin flecha",
+                          valor: `${fmt(sinCeroNegativo(env.flechaMax.valor), 2)} mm`,
+                          nota: flechaMod > 1e-9 ? `L / ${fmt(largoM / (flechaMod / 1000), 0)} · ${disposicion(env.flechaMax, nTramos, alternada)}` : "sin flecha",
                         }
                       : { etiqueta: "Flecha", valor: "—", nota: "elegir una combinación de servicio" },
                   ]}
                 />
                 <Subgrupo titulo="Diagramas">
                   <div className="space-y-2">
-                    <DiagramasViga largoM={estado.entrada.largoM} nodos={estado.entrada.nodos} cargas={estado.entrada.cargas} resultado={r} />
+                    <DiagramasViga
+                      largoM={largoM}
+                      nodos={env.todoCargado.entrada.nodos}
+                      cargas={env.todoCargado.entrada.cargas}
+                      resultado={env.todoCargado.resultado}
+                      envolvente={alternada ? env : undefined}
+                    />
                     <p className="text-xs text-muted-foreground">
+                      {alternada && "Envolvente: cada diagrama muestra el máximo y el mínimo de todas las disposiciones de Q. "}
                       Cargas ya multiplicadas por los coeficientes de la combinación. El flector se dibuja
                       del lado traccionado: lo que queda para abajo es momento positivo y se arma abajo.
                       {!combinacion.flechaConSentido && " La deformada de ELU no es una flecha: sólo muestra la forma."}
@@ -171,22 +221,22 @@ export default function VigaLibrePage() {
                 <Subgrupo titulo="Reacciones">
                   <div className="space-y-3 pt-0">
                     <div>
-                      {r.reacciones
+                      {env.reacciones
                         .filter((x) => x.tipo !== "libre")
                         .map((x) => (
                           <div key={x.xM} className="flex items-baseline justify-between gap-3 border-b border-border/60 py-1.5 last:border-0">
                             <span className="text-sm text-muted-foreground">{`${NOMBRE_APOYO[x.tipo]} en x = ${fmt(x.xM, 2)} m`}</span>
                             <span className="font-mono text-sm tabular-nums">
-                              {x.tipo === "empotrado"
-                                ? `${fmt(sinCeroNegativo(x.rKN), 2)} kN · ${fmt(sinCeroNegativo(x.mKNm), 2)} kN·m`
-                                : `${fmt(sinCeroNegativo(x.rKN), 2)} kN`}
+                              {rango(x.rMinKN, x.rMaxKN, "kN")}
+                              {x.tipo === "empotrado" && ` · ${rango(x.mMinKNm, x.mMaxKNm, "kN·m")}`}
                             </span>
                           </div>
                         ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Reacción vertical positiva hacia arriba; momento de empotramiento positivo antihorario.
-                      Cierre de equilibrio vertical: {fmt(Math.abs(r.desequilibrioKN), 6)} kN.
+                      {alternada && " Con Q alternada se da el mínimo y el máximo; un mínimo negativo es levantamiento."}
+                      {" "}Cierre de equilibrio vertical con todo cargado: {fmt(Math.abs(env.todoCargado.resultado.desequilibrioKN), 6)} kN.
                     </p>
                   </div>
                 </Subgrupo>

@@ -1,10 +1,13 @@
+import { calcularVigaContinua } from "./viga-continua";
 import { describe, expect, it } from "vitest";
 import {
   COMBINACIONES_LIBRE,
   abscisasNudos,
   armarVigaLibre,
+  calcularEnvolventeVigaLibre,
   calcularVigaLibre,
   validarVigaLibre,
+  type CargaLibre,
   type DatosVigaLibre,
   type IdCombinacionLibre,
 } from "./viga-libre";
@@ -88,5 +91,78 @@ describe("viga libre", () => {
     expect(validarVigaLibre({ ...base, lucesM: [0] })).toMatch(/luz mayor que cero/);
     expect(validarVigaLibre({ ...base, apoyos: ["simple"] })).toMatch(/su apoyo/);
     expect(() => calcularVigaLibre({ ...base, apoyos: ["simple", "libre"] }, comb("G"))).toThrow(/mecanismo/);
+  });
+});
+
+describe("envolvente con Q alternada", () => {
+  // Dos tramos iguales con G y Q uniformes en toda la viga.
+  const dosTramos: DatosVigaLibre = {
+    lucesM: [6, 6],
+    apoyos: ["simple", "simple", "simple"],
+    cargas: [
+      { tipo: "distribuida", caso: "G", desdeM: 0, hastaM: 12, qInicialKNm: 20, qFinalKNm: 20 },
+      { tipo: "distribuida", caso: "Q", desdeM: 0, hastaM: 12, qInicialKNm: 10, qFinalKNm: 10 },
+    ],
+    eiKNm2: EI,
+  };
+
+  it("el negativo del apoyo central sale con los dos tramos cargados: qL²/8", () => {
+    const env = calcularEnvolventeVigaLibre(dosTramos, comb("elu"));
+    const q = 1.35 * 20 + 1.5 * 10;
+    expect(env.momentoMin.valor).toBeCloseTo(-(q * 36) / 8, 6);
+    expect(env.momentoMin.tramosConQ).toEqual([1, 2]);
+    const central = env.reacciones.find((r) => Math.abs(r.xM - 6) < 1e-9)!;
+    expect(central.rMaxKN).toBeCloseTo(1.25 * q * 6, 6);
+  });
+
+  it("el positivo del vano sale con Q sólo en ese tramo, y es mayor que con todo cargado", () => {
+    const env = calcularEnvolventeVigaLibre(dosTramos, comb("elu"));
+    expect(env.momentoMax.tramosConQ.length).toBe(1);
+    expect(env.momentoMax.valor).toBeGreaterThan(env.todoCargado.resultado.momentoMax.valor + 1);
+    // La reacción extrema mínima: Q sólo en el tramo opuesto la descarga.
+    const extremo = env.reacciones[0];
+    expect(extremo.rMinKN).toBeLessThan(extremo.rMaxKN);
+  });
+
+  it("coincide con probar las 2ⁿ disposiciones a mano, con voladizos", () => {
+    const datos: DatosVigaLibre = {
+      lucesM: [1.5, 5, 4, 2],
+      apoyos: ["libre", "simple", "empotrado", "simple", "libre"],
+      cargas: [
+        { tipo: "distribuida", caso: "G", desdeM: 0, hastaM: 12.5, qInicialKNm: 15, qFinalKNm: 15 },
+        { tipo: "distribuida", caso: "Q", desdeM: 0, hastaM: 12.5, qInicialKNm: 6, qFinalKNm: 9 },
+        { tipo: "puntual", caso: "Q", xM: 8.5, pKN: 30 },
+        { tipo: "puntual", caso: "Q", xM: 12.5, pKN: 10 },
+      ],
+      eiKNm2: EI,
+    };
+    const c = comb("elu");
+    const env = calcularEnvolventeVigaLibre(datos, c);
+    const xs = abscisasNudos(datos.lucesM);
+    let mMax = -Infinity, mMin = Infinity, vMod = 0;
+    for (let mascara = 0; mascara < 16; mascara++) {
+      const cargas = datos.cargas.flatMap((q): CargaLibre[] => {
+        if (q.caso === "G") return [{ ...q, caso: "G" as const }];
+        // La Q de cada tramo encendido, recortada con el mismo criterio que el motor.
+        return [0, 1, 2, 3].flatMap((i): CargaLibre[] => {
+          if (!(mascara & (1 << i))) return [];
+          const a = xs[i], b = xs[i + 1];
+          if (q.tipo === "distribuida") {
+            const lo = Math.max(a, q.desdeM), hi = Math.min(b, q.hastaM);
+            const f = (x: number) => q.qInicialKNm + ((q.qFinalKNm - q.qInicialKNm) * (x - q.desdeM)) / (q.hastaM - q.desdeM);
+            return hi > lo ? [{ ...q, desdeM: lo, hastaM: hi, qInicialKNm: f(lo), qFinalKNm: f(hi) }] : [];
+          }
+          return q.xM >= a && (q.xM < b || (i === 3 && q.xM <= b)) ? [q] : [];
+        });
+      });
+      const r = calcularVigaContinua(armarVigaLibre({ ...datos, cargas }, c));
+      mMax = Math.max(mMax, r.momentoMax.valor);
+      mMin = Math.min(mMin, r.momentoMin.valor);
+      vMod = Math.max(vMod, Math.abs(r.cortanteMax.valor));
+    }
+    // La envolvente se lee en los puntos muestreados: puede quedar apenas por debajo del extremo exacto.
+    expect(env.momentoMax.valor).toBeCloseTo(mMax, 1);
+    expect(env.momentoMin.valor).toBeCloseTo(mMin, 1);
+    expect(Math.abs(env.cortanteMax.valor)).toBeCloseTo(vMod, 6);
   });
 });

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { anchoEficazAla, flexionAlaComprimida, moduloResistenteT, propiedadesT, rasanteAlaAlma } from "./seccion-t";
+import {
+  anchoEficazAla,
+  betaSaintVenant,
+  calcularL0,
+  flexionAlaComprimida,
+  moduloResistenteT,
+  propiedadesT,
+  rasanteAlaAlma,
+  repartoTorsionT,
+} from "./seccion-t";
 
 /*
  * Sin planilla de referencia: contrastado a mano.
@@ -112,5 +121,41 @@ describe("rasante entre ala y alma, art. 6.2.4", () => {
     expect(r.requiereArmadura).toBe(false);
     expect(r.asNecCm2PorM).toBe(0);
     expect(r.verificaArmadura).toBe(true);
+  });
+});
+
+describe("torsión: rigidez de Saint-Venant y reparto", () => {
+  it("β coincide con los valores tabulados", () => {
+    expect(betaSaintVenant(1, 1)).toBeCloseTo(0.1406, 4);
+    expect(betaSaintVenant(2, 1)).toBeCloseTo(0.2287, 4);
+    expect(betaSaintVenant(4, 1)).toBeCloseTo(0.2808, 4);
+    // Muy alargado tiende a la pared delgada: 1/3.
+    expect(betaSaintVenant(1000, 1)).toBeCloseTo(1 / 3, 3);
+  });
+
+  it("el reparto suma uno y el alma toma más con vuelos finos", () => {
+    // Alma 0,3 × 0,6 (r = 2): K = 0,2287·0,6·0,3³ = 0,003705
+    // Vuelo 0,6 × 0,15 (r = 4): K = 0,2808·0,6·0,15³ = 0,000569
+    const r = repartoTorsionT(0.3, 0.6, 0.6, 0.15);
+    expect(r.rigidezAlmaM4).toBeCloseTo(0.2287 * 0.6 * 0.027, 5);
+    expect(r.rigidezVueloM4).toBeCloseTo(0.2808 * 0.6 * 0.003375, 5);
+    expect(r.fraccionAlma + 2 * r.fraccionVuelo).toBeCloseTo(1, 12);
+    expect(r.fraccionAlma).toBeCloseTo(0.765, 3);
+  });
+
+  it("sin vuelos toda la torsión es del alma", () => {
+    expect(repartoTorsionT(0.3, 0.6, 0, 0.15).fraccionAlma).toBe(1);
+  });
+});
+
+describe("l0 de la fig. A19.5.2", () => {
+  it("cada caso de la figura", () => {
+    expect(calcularL0("simple", 6, 0)).toBe(6);
+    expect(calcularL0("extremo", 6, 0)).toBeCloseTo(5.1, 9);
+    expect(calcularL0("interior", 6, 0)).toBeCloseTo(4.2, 9);
+    expect(calcularL0("apoyo", 6, 5)).toBeCloseTo(1.65, 9);
+    // voladizo de 2 m junto a un vano de 6 m: 0,15·6 + 2
+    expect(calcularL0("voladizo", 2, 6)).toBeCloseTo(2.9, 9);
+    expect(calcularL0("manual", 6, 5)).toBeNaN();
   });
 });

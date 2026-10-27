@@ -21,6 +21,16 @@ import { LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
 
 export type TipoSeccion = "rectangular" | "t" | "t-invertida";
 
+/** Rótulos del tipo de sección en pantalla; el campo guarda la clave. */
+export const ROTULOS_TIPO_SECCION: Record<TipoSeccion, string> = {
+  rectangular: "Rectangular",
+  t: "T (ala arriba)",
+  "t-invertida": "T invertida (ala abajo)",
+};
+
+export const tipoSeccionPorRotulo = (rotulo: string): TipoSeccion =>
+  (Object.keys(ROTULOS_TIPO_SECCION) as TipoSeccion[]).find((k) => ROTULOS_TIPO_SECCION[k] === rotulo) ?? "rectangular";
+
 export interface GeometriaAla {
   /** Ancho real del ala, de borde a borde (m) */
   anchoM: number;
@@ -243,4 +253,117 @@ export function rasanteAlaAlma(d: DatosRasante): ResultadoRasante {
     asRealCm2PorM: d.asTransversalRealCm2PorM,
     verificaArmadura: d.asTransversalRealCm2PorM >= asNecCm2PorM - 1e-12,
   };
+}
+
+/**
+ * Coeficiente β de Saint-Venant para la rigidez a torsión de un rectángulo
+ * macizo, K = β·a·b³ con a el lado mayor y b el menor. Serie exacta de la
+ * teoría de la elasticidad:
+ *   β = 1/3 · [1 − 192/(π⁵·r) · Σ tanh(n·π·r/2)/n⁵],  n impar, r = a/b
+ *
+ * No es del Anejo 19: el art. 6.3.1 (4) pide repartir según las rigideces no
+ * fisuradas sin dar una fórmula, y ésta es la de la mecánica (criterio del
+ * usuario, 2026-10-23).
+ */
+export function betaSaintVenant(ladoMayorM: number, ladoMenorM: number): number {
+  const r = ladoMayorM / ladoMenorM;
+  let suma = 0;
+  for (let n = 1; n <= 39; n += 2) suma += Math.tanh((n * Math.PI * r) / 2) / n ** 5;
+  return (1 - (192 / (Math.PI ** 5 * r)) * suma) / 3;
+}
+
+/** Rigidez a torsión no fisurada de un rectángulo, sin el módulo G (m⁴). */
+export function rigidezTorsionRectangulo(ladoAM: number, ladoBM: number): number {
+  const mayor = Math.max(ladoAM, ladoBM);
+  const menor = Math.min(ladoAM, ladoBM);
+  if (!(menor > 0)) return 0;
+  return betaSaintVenant(mayor, menor) * mayor * menor ** 3;
+}
+
+export interface RepartoTorsionT {
+  /** Rigidez del alma de canto total h × bw (m⁴) */
+  rigidezAlmaM4: number;
+  /** Rigidez de cada vuelo eficaz b_eff,i × hf (m⁴) */
+  rigidezVueloM4: number;
+  /** Fracción del torsor que toma el alma */
+  fraccionAlma: number;
+  /** Fracción que toma cada vuelo */
+  fraccionVuelo: number;
+}
+
+/**
+ * Reparto del torsor entre el alma y los dos vuelos, art. 6.3.1 (3) y (4),
+ * pág. 84: proporcional a las rigideces no fisuradas. El alma va con su canto
+ * total (es la que tiene los estribos) y cada vuelo con el ancho eficaz de la
+ * flexión (criterio del usuario, 2026-10-23).
+ */
+export function repartoTorsionT(anchoAlmaM: number, cantoM: number, vueloEficazM: number, espesorAlaM: number): RepartoTorsionT {
+  const rigidezAlmaM4 = rigidezTorsionRectangulo(cantoM, anchoAlmaM);
+  const rigidezVueloM4 = vueloEficazM > 0 ? rigidezTorsionRectangulo(vueloEficazM, espesorAlaM) : 0;
+  const total = rigidezAlmaM4 + 2 * rigidezVueloM4;
+  return {
+    rigidezAlmaM4,
+    rigidezVueloM4,
+    fraccionAlma: rigidezAlmaM4 / total,
+    fraccionVuelo: rigidezVueloM4 / total,
+  };
+}
+
+/**
+ * Dónde está la zona del ala comprimida, para sacar l0 de la fig. A19.5.2
+ * (Anejo 19, art. 5.3.2.1 (2), pág. 49). "manual" es l0 cargado a mano.
+ */
+export type TramoL0 = "simple" | "extremo" | "interior" | "apoyo" | "voladizo" | "manual";
+
+export const ROTULOS_TRAMO_L0: Record<TramoL0, string> = {
+  simple: "Vano de un solo tramo, simplemente apoyado",
+  extremo: "Vano extremo de una viga continua",
+  interior: "Vano interior de una viga continua",
+  apoyo: "Sobre un apoyo intermedio",
+  voladizo: "Voladizo",
+  manual: "l0 a mano",
+};
+
+/** Lee el caso del campo; sin campo (cálculos viejos), l0 a mano. */
+export function tramoL0DesdeCampo(valor: string | undefined): TramoL0 {
+  return valor !== undefined && valor in ROTULOS_TRAMO_L0 ? (valor as TramoL0) : "manual";
+}
+
+export const tramoL0PorRotulo = (rotulo: string): TramoL0 =>
+  (Object.keys(ROTULOS_TRAMO_L0) as TramoL0[]).find((k) => ROTULOS_TRAMO_L0[k] === rotulo) ?? "manual";
+
+/** Qué luces pide cada caso, con el nombre de la figura. */
+export const LUCES_TRAMO_L0: Record<TramoL0, readonly ("l1" | "l2")[]> = {
+  simple: ["l1"],
+  extremo: ["l1"],
+  interior: ["l1"],
+  apoyo: ["l1", "l2"],
+  voladizo: ["l1", "l2"],
+  manual: [],
+};
+
+/**
+ * l0, la distancia entre puntos de momento nulo, según la fig. A19.5.2:
+ *   vano simple        l0 = l            (los apoyos son los momentos nulos)
+ *   vano extremo       l0 = 0,85·l1
+ *   vano interior      l0 = 0,70·l2      (acá l1 es la luz de ese vano)
+ *   apoyo intermedio   l0 = 0,15·(l1 + l2)
+ *   voladizo           l0 = 0,15·l2 + l3 (acá l1 es el voladizo y l2 el vano contiguo)
+ * Devuelve NaN con "manual": l0 se carga a mano.
+ */
+export function calcularL0(tramo: TramoL0, luz1M: number, luz2M: number): number {
+  switch (tramo) {
+    case "simple":
+      return luz1M;
+    case "extremo":
+      return 0.85 * luz1M;
+    case "interior":
+      return 0.7 * luz1M;
+    case "apoyo":
+      return 0.15 * (luz1M + luz2M);
+    case "voladizo":
+      return 0.15 * luz2M + luz1M;
+    case "manual":
+      return NaN;
+  }
 }

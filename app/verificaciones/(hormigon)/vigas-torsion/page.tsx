@@ -5,6 +5,7 @@ import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -27,6 +28,13 @@ import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
 import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverVigaTorsion } from "@/lib/calc/hormigon/vigas/resolver-torsion";
+import { tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
+import {
+  anchoEficazAla,
+  ROTULOS_TIPO_SECCION,
+  tipoSeccionPorRotulo,
+  type TipoSeccion,
+} from "@/lib/calc/hormigon/vigas/seccion-t";
 import { recomendarVigaTorsion } from "@/lib/verificaciones/recomendaciones/vigas-torsion";
 
 const meta = registroVerificaciones.find((v) => v.id === "vigas-torsion")!;
@@ -44,6 +52,8 @@ const ELEMENTO_DE_CAMPO: Record<string, ElementoSeccionViga | "positivo" | "nega
   b: "b",
   h: "h",
   recubrimiento: "recubrimiento",
+  anchoAla: "ala",
+  espesorAla: "hf",
   numeroPos: "inferior",
   diametroPos: "inferior",
   numeroNeg: "superior",
@@ -71,6 +81,15 @@ export default function VigasTorsionPage() {
   const [h, setH] = useCampo("h", "0.7");
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.035");
 
+  // Sección en T: b pasa a ser el alma y el ala se carga aparte, con las
+  // mismas claves que en flexión y cortante.
+  const [tipoSeccion, setTipoSeccion] = useCampo<TipoSeccion>("tipoSeccion", "rectangular");
+  const [anchoAla, setAnchoAla] = useCampo("anchoAla", "1.5");
+  const [espesorAla, setEspesorAla] = useCampo("espesorAla", "0.2");
+  const [l0, setL0] = useCampo("l0", "6");
+  const tipo = tipoSeccionDesdeCampo(tipoSeccion);
+  const conAla = tipo !== "rectangular";
+
   const [momentoPos, setMomentoPos] = useCampo("momentoPos", "219");
   const [numeroPos, setNumeroPos] = useCampo("numeroPos", "2");
   const [diametroPos, setDiametroPos] = useCampo("diametroPos", "25");
@@ -88,8 +107,8 @@ export default function VigasTorsionPage() {
   const [foco, setFoco] = useState<string | null>(null);
 
   const campos = useMemo(
-    () => ({ fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td }),
-    [fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td]
+    () => ({ fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td, tipoSeccion, anchoAla, espesorAla, l0 }),
+    [fck, fyk, b, h, recubrimiento, momentoPos, numeroPos, diametroPos, momentoNeg, numeroNeg, diametroNeg, vd, diametroEstribo, numeroRamas, td, tipoSeccion, anchoAla, espesorAla, l0]
   );
   const resultado = useMemo(() => resolverVigaTorsion(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -112,8 +131,17 @@ export default function VigasTorsionPage() {
     }
 
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
-    const dispPos = calcularDisposicionArmadura(geometria, [{ numero: v.numeroPos, diametroMm: v.diametroPos }]);
-    const dispNeg = calcularDisposicionArmadura(geometria, [{ numero: v.numeroNeg, diametroMm: v.diametroNeg }]);
+    // Con ala, las barras de su cara se reparten en el ancho eficaz, como en el cálculo.
+    const datosAla = { anchoM: aNumero(anchoAla), espesorM: aNumero(espesorAla), l0M: aNumero(l0) };
+    const alaValida = conAla && datosAla.anchoM >= v.b && datosAla.espesorM > 0 && datosAla.espesorM < v.h && datosAla.l0M > 0;
+    const anchoEficazM = alaValida ? anchoEficazAla(v.b, datosAla).anchoEficazM : v.b;
+    const alaArriba = tipo === "t";
+    const dispPos = calcularDisposicionArmadura(
+      alaValida && !alaArriba ? { ...geometria, b: anchoEficazM } : geometria, [{ numero: v.numeroPos, diametroMm: v.diametroPos }]
+    );
+    const dispNeg = calcularDisposicionArmadura(
+      alaValida && alaArriba ? { ...geometria, b: anchoEficazM } : geometria, [{ numero: v.numeroNeg, diametroMm: v.diametroNeg }]
+    );
 
     return {
       bM: v.b,
@@ -124,8 +152,13 @@ export default function VigasTorsionPage() {
       armaduraPositiva: { capas: dispPos.filas },
       armaduraNegativa: { capas: dispNeg.filas },
       diametroEstriboMm: v.diametroEstribo,
+      ...(alaValida ? { ala: { anchoM: datosAla.anchoM, espesorM: datosAla.espesorM, arriba: alaArriba, anchoEficazM } } : {}),
     };
-  }, [b, h, recubrimiento, numeroPos, diametroPos, numeroNeg, diametroNeg, diametroEstribo]);
+  }, [b, h, recubrimiento, numeroPos, diametroPos, numeroNeg, diametroNeg, diametroEstribo, conAla, tipo, anchoAla, espesorAla, l0]);
+
+  // Con T, el alma toma sólo su parte del torsor.
+  const tdAlma = resultado?.seccionT?.tdAlma ?? aNumero(td);
+  const vuelo = resultado?.seccionT?.vuelo ?? null;
 
   const elementoFoco = foco ? (ELEMENTO_DE_CAMPO[foco.replace(/-otro$/, "")] ?? null) : null;
   const resaltarSeccion =
@@ -160,6 +193,11 @@ export default function VigasTorsionPage() {
       avisos.push({ tipo: "aviso", texto: "Con el momento negativo la sección queda sobrearmada: hace falta armadura de compresión o más canto." });
     if (noEntra.inferior) avisos.push({ tipo: "aviso", texto: "La armadura inferior no entra en el ancho disponible." });
     if (noEntra.superior) avisos.push({ tipo: "aviso", texto: "La armadura superior no entra en el ancho disponible." });
+    if (vuelo && !vuelo.modelable)
+      avisos.push({
+        tipo: "aviso",
+        texto: "El ala es demasiado fina para el modelo de pared delgada (el espesor eficaz no deja núcleo): la torsión del vuelo no se verifica.",
+      });
   }
 
   return (
@@ -177,7 +215,7 @@ export default function VigasTorsionPage() {
       <IndiceEtapas etapas={ETAPAS} />
 
       <div className="flex flex-col gap-12" {...seguirFoco}>
-        <Etapa id="geometria" numero={1} titulo="Geometría y materiales" descripcion="La sección rectangular y los materiales que la forman.">
+        <Etapa id="geometria" numero={1} titulo="Geometría y materiales" descripcion="La sección —rectangular, en T o en T invertida— y los materiales que la forman.">
           <DatosConDibujo
             datos={
               <>
@@ -188,8 +226,15 @@ export default function VigasTorsionPage() {
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Sección">
+                  <CampoSeleccion
+                    id="tipoSeccion"
+                    etiqueta="Tipo de sección"
+                    valor={ROTULOS_TIPO_SECCION[tipo]}
+                    opciones={Object.values(ROTULOS_TIPO_SECCION)}
+                    onChange={(x) => setTipoSeccion(tipoSeccionPorRotulo(x))}
+                  />
                   <div className="grid grid-cols-3 gap-4">
-                    <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                    <CampoNumerico id="b" etiqueta={conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
                     <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                     <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                   </div>
@@ -197,6 +242,20 @@ export default function VigasTorsionPage() {
                     El recubrimiento se mide de la cara exterior al estribo.
                   </p>
                 </Subgrupo>
+                {conAla && (
+                  <Subgrupo titulo={tipo === "t" ? "Ala superior" : "Ala inferior"}>
+                    <div className="grid grid-cols-3 gap-4">
+                      <CampoNumerico id="anchoAla" etiqueta="Ancho del ala" sufijo="m" valor={anchoAla} onChange={setAnchoAla} />
+                      <CampoNumerico id="espesorAla" etiqueta="hf" sufijo="m" valor={espesorAla} onChange={setEspesorAla} />
+                      <CampoNumerico id="l0" etiqueta="l0" sufijo="m" valor={l0} onChange={setL0} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Ancho real del ala, con vuelos iguales a los dos lados; l0 entre momentos nulos (fig.
+                      A19.5.2). El ancho eficaz de la ec. (5.7) vale para la flexión y para los vuelos que
+                      toman torsión.
+                    </p>
+                  </Subgrupo>
+                )}
               </>
             }
             dibujo={dibujoSeccion}
@@ -294,8 +353,13 @@ export default function VigasTorsionPage() {
             norma={norma}
             datos={[
               { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
-              { etiqueta: "b × h", valor: `${b} × ${h} m` },
+              { etiqueta: "Sección", valor: ROTULOS_TIPO_SECCION[tipo] },
+              { etiqueta: conAla ? "bw × h" : "b × h", valor: `${b} × ${h} m` },
+              ...(conAla ? [{ etiqueta: "Ala: ancho × hf, l0", valor: `${anchoAla} × ${espesorAla} m, ${l0} m` }] : []),
               { etiqueta: "Td", valor: `${td} kN·m` },
+              ...(resultado?.seccionT
+                ? [{ etiqueta: "Td del alma", valor: `${fmt(resultado.seccionT.tdAlma)} kN·m`, derivado: true }]
+                : []),
               ...(resultado
                 ? [
                     { etiqueta: "Canto útil d⁺ / d⁻", valor: `${fmt(resultado.d, 3)} / ${fmt(resultado.dNegativo, 3)} m`, derivado: true },
@@ -308,6 +372,12 @@ export default function VigasTorsionPage() {
               "Sección hueca equivalente con tef = A/u, no menor que 2 veces la distancia del borde al eje de la armadura longitudinal (Anejo 19, art. 6.3.2 (1)).",
               "Bielas a 45°: TRd,max = 2·ν·fcd·Ak·tef·sinθ·cosθ, con ν = 0,6·(1 − fck/250) (ec. 6.30).",
               "La armadura longitudinal de torsión se reparte en cuartos y cada cara suma uno a su armadura de flexión.",
+              ...(conAla
+                ? [
+                    "Sección en T (art. 6.3.1 (3) a (5)): alma de canto total h × bw y dos vuelos de ancho eficaz b_eff,i × hf. Td se reparte según las rigideces no fisuradas, K = β·a·b³ de Saint-Venant (mecánica, no la da el Anejo 19).",
+                    "El alma se verifica con su parte del torsor, el cortante y la flexión de la T. Cada vuelo, como pared delgada aparte: bielas, y si su torsor supera TRd,c, la armadura a disponer en cercos cerrados del ala.",
+                  ]
+                : []),
               "Cortante con d⁻ y ρl de la armadura superior.",
               "Cortante por el art. 6.2.3: estribos verticales, θ = 45° y z = 0,9·d. Si VEd > VRd,c los estribos toman el cortante entero (ec. 6.8), sin sumar el hormigón.",
               "fywd = mín(fyd; 0,8·fyk), que es lo que habilita ν1 = 0,6 en VRd,max (nota del art. 6.2.3(3)).",
@@ -329,11 +399,21 @@ export default function VigasTorsionPage() {
               <ConclusionResultados
                 comprobaciones={[
                   {
-                    etiqueta: "bielas de torsión",
+                    etiqueta: conAla ? "bielas de torsión del alma" : "bielas de torsión",
                     estado: resultado.torsion.verificaBielas ? "cumple" : "no-cumple",
-                    utilizacion: aNumero(td) / resultado.torsion.tRdMaxKNm,
+                    utilizacion: tdAlma / resultado.torsion.tRdMaxKNm,
                     conPropuestas: !!rec.bielasTorsion,
                   },
+                  ...(vuelo?.modelable
+                    ? [
+                        {
+                          etiqueta: "bielas de torsión del vuelo",
+                          estado: vuelo.torsion.verificaBielas ? ("cumple" as const) : ("no-cumple" as const),
+                          utilizacion: vuelo.tdKNm / vuelo.torsion.tRdMaxKNm,
+                          conPropuestas: !!rec.bielasVuelo,
+                        },
+                      ]
+                    : []),
                   {
                     etiqueta: "interacción torsión + cortante",
                     estado: resultado.verificaInteraccionBielas ? "cumple" : "no-cumple",
@@ -380,7 +460,7 @@ export default function VigasTorsionPage() {
               <PanelMetricas
                 horizontal
                 metricas={[
-                  { etiqueta: "TRd,max", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m`, nota: `Td ${fmt(aNumero(td))} kN·m` },
+                  { etiqueta: "TRd,max", valor: `${fmt(resultado.torsion.tRdMaxKNm)} kN·m`, nota: `Td${conAla ? " del alma" : ""} ${fmt(tdAlma)} kN·m` },
                   { etiqueta: "Al de torsión", valor: `${fmt(resultado.torsion.alCm2)} cm²`, nota: `${fmt(resultado.torsion.alPorCaraCm2)} cm² por cara` },
                   { etiqueta: "At de torsión", valor: `${fmt(resultado.torsion.atCm2PorM)} cm²/m`, nota: "en cada rama del cerco" },
                   { etiqueta: "VRd,max", valor: `${fmt(resultado.cortante.vRdMax)} kN`, nota: `Vd ${fmt(aNumero(vd))} kN` },
@@ -390,10 +470,10 @@ export default function VigasTorsionPage() {
               <Subgrupo titulo="Torsión">
                 <div>
                   <ResultadoCheck
-                    etiqueta="Torsión · bielas comprimidas"
+                    etiqueta={conAla ? "Torsión · bielas comprimidas del alma" : "Torsión · bielas comprimidas"}
                     verifica={resultado.torsion.verificaBielas}
                     comparacion={{
-                      real: { etiqueta: "Td", valor: aNumero(td) },
+                      real: { etiqueta: conAla ? "Td alma" : "Td", valor: tdAlma },
                       limite: { etiqueta: "TRd,max", valor: resultado.torsion.tRdMaxKNm },
                       unidad: "kN·m", exige: "≤",
                     }}
@@ -436,6 +516,54 @@ export default function VigasTorsionPage() {
                   />
                 </div>
               </Subgrupo>
+
+              {resultado.seccionT && (
+                <Subgrupo titulo="Reparto de la torsión en la T" detalle="art. 6.3.1 (3) a (5)">
+                  <div>
+                    <PanelFormulas
+                      titulo="Ver reparto por rigideces"
+                      filas={[
+                        { etiqueta: "Alma h × bw: K = β·a·b³", valor: `${fmt(resultado.seccionT.reparto.rigidezAlmaM4 * 1e4, 3)}·10⁻⁴ m⁴` },
+                        { etiqueta: "Cada vuelo b_eff,i × hf", valor: `${fmt(resultado.seccionT.reparto.rigidezVueloM4 * 1e4, 3)}·10⁻⁴ m⁴` },
+                        { etiqueta: "Alma", valor: `${fmt(resultado.seccionT.reparto.fraccionAlma * 100, 1)} % → ${fmt(resultado.seccionT.tdAlma)} kN·m` },
+                        { etiqueta: "Cada vuelo", valor: `${fmt(resultado.seccionT.reparto.fraccionVuelo * 100, 1)} % → ${fmt(vuelo?.tdKNm ?? 0)} kN·m` },
+                      ]}
+                    />
+                    {vuelo && vuelo.modelable ? (
+                      <>
+                        <ResultadoCheck
+                          etiqueta="Torsión del vuelo · bielas comprimidas"
+                          verifica={vuelo.torsion.verificaBielas}
+                          detalle="Cada vuelo como sección de pared delgada aparte (art. 6.3.1 (5)), ec. (6.30)."
+                          comparacion={{
+                            real: { etiqueta: "Td vuelo", valor: vuelo.tdKNm },
+                            limite: { etiqueta: "TRd,max", valor: vuelo.torsion.tRdMaxKNm },
+                            unidad: "kN·m", exige: "≤", decimales: 3,
+                          }}
+                          recomendaciones={rec.bielasVuelo}
+                        />
+                        <p className="pt-3 text-sm">
+                          <span className="font-medium">
+                            {vuelo.requiereArmadura ? "El vuelo necesita cercos cerrados" : "El vuelo no necesita armadura de torsión"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {" "}— Td vuelo = {fmt(vuelo.tdKNm, 3)} {vuelo.requiereArmadura ? ">" : "≤"} TRd,c = {fmt(vuelo.torsion.tRdCKNm, 3)} kN·m.
+                            {vuelo.requiereArmadura
+                              ? ` Disponer en el ala At = ${fmt(vuelo.torsion.atCm2PorM)} cm²/m por rama del cerco y ΣAsl = ${fmt(vuelo.torsion.alCm2)} cm² en el perímetro del vuelo.`
+                              : ""}
+                          </span>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="pt-3 text-sm text-muted-foreground">
+                        {vuelo
+                          ? "El ala es demasiado fina para el modelo de pared delgada: la torsión del vuelo no se verifica."
+                          : "Sin vuelos eficaces: toda la torsión la toma el alma."}
+                      </p>
+                    )}
+                  </div>
+                </Subgrupo>
+              )}
 
               <Subgrupo titulo="Flexión y cortante">
                 <div>
@@ -568,6 +696,7 @@ export default function VigasTorsionPage() {
                 />
               </Subgrupo>
 
+              {!conAla && (
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}
                 datos={{
@@ -582,6 +711,7 @@ export default function VigasTorsionPage() {
                   asRealPosCm2: resultado.flexionPositiva.asRealCm2,
                 }}
               />
+              )}
             </div>
           )}
         </Etapa>

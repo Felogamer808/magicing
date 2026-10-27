@@ -119,3 +119,26 @@ describe("sección en T y en T invertida", () => {
     expect(resolverVigaFlexionCortante({ ...T, l0: "" })).toBeNull();
   });
 });
+
+describe("l0 desde la fig. A19.5.2", () => {
+  const INV = {
+    ...BASE, tipoSeccion: "t-invertida", anchoAla: "1.5", espesorAla: "0.15", l0: "6",
+    diametroAla: "8", separacionAla: "0.2", capasAla: "1", momentoNeg: "150",
+  };
+
+  it("sin el campo del caso usa el l0 cargado, como antes", () => {
+    expect(resolverVigaFlexionCortante(INV)?.seccionT?.ala.l0M).toBe(6);
+    expect(resolverVigaFlexionCortante(INV)?.seccionT?.tramoL0).toBe("manual");
+  });
+
+  it("sobre un apoyo: 0,15·(l1 + l2), y el ancho eficaz baja", () => {
+    const r = resolverVigaFlexionCortante({ ...INV, tramoL0: "apoyo", luz1: "6", luz2: "5" })!;
+    expect(r.seccionT?.ala.l0M).toBeCloseTo(1.65, 9);
+    // b1 = 0,6: 0,2·0,6 + 0,165 = 0,285 ≤ 0,33 → b_eff = 2·0,285 + 0,3 = 0,87
+    expect(r.seccionT?.anchoEficaz.anchoEficazM).toBeCloseTo(0.87, 9);
+  });
+
+  it("sin las luces que pide el caso no calcula", () => {
+    expect(resolverVigaFlexionCortante({ ...INV, tramoL0: "apoyo", luz1: "6", luz2: "" })).toBeNull();
+  });
+});

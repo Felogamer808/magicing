@@ -1,6 +1,8 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
+import { calcularTorsionVuelo, calcularVigaConTorsion } from "@/lib/calc/hormigon/vigas/torsion";
+import { tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
+import { anchoEficazAla, repartoTorsionT, type GeometriaAla } from "@/lib/calc/hormigon/vigas/seccion-t";
 
 /**
  * Cálculo de la página a partir de sus campos, tal como se cargaron.
@@ -40,13 +42,38 @@ export function resolverVigaTorsion(campos: Record<string, string>) {
     return null;
   }
 
+  // Sección en T: el torsor se reparte entre el alma de canto total y los
+  // dos vuelos eficaces según su rigidez no fisurada (art. 6.3.1 (3) y (4)).
+  const tipo = tipoSeccionDesdeCampo(campos.tipoSeccion);
+  let ala: GeometriaAla | null = null;
+  if (tipo !== "rectangular") {
+    ala = { anchoM: num("anchoAla"), espesorM: num("espesorAla"), l0M: num("l0") };
+    if (!(ala.anchoM >= v.b && ala.espesorM > 0 && ala.espesorM < v.h && ala.l0M > 0)) return null;
+  }
+  const anchoEficaz = ala ? anchoEficazAla(v.b, ala) : null;
+  const reparto = ala && anchoEficaz ? repartoTorsionT(v.b, v.h, anchoEficaz.vueloEficazM, ala.espesorM) : null;
+  const tdAlma = reparto ? reparto.fraccionAlma * v.td : v.td;
+
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
   const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
 
+  // Del borde al eje de la barra de esquina, el mismo c del alma: fija el
+  // espesor eficaz mínimo también en el vuelo.
+  const distanciaEjeArmaduraM =
+    v.recubrimiento + v.diametroEstribo / 1000 + Math.max(v.diametroPos, v.diametroNeg) / 2000;
+  const vuelo =
+    ala && anchoEficaz && reparto && anchoEficaz.vueloEficazM > 0
+      ? calcularTorsionVuelo(materiales, anchoEficaz.vueloEficazM, ala.espesorM, reparto.fraccionVuelo * v.td, distanciaEjeArmaduraM)
+      : null;
+
   return {
     v,
+    seccionT: ala && anchoEficaz && reparto ? { tipo, ala, anchoEficaz, reparto, tdAlma, vuelo } : null,
     ...calcularVigaConTorsion(materiales, geometria, {
-      torsion: { td: v.td },
+      ...(ala && anchoEficaz
+        ? { ala: { anchoEficazM: anchoEficaz.anchoEficazM, espesorAlaM: ala.espesorM, alaArriba: tipo === "t" } }
+        : {}),
+      torsion: { td: tdAlma },
       momentoPositivo: v.momentoPos,
       momentoNegativo: v.momentoNeg,
       armaduraPositiva: { numero: v.numeroPos, diametroMm: v.diametroPos },

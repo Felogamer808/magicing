@@ -353,7 +353,7 @@ export default function VigasFlexionCortantePage() {
                     <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                     <CampoNumerico
                       id="recubrimiento"
-                      etiqueta="Recubrimiento"
+                      etiqueta="Recubrimiento geom."
                       sufijo="m"
                       valor={recubrimiento}
                       onChange={setRecubrimiento}
@@ -574,7 +574,7 @@ export default function VigasFlexionCortantePage() {
                       : []),
                   ]
                 : []),
-              { etiqueta: "Recubrimiento", valor: `${recubrimiento} m` },
+              { etiqueta: "Recubrimiento geom.", valor: `${recubrimiento} m` },
               ...(resultado
                 ? [
                     { etiqueta: "Canto útil d⁺", valor: `${fmt(resultado.d, 3)} m`, derivado: true },

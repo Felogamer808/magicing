@@ -131,7 +131,7 @@ export default function VigaCentradoraPilotesPage() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <CampoNumerico id="b" etiqueta="Ancho b" sufijo="m" valor={b} onChange={setB} />
                 <CampoNumerico id="h" etiqueta="Canto h" sufijo="m" valor={h} onChange={setH} />
-                <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
               </div>
             </Subgrupo>
             <Subgrupo titulo="Palanca">

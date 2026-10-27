@@ -139,7 +139,7 @@ export default function PilaresPage() {
                 <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
                 <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                 <CampoNumerico id="altura" etiqueta="Altura libre l" sufijo="m" valor={altura} onChange={setAltura} />
-                <CampoNumerico id="rec" etiqueta="Recubrimiento al cerco" sufijo="m" valor={rec} onChange={setRec} />
+                <CampoNumerico id="rec" etiqueta="Recubrimiento geom. al cerco" sufijo="m" valor={rec} onChange={setRec} />
               </div>
             }
             dibujo={

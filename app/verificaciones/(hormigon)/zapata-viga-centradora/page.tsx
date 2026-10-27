@@ -138,7 +138,7 @@ export default function ZapataVigaCentradoraPage() {
                     <CampoNumerico id="A" etiqueta="A (hacia el interior)" sufijo="m" valor={A} onChange={setA} />
                     <CampoNumerico id="B" etiqueta="B (a lo largo del límite)" sufijo="m" valor={B} onChange={setB} />
                     <CampoNumerico id="H" etiqueta="H" sufijo="m" valor={H} onChange={setH} />
-                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento geom." sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
                     <CampoNumerico id="distanciaColumnaLimite" etiqueta="Sep. pilar–límite" sufijo="m" valor={distanciaColumnaLimite} onChange={setDistanciaColumnaLimite} />
                   </div>
                 </Subgrupo>

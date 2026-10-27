@@ -326,3 +326,26 @@ describe("deformaciones: coeficientes de flecha", () => {
     expect(r.flechaTotalMm).toBeCloseTo(flechaElasticaMm, 9);
   });
 });
+
+describe("deformaciones: flecha en sección en T", () => {
+  const rect = calcularFlecha(baseFlecha);
+
+  it("T invertida en vano (ala traccionada): la fisurada es la del alma; el ala sube Mcr y rigidez", () => {
+    const t = calcularFlecha({ ...baseFlecha, ala: { anchoM: 1.2, espesorM: 0.15, comprimida: false } });
+    expect(t.fisurada.xM).toBeCloseTo(rect.fisurada.xM, 10);
+    expect(t.fisurada.iM4).toBeCloseTo(rect.fisurada.iM4, 12);
+    // El cdg baja hacia el ala: la fibra traccionada queda más cerca y I crece.
+    expect(t.sinFisurar.xM).toBeGreaterThan(rect.sinFisurar.xM);
+    expect(t.sinFisurar.iM4).toBeGreaterThan(rect.sinFisurar.iM4);
+    expect(t.mcrKNm).toBeGreaterThan(rect.mcrKNm);
+    // Por eso el rectángulo bw quedaba del lado seguro.
+    expect(t.flechaTotalMm).toBeLessThan(rect.flechaTotalMm);
+  });
+
+  it("T en vano (ala comprimida): la fisurada se ensancha y la flecha baja", () => {
+    const t = calcularFlecha({ ...baseFlecha, ala: { anchoM: 1.2, espesorM: 0.15, comprimida: true } });
+    expect(t.fisurada.xM).toBeLessThan(rect.fisurada.xM);
+    expect(t.fisurada.iM4).toBeGreaterThan(rect.fisurada.iM4);
+    expect(t.flechaTotalMm).toBeLessThan(rect.flechaTotalMm);
+  });
+});

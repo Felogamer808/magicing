@@ -108,7 +108,33 @@ describe("vínculos desde la viga: fisuración", () => {
   });
 
   it("manda el recubrimiento al campo que usa esa página", () => {
-    expect(vinculoDe("fisuracion").campos(viga).rg).toBe("0.04");
+    expect(vinculoDe("fisuracion").campos(viga).rg).toBe("0.0400");
+  });
+
+  /**
+   * En la viga el recubrimiento llega al estribo; el c de la ec. (7.11) es el
+   * de la barra longitudinal. Sin sumar el estribo, d salía mayor que en la viga.
+   */
+  it("suma el estribo al recubrimiento", () => {
+    expect(vinculoDe("fisuracion").campos({ ...viga, diametroEstribo: "8" }).rg).toBe("0.0480");
+    // d' = 0,04 + 0,008 + 0,012/2
+    expect(vinculoDe("deformaciones").campos({ ...viga, diametroEstribo: "8" }).dComp).toBe("0.0540");
+  });
+});
+
+describe("vínculos desde la viga: sección en T", () => {
+  const seccionT = { tipoSeccion: "t-invertida", anchoAla: "1.2", espesorAla: "0.2", tramoL0: "simple", luz1: "6", luz2: "6", l0: "6" };
+
+  it("la T viaja a las dos páginas con su ala, y fisuración con momento positivo", () => {
+    const f = vinculoDe("fisuracion").campos({ ...viga, seccionT });
+    expect(f).toMatchObject(seccionT);
+    expect(f.signoMomento).toBe("positivo");
+    expect(vinculoDe("deformaciones").campos({ ...viga, seccionT })).toMatchObject(seccionT);
+  });
+
+  it("una viga rectangular deja rectangular el destino", () => {
+    expect(vinculoDe("fisuracion").campos(viga).tipoSeccion).toBe("rectangular");
+    expect(vinculoDe("deformaciones").campos(viga).tipoSeccion).toBe("rectangular");
   });
 });
 

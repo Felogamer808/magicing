@@ -1,4 +1,13 @@
 import { moduloSecanteGPa } from "@/lib/calc/hormigon/comun/materiales";
+import {
+  estadoFisurado,
+  estadoSinFisurar,
+  franjasSeccion,
+  type AlaServicio,
+  type EstadoSeccion,
+} from "@/lib/calc/hormigon/comun/seccion-franjas";
+
+export type { EstadoSeccion };
 
 /**
  * Control de deformaciones en Estado Límite de Servicio —
@@ -189,7 +198,14 @@ export const COEF_FLECHA: { id: string; nombre: string; valor: number }[] = [
 ];
 
 export interface DatosFlecha {
+  /** Ancho de la sección; en una T, el del alma bw (m) */
   bM: number;
+  /**
+   * Ala de la T, con b_eff. Sin ella la sección es el rectángulo b × h. Con el
+   * ala comprimida la compresión de la sección fisurada se ensancha; con el ala
+   * traccionada sólo suma en el estado sin fisurar (inercia y Mcr).
+   */
+  ala?: AlaServicio;
   hM: number;
   /** Canto útil de la armadura traccionada (m) */
   dM: number;
@@ -212,16 +228,6 @@ export interface DatosFlecha {
   luzM: number;
   /** Coeficiente k de a = k·L²·(1/r) */
   coefFlecha: number;
-}
-
-/** Propiedades de una sección homogeneizada, en un estado de fisuración. */
-export interface EstadoSeccion {
-  /** Profundidad de la fibra neutra desde la cara comprimida (m) */
-  xM: number;
-  /** Inercia homogeneizada (m⁴) */
-  iM4: number;
-  /** Momento estático de la armadura respecto al cdg, ec. (7.21) (m³) */
-  sM3: number;
 }
 
 export interface ResultadoFlecha {
@@ -262,59 +268,6 @@ export interface ResultadoFlecha {
 }
 
 /**
- * Sección rectangular homogeneizada sin fisurar (estado I): entra todo el
- * hormigón, y la armadura pesa (αe−1) porque el hormigón que ocupa ya está
- * contado en b·h.
- */
-function estadoSinFisurar(
-  bM: number, hM: number, dM: number, dCompM: number,
-  asM2: number, asCompM2: number, alphaE: number
-): EstadoSeccion {
-  const nMenosUno = alphaE - 1;
-  const area = bM * hM + nMenosUno * (asM2 + asCompM2);
-  const momentoEstatico =
-    (bM * hM * hM) / 2 + nMenosUno * (asM2 * dM + asCompM2 * dCompM);
-  const xM = area > 0 ? momentoEstatico / area : 0;
-
-  const iM4 =
-    (bM * hM ** 3) / 12 +
-    bM * hM * (xM - hM / 2) ** 2 +
-    nMenosUno * asM2 * (dM - xM) ** 2 +
-    nMenosUno * asCompM2 * (xM - dCompM) ** 2;
-
-  // S de la ec. (7.21): momento estático de la ARMADURA respecto al cdg de la
-  // sección. La de compresión resta, porque está del otro lado del centro de
-  // gravedad y su retracción coartada curva al revés.
-  const sM3 = asM2 * (dM - xM) - asCompM2 * (xM - dCompM);
-
-  return { xM, iM4, sM3 };
-}
-
-/**
- * Sección fisurada (estado II): el hormigón traccionado no cuenta. La fibra
- * neutra sale de igualar momentos estáticos respecto de ella,
- * b·x²/2 + (αe−1)·As'·(x−d') = αe·As·(d−x).
- */
-function estadoFisurado(
-  bM: number, dM: number, dCompM: number,
-  asM2: number, asCompM2: number, alphaE: number
-): EstadoSeccion {
-  const a = bM / 2;
-  const b = (alphaE - 1) * asCompM2 + alphaE * asM2;
-  const c = -((alphaE - 1) * asCompM2 * dCompM + alphaE * asM2 * dM);
-  const xM = a > 0 ? (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a) : 0;
-
-  const iM4 =
-    (bM * xM ** 3) / 3 +
-    (alphaE - 1) * asCompM2 * (xM - dCompM) ** 2 +
-    alphaE * asM2 * (dM - xM) ** 2;
-
-  const sM3 = asM2 * (dM - xM) - asCompM2 * (xM - dCompM);
-
-  return { xM, iM4, sM3 };
-}
-
-/**
  * β de la ec. (7.19): 0,5 con carga mantenida, 1,0 con carga instantánea. La
  * flecha a largo plazo va con 0,5 (la colaboración del hormigón entre fisuras
  * se degrada); la instantánea, con 1,0.
@@ -324,12 +277,13 @@ const BETA_INSTANTANEA = 1.0;
 
 export function calcularFlecha(datos: DatosFlecha): ResultadoFlecha {
   const {
-    bM, hM, dM, dCompM, asCm2, asCompCm2,
+    bM, hM, dM, dCompM, asCm2, asCompCm2, ala,
     fckMPa, fctmMPa, esGPa, phiFluencia, epsilonCs,
     mqpKNm, luzM, coefFlecha,
   } = datos;
 
   const asM2 = asCm2 / 1e4;
+  const franjas = franjasSeccion(bM, hM, ala);
   const asCompM2 = asCompCm2 / 1e4;
 
   const ecmGPa = moduloSecanteGPa(fckMPa);
@@ -340,8 +294,8 @@ export function calcularFlecha(datos: DatosFlecha): ResultadoFlecha {
 
   // Largo plazo: homogeneizado con αe efectivo (el hormigón fluye, el acero no,
   // así que la armadura pesa más que a tiempo cero).
-  const sinFisurar = estadoSinFisurar(bM, hM, dM, dCompM, asM2, asCompM2, alphaE);
-  const fisurada = estadoFisurado(bM, dM, dCompM, asM2, asCompM2, alphaE);
+  const sinFisurar = estadoSinFisurar(franjas, dM, dCompM, asM2, asCompM2, alphaE);
+  const fisurada = estadoFisurado(franjas, dM, dCompM, asM2, asCompM2, alphaE);
 
   // Mcr con el módulo resistente de la sección sin fisurar, fibra traccionada.
   // fctm en MPa = MN/m², y el momento sale en MN·m: ×1000 para kN·m.
@@ -374,8 +328,8 @@ export function calcularFlecha(datos: DatosFlecha): ResultadoFlecha {
 
   // Instantánea: mismo planteo pero sin fluencia (Ecm) ni retracción, y con
   // β=1. Hace falta para la flecha diferida, que es la que va contra L/500.
-  const sinFisurarCorto = estadoSinFisurar(bM, hM, dM, dCompM, asM2, asCompM2, alphaECorto);
-  const fisuradaCorto = estadoFisurado(bM, dM, dCompM, asM2, asCompM2, alphaECorto);
+  const sinFisurarCorto = estadoSinFisurar(franjas, dM, dCompM, asM2, asCompM2, alphaECorto);
+  const fisuradaCorto = estadoFisurado(franjas, dM, dCompM, asM2, asCompM2, alphaECorto);
   const wCortoM3 =
     hM > sinFisurarCorto.xM ? sinFisurarCorto.iM4 / (hM - sinFisurarCorto.xM) : 0;
   const mcrCortoKNm = fctmMPa * wCortoM3 * 1000;

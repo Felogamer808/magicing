@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { ResultadoFisuracion } from "@/lib/calc/hormigon/fisuracion";
+import { franjasSeccion, type AlaServicio, type Franja } from "@/lib/calc/hormigon/comun/seccion-franjas";
 
 /**
  * Sección en estado fisurado, con el área eficaz de tracción rayada.
@@ -14,12 +15,17 @@ import type { ResultadoFisuracion } from "@/lib/calc/hormigon/fisuracion";
  *
  * El canto del área eficaz es el menor de tres criterios (2,5·(h−d), (h−x)/3 y
  * h/2), y cuál mandó se indica al pie.
+ *
+ * Con una T se dibuja la T, siempre con la cara comprimida arriba: con el ala
+ * traccionada se ve que el área eficaz toma todo el ancho del ala.
  */
 
 interface Props {
   resultado: ResultadoFisuracion;
   bM: number;
   hM: number;
+  /** Ala de la T con b_eff; sin ella, el rectángulo. */
+  ala?: AlaServicio;
   /** Barras de la capa principal, para dibujarlas. */
   n1: number;
   diametro1Mm: number;
@@ -34,20 +40,47 @@ const BASE = ALTO - 44;
 const fmt = (n: number, d = 1) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
-export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm }: Props) {
+/** Tramos de cada franja entre dos profundidades, para pintar zonas. */
+function tramosEntre(franjas: Franja[], y0: number, y1: number) {
+  return franjas
+    .map((f) => ({ desde: Math.max(f.desdeM, y0), hasta: Math.min(f.hastaM, y1), ancho: f.anchoM }))
+    .filter((t) => t.hasta > t.desde);
+}
+
+export function DiagramaFisuracion({ resultado, bM, hM, ala, n1, diametro1Mm, wAdmMm }: Props) {
   const rayado = useId();
   const { xM, dM, hcEfM, rhoPEf, srMaxMm, wkMm, verifica, sigmaSMPa } = resultado;
 
   const alturaPx = BASE - TOP;
   const y = (m: number) => TOP + (m / hM) * alturaPx;
 
-  const anchoSeccion = Math.min(120, (bM / hM) * alturaPx);
-  const xIzq = 58;
-  const xDer = xIzq + anchoSeccion;
+  // El ancho no va a escala si la sección es muy ancha (una losa de 1 m):
+  // el mayor se topa y el resto se escala con él, con un mínimo legible.
+  const franjas = franjasSeccion(bM, hM, ala);
+  const anchoMaxM = Math.max(...franjas.map((f) => f.anchoM));
+  const anchoMaxPx = Math.min(franjas.length > 1 ? 150 : 120, (anchoMaxM / hM) * alturaPx);
+  const px = (anchoM: number) => Math.max((anchoM / anchoMaxM) * anchoMaxPx, 16);
+  // 72 de margen: a la izquierda van "x = …" y las barras, alineados a la derecha.
+  const xC = 72 + anchoMaxPx / 2;
+  const xIzq = xC - anchoMaxPx / 2;
+  const xDer = xC + anchoMaxPx / 2;
+
+  // Contorno: baja por la izquierda franja por franja y sube por la derecha.
+  let contorno = "";
+  franjas.forEach((f, i) => {
+    const x = xC - px(f.anchoM) / 2;
+    contorno += i === 0 ? `M${x} ${y(f.desdeM)}` : ` H${x}`;
+    contorno += ` V${y(f.hastaM)}`;
+  });
+  for (let i = franjas.length - 1; i >= 0; i--) {
+    contorno += ` H${xC + px(franjas[i].anchoM) / 2} V${y(franjas[i].desdeM)}`;
+  }
+  contorno += " Z";
 
   const yX = y(Math.min(xM, hM));
   const yD = y(dM);
   const yEficaz = y(Math.max(hM - hcEfM, 0));
+  const anchoBarrasPx = px(franjas[franjas.length - 1].anchoM);
 
   // Cuál de los tres criterios impuso el canto del área eficaz.
   const criterios = [
@@ -73,20 +106,25 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         </defs>
 
         {/* Sección completa. */}
-        <rect x={xIzq} y={TOP} width={anchoSeccion} height={alturaPx}
-              className="fill-transparent stroke-foreground/60" strokeWidth={1.3} />
+        <path d={contorno} className="fill-transparent stroke-foreground/60" strokeWidth={1.3} />
 
         {/* Zona comprimida del estado fisurado. */}
-        <rect x={xIzq} y={TOP} width={anchoSeccion} height={yX - TOP}
-              className="fill-primary/30" />
-        <text x={xIzq + anchoSeccion / 2} y={(TOP + yX) / 2 + 3} textAnchor="middle"
+        {tramosEntre(franjas, 0, xM).map((t, i) => (
+          <rect key={i} x={xC - px(t.ancho) / 2} y={y(t.desde)} width={px(t.ancho)} height={y(t.hasta) - y(t.desde)}
+                className="fill-primary/30" />
+        ))}
+        <text x={xC} y={(TOP + yX) / 2 + 3} textAnchor="middle"
               className="fill-foreground text-[10.5px]">comprimido</text>
 
         {/* Área eficaz de tracción: la franja que gobierna la fisuración. */}
-        <rect x={xIzq} y={yEficaz} width={anchoSeccion} height={BASE - yEficaz}
-              fill={`url(#${rayado})`} />
-        <rect x={xIzq} y={yEficaz} width={anchoSeccion} height={BASE - yEficaz}
-              className="fill-transparent stroke-destructive" strokeWidth={1.2} />
+        {tramosEntre(franjas, hM - hcEfM, hM).map((t, i) => (
+          <g key={i}>
+            <rect x={xC - px(t.ancho) / 2} y={y(t.desde)} width={px(t.ancho)} height={y(t.hasta) - y(t.desde)}
+                  fill={`url(#${rayado})`} />
+            <rect x={xC - px(t.ancho) / 2} y={y(t.desde)} width={px(t.ancho)} height={y(t.hasta) - y(t.desde)}
+                  className="fill-transparent stroke-destructive" strokeWidth={1.2} />
+          </g>
+        ))}
 
         {/* Fibra neutra. */}
         <line x1={xIzq - 10} y1={yX} x2={xDer + 10} y2={yX}
@@ -95,12 +133,12 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
           x = {fmt(xM * 100)} cm
         </text>
 
-        {/* Armadura. */}
+        {/* Armadura, repartida en el ancho de la cara traccionada. */}
         {Array.from({ length: Math.max(n1, 1) }, (_, i) => {
-          const paso = anchoSeccion * 0.76;
+          const paso = anchoBarrasPx * 0.76;
           const cx = n1 <= 1
-            ? xIzq + anchoSeccion / 2
-            : xIzq + anchoSeccion * 0.12 + (i * paso) / (n1 - 1);
+            ? xC
+            : xC - anchoBarrasPx / 2 + anchoBarrasPx * 0.12 + (i * paso) / (n1 - 1);
           return <circle key={i} cx={cx} cy={yD} r={2.8} fill="var(--mat-armadura)" />;
         })}
         <text x={xIzq - 12} y={yD + 3} textAnchor="end" className="fill-muted-foreground text-[10.5px]">
@@ -142,7 +180,9 @@ export function DiagramaFisuracion({ resultado, bM, hM, n1, diametro1Mm, wAdmMm 
         </text>
 
         <text x={xIzq} y={ALTO - 6} className="fill-muted-foreground text-[10.5px]">
-          La fisuración la gobierna la franja rayada, no el hormigón traccionado entero.
+          {franjas.length > 1
+            ? "Cara comprimida arriba. La fisuración la gobierna la franja rayada."
+            : "La fisuración la gobierna la franja rayada, no el hormigón traccionado entero."}
         </text>
       </svg>
     </figure>

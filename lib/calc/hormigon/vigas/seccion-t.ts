@@ -1,4 +1,5 @@
 import { LAMBDA_BLOQUE } from "@/lib/calc/hormigon/comun/coeficientes";
+import { aNumero } from "@/lib/verificaciones/formato";
 
 /**
  * Sección en T y en T invertida, todo por el Anejo 19.
@@ -366,4 +367,43 @@ export function calcularL0(tramo: TramoL0, luz1M: number, luz2M: number): number
     case "manual":
       return NaN;
   }
+}
+
+/** Lee el tipo de sección del campo; sin campo (cálculos viejos), rectangular. */
+export function tipoSeccionDesdeCampo(valor: string | undefined): TipoSeccion {
+  return valor === "t" || valor === "t-invertida" ? valor : "rectangular";
+}
+
+/** El ala está comprimida si el momento la empuja: la T con positivo, la invertida con negativo. */
+export function alaComprimidaCon(tipo: TipoSeccion, momentoPositivo: boolean): boolean {
+  return momentoPositivo === (tipo === "t");
+}
+
+export interface SeccionTLeida {
+  tipo: Exclude<TipoSeccion, "rectangular">;
+  ala: GeometriaAla;
+  tramoL0: TramoL0;
+  anchoEficaz: AnchoEficaz;
+}
+
+/**
+ * La geometría de la T a partir de los campos que comparten las páginas
+ * (tipoSeccion, anchoAla, espesorAla, tramoL0, luz1, luz2, l0), con b_eff ya
+ * calculado. Devuelve "rectangular" sin ala, y null si hay ala pero algún dato
+ * no sirve: así la página no calcula un rectángulo cuando se pidió una T.
+ */
+export function leerSeccionT(
+  campos: Record<string, string>,
+  anchoAlmaM: number,
+  cantoM: number
+): SeccionTLeida | "rectangular" | null {
+  const tipo = tipoSeccionDesdeCampo(campos.tipoSeccion);
+  if (tipo === "rectangular") return "rectangular";
+  const n = (clave: string) => aNumero(campos[clave] ?? "");
+  const tramoL0 = tramoL0DesdeCampo(campos.tramoL0);
+  if (!LUCES_TRAMO_L0[tramoL0].every((l) => n(l === "l1" ? "luz1" : "luz2") > 0)) return null;
+  const l0M = tramoL0 === "manual" ? n("l0") : calcularL0(tramoL0, n("luz1"), n("luz2"));
+  const ala: GeometriaAla = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M };
+  if (!(ala.anchoM >= anchoAlmaM && ala.espesorM > 0 && ala.espesorM < cantoM && ala.l0M > 0)) return null;
+  return { tipo, ala, tramoL0, anchoEficaz: anchoEficazAla(anchoAlmaM, ala) };
 }

@@ -696,13 +696,14 @@ export default function VigasTorsionPage() {
                 />
               </Subgrupo>
 
-              {!conAla && (
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}
                 datos={{
                   fck, fyk, b, h, recubrimiento,
                   numeroPos, diametroPos,
-                  diametroNeg,
+                  diametroNeg, diametroEstribo,
+                  // Acá l0 se carga a mano: viaja así, como caso "manual".
+                  seccionT: conAla ? { tipoSeccion, anchoAla, espesorAla, tramoL0: "manual", l0 } : undefined,
                   dUtilM: resultado.d,
                   // Esta As necesaria ya trae sumado el aporte longitudinal de
                   // torsión (Al/4 por cara), que es lo que hay que arrastrar:
@@ -711,7 +712,6 @@ export default function VigasTorsionPage() {
                   asRealPosCm2: resultado.flexionPositiva.asRealCm2,
                 }}
               />
-              )}
             </div>
           )}
         </Etapa>

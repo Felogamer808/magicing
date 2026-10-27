@@ -226,6 +226,13 @@ const ESTATICA_LINEAL: Combinacion = {
     "No mayora ni minora nada. Si se cargan acciones características salen esfuerzos característicos; si se cargan mayoradas, salen de cálculo. La flecha sólo tiene sentido con cargas de servicio.",
 };
 
+const VIGA_LIBRE: Combinacion = {
+  regimen: "herramienta",
+  etiqueta: "Herramienta · la combinación se elige en los resultados",
+  detalle:
+    "Las cargas se cargan características y etiquetadas G o Q; la página las mayora según la combinación elegida (ELU 1,35·G + 1,5·Q, servicio G + Q, o cada caso solo). La flecha sólo se informa en las de servicio.",
+};
+
 const TORSION_ESTATICA: Combinacion = {
   regimen: "herramienta",
   etiqueta: "Herramienta · el resultado hereda el régimen de la carga",
@@ -281,6 +288,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   viento: VIENTO,
   "propiedades-geometricas": SIN_COMBINACION,
   "formulario-vigas": ESTATICA_LINEAL,
+  "viga-libre": VIGA_LIBRE,
   "formulario-torsion": TORSION_ESTATICA,
   "madera-flexion": MADERA_ELU,
   "madera-cortante": MADERA_ELU,

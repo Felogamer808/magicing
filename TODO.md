@@ -298,6 +298,9 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   rápida: Vd en el apoyo y en el centro, lineal entre medio; con el diagrama
   real, la zona de apoyo saldría del V(x) verdadero y de cada apoyo por
   separado. Mantener también la carga rápida a mano.
+  Fase 1 hecha: herramienta **Viga libre** (tramos, apoyos, cargas G/Q,
+  combinación ELU / servicio con todo cargado). Falta: fase 2, envolvente con
+  alternancia de Q; fase 3, mandar el V(x) y los M a la verificación de vigas.
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación.** Hoy hay un solo juego de valores

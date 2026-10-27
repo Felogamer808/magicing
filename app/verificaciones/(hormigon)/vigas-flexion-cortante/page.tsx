@@ -27,10 +27,27 @@ import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { armarGrupos, resolverVigaFlexionCortante, tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
 import {
   anchoEficazAla,
+  calcularL0,
+  LUCES_TRAMO_L0,
   ROTULOS_TIPO_SECCION as TIPOS_SECCION,
+  ROTULOS_TRAMO_L0,
   tipoSeccionPorRotulo as tipoPorRotulo,
+  tramoL0DesdeCampo,
+  tramoL0PorRotulo,
   type TipoSeccion,
+  type TramoL0,
 } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { CroquisL0, CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
+
+/** Qué es cada luz en cada caso de la fig. A19.5.2. */
+const ETIQUETAS_LUZ: Record<TramoL0, { luz1?: string; luz2?: string }> = {
+  simple: { luz1: "l (luz del vano)" },
+  extremo: { luz1: "l1 (luz del vano extremo)" },
+  interior: { luz1: "l2 (luz de este vano)" },
+  apoyo: { luz1: "l1 (vano de un lado)", luz2: "l2 (vano del otro lado)" },
+  voladizo: { luz1: "l3 (largo del voladizo)", luz2: "l2 (vano contiguo)" },
+  manual: {},
+};
 import { calcularDisposicionArmadura } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { recomendarVigaFlexionCortante } from "@/lib/verificaciones/recomendaciones/vigas-flexion-cortante";
 import { aNumero, fmt, describirCapas } from "@/lib/verificaciones/formato";
@@ -105,6 +122,12 @@ export default function VigasFlexionCortantePage() {
   const [anchoAla, setAnchoAla] = useCampo("anchoAla", "1.5");
   const [espesorAla, setEspesorAla] = useCampo("espesorAla", "0.15");
   const [l0, setL0] = useCampo("l0", "6");
+  // l0 sale de la fig. A19.5.2 con las luces, o se carga a mano.
+  const [tramoL0Campo, setTramoL0] = useCampo<TramoL0>("tramoL0", "manual");
+  const [luz1, setLuz1] = useCampo("luz1", "6");
+  const [luz2, setLuz2] = useCampo("luz2", "6");
+  const tramoL0 = tramoL0DesdeCampo(tramoL0Campo);
+  const l0Efectivo = tramoL0 === "manual" ? aNumero(l0) : calcularL0(tramoL0, aNumero(luz1), aNumero(luz2));
   const [diametroAla, setDiametroAla] = useCampo("diametroAla", "8");
   const [separacionAla, setSeparacionAla] = useCampo("separacionAla", "0.2");
   const [capasAla, setCapasAla] = useCampo("capasAla", "1");
@@ -141,14 +164,14 @@ export default function VigasFlexionCortantePage() {
       momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
       momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
       vd, diametroEstribo, numeroRamas, monolitica,
-      tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla,
+      tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0: tramoL0Campo, luz1, luz2,
     }),
     [
     fck, fyk, b, h, recubrimiento,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas, monolitica,
-    tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla,
+    tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0Campo, luz1, luz2,
     ]
   );
   const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
@@ -192,7 +215,7 @@ export default function VigasFlexionCortantePage() {
 
     const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
     // Con ala, las barras de su cara se reparten en el ancho eficaz, como en el cálculo.
-    const datosAla = { anchoM: aNumero(anchoAla), espesorM: aNumero(espesorAla), l0M: aNumero(l0) };
+    const datosAla = { anchoM: aNumero(anchoAla), espesorM: aNumero(espesorAla), l0M: l0Efectivo };
     const alaValida = conAla && datosAla.anchoM >= v.b && datosAla.espesorM > 0 && datosAla.espesorM < v.h && datosAla.l0M > 0;
     const anchoEficazM = alaValida ? anchoEficazAla(v.b, datosAla).anchoEficazM : v.b;
     const alaArriba = tipo === "t";
@@ -219,7 +242,7 @@ export default function VigasFlexionCortantePage() {
       ...(alaValida ? { ala: { anchoM: datosAla.anchoM, espesorM: datosAla.espesorM, arriba: alaArriba, anchoEficazM } } : {}),
     };
   }, [
-    b, h, recubrimiento, conAla, tipo, anchoAla, espesorAla, l0,
+    b, h, recubrimiento, conAla, tipo, anchoAla, espesorAla, l0Efectivo,
     numeroPos, diametroPos, numeroPos2, diametroPos2,
     numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     diametroEstribo,
@@ -250,6 +273,23 @@ export default function VigasFlexionCortantePage() {
       La sección se dibuja cuando la geometría y la armadura tienen valores válidos.
     </p>
   );
+
+  const croquisGeometria =
+    conAla && aNumero(b) > 0 && aNumero(h) > 0 && aNumero(anchoAla) > 0 && aNumero(espesorAla) > 0 ? (
+      <div className="space-y-2">
+        <CroquisSeccionT
+          invertida={tipo === "t-invertida"}
+          anchoAlaM={aNumero(anchoAla)}
+          almaM={aNumero(b)}
+          cantoM={aNumero(h)}
+          espesorAlaM={aNumero(espesorAla)}
+          {...(diagrama?.ala?.anchoEficazM !== undefined ? { anchoEficazM: diagrama.ala.anchoEficazM } : {})}
+        />
+        <CroquisL0 tramo={tramoL0} />
+      </div>
+    ) : (
+      dibujoSeccion
+    );
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -328,20 +368,55 @@ export default function VigasFlexionCortantePage() {
                     <div className="grid grid-cols-3 gap-4">
                       <CampoNumerico id="anchoAla" etiqueta="Ancho del ala" sufijo="m" valor={anchoAla} onChange={setAnchoAla} />
                       <CampoNumerico id="espesorAla" etiqueta="hf" sufijo="m" valor={espesorAla} onChange={setEspesorAla} />
-                      <CampoNumerico id="l0" etiqueta="l0" sufijo="m" valor={l0} onChange={setL0} />
                     </div>
                     <p className="text-xs text-muted-foreground">
                       El ancho del ala es el real, de borde a borde, con los vuelos iguales a los dos lados.
-                      l0 es la distancia entre puntos de momento nulo de la zona donde el ala está
-                      comprimida (fig. A19.5.2): 0,85·l en un vano extremo, 0,7·l en uno interior,
-                      0,15·(l1 + l2) sobre un apoyo. El ancho eficaz sale de la ec. (5.7) y nunca supera el
-                      real.
                     </p>
+                    <div className="space-y-3 rounded-md border border-border/60 p-3">
+                      <p className="text-sm font-medium">Ancho eficaz: ¿cuánta ala trabaja?</p>
+                      <p className="text-xs text-muted-foreground">
+                        No toda el ala colabora: la que está lejos del alma se queda atrás. Cuánta trabaja
+                        depende de l0, la distancia entre los puntos donde el momento se anula en la zona
+                        donde el ala está comprimida (Anejo 19, art. 5.3.2.1 y fig. A19.5.2).{" "}
+                        {tipo === "t"
+                          ? "En la T el ala se comprime con el momento positivo: es el vano."
+                          : "En la T invertida el ala se comprime con el momento negativo: es la zona sobre un apoyo, o un voladizo."}
+                      </p>
+                      <CampoSeleccion
+                        id="tramoL0"
+                        etiqueta="¿Dónde está el ala comprimida?"
+                        valor={ROTULOS_TRAMO_L0[tramoL0]}
+                        opciones={Object.values(ROTULOS_TRAMO_L0)}
+                        onChange={(x) => setTramoL0(tramoL0PorRotulo(x))}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        {LUCES_TRAMO_L0[tramoL0].includes("l1") && (
+                          <CampoNumerico id="luz1" etiqueta={ETIQUETAS_LUZ[tramoL0].luz1 ?? "l1"} sufijo="m" valor={luz1} onChange={setLuz1} />
+                        )}
+                        {LUCES_TRAMO_L0[tramoL0].includes("l2") && (
+                          <CampoNumerico id="luz2" etiqueta={ETIQUETAS_LUZ[tramoL0].luz2 ?? "l2"} sufijo="m" valor={luz2} onChange={setLuz2} />
+                        )}
+                        {tramoL0 === "manual" && (
+                          <CampoNumerico id="l0" etiqueta="l0" sufijo="m" valor={l0} onChange={setL0} />
+                        )}
+                      </div>
+                      <p className="font-mono text-[13px] tabular-nums">
+                        l0 = {Number.isFinite(l0Efectivo) && l0Efectivo > 0 ? `${fmt(l0Efectivo, 2)} m` : "—"}
+                        {resultado?.seccionT && (
+                          <span className="ml-3">
+                            b_eff = <strong>{fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m</strong>
+                            <span className="ml-2 font-sans text-xs text-muted-foreground">
+                              {resultado.seccionT.anchoEficaz.mandaAnchoReal ? "(manda el ancho real del ala)" : "(ec. 5.7)"}
+                            </span>
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </Subgrupo>
                 )}
               </>
             }
-            dibujo={dibujoSeccion}
+            dibujo={croquisGeometria}
           />
         </Etapa>
 
@@ -489,7 +564,11 @@ export default function VigasFlexionCortantePage() {
               { etiqueta: conAla ? "bw × h" : "b × h", valor: `${b} × ${h} m` },
               ...(conAla
                 ? [
-                    { etiqueta: "Ala: ancho × hf, l0", valor: `${anchoAla} × ${espesorAla} m, ${l0} m` },
+                    { etiqueta: "Ala: ancho × hf", valor: `${anchoAla} × ${espesorAla} m` },
+                    {
+                      etiqueta: "l0",
+                      valor: tramoL0 === "manual" ? `${l0} m (a mano)` : `${fmt(l0Efectivo, 2)} m (${ROTULOS_TRAMO_L0[tramoL0].toLowerCase()})`,
+                    },
                     ...(resultado?.seccionT
                       ? [{ etiqueta: "Ancho eficaz b_eff", valor: `${fmt(resultado.seccionT.anchoEficaz.anchoEficazM, 3)} m`, derivado: true }]
                       : []),

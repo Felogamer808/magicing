@@ -111,8 +111,10 @@ export function SeccionVigaDiagrama({
   const PAD_TOP = 34;
   const PAD_RIGHT = 46;
   const conAla = ala !== undefined && ala.anchoM > bM && ala.espesorM > 0 && ala.espesorM < hM;
-  // Con ala, la cota del alma va al pie, debajo de la del recubrimiento.
-  const PAD_BOTTOM = (noEntra.inferior ? 40 : 28) + (conAla ? 18 : 0);
+  // Con ala hay una cota más al pie, debajo de la del recubrimiento: la del
+  // alma en la T y la del ala en la T invertida. Cada una del lado de lo que mide.
+  const alaAbajo = conAla && !ala.arriba;
+  const PAD_BOTTOM = (noEntra.inferior ? 40 : 28) + (conAla ? 26 : 0);
 
   const anchoTotalM = conAla ? ala.anchoM : bM;
   const escala = Math.min(MAX_W / anchoTotalM, MAX_H / hM);
@@ -189,38 +191,42 @@ export function SeccionVigaDiagrama({
           </marker>
         </defs>
 
-        {/* cota del ancho de arriba: el alma, o el ala con la sección en T */}
-        <g {...cota(conAla ? "ala" : "b")}>
-          <path d={`M${xa0} ${y0 - 16} L${xa0} ${y0 - 4}`} />
-          <path d={`M${xa1} ${y0 - 16} L${xa1} ${y0 - 4}`} />
-          <path
-            d={`M${xa0} ${y0 - 10} L${xa1} ${y0 - 10}`}
-            markerStart={`url(#${arrowId})`}
-            markerEnd={`url(#${arrowId})`}
-          />
-        </g>
-        <text
-          x={(xa0 + xa1) / 2}
-          y={y0 - 18}
-          textAnchor="middle"
-          className="fill-current font-mono"
-          fontSize="10.5"
-          {...textoCota(conAla ? "ala" : "b")}
-        >
-          {conAla ? `ala = ${fmtM(ala.anchoM)}` : `b = ${fmtM(bM)}`}
-        </text>
-        {conAla && (
-          <g>
-            <g {...cota("b")}>
-              <path d={`M${x0} ${y1 + 18} L${x0} ${y1 + 30}`} />
-              <path d={`M${x1} ${y1 + 18} L${x1} ${y1 + 30}`} />
-              <path d={`M${x0} ${y1 + 24} L${x1} ${y1 + 24}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
+        {/* cota de arriba: el ancho de esa cara (el alma, o el ala en la T) */}
+        {(() => {
+          const [ca0, ca1, elemento, texto] = alaAbajo
+            ? [x0, x1, "b" as const, `bw = ${fmtM(bM)}`]
+            : [xa0, xa1, conAla ? ("ala" as const) : ("b" as const), conAla ? `ala = ${fmtM(ala!.anchoM)}` : `b = ${fmtM(bM)}`];
+          return (
+            <g>
+              <g {...cota(elemento)}>
+                <path d={`M${ca0} ${y0 - 16} L${ca0} ${y0 - 4}`} />
+                <path d={`M${ca1} ${y0 - 16} L${ca1} ${y0 - 4}`} />
+                <path d={`M${ca0} ${y0 - 10} L${ca1} ${y0 - 10}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
+              </g>
+              <text x={(ca0 + ca1) / 2} y={y0 - 18} textAnchor="middle" className="fill-current font-mono" fontSize="10.5" {...textoCota(elemento)}>
+                {texto}
+              </text>
             </g>
-            <text x={x1 + 4} y={y1 + 27} className="fill-current font-mono" fontSize="9.5" {...textoCota("b")}>
-              bw = {fmtM(bM)}
-            </text>
-          </g>
-        )}
+          );
+        })()}
+        {/* cota de abajo, con ala: el alma en la T, el ala en la T invertida */}
+        {conAla && (() => {
+          const [ca0, ca1, elemento, texto] = alaAbajo
+            ? [xa0, xa1, "ala" as const, `ala = ${fmtM(ala.anchoM)}`]
+            : [x0, x1, "b" as const, `bw = ${fmtM(bM)}`];
+          return (
+            <g>
+              <g {...cota(elemento)}>
+                <path d={`M${ca0} ${y1 + 18} L${ca0} ${y1 + 30}`} />
+                <path d={`M${ca1} ${y1 + 18} L${ca1} ${y1 + 30}`} />
+                <path d={`M${ca0} ${y1 + 24} L${ca1} ${y1 + 24}`} markerStart={`url(#${arrowId})`} markerEnd={`url(#${arrowId})`} />
+              </g>
+              <text x={(ca0 + ca1) / 2} y={y1 + 36} textAnchor="middle" className="fill-current font-mono" fontSize="9.5" {...textoCota(elemento)}>
+                {texto}
+              </text>
+            </g>
+          );
+        })()}
 
         {/* cota h */}
         <g {...cota("h")}>

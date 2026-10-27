@@ -308,3 +308,62 @@ export function repartoTorsionT(anchoAlmaM: number, cantoM: number, vueloEficazM
     fraccionVuelo: rigidezVueloM4 / total,
   };
 }
+
+/**
+ * Dónde está la zona del ala comprimida, para sacar l0 de la fig. A19.5.2
+ * (Anejo 19, art. 5.3.2.1 (2), pág. 49). "manual" es l0 cargado a mano.
+ */
+export type TramoL0 = "simple" | "extremo" | "interior" | "apoyo" | "voladizo" | "manual";
+
+export const ROTULOS_TRAMO_L0: Record<TramoL0, string> = {
+  simple: "Vano de un solo tramo, simplemente apoyado",
+  extremo: "Vano extremo de una viga continua",
+  interior: "Vano interior de una viga continua",
+  apoyo: "Sobre un apoyo intermedio",
+  voladizo: "Voladizo",
+  manual: "l0 a mano",
+};
+
+/** Lee el caso del campo; sin campo (cálculos viejos), l0 a mano. */
+export function tramoL0DesdeCampo(valor: string | undefined): TramoL0 {
+  return valor !== undefined && valor in ROTULOS_TRAMO_L0 ? (valor as TramoL0) : "manual";
+}
+
+export const tramoL0PorRotulo = (rotulo: string): TramoL0 =>
+  (Object.keys(ROTULOS_TRAMO_L0) as TramoL0[]).find((k) => ROTULOS_TRAMO_L0[k] === rotulo) ?? "manual";
+
+/** Qué luces pide cada caso, con el nombre de la figura. */
+export const LUCES_TRAMO_L0: Record<TramoL0, readonly ("l1" | "l2")[]> = {
+  simple: ["l1"],
+  extremo: ["l1"],
+  interior: ["l1"],
+  apoyo: ["l1", "l2"],
+  voladizo: ["l1", "l2"],
+  manual: [],
+};
+
+/**
+ * l0, la distancia entre puntos de momento nulo, según la fig. A19.5.2:
+ *   vano simple        l0 = l            (los apoyos son los momentos nulos)
+ *   vano extremo       l0 = 0,85·l1
+ *   vano interior      l0 = 0,70·l2      (acá l1 es la luz de ese vano)
+ *   apoyo intermedio   l0 = 0,15·(l1 + l2)
+ *   voladizo           l0 = 0,15·l2 + l3 (acá l1 es el voladizo y l2 el vano contiguo)
+ * Devuelve NaN con "manual": l0 se carga a mano.
+ */
+export function calcularL0(tramo: TramoL0, luz1M: number, luz2M: number): number {
+  switch (tramo) {
+    case "simple":
+      return luz1M;
+    case "extremo":
+      return 0.85 * luz1M;
+    case "interior":
+      return 0.7 * luz1M;
+    case "apoyo":
+      return 0.15 * (luz1M + luz2M);
+    case "voladizo":
+      return 0.15 * luz2M + luz1M;
+    case "manual":
+      return NaN;
+  }
+}

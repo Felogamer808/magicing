@@ -29,7 +29,11 @@ import { aNumero } from "@/lib/verificaciones/formato";
 import { BETA_1_EMPOTRAMIENTO_PARCIAL } from "@/lib/calc/hormigon/comun/coeficientes";
 import {
   anchoEficazAla,
+  calcularL0,
+  LUCES_TRAMO_L0,
   rasanteAlaAlma,
+  tramoL0DesdeCampo,
+  type TramoL0,
   type AnchoEficaz,
   type GeometriaAla,
   type ResultadoRasante,
@@ -79,6 +83,8 @@ export interface EntradasVigaFlexionCortante {
 export interface ResueltoSeccionT {
   tipo: Exclude<TipoSeccion, "rectangular">;
   ala: GeometriaAla;
+  /** De dónde salió l0: un caso de la fig. A19.5.2 o a mano */
+  tramoL0: TramoL0;
   anchoEficaz: AnchoEficaz;
   /** Momento que comprime el ala: el positivo en la T, el negativo en la T invertida. */
   momentoAlaComprimidaKNm: number;
@@ -164,8 +170,14 @@ export function resolverVigaFlexionCortante(
   const tipo = tipoSeccionDesdeCampo(campos.tipoSeccion);
   let ala: GeometriaAla | null = null;
   let asTransversalAlaCm2PorM = 0;
+  // l0 sale de la fig. A19.5.2 con las luces, o se carga a mano (lo único
+  // que había antes: sin el campo del caso, los cálculos guardados no cambian).
+  const tramoL0 = tramoL0DesdeCampo(campos.tramoL0);
   if (tipo !== "rectangular") {
-    ala = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M: n("l0") };
+    const lucesValidas = LUCES_TRAMO_L0[tramoL0].every((l) => n(l === "l1" ? "luz1" : "luz2") > 0);
+    if (!lucesValidas) return null;
+    const l0M = tramoL0 === "manual" ? n("l0") : calcularL0(tramoL0, n("luz1"), n("luz2"));
+    ala = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M };
     const t = { diametro: n("diametroAla"), separacion: n("separacionAla"), capas: n("capasAla") };
     const alaValida = ala.anchoM >= v.b && ala.espesorM > 0 && ala.espesorM < v.h && ala.l0M > 0;
     const transversalValida = [t.diametro, t.separacion, t.capas].every((x) => Number.isFinite(x) && x > 0);
@@ -242,7 +254,7 @@ export function resolverVigaFlexionCortante(
             asTransversalRealCm2PorM: asTransversalAlaCm2PorM,
           })
         : null;
-    seccionT = { tipo, ala, anchoEficaz, momentoAlaComprimidaKNm, asTransversalAlaCm2PorM, rasante };
+    seccionT = { tipo, ala, tramoL0, anchoEficaz, momentoAlaComprimidaKNm, asTransversalAlaCm2PorM, rasante };
   }
 
   return {

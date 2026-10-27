@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   anchoEficazAla,
   betaSaintVenant,
+  calcularL0,
   flexionAlaComprimida,
   moduloResistenteT,
   propiedadesT,
@@ -144,5 +145,17 @@ describe("torsión: rigidez de Saint-Venant y reparto", () => {
 
   it("sin vuelos toda la torsión es del alma", () => {
     expect(repartoTorsionT(0.3, 0.6, 0, 0.15).fraccionAlma).toBe(1);
+  });
+});
+
+describe("l0 de la fig. A19.5.2", () => {
+  it("cada caso de la figura", () => {
+    expect(calcularL0("simple", 6, 0)).toBe(6);
+    expect(calcularL0("extremo", 6, 0)).toBeCloseTo(5.1, 9);
+    expect(calcularL0("interior", 6, 0)).toBeCloseTo(4.2, 9);
+    expect(calcularL0("apoyo", 6, 5)).toBeCloseTo(1.65, 9);
+    // voladizo de 2 m junto a un vano de 6 m: 0,15·6 + 2
+    expect(calcularL0("voladizo", 2, 6)).toBeCloseTo(2.9, 9);
+    expect(calcularL0("manual", 6, 5)).toBeNaN();
   });
 });

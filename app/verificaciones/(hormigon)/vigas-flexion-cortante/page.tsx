@@ -165,6 +165,7 @@ export default function VigasFlexionCortantePage() {
   const [vdBorde, setVdBorde] = useCampo("vdBorde", "");
   const [inicioLeyZonas, setInicioLeyZonas] = useCampo("inicioLeyZonas", "");
   const [origenEsfuerzos, setOrigenEsfuerzos] = useCampo("origenEsfuerzos", "");
+  const [avisoL0, setAvisoL0] = useCampo("avisoL0", "");
   const [diametroEstriboVano, setDiametroEstriboVano] = useCampo("diametroEstriboVano", "8");
   const [numeroRamasVano, setNumeroRamasVano] = useCampo("numeroRamasVano", "4");
   const conZonas = zonasCortante === "si";
@@ -443,6 +444,14 @@ export default function VigasFlexionCortantePage() {
                           <CampoNumerico id="l0" etiqueta="l0" sufijo="m" valor={l0} onChange={setL0} />
                         )}
                       </div>
+                      {avisoL0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive">
+                          <span>{avisoL0}</span>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setAvisoL0("")}>
+                            Quitar aviso
+                          </Button>
+                        </div>
+                      )}
                       <p className="font-mono text-[13px] tabular-nums">
                         l0 = {Number.isFinite(l0Efectivo) && l0Efectivo > 0 ? `${fmt(l0Efectivo, 2)} m` : "—"}
                         {resultado?.seccionT && (

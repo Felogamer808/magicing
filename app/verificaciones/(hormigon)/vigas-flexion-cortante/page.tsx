@@ -39,6 +39,7 @@ import {
 } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { CroquisL0, CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
 import { CroquisCercosT } from "@/components/verificaciones/croquis/CroquisCercosT";
+import { Button } from "@/components/ui/button";
 import { DiagramaZonasCortante } from "@/components/verificaciones/hormigon/DiagramaZonasCortante";
 import type { ResultadoCortante } from "@/lib/calc/hormigon/comun/types";
 
@@ -159,6 +160,11 @@ export default function VigasFlexionCortantePage() {
   const [zonasCortante, setZonasCortante] = useCampo("zonasCortante", "no");
   const [vdCentro, setVdCentro] = useCampo("vdCentro", "200");
   const [luzVano, setLuzVano] = useCampo("luzVano", "6");
+  // Los dos los llena la viga libre al pasar el Vd a d del borde (Anejo 19,
+  // art. 6.2.1 (8)). En blanco, todo sigue como antes.
+  const [vdBorde, setVdBorde] = useCampo("vdBorde", "");
+  const [inicioLeyZonas, setInicioLeyZonas] = useCampo("inicioLeyZonas", "");
+  const [origenEsfuerzos, setOrigenEsfuerzos] = useCampo("origenEsfuerzos", "");
   const [diametroEstriboVano, setDiametroEstriboVano] = useCampo("diametroEstriboVano", "8");
   const [numeroRamasVano, setNumeroRamasVano] = useCampo("numeroRamasVano", "4");
   const conZonas = zonasCortante === "si";
@@ -180,6 +186,7 @@ export default function VigasFlexionCortantePage() {
       vd, diametroEstribo, numeroRamas, monolitica,
       tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0: tramoL0Campo, luz1, luz2,
       zonasCortante, vdCentro, luzVano, diametroEstriboVano, numeroRamasVano, transversalAla,
+      vdBorde, inicioLeyZonas,
     }),
     [
     fck, fyk, b, h, recubrimiento,
@@ -188,6 +195,7 @@ export default function VigasFlexionCortantePage() {
     vd, diametroEstribo, numeroRamas, monolitica,
     tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0Campo, luz1, luz2,
     zonasCortante, vdCentro, luzVano, diametroEstriboVano, numeroRamasVano, transversalAla,
+    vdBorde, inicioLeyZonas,
     ]
   );
   const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
@@ -459,13 +467,32 @@ export default function VigasFlexionCortantePage() {
           id="solicitaciones"
           numero={2}
           titulo="Solicitaciones"
-          descripcion="Esfuerzos de cálculo ya mayorados. La herramienta no modela el vano ni las cargas."
+          descripcion="Esfuerzos de cálculo ya mayorados. Se cargan a mano o se traen de un tramo de la viga libre."
         >
           <div className="space-y-5">
+            {origenEsfuerzos && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                <span>
+                  Traídos de <span className="font-medium">{origenEsfuerzos}</span>: M en la cara del apoyo y Vd a d del borde,
+                  con la envolvente ELU y Q alternada. Si se editan acá dejan de coincidir con la viga.
+                </span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setOrigenEsfuerzos("")}>
+                  Quitar aviso
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <CampoNumerico id="momentoPos" etiqueta="M+ positivo" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
               <CampoNumerico id="momentoNeg" etiqueta="M− negativo" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
               <CampoNumerico id="vd" etiqueta={conZonas ? "Vd en el apoyo" : "Vd cortante"} sufijo="kN" valor={vd} onChange={setVd} />
+              <CampoNumerico
+                id="vdBorde"
+                etiqueta="V en el borde del apoyo (opcional)"
+                sufijo="kN"
+                valor={vdBorde}
+                onChange={setVdBorde}
+                advertencia="Si Vd se tomó a d del borde (art. 6.2.1 (8)), VRd,max se comprueba con éste."
+              />
             </div>
             <div className="space-y-3 rounded-md border border-border/60 p-3">
               <label className="flex items-start gap-2 text-sm">
@@ -488,6 +515,14 @@ export default function VigasFlexionCortantePage() {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   <CampoNumerico id="vdCentro" etiqueta="Vd en el centro del vano" sufijo="kN" valor={vdCentro} onChange={setVdCentro} />
                   <CampoNumerico id="luzVano" etiqueta="Luz del vano L" sufijo="m" valor={luzVano} onChange={setLuzVano} />
+                  <CampoNumerico
+                    id="inicioLeyZonas"
+                    etiqueta="Vd del apoyo a (opcional)"
+                    sufijo="m"
+                    valor={inicioLeyZonas}
+                    onChange={setInicioLeyZonas}
+                    advertencia="Distancia desde el apoyo a la que se tomó el Vd. En blanco, en el apoyo."
+                  />
                 </div>
               )}
             </div>
@@ -735,7 +770,7 @@ export default function VigasFlexionCortantePage() {
                   {
                     etiqueta: "compresión oblicua del alma",
                     estado: resultado.cortante.verificaVRdMax ? "cumple" : "no-cumple",
-                    utilizacion: aNumero(vd) / resultado.cortante.vRdMax,
+                    utilizacion: resultado.vdBielasKN / resultado.cortante.vRdMax,
                     conPropuestas: !!rec.bielas,
                   },
                   {
@@ -879,7 +914,7 @@ export default function VigasFlexionCortantePage() {
                     etiqueta="Cortante · compresión oblicua del alma"
                     verifica={resultado.cortante.verificaVRdMax}
                     comparacion={{
-                      real: { etiqueta: "Vd", valor: aNumero(vd) },
+                      real: { etiqueta: resultado.vdBielasKN > aNumero(vd) ? "V borde" : "Vd", valor: resultado.vdBielasKN },
                       limite: { etiqueta: "VRd,max", valor: resultado.cortante.vRdMax },
                       unidad: "kN", exige: "≤",
                     }}
@@ -1023,6 +1058,7 @@ export default function VigasFlexionCortantePage() {
                       <DiagramaZonasCortante
                         zonas={resultado.cortanteZonas}
                         vdApoyoKN={aNumero(vd)}
+                        inicioLeyM={Math.max(aNumero(inicioLeyZonas) || 0, 0)}
                         vdCentroKN={aNumero(vdCentro)}
                         luzM={aNumero(luzVano)}
                         textoApoyo={`${fmt(aNumero(numeroRamas), 0)} ramas Ø${fmt(aNumero(diametroEstribo), 0)} c/${fmt(resultado.cortanteZonas.apoyo.separacionAdoptadaM * 100, 0)}`}

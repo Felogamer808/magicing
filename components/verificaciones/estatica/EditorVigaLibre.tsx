@@ -82,11 +82,27 @@ export function EditorVigaLibre({ modelo, onChange }: EditorVigaLibreProps) {
           <PanelNudo
             numero={seleccion.indice + 1}
             apoyo={seleccion.indice === 0 ? modelo.apoyoInicial : modelo.tramos[seleccion.indice - 1]?.apoyoFinal}
-            onChange={(a) =>
+            ancho={(seleccion.indice === 0 ? modelo.anchoInicial : modelo.tramos[seleccion.indice - 1]?.anchoFinal) ?? ""}
+            onChange={(cambio) =>
               onChange(
                 seleccion.indice === 0
-                  ? { ...modelo, apoyoInicial: a }
-                  : { ...modelo, tramos: modelo.tramos.map((t, k) => (k === seleccion.indice - 1 ? { ...t, apoyoFinal: a } : t)) }
+                  ? {
+                      ...modelo,
+                      ...(cambio.apoyo ? { apoyoInicial: cambio.apoyo } : {}),
+                      ...(cambio.ancho !== undefined ? { anchoInicial: cambio.ancho } : {}),
+                    }
+                  : {
+                      ...modelo,
+                      tramos: modelo.tramos.map((t, k) =>
+                        k === seleccion.indice - 1
+                          ? {
+                              ...t,
+                              ...(cambio.apoyo ? { apoyoFinal: cambio.apoyo } : {}),
+                              ...(cambio.ancho !== undefined ? { anchoFinal: cambio.ancho } : {}),
+                            }
+                          : t
+                      ),
+                    }
               )
             }
           />
@@ -143,13 +159,23 @@ const APOYOS: readonly { id: TipoApoyo; nombre: string }[] = [
   { id: "libre", nombre: "Libre" },
 ];
 
-function PanelNudo({ numero, apoyo, onChange }: { numero: number; apoyo: TipoApoyo | undefined; onChange: (a: TipoApoyo) => void }) {
+function PanelNudo({
+  numero,
+  apoyo,
+  ancho,
+  onChange,
+}: {
+  numero: number;
+  apoyo: TipoApoyo | undefined;
+  ancho: string;
+  onChange: (cambio: { apoyo?: TipoApoyo; ancho?: string }) => void;
+}) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Nudo {numero}</p>
       <div className="flex flex-wrap gap-2">
         {APOYOS.map((a) => (
-          <Button key={a.id} variant={apoyo === a.id ? "default" : "outline"} size="sm" onClick={() => onChange(a.id)}>
+          <Button key={a.id} variant={apoyo === a.id ? "default" : "outline"} size="sm" onClick={() => onChange({ apoyo: a.id })}>
             <svg viewBox="0 0 28 28" className="size-5" aria-hidden="true">
               {a.id === "libre" ? (
                 <circle cx={14} cy={12} r={3} fill="none" stroke="currentColor" strokeWidth={1.5} />
@@ -161,6 +187,18 @@ function PanelNudo({ numero, apoyo, onChange }: { numero: number; apoyo: TipoApo
           </Button>
         ))}
       </div>
+      {apoyo !== "libre" && (
+        <div className="w-44 pt-1">
+          <CampoNumerico
+            id="ancho-apoyo"
+            etiqueta="Ancho del apoyo"
+            sufijo="m"
+            valor={ancho}
+            onChange={(v) => onChange({ ancho: v })}
+            advertencia="Para llevar M y V a la cara al pasar a Vigas. En blanco, el eje."
+          />
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">Un extremo libre es un voladizo.</p>
     </div>
   );

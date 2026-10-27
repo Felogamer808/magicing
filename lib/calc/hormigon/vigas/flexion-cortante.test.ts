@@ -436,6 +436,17 @@ describe("cortante por zonas: apoyo y vano", () => {
     expect(z.vanoAlcanza).toBe(true);
   });
 
+  // Con el Vd tomado a d del borde (art. 6.2.1 (8)) la ley lineal arranca ahí,
+  // y el tramo hasta ese punto ya es zona de apoyo.
+  it("con el Vd a cierta distancia del apoyo, la ley arranca ahí y la zona la incluye", () => {
+    const corrida = calcularCortantePorZonas(materiales, geometria, d, asNeg, {
+      vdApoyoKN: 1076, vdCentroKN: 200, luzM: 8, inicioLeyM: 0.8,
+      apoyo: { diametroEstriboMm: 10, numeroRamas: 6 },
+      vano: { diametroEstriboMm: 8, numeroRamas: 4 },
+    });
+    expect(corrida.largoApoyoExactoM).toBeCloseTo(0.8 + ((1076 - corrida.vRdVanoKN) / (1076 - 200)) * (4 - 0.8), 9);
+  });
+
   it("si los estribos del vano alcanzan para el apoyo, no hace falta zona de apoyo", () => {
     const fuerte = calcularCortantePorZonas(materiales, geometria, d, asNeg, {
       vdApoyoKN: 300, vdCentroKN: 100, luzM: 8,

@@ -300,7 +300,10 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   separado. Mantener también la carga rápida a mano.
   Fase 1 hecha: herramienta **Viga libre** (tramos, apoyos, cargas G/Q,
   combinación ELU / servicio con todo cargado). Fase 2 hecha: envolvente con Q
-  alternada por tramo (2^n exacta, γG único). Falta fase 3, mandar el V(x) y los M a la verificación de vigas.
+  alternada por tramo (2^n exacta, γG único). Fase 3 hecha: botón "Verificar el tramo N en
+  Vigas" (M en la cara 5.3.2.2(3) con mínimo 0,65 del empotramiento, Vd a d del
+  borde 6.2.1(8), V del borde para VRd,max, inicio de la ley de zonas).
+  Pendiente: llevar también luz1/luz2 para el l0 del ancho eficaz de la T.
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación.** Hoy hay un solo juego de valores

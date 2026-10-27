@@ -15,6 +15,8 @@ export interface FilaTramo {
   luz: string;
   /** Apoyo del nudo derecho del tramo. */
   apoyoFinal: TipoApoyo;
+  /** Ancho de ese apoyo (m), para llevar M y V a la cara. Opcional: en blanco es el eje. */
+  anchoFinal?: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export interface FilaCarga {
 
 export interface ModeloVigaLibre {
   apoyoInicial: TipoApoyo;
+  anchoInicial?: string;
   tramos: FilaTramo[];
   cargas: FilaCarga[];
 }
@@ -58,6 +61,16 @@ export function leerModelo(crudo: string): ModeloVigaLibre {
     // Si lo guardado quedó corrupto se vuelve al modelo por defecto en vez de romper la página.
   }
   return MODELO_POR_DEFECTO;
+}
+
+/** Ancho de cada nudo (m); 0 donde no hay dato o el nudo es libre. */
+export function anchosDelModelo(modelo: ModeloVigaLibre): number[] {
+  const textos = [modelo.anchoInicial, ...modelo.tramos.map((t) => t.anchoFinal)];
+  const apoyos = [modelo.apoyoInicial, ...modelo.tramos.map((t) => t.apoyoFinal)];
+  return textos.map((t, i) => {
+    const a = aNumero(t ?? "");
+    return apoyos[i] !== "libre" && Number.isFinite(a) && a > 0 ? a : 0;
+  });
 }
 
 /** Los datos para el motor, o el motivo por el que todavía no se pueden armar. */

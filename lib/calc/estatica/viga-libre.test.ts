@@ -6,6 +6,8 @@ import {
   armarVigaLibre,
   calcularEnvolventeVigaLibre,
   calcularVigaLibre,
+  esfuerzosDeTramo,
+  seccionesDeApoyo,
   validarVigaLibre,
   type CargaLibre,
   type DatosVigaLibre,
@@ -164,5 +166,43 @@ describe("envolvente con Q alternada", () => {
     expect(env.momentoMax.valor).toBeCloseTo(mMax, 1);
     expect(env.momentoMin.valor).toBeCloseTo(mMin, 1);
     expect(Math.abs(env.cortanteMax.valor)).toBeCloseTo(vMod, 6);
+  });
+});
+
+describe("esfuerzos de un tramo para la verificación de vigas", () => {
+  // Dos tramos de 6 m, G 20 y Q 10 kN/m, apoyos de 0,30 m y d = 0,50 m. En ELU q = 42 (G 27, Q 15).
+  const datos: DatosVigaLibre = {
+    lucesM: [6, 6],
+    apoyos: ["simple", "simple", "simple"],
+    cargas: [
+      { tipo: "distribuida", caso: "G", desdeM: 0, hastaM: 12, qInicialKNm: 20, qFinalKNm: 20 },
+      { tipo: "distribuida", caso: "Q", desdeM: 0, hastaM: 12, qInicialKNm: 10, qFinalKNm: 10 },
+    ],
+    eiKNm2: EI,
+  };
+  const c = comb("elu");
+  const anchos = [0.3, 0.3, 0.3];
+  const env = calcularEnvolventeVigaLibre(datos, c, seccionesDeApoyo(datos.lucesM, anchos, 0.5));
+  const t = esfuerzosDeTramo(datos, c, env, 0, anchos, 0.5);
+
+  it("M⁻ en la cara del apoyo central, con los dos tramos cargados: 3/8·qL·x − q·x²/2 en x = 5,85", () => {
+    expect(t.momentoNegKNm).toBeCloseTo(-(94.5 * 5.85 - 21 * 5.85 ** 2), 2);
+    const central = t.extremos.find((e) => e.nudo === 2)!;
+    expect(central.minimoEmpotramientoKNm).toBeCloseTo(0.65 * (42 * 36) / 12, 6);
+    // El apoyo extremo simple no tiene continuidad: sin mínimo de empotramiento.
+    expect(t.extremos.find((e) => e.nudo === 1)!.minimoEmpotramientoKNm).toBe(0);
+  });
+
+  it("M⁺ con Q sólo en el tramo 1", () => {
+    expect(t.momentoPosKNm).toBeCloseTo(100.125 ** 2 / (2 * 42), 1);
+  });
+
+  it("Vd a d del borde del apoyo central, V del borde aparte y V en el centro", () => {
+    // x = 6 − 0,15 − 0,50 = 5,35; G: 60,75 − 27·5,35; Q1: 39,375 − 15·5,35; Q2: −5,625.
+    expect(t.vdKN).toBeCloseTo(-(60.75 - 27 * 5.35 + 39.375 - 15 * 5.35 - 5.625), 2);
+    expect(t.inicioLeyM).toBeCloseTo(0.65, 9);
+    expect(t.vBordeKN).toBeCloseTo(-(60.75 - 27 * 5.85 + 39.375 - 15 * 5.85 - 5.625), 2);
+    expect(t.vdCentroKN).toBeCloseTo(20.25 + 5.625 + 5.625, 2);
+    expect(t.luzM).toBe(6);
   });
 });

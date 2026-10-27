@@ -27,7 +27,7 @@ const NOMBRES: Record<ClaveViga, string> = {
 const utilizaciones = (r: ResueltoVigaFlexionCortante): Partial<Record<ClaveViga, number>> => ({
   positiva: r.flexionPositiva.asNecCm2 / r.flexionPositiva.asRealCm2,
   negativa: r.flexionNegativa.asNecCm2 / r.flexionNegativa.asRealCm2,
-  bielas: r.v.vd / r.cortante.vRdMax,
+  bielas: r.vdBielasKN / r.cortante.vRdMax,
   anchoInferior: siNo(r.flexionPositiva.verificaEntraEnAncho),
   anchoSuperior: siNo(r.flexionNegativa.verificaEntraEnAncho),
   ramas: r.cortante.separacionTransversalM / r.cortante.separacionTransversalMaxM,

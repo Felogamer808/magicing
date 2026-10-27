@@ -1,3 +1,4 @@
+import type { EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
 import type { IdVerificacion } from "./registry";
 
 /**
@@ -141,6 +142,32 @@ export function camposCapitelDesdePunzonamiento(campos: Record<string, string>):
   const destino: Record<string, string> = { forma: "Rectangular" };
   for (const nombre of copiar) if (campos[nombre] !== undefined) destino[nombre] = campos[nombre];
   return destino;
+}
+
+/**
+ * De la viga libre a la verificación de vigas: los esfuerzos de cálculo de un
+ * tramo, sacados de la envolvente ELU con Q alternada. Sección, materiales y
+ * armaduras no viajan: la viga libre no los conoce, quedan los que ya estaban.
+ *
+ * Las zonas de estribos se encienden sólo si el cortante baja hacia el centro;
+ * con una puntual fuerte en el vano la ley lineal de zonas no representa el
+ * diagrama y se deja una sola zona.
+ */
+export const RUTA_VIGAS_FLEXION_CORTANTE = "/verificaciones/vigas-flexion-cortante";
+
+export function camposVigasDesdeTramo(e: EsfuerzosTramo): Record<string, string> {
+  const zonas = e.vdCentroKN < e.vdKN;
+  return {
+    momentoPos: e.momentoPosKNm.toFixed(2),
+    momentoNeg: e.momentoNegKNm.toFixed(2),
+    vd: e.vdKN.toFixed(2),
+    vdBorde: e.vBordeKN.toFixed(2),
+    zonasCortante: zonas ? "si" : "no",
+    vdCentro: e.vdCentroKN.toFixed(2),
+    luzVano: e.luzM.toFixed(2),
+    inicioLeyZonas: e.inicioLeyM.toFixed(2),
+    origenEsfuerzos: `Viga libre · tramo ${e.tramo}`,
+  };
 }
 
 /** Número a texto con el formato que esperan los campos (coma decimal admitida). */

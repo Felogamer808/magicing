@@ -11,6 +11,7 @@ import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { DiagramasViga } from "@/components/verificaciones/estatica/DiagramasViga";
+import { PasarTramoAVigas } from "@/components/verificaciones/estatica/PasarTramoAVigas";
 import { EditorVigaLibre } from "@/components/verificaciones/estatica/EditorVigaLibre";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import {
   type EnvolventeVigaLibre,
   type ExtremoEnvolvente,
 } from "@/lib/calc/estatica/viga-libre";
-import { datosDelModelo, leerModelo } from "@/lib/verificaciones/viga-libre-modelo";
+import { anchosDelModelo, datosDelModelo, leerModelo } from "@/lib/verificaciones/viga-libre-modelo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -31,6 +32,7 @@ const ETAPAS = [
   { id: "rigidez", titulo: "Rigidez" },
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
+  { id: "vigas", titulo: "Verificar un tramo" },
 ] as const;
 
 const NOMBRE_APOYO: Record<string, string> = {
@@ -243,6 +245,19 @@ export default function VigaLibrePage() {
               </div>
             )}
           </div>
+        </Etapa>
+
+        <Etapa
+          id="vigas"
+          numero={5}
+          titulo="Verificar un tramo"
+          descripcion="Lleva los esfuerzos de cálculo de un tramo a la verificación de vigas: M en la cara del apoyo y Vd a d del borde."
+        >
+          {leido.ok ? (
+            <PasarTramoAVigas datos={leido.datos} anchosApoyoM={anchosDelModelo(modelo)} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{leido.motivo}</p>
+          )}
         </Etapa>
       </div>
       </ProveedorComprobaciones>

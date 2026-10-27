@@ -135,3 +135,39 @@ describe("fisuración: sensibilidad", () => {
     );
   });
 });
+
+describe("fisuración en sección en T", () => {
+  // Alma 0,30 × 0,60, ala b_eff 1,20 × 0,20, 6Ø16, rg 0,04 → d = 0,552;
+  // Mqp = 120 kN·m. αe = 200/32,837 = 6,0908.
+  const base = { hM: 0.6, bM: 0.3, n1: 6, diametro1Mm: 16, n2: 0, diametro2Mm: 0, mqpKNm: 120 };
+  const p = { ...parametros, recubrimientoM: 0.04 };
+  const rect = calcularFisuracion(materiales, p, base);
+
+  it("T invertida en vano (ala traccionada): σs del rectángulo bw, Ac,eff y separación del ala", () => {
+    const t = calcularFisuracion(materiales, p, { ...base, ala: { anchoM: 1.2, espesorM: 0.2, comprimida: false } });
+    // La compresión queda en el alma: x = 0,14176 m < h − hf, igual que el rectángulo.
+    expect(t.xM).toBeCloseTo(0.141759, 5);
+    expect(t.xM).toBeCloseTo(rect.xM, 10);
+    // σs = M/(As·(d − x/3)) = 197,07 MPa
+    expect(t.sigmaSMPa).toBeCloseTo(197.07, 2);
+    expect(t.sigmaSMPa).toBeCloseTo(rect.sigmaSMPa, 8);
+    // hc,ef = 2,5·(h − d) = 0,12 ≤ hf: Ac,eff = 1,20 × 0,12, no 0,30 × 0,12
+    expect(t.hcEfM).toBeCloseTo(0.12, 9);
+    expect(t.acEficazM2).toBeCloseTo(0.144, 9);
+    expect(t.sMm).toBeCloseTo(200, 9);
+    // Con el área eficaz cuatro veces mayor, ρp,ef cae y la fisura sale mayor.
+    expect(t.wkMm).toBeGreaterThan(rect.wkMm);
+  });
+
+  it("T en vano (ala comprimida): Ac,eff del alma", () => {
+    const t = calcularFisuracion(materiales, p, { ...base, ala: { anchoM: 1.2, espesorM: 0.2, comprimida: true } });
+    // Bloque fisurado dentro del ala: es el rectángulo de 1,20.
+    const ancho = calcularFisuracion(materiales, p, { ...base, bM: 1.2 });
+    expect(t.xM).toBeLessThan(0.2);
+    expect(t.xM).toBeCloseTo(ancho.xM, 10);
+    expect(t.sigmaSMPa).toBeCloseTo(ancho.sigmaSMPa, 8);
+    // pero el área eficaz y la separación son las del alma
+    expect(t.acEficazM2).toBeCloseTo(0.3 * t.hcEfM, 12);
+    expect(t.sMm).toBeCloseTo(50, 9);
+  });
+});

@@ -1,5 +1,12 @@
 import { moduloSecanteGPa } from "@/lib/calc/hormigon/comun/materiales";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
+import {
+  anchoCaraTraccionadaM,
+  areaEntre,
+  estadoFisurado,
+  franjasSeccion,
+  type AlaServicio,
+} from "@/lib/calc/hormigon/comun/seccion-franjas";
 
 /**
  * Abertura característica de fisura en Estado Límite de Servicio —
@@ -40,13 +47,18 @@ export interface ParametrosFisuracion {
 export interface ZonaFisuracion {
   /** Canto total de la sección (m) */
   hM: number;
-  /** Ancho de la sección (m) */
+  /** Ancho de la sección; en una T, el del alma bw (m) */
   bM: number;
-  /** Barras de la primera familia en el ancho bM */
+  /**
+   * Ala de la T, con b_eff. Comprimida, ensancha la compresión de la sección
+   * fisurada; traccionada, es donde están las barras y de donde sale Ac,eff.
+   */
+  ala?: AlaServicio;
+  /** Barras de la primera familia en el ancho de la cara traccionada */
   n1: number;
   /** Diámetro de la primera familia (mm) */
   diametro1Mm: number;
-  /** Barras de la segunda familia en el ancho bM (0 si no hay) */
+  /** Barras de la segunda familia en ese mismo ancho (0 si no hay) */
   n2: number;
   /** Diámetro de la segunda familia (mm) */
   diametro2Mm: number;
@@ -61,6 +73,8 @@ export interface ResultadoFisuracion {
   xM: number;
   /** Diámetro equivalente de la ec. (7.12) (mm) */
   diametroEqMm: number;
+  /** Ancho de la cara traccionada, donde se reparten las barras (m) */
+  anchoTraccionM: number;
   /** Separación entre barras (mm) */
   sMm: number;
   /** Canto del área eficaz, mín(2,5(h−d), (h−x)/3, h/2) (m) */
@@ -73,6 +87,8 @@ export interface ResultadoFisuracion {
   rhoPEf: number;
   /** Relación de módulos Es/Ecm */
   alphaE: number;
+  /** Brazo mecánico de la sección fisurada (m) */
+  zM: number;
   /** Tensión del acero en servicio, sección fisurada (MPa) */
   sigmaSMPa: number;
   /** Deformación media relativa, ec. (7.9) */
@@ -93,7 +109,9 @@ export function calcularFisuracion(
 ): ResultadoFisuracion {
   const { fck, fctm } = materiales;
   const { recubrimientoM, k2, wAdmMm, esGPa } = parametros;
-  const { hM, bM, n1, diametro1Mm, n2, diametro2Mm, mqpKNm } = zona;
+  const { hM, bM, ala, n1, diametro1Mm, n2, diametro2Mm, mqpKNm } = zona;
+  const franjas = franjasSeccion(bM, hM, ala);
+  const anchoTraccionM = anchoCaraTraccionadaM(franjas);
 
   // Diámetro equivalente de la ec. (7.12): pondera por área, no por cantidad,
   // así que una familia fina no diluye a una gruesa.
@@ -111,27 +129,31 @@ export function calcularFisuracion(
   const esMPa = esGPa * 1000;
   const alphaE = esMPa / (moduloSecanteGPa(fck) * 1000);
 
-  // Fibra neutra de la sección fisurada, con armadura sólo traccionada:
-  // b·x²/2 = αe·As·(d − x). Hace falta tanto para el área eficaz como para el
-  // brazo mecánico.
-  const aeAs = alphaE * asM2;
-  const xM = bM > 0 ? (-aeAs + Math.sqrt(aeAs ** 2 + 2 * bM * aeAs * dM)) / bM : 0;
+  // Fibra neutra e inercia de la sección fisurada, con armadura sólo
+  // traccionada: S_c(x) = αe·As·(d − x). Hace falta tanto para el área eficaz
+  // como para la tensión del acero.
+  const fisurada = estadoFisurado(franjas, dM, 0, asM2, 0, alphaE);
+  const xM = fisurada.xM;
 
+  // Ac,eff de la fig. A19.7.1: el hormigón que rodea a las barras, hasta hc,ef
+  // desde la cara traccionada. En una T con el ala traccionada toma su ancho,
+  // que es donde están las barras.
   const hcEfM = Math.min(2.5 * (hM - dM), (hM - xM) / 3, hM / 2);
-  const acEficazM2 = bM * hcEfM;
+  const acEficazM2 = areaEntre(franjas, hM - hcEfM, hM).areaM2;
   const rhoPEf = acEficazM2 > 0 ? asM2 / acEficazM2 : 0;
 
-  // Brazo mecánico de la sección fisurada, no el 0,8·d aproximado que usaba la
-  // versión anterior: ya se tiene x, así que no hace falta aproximar.
-  const zM = dM - xM / 3;
-  const sigmaSMPa = asM2 > 0 && zM > 0 ? mqpKNm / (1000 * zM * asM2) : 0;
+  // σs = αe·M·(d − x)/I_fis. En un rectángulo es exactamente M/(As·(d − x/3));
+  // escrito así vale también cuando la compresión toma parte del ala de una T.
+  const sigmaSMPa =
+    asM2 > 0 && fisurada.iM4 > 0 ? (alphaE * (mqpKNm / 1000) * (dM - xM)) / fisurada.iM4 : 0;
+  const zM = sigmaSMPa > 0 ? mqpKNm / (1000 * sigmaSMPa * asM2) : 0;
 
   const epsilonSmMenosCm = Math.max(
     (sigmaSMPa - (KT_CARGA_MANTENIDA * fctm * (1 + alphaE * rhoPEf)) / rhoPEf) / esMPa,
     (0.6 * sigmaSMPa) / esMPa
   );
 
-  const sMm = Math.max(n1, n2) > 0 ? (bM * 1000) / Math.max(n1, n2) : 0;
+  const sMm = Math.max(n1, n2) > 0 ? (anchoTraccionM * 1000) / Math.max(n1, n2) : 0;
   const recubrimientoMm = recubrimientoM * 1000;
 
   // La ec. (7.11) vale mientras las barras estén lo bastante juntas como para
@@ -158,12 +180,14 @@ export function calcularFisuracion(
     dM,
     xM,
     diametroEqMm,
+    anchoTraccionM,
     sMm,
     hcEfM,
     acEficazM2,
     asM2,
     rhoPEf,
     alphaE,
+    zM,
     sigmaSMPa,
     epsilonSmMenosCm,
     srMaxMm,

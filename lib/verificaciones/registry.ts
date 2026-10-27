@@ -90,6 +90,7 @@ export type IdVerificacion =
   | "tornillos-acero"
   | "propiedades-geometricas"
   | "formulario-vigas"
+  | "viga-libre"
   | "formulario-torsion"
   | "madera-flexion"
   | "madera-cortante"
@@ -652,6 +653,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Reacciones, cortante, flector y flecha de 20 casos de viga —isostáticos, empotrados y continuos— resueltos por rigidez directa, no por tabla.",
     normasDisponibles: ["Estática"],
     ruta: "/verificaciones/formulario-vigas",
+    disponible: true,
+  },
+  {
+    id: "viga-libre",
+    nombre: "Viga libre",
+    seccion: "herramientas",
+    categoria: "Estática",
+    descripcion:
+      "Viga de cualquier número de tramos y voladizos, armada a mano con sus apoyos y cargas G y Q: reacciones, cortante, flector y flecha por combinación, al estilo Ftool.",
+    normasDisponibles: ["Estática"],
+    ruta: "/verificaciones/viga-libre",
     disponible: true,
   },
   {

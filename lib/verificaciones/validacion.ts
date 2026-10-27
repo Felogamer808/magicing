@@ -179,6 +179,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
 
   "propiedades-geometricas": { nivel: "probada" },
   "formulario-vigas": { nivel: "probada" },
+  "viga-libre": { nivel: "probada" },
 
   "formulario-torsion": {
     nivel: "preliminar",

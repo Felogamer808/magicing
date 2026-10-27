@@ -22,7 +22,18 @@ import {
   CroquisSeccionFisuracion,
 } from "@/components/verificaciones/croquis/CroquisVarios";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
-import { resolverFisuracion } from "@/lib/calc/hormigon/resolver-fisuracion";
+import {
+  ROTULOS_SIGNO_MOMENTO,
+  resolverFisuracion,
+  signoMomentoPorRotulo,
+  type SignoMomento,
+} from "@/lib/calc/hormigon/resolver-fisuracion";
+import { alaComprimidaCon } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { useSeccionT } from "@/lib/hooks/useSeccionT";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
+import { CampoTipoSeccion } from "@/components/verificaciones/hormigon/CampoTipoSeccion";
+import { CamposAlaT } from "@/components/verificaciones/hormigon/CamposAlaT";
+import { CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
 import { recomendarFisuracion } from "@/lib/verificaciones/recomendaciones/fisuracion";
 
 const meta = registroVerificaciones.find((v) => v.id === "fisuracion")!;
@@ -76,6 +87,11 @@ export default function FisuracionPage() {
   const [h, setH] = useCampo("h", "0.18");
   const [b, setB] = useCampo("b", "1");
   const [mqp, setMqp] = useCampo("mqp", "22");
+  // Sección en T: b pasa a ser el alma. El signo sólo importa con ala, porque
+  // decide si queda comprimida o traccionada.
+  const seccion = useSeccionT();
+  const [signoMomento, setSignoMomento] = useCampo<SignoMomento>("signoMomento", "positivo");
+  const alaComprimida = seccion.conAla ? alaComprimidaCon(seccion.tipo, signoMomento !== "negativo") : null;
 
   // Cada familia se define por número de barras en el ancho b y diámetro, igual
   // que en las páginas de viga. Antes se pedía la separación y la página la
@@ -93,16 +109,25 @@ export default function FisuracionPage() {
   const hayFamilia2 = familia2 === "Sí";
 
   const campos = useMemo(
-    () => ({ fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2 }),
-    [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2]
+    () => ({ fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2, signoMomento, ...seccion.campos }),
+    [fck, fyk, esGPa, rg, k2, wAdm, h, b, mqp, numero1, phi1, numero2, phi2, familia2, signoMomento, seccion.campos]
   );
   const resultado = useMemo(() => resolverFisuracion(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
   const rec = useMemo(() => recomendarFisuracion(campos), [campos]);
 
+  // Las barras se reparten en la cara traccionada: con el ala traccionada, en b_eff.
+  const anchoBarrasTxt = resultado ? String(resultado.r.anchoTraccionM) : b;
+  const seccionT = resultado?.seccionT ?? null;
+
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
-    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos. La familia 1 y el momento cuasipermanente son obligatorios." });
+    avisos.push({
+      tipo: "error",
+      texto: seccion.conAla
+        ? "Hay datos vacíos o no válidos. Con T, el ala tiene que ser al menos tan ancha como el alma y más delgada que h, y l0 tiene que salir positivo."
+        : "Hay datos vacíos o no válidos. La familia 1 y el momento cuasipermanente son obligatorios.",
+    });
   } else if (resultado.r.usaTopeSeparacionAmplia) {
     avisos.push({ tipo: "aviso", texto: "La separación supera 5·(c + Ø/2): s r,max sale del tope 1,3·(h − x), ec. (7.14), y no de la adherencia de las barras." });
   }
@@ -136,18 +161,50 @@ export default function FisuracionPage() {
         <Etapa id="seccion" numero={2} titulo="Sección y solicitación" descripcion="El momento es el de la combinación cuasipermanente, no el de cálculo: la fisuración se verifica en servicio.">
           <DatosConDibujo
             datos={
+              <div className="space-y-4">
+              <CampoTipoSeccion seccion={seccion} />
               <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
-                <CampoNumerico id="b" etiqueta="b" sufijo="m" valor={b} onChange={setB} />
+                <CampoNumerico id="b" etiqueta={seccion.conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
                 <CampoNumerico id="rg" etiqueta="Recubrimiento" sufijo="m" valor={rg} onChange={setRg} />
                 <CampoNumerico id="mqp" etiqueta="M cuasiperm." sufijo="kN·m" valor={mqp} onChange={setMqp} />
               </div>
+              {seccion.conAla && (
+                <>
+                  <CampoSeleccion
+                    id="signoMomento"
+                    etiqueta="Signo del momento"
+                    valor={ROTULOS_SIGNO_MOMENTO[signoMomento === "negativo" ? "negativo" : "positivo"]}
+                    opciones={Object.values(ROTULOS_SIGNO_MOMENTO)}
+                    onChange={(x) => setSignoMomento(signoMomentoPorRotulo(x))}
+                  />
+                  <CamposAlaT seccion={seccion} almaTxt={b} cantoTxt={h} alaComprimida={alaComprimida} />
+                </>
+              )}
+              </div>
             }
-            dibujo={<CroquisSeccionFisuracion />}
+            dibujo={
+              seccion.conAla && aNumero(b) > 0 && aNumero(h) > 0 && aNumero(seccion.campos.anchoAla) > 0 && aNumero(seccion.campos.espesorAla) > 0 ? (
+                <CroquisSeccionT
+                  invertida={seccion.tipo === "t-invertida"}
+                  anchoAlaM={aNumero(seccion.campos.anchoAla)}
+                  almaM={aNumero(b)}
+                  cantoM={aNumero(h)}
+                  espesorAlaM={aNumero(seccion.campos.espesorAla)}
+                  anchoEficazM={seccionT?.anchoEficaz.anchoEficazM}
+                />
+              ) : (
+                <CroquisSeccionFisuracion />
+              )
+            }
           />
         </Etapa>
 
-        <Etapa id="armadura" numero={3} titulo="Armadura traccionada" descripcion="Barras en el ancho b; la segunda familia es opcional.">
+        <Etapa id="armadura" numero={3} titulo="Armadura traccionada" descripcion={
+            alaComprimida === false
+              ? "Barras repartidas en el ancho eficaz del ala, que es la cara traccionada; la segunda familia es opcional."
+              : "Barras en el ancho de la cara traccionada; la segunda familia es opcional."
+          }>
           <div className="grid gap-6 sm:grid-cols-2">
             <Subgrupo titulo="Familia 1">
               <div className="grid grid-cols-2 gap-4">
@@ -157,7 +214,7 @@ export default function FisuracionPage() {
                 <CampoDiametro id="phi1" etiqueta="Ø" valor={phi1} onChange={setPhi1} />
                 <CampoNumerico id="numero1" etiqueta="Nº de barras" valor={numero1} onChange={setNumero1} />
                 <div className="col-span-full">
-                  <SeparacionEquivalente anchoTxt={b} numeroTxt={numero1} diametroTxt={phi1} />
+                  <SeparacionEquivalente anchoTxt={anchoBarrasTxt} numeroTxt={numero1} diametroTxt={phi1} />
                 </div>
               </div>
             </Subgrupo>
@@ -176,7 +233,7 @@ export default function FisuracionPage() {
                   <CampoDiametro id="phi2" etiqueta="Ø" valor={phi2} onChange={setPhi2} />
                   <CampoNumerico id="numero2" etiqueta="Nº de barras" valor={numero2} onChange={setNumero2} />
                   <div className="col-span-full">
-                    <SeparacionEquivalente anchoTxt={b} numeroTxt={numero2} diametroTxt={phi2} />
+                    <SeparacionEquivalente anchoTxt={anchoBarrasTxt} numeroTxt={numero2} diametroTxt={phi2} />
                   </div>
                 </div>
               </Subgrupo>
@@ -210,7 +267,14 @@ export default function FisuracionPage() {
             norma={norma}
             datos={[
               { etiqueta: "fck / fyk / Es", valor: `${fck} / ${fyk} MPa / ${esGPa} GPa` },
-              { etiqueta: "Sección b × h", valor: `${b} × ${h} m, recubrimiento ${rg} m` },
+              { etiqueta: seccionT ? "Alma bw × h" : "Sección b × h", valor: `${b} × ${h} m, recubrimiento ${rg} m` },
+              ...(seccionT
+                ? [{
+                    etiqueta: seccionT.tipo === "t" ? "Ala superior" : "Ala inferior",
+                    valor: `${seccion.campos.anchoAla} × ${seccion.campos.espesorAla} m, b_eff ${fmt(seccionT.anchoEficaz.anchoEficazM, 3)} m, ${seccionT.alaComprimida ? "comprimida" : "traccionada"}`,
+                    derivado: true,
+                  }]
+                : []),
               { etiqueta: "M cuasipermanente", valor: `${mqp} kN·m` },
               { etiqueta: "Armadura", valor: `${numero1}Ø${phi1}${hayFamilia2 ? ` + ${numero2}Ø${phi2}` : ""}` },
               { etiqueta: "k2 · w adm", valor: `${k2} · ${wAdm} mm` },
@@ -222,6 +286,14 @@ export default function FisuracionPage() {
               "k2 = 0,5 para flexión y 1,0 para tracción pura.",
               "εsm − εcm no baja de 0,6·σs/Es.",
               "Con separación mayor que 5·(c + Ø/2), s r,max = 1,3·(h − x), ec. (7.14).",
+              ...(seccionT
+                ? [
+                    "Sección en T con b_eff (art. 5.3.2.1) en todo el cálculo de servicio.",
+                    seccionT.alaComprimida
+                      ? "Ala comprimida: entra en la compresión de la sección fisurada; Ac,eff y la separación son las del alma."
+                      : "Ala traccionada: la fisurada comprime el alma; Ac,eff y la separación de barras se miden en b_eff (fig. A19.7.1).",
+                  ]
+                : []),
             ]}
             avisos={avisos}
           />
@@ -263,6 +335,7 @@ export default function FisuracionPage() {
                     resultado={resultado.r}
                     bM={resultado.n.b}
                     hM={resultado.n.h}
+                    ala={seccionT ? { anchoM: seccionT.anchoEficaz.anchoEficazM, espesorM: seccionT.ala.espesorM, comprimida: seccionT.alaComprimida } : undefined}
                     n1={Math.round(resultado.n1)}
                     diametro1Mm={resultado.n.phi1}
                     wAdmMm={resultado.n.wAdm}
@@ -284,11 +357,12 @@ export default function FisuracionPage() {
                       { etiqueta: "d", valor: `${fmt(resultado.r.dM, 3)} m` },
                       { etiqueta: "Fibra neutra x", valor: `${fmt(resultado.r.xM * 1000, 1)} mm` },
                       { etiqueta: "Diámetro equivalente Øeq", valor: `${fmt(resultado.r.diametroEqMm, 1)} mm` },
+                      ...(seccionT ? [{ etiqueta: "Ancho de la cara traccionada", valor: `${fmt(resultado.r.anchoTraccionM, 3)} m` }] : []),
                       { etiqueta: "Separación entre barras s", valor: `${fmt(resultado.r.sMm, 1)} mm` },
                       // Son las barras que hay en el ancho b, no por metro: con
                       // b=1 coinciden, pero en una viga de 0,30 no.
-                      { etiqueta: "Barras familia 1 (en b)", valor: fmt(resultado.n1, 0) },
-                      { etiqueta: "Barras familia 2 (en b)", valor: fmt(resultado.n2, 0) },
+                      { etiqueta: "Barras familia 1", valor: fmt(resultado.n1, 0) },
+                      { etiqueta: "Barras familia 2", valor: fmt(resultado.n2, 0) },
                       { etiqueta: "As total", valor: `${fmt(resultado.r.asM2 * 10000, 2)} cm²` },
                       { etiqueta: "Canto eficaz hc,ef", valor: `${fmt(resultado.r.hcEfM * 1000, 1)} mm` },
                       { etiqueta: "Ac eficaz", valor: `${fmt(resultado.r.acEficazM2 * 10000, 1)} cm²` },
@@ -313,7 +387,12 @@ export default function FisuracionPage() {
                   <PanelFormulas
                     titulo="Ver desarrollo de las tensiones"
                     filas={[
-                      { etiqueta: "Brazo mecánico z = d − x/3", valor: `${fmt(resultado.r.dM - resultado.r.xM / 3, 3)} m` },
+                      {
+                        etiqueta: seccionT?.alaComprimida && resultado.r.xM > seccionT.ala.espesorM
+                          ? "Brazo mecánico z (compresión en ala y alma)"
+                          : "Brazo mecánico z = d − x/3",
+                        valor: `${fmt(resultado.r.zM, 3)} m`,
+                      },
                       { etiqueta: "σs", valor: `${fmt(resultado.r.sigmaSMPa, 1)} MPa` },
                       { etiqueta: "kt (carga cuasipermanente)", valor: "0,40" },
                       { etiqueta: "εsm − εcm", valor: resultado.r.epsilonSmMenosCm.toExponential(4) },

@@ -32,6 +32,7 @@ import {
   calcularL0,
   LUCES_TRAMO_L0,
   rasanteAlaAlma,
+  tipoSeccionDesdeCampo,
   tramoL0DesdeCampo,
   type TramoL0,
   type AnchoEficaz,
@@ -41,10 +42,8 @@ import {
 } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
 
-/** Lee el tipo de sección del campo; sin campo (cálculos viejos), rectangular. */
-export function tipoSeccionDesdeCampo(valor: string | undefined): TipoSeccion {
-  return valor === "t" || valor === "t-invertida" ? valor : "rectangular";
-}
+/** Vive en seccion-t: la usan también fisuración y deformaciones. */
+export { tipoSeccionDesdeCampo };
 
 /** Arma los grupos de armadura para el motor: la 2ª capa sólo entra si tiene barras cargadas. */
 export function armarGrupos(

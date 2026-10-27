@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { VINCULOS_SERVICIO, camposVigaCentradoraDesdeZapata, type DatosVigaCompartidos } from "./vinculos";
+import type { EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
+import type { TipoApoyo } from "@/lib/calc/estatica/viga-continua";
+import {
+  VINCULOS_SERVICIO,
+  camposVigaCentradoraDesdeZapata,
+  camposVigasDesdeTramo,
+  l0DeTramo,
+  type DatosVigaCompartidos,
+} from "./vinculos";
 
 describe("de zapata aislada con el pilar descentrado a viga centradora", () => {
   const medianeria = {
@@ -216,5 +224,60 @@ describe("vínculos: lo que no se puede deducir no viaja", () => {
     for (const v of VINCULOS_SERVICIO) {
       expect(v.falta).toBeTruthy();
     }
+  });
+});
+
+describe("de la viga libre a vigas: caso de l0 (fig. A19.5.2)", () => {
+  // Sólo importan el número de tramo y los momentos de los extremos.
+  const tramo = (t: number, extremos: [number, number][] = []): EsfuerzosTramo => ({
+    tramo: t, luzM: 0, momentoPosKNm: 0, momentoNegKNm: 0, vdKN: 0, vBordeKN: 0, vdCentroKN: 0, inicioLeyM: 0,
+    extremos: extremos.map(([nudo, m]) => ({ nudo, momentoCaraKNm: m, minimoEmpotramientoKNm: 0, vBordeKN: 0, vdKN: 0, distanciaVdM: 0 })),
+  });
+  const viga = (lucesM: number[], apoyos: TipoApoyo[]) => ({ lucesM, apoyos });
+
+  it("con la T, el caso sale de cuántos extremos tienen continuidad", () => {
+    const tres = viga([6, 7, 6], ["simple", "simple", "simple", "simple"]);
+    expect(l0DeTramo(viga([6], ["simple", "simple"]), tramo(1), true)).toMatchObject({ tramoL0: "simple", luz1M: 6, avisos: [] });
+    expect(l0DeTramo(tres, tramo(1), true)).toMatchObject({ tramoL0: "extremo", luz1M: 6, avisos: [] });
+    expect(l0DeTramo(tres, tramo(2), true)).toMatchObject({ tramoL0: "interior", luz1M: 7, avisos: [] });
+  });
+
+  it("un empotramiento cuenta como continuidad", () => {
+    expect(l0DeTramo(viga([6], ["empotrado", "simple"]), tramo(1), true).tramoL0).toBe("extremo");
+    expect(l0DeTramo(viga([6], ["empotrado", "empotrado"]), tramo(1), true).tramoL0).toBe("interior");
+  });
+
+  it("con la T invertida va el apoyo que gobierna el M⁻, con las luces de los dos lados", () => {
+    const tres = viga([6, 7, 5], ["simple", "simple", "simple", "simple"]);
+    expect(l0DeTramo(tres, tramo(2, [[2, 100], [3, 120]]), false)).toMatchObject({ tramoL0: "apoyo", luz1M: 7, luz2M: 5 });
+    expect(l0DeTramo(tres, tramo(2, [[2, 130], [3, 120]]), false)).toMatchObject({ tramoL0: "apoyo", luz1M: 7, luz2M: 6 });
+  });
+
+  it("un empotramiento de extremo en la T invertida se toma simétrico y se avisa", () => {
+    const r = l0DeTramo(viga([6], ["empotrado", "simple"]), tramo(1, [[1, 80]]), false);
+    expect(r).toMatchObject({ tramoL0: "apoyo", luz1M: 6, luz2M: 6 });
+    expect(r.avisos).toHaveLength(1);
+  });
+
+  it("un voladizo manda su largo y el vano contiguo; aislado, l0 a mano igual a su largo", () => {
+    const conVano = viga([6, 2], ["simple", "simple", "libre"]);
+    expect(l0DeTramo(conVano, tramo(2), true)).toMatchObject({ tramoL0: "voladizo", luz1M: 2, luz2M: 6, avisos: [] });
+    // El apoyo junto al voladizo, con la T invertida, es también el caso voladizo.
+    expect(l0DeTramo(conVano, tramo(1, [[2, 50]]), false)).toMatchObject({ tramoL0: "voladizo", luz1M: 2, luz2M: 6 });
+    expect(l0DeTramo(viga([2], ["empotrado", "libre"]), tramo(1), true)).toMatchObject({ tramoL0: "manual", l0M: 2 });
+  });
+
+  it("fuera de la nota se manda igual y se avisa", () => {
+    expect(l0DeTramo(viga([4, 7], ["simple", "simple", "simple"]), tramo(1), true).avisos).toHaveLength(1);
+    expect(l0DeTramo(viga([4, 7], ["simple", "simple", "simple"]), tramo(2), true).avisos).toHaveLength(1);
+    expect(l0DeTramo(viga([6, 3.5], ["simple", "simple", "libre"]), tramo(2), true)).toMatchObject({ tramoL0: "voladizo" });
+    expect(l0DeTramo(viga([6, 3.5], ["simple", "simple", "libre"]), tramo(2), true).avisos).toHaveLength(1);
+  });
+
+  it("los campos llevan el caso y las luces; sin l2 no se pisa la que había", () => {
+    const c = camposVigasDesdeTramo(tramo(1), { tramoL0: "extremo", luz1M: 6, luz2M: 0, avisos: [] });
+    expect(c).toMatchObject({ tramoL0: "extremo", luz1: "6.00", avisoL0: "" });
+    expect(c).not.toHaveProperty("luz2");
+    expect(c).not.toHaveProperty("l0");
   });
 });

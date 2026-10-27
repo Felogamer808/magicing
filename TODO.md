@@ -303,7 +303,8 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   alternada por tramo (2^n exacta, γG único). Fase 3 hecha: botón "Verificar el tramo N en
   Vigas" (M en la cara 5.3.2.2(3) con mínimo 0,65 del empotramiento, Vd a d del
   borde 6.2.1(8), V del borde para VRd,max, inicio de la ley de zonas).
-  Pendiente: llevar también luz1/luz2 para el l0 del ancho eficaz de la T.
+  También manda el caso de l0 de la fig. A19.5.2 con sus luces, según la
+  sección cargada en Vigas (T: el vano; T invertida: el apoyo que gobierna).
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación.** Hoy hay un solo juego de valores

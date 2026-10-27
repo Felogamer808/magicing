@@ -13,7 +13,8 @@ import {
   type EsfuerzosTramo,
 } from "@/lib/calc/estatica/viga-libre";
 import { guardarCamposDeRuta, leerCamposDeRuta, useCampo } from "@/lib/hooks/useCampo";
-import { RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo } from "@/lib/verificaciones/vinculos";
+import { tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo, l0DeTramo } from "@/lib/verificaciones/vinculos";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 
 const ELU = COMBINACIONES_LIBRE.find((c) => c.id === "elu")!;
@@ -63,7 +64,10 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
 
   const pasar = () => {
     if (!esfuerzos) return;
-    guardarCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo(esfuerzos));
+    // El caso de l0 depende de dónde se comprime el ala, y eso lo dice la sección de Vigas.
+    const tipo = tipoSeccionDesdeCampo(leerCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE).tipoSeccion);
+    const l0 = l0DeTramo(datos, esfuerzos, tipo !== "t-invertida");
+    guardarCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo(esfuerzos, l0));
     router.push(RUTA_VIGAS_FLEXION_CORTANTE);
   };
 
@@ -119,8 +123,8 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-3">
             <p className="text-xs text-muted-foreground">
-              Envolvente ELU con Q alternada. Pisa los esfuerzos de Vigas; la sección, los materiales y las armaduras
-              quedan como estaban.
+              Envolvente ELU con Q alternada. Pisa los esfuerzos de Vigas y el caso de l0 del ancho eficaz (según la
+              sección que tenga cargada); la sección, los materiales y las armaduras quedan como estaban.
             </p>
             <Button type="button" size="sm" onClick={pasar}>
               Verificar el tramo {esfuerzos.tramo} en Vigas <ArrowRight className="h-4 w-4" />

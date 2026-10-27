@@ -1,4 +1,6 @@
-import type { EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
+import type { DatosVigaLibre, EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
+import type { TramoL0 } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { fmt } from "./formato";
 import type { IdVerificacion } from "./registry";
 
 /**
@@ -155,9 +157,19 @@ export function camposCapitelDesdePunzonamiento(campos: Record<string, string>):
  */
 export const RUTA_VIGAS_FLEXION_CORTANTE = "/verificaciones/vigas-flexion-cortante";
 
-export function camposVigasDesdeTramo(e: EsfuerzosTramo): Record<string, string> {
+export function camposVigasDesdeTramo(e: EsfuerzosTramo, l0?: L0DeTramo): Record<string, string> {
   const zonas = e.vdCentroKN < e.vdKN;
+  const casoL0: Record<string, string> = l0
+    ? {
+        tramoL0: l0.tramoL0,
+        luz1: l0.luz1M.toFixed(2),
+        ...(l0.luz2M > 0 ? { luz2: l0.luz2M.toFixed(2) } : {}),
+        ...(l0.l0M !== undefined ? { l0: l0.l0M.toFixed(2) } : {}),
+        avisoL0: l0.avisos.join(" "),
+      }
+    : {};
   return {
+    ...casoL0,
     momentoPos: e.momentoPosKNm.toFixed(2),
     momentoNeg: e.momentoNegKNm.toFixed(2),
     vd: e.vdKN.toFixed(2),
@@ -168,6 +180,98 @@ export function camposVigasDesdeTramo(e: EsfuerzosTramo): Record<string, string>
     inicioLeyZonas: e.inicioLeyM.toFixed(2),
     origenEsfuerzos: `Viga libre · tramo ${e.tramo}`,
   };
+}
+
+/** El caso de la fig. A19.5.2 que le toca a un tramo, con sus luces. */
+export interface L0DeTramo {
+  tramoL0: TramoL0;
+  /** l1 y l2 con el sentido que tienen en Vigas para ese caso (m); 0 si el caso no la usa. */
+  luz1M: number;
+  luz2M: number;
+  /** Sólo con "manual": el l0 que se manda (m). */
+  l0M?: number;
+  /** Lo que no cumple la nota de la figura, para revisar. */
+  avisos: string[];
+}
+
+/**
+ * De qué caso de la fig. A19.5.2 (Anejo 19, art. 5.3.2.1 (2), pág. 49) es un
+ * tramo de la viga libre, con los criterios del usuario (2026-10-27):
+ *  - Depende de dónde se comprime el ala. Con la T (o rectangular) es el vano:
+ *    simple, extremo o interior según cuántos extremos tengan continuidad, o
+ *    voladizo. Con la T invertida es la zona sobre el apoyo que gobierna el M⁻.
+ *  - Un empotramiento cuenta como continuidad. Si es el apoyo que gobierna en
+ *    una T invertida, no hay vano al otro lado: se toma simétrico, l2 = l1.
+ *  - Si no se cumple la nota de la figura (voladizo menor que la mitad del vano
+ *    contiguo, luces vecinas entre 2/3 y 3/2), se manda igual y se avisa.
+ */
+export function l0DeTramo(
+  datos: Pick<DatosVigaLibre, "lucesM" | "apoyos">,
+  e: EsfuerzosTramo,
+  alaArriba: boolean
+): L0DeTramo {
+  const { lucesM, apoyos } = datos;
+  const n = lucesM.length;
+  const i = e.tramo - 1;
+  const luz = lucesM[i];
+  const existe = (k: number) => k >= 0 && k < n;
+  const esVoladizo = (k: number) => apoyos[k] === "libre" || apoyos[k + 1] === "libre";
+  // El tramo al otro lado de un nudo del tramo i.
+  const delOtroLado = (nudo: number) => (nudo === i ? i - 1 : i + 1);
+
+  const avisos: string[] = [];
+  const voladizoCorto = (voladizo: number, vano: number) => {
+    if (!(lucesM[voladizo] < 0.5 * lucesM[vano]))
+      avisos.push(
+        `El voladizo del tramo ${voladizo + 1} (${fmt(lucesM[voladizo], 2)} m) no es menor que la mitad del tramo ${vano + 1}: la fig. A19.5.2 no lo cubre.`
+      );
+  };
+  const relacion = (k: number) => {
+    if (!existe(k)) return;
+    if (esVoladizo(k)) return voladizoCorto(k, i);
+    const r = lucesM[k] / luz;
+    if (r < 2 / 3 - 1e-9 || r > 1.5 + 1e-9)
+      avisos.push(
+        `Las luces de los tramos ${i + 1} y ${k + 1} (${fmt(luz, 2)} y ${fmt(lucesM[k], 2)} m) no están entre 2/3 y 3/2: la fig. A19.5.2 no lo cubre.`
+      );
+  };
+
+  if (esVoladizo(i)) {
+    const k = delOtroLado(apoyos[i] === "libre" ? i + 1 : i);
+    if (!existe(k)) {
+      // Voladizo aislado: el momento sólo se anula en la punta.
+      return { tramoL0: "manual", luz1M: luz, luz2M: 0, l0M: luz, avisos: ["Voladizo sin vano contiguo: l0 es su largo."] };
+    }
+    voladizoCorto(i, k);
+    return { tramoL0: "voladizo", luz1M: luz, luz2M: lucesM[k], avisos };
+  }
+
+  if (!alaArriba) {
+    const gobierna = e.extremos.reduce<(typeof e.extremos)[number] | null>((g, x) => {
+      const m = Math.max(x.momentoCaraKNm, x.minimoEmpotramientoKNm);
+      return m > 0 && (!g || m > Math.max(g.momentoCaraKNm, g.minimoEmpotramientoKNm)) ? x : g;
+    }, null);
+    if (gobierna) {
+      const k = delOtroLado(gobierna.nudo - 1);
+      if (!existe(k)) {
+        avisos.push(`El nudo ${gobierna.nudo} es un empotramiento sin vano al otro lado: se toma simétrico, l2 = l1.`);
+        return { tramoL0: "apoyo", luz1M: luz, luz2M: luz, avisos };
+      }
+      if (esVoladizo(k)) {
+        voladizoCorto(k, i);
+        return { tramoL0: "voladizo", luz1M: lucesM[k], luz2M: luz, avisos };
+      }
+      relacion(k);
+      return { tramoL0: "apoyo", luz1M: luz, luz2M: lucesM[k], avisos };
+    }
+  }
+
+  const continuo = (nudo: number) => (nudo > 0 && nudo < n) || apoyos[nudo] === "empotrado";
+  const extremosContinuos = Number(continuo(i)) + Number(continuo(i + 1));
+  relacion(i - 1);
+  relacion(i + 1);
+  const tramoL0: TramoL0 = extremosContinuos === 0 ? "simple" : extremosContinuos === 1 ? "extremo" : "interior";
+  return { tramoL0, luz1M: luz, luz2M: 0, avisos };
 }
 
 /** Número a texto con el formato que esperan los campos (coma decimal admitida). */

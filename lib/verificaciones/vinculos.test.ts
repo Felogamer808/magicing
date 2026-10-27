@@ -281,3 +281,21 @@ describe("de la viga libre a vigas: caso de l0 (fig. A19.5.2)", () => {
     expect(c).not.toHaveProperty("l0");
   });
 });
+
+describe("de la viga libre a vigas: la sección viaja", () => {
+  const e = {
+    tramo: 1, luzM: 6, momentoPosKNm: 100, momentoNegKNm: 150, vdKN: 120, vBordeKN: 140, vdCentroKN: 30, inicioLeyM: 0.65, extremos: [],
+  };
+  const base = { b: "0,3", h: "0,6", anchoAla: "1,2", espesorAla: "0,15", fck: "30" };
+
+  it("rectangular: b, h y fck, y no toca el ala que hubiera en vigas", () => {
+    const c = camposVigasDesdeTramo(e, undefined, { tipoSeccion: "rectangular", ...base });
+    expect(c).toMatchObject({ tipoSeccion: "rectangular", b: "0,3", h: "0,6", fck: "30" });
+    expect(c).not.toHaveProperty("anchoAla");
+  });
+
+  it("con T también van el ala y su espesor", () => {
+    const c = camposVigasDesdeTramo(e, undefined, { tipoSeccion: "t", ...base });
+    expect(c).toMatchObject({ tipoSeccion: "t", anchoAla: "1,2", espesorAla: "0,15" });
+  });
+});

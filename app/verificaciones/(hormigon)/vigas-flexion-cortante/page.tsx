@@ -483,7 +483,8 @@ export default function VigasFlexionCortantePage() {
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
                 <span>
                   Traídos de <span className="font-medium">{origenEsfuerzos}</span>: M en la cara del apoyo y Vd a d del borde,
-                  con la envolvente ELU y Q alternada. Si se editan acá dejan de coincidir con la viga.
+                  con la envolvente ELU y Q alternada, junto con la sección y el fck. Si se editan acá dejan de coincidir
+                  con la viga.
                 </span>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setOrigenEsfuerzos("")}>
                   Quitar aviso

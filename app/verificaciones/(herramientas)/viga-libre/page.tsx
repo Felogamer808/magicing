@@ -21,15 +21,27 @@ import {
   type EnvolventeVigaLibre,
   type ExtremoEnvolvente,
 } from "@/lib/calc/estatica/viga-libre";
-import { anchosDelModelo, datosDelModelo, leerModelo } from "@/lib/verificaciones/viga-libre-modelo";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import {
+  anchosDelModelo,
+  datosDelModelo,
+  leerModelo,
+  rigidezDeSeccion,
+  type SeccionVigaLibre,
+} from "@/lib/verificaciones/viga-libre-modelo";
+import {
+  ROTULOS_TIPO_SECCION,
+  tipoSeccionDesdeCampo,
+  tipoSeccionPorRotulo,
+  type TipoSeccion,
+} from "@/lib/calc/hormigon/vigas/seccion-t";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
 const meta = registroVerificaciones.find((v) => v.id === "viga-libre")!;
 
 const ETAPAS = [
   { id: "viga", titulo: "Tramos y cargas" },
-  { id: "rigidez", titulo: "Rigidez" },
+  { id: "seccion", titulo: "Sección" },
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
   { id: "vigas", titulo: "Verificar un tramo" },
@@ -64,17 +76,26 @@ export default function VigaLibrePage() {
   const [norma, setNorma] = useCampo("norma", "Estática");
   const [crudo, setCrudo] = useCampo("modelo", "");
   const [combinacionId, setCombinacionId] = useCampo("combinacion", "elu");
-  const [eGPa, setEGPa] = useCampo("eGPa", "30");
-  const [iCm4, setICm4] = useCampo("iCm4", "540000");
+  // Los mismos nombres de campo que Vigas, que es adonde viajan.
+  const [tipoSeccionCampo, setTipoSeccion] = useCampo<TipoSeccion>("tipoSeccion", "rectangular");
+  const [b, setB] = useCampo("b", "0.3");
+  const [h, setH] = useCampo("h", "0.6");
+  const [anchoAla, setAnchoAla] = useCampo("anchoAla", "1.2");
+  const [espesorAla, setEspesorAla] = useCampo("espesorAla", "0.15");
+  const [fck, setFck] = useCampo("fck", "30");
   const [alternar, setAlternar] = useCampo("alternarQ", "si");
   const alternada = alternar === "si";
 
   const modelo = leerModelo(crudo);
   const combinacion = COMBINACIONES_LIBRE.find((c) => c.id === combinacionId) ?? COMBINACIONES_LIBRE[0];
-  // E en GPa son 10⁶ kN/m² e I en cm⁴ son 10⁻⁸ m⁴: el producto va por 10⁻² para dar kN·m².
-  const eiKNm2 = aNumero(eGPa) * aNumero(iCm4) * 1e-2;
+  const seccion: SeccionVigaLibre = { tipoSeccion: tipoSeccionDesdeCampo(tipoSeccionCampo), b, h, anchoAla, espesorAla, fck };
+  const conAla = seccion.tipoSeccion !== "rectangular";
+  const rigidez = rigidezDeSeccion(seccion);
+  const eiKNm2 = rigidez.eiKNm2;
 
-  const leido = datosDelModelo(modelo, eiKNm2);
+  const leido: ReturnType<typeof datosDelModelo> = rigidez.motivo
+    ? { ok: false, motivo: rigidez.motivo }
+    : datosDelModelo(modelo, eiKNm2);
   let estado: Estado;
   if (!leido.ok) {
     estado = leido;
@@ -122,15 +143,42 @@ export default function VigaLibrePage() {
           </div>
         </Etapa>
 
-        <Etapa id="rigidez" numero={2} titulo="Rigidez" descripcion="Sólo escala la flecha mientras EI sea constante en toda la viga.">
+        <Etapa
+          id="seccion"
+          numero={2}
+          titulo="Sección y hormigón"
+          descripcion="Da la rigidez para la flecha y viaja a Vigas con los esfuerzos del tramo."
+        >
           <div className="max-w-2xl space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumerico id="eGPa" etiqueta="Módulo E" sufijo="GPa" valor={eGPa} onChange={setEGPa} />
-              <CampoNumerico id="iCm4" etiqueta="Inercia I" sufijo="cm⁴" valor={iCm4} onChange={setICm4} />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="col-span-2">
+                <CampoSeleccion
+                  id="tipoSeccion"
+                  etiqueta="Tipo de sección"
+                  valor={ROTULOS_TIPO_SECCION[seccion.tipoSeccion]}
+                  opciones={Object.values(ROTULOS_TIPO_SECCION)}
+                  onChange={(x) => setTipoSeccion(tipoSeccionPorRotulo(x))}
+                />
+              </div>
+              <CampoNumerico id="b" etiqueta={conAla ? "bw (alma)" : "b"} sufijo="m" valor={b} onChange={setB} />
+              <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
+              {conAla && (
+                <>
+                  <CampoNumerico id="anchoAla" etiqueta="Ancho del ala" sufijo="m" valor={anchoAla} onChange={setAnchoAla} />
+                  <CampoNumerico id="espesorAla" etiqueta="hf" sufijo="m" valor={espesorAla} onChange={setEspesorAla} />
+                </>
+              )}
+              <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
             </div>
+            <p className="font-mono text-[13px] tabular-nums">
+              Ecm = {Number.isFinite(rigidez.eGPa) ? fmt(rigidez.eGPa, 1) : "—"} GPa · I ={" "}
+              {Number.isFinite(rigidez.inerciaM4) ? fmt(rigidez.inerciaM4 * 1e8, 0) : "—"} cm⁴ · EI ={" "}
+              {Number.isFinite(eiKNm2) ? fmt(eiKNm2, 0) : "—"} kN·m²
+            </p>
             <p className="text-xs text-muted-foreground">
-              EI = {Number.isFinite(eiKNm2) ? fmt(eiKNm2, 0) : "—"} kN·m². Con EI constante las
-              reacciones y los diagramas de V y M no dependen de ella, ni siquiera en la continua.
+              Ecm del Anejo 19, tabla A19.3.1, e I de la sección bruta sin fisurar. Con EI constante las reacciones y
+              los diagramas de V y M no dependen de ella: sólo escala la flecha, que es elástica. La flecha con
+              fisuración y fluencia se verifica en Deformaciones.
             </p>
           </div>
         </Etapa>
@@ -143,6 +191,8 @@ export default function VigaLibrePage() {
               { etiqueta: "Cargas", valor: `${modelo.cargas.filter((c) => c.caso === "G").length} G · ${modelo.cargas.filter((c) => c.caso === "Q").length} Q` },
               { etiqueta: "Combinación", valor: combinacion.nombre },
               { etiqueta: "Sobrecarga Q", valor: alternada ? "Alternada por tramo (envolvente)" : "En todos los tramos" },
+              { etiqueta: "Sección", valor: conAla ? `${ROTULOS_TIPO_SECCION[seccion.tipoSeccion]} · bw ${b} × h ${h} · ala ${anchoAla} × ${espesorAla} m` : `${b} × ${h} m` },
+              { etiqueta: "fck", valor: `${fck} MPa` },
               { etiqueta: "EI", valor: Number.isFinite(eiKNm2) ? `${fmt(eiKNm2, 0)} kN·m²` : "—", derivado: true },
             ]}
             hipotesis={[
@@ -151,7 +201,7 @@ export default function VigaLibrePage() {
                 ? "Q alternada tramo por tramo, voladizos incluidos: la envolvente es el peor de las 2ⁿ disposiciones en cada sección, como pide el Anejo 19, art. 5.1.3 (1), pág. 45."
                 : "Q en todos los tramos a la vez: en vigas continuas el negativo en apoyos y el positivo en vanos pueden quedar cortos. Para dimensionar, alternar Q.",
               "G con el mismo coeficiente en toda la viga (1,35 en ELU); sólo Q se alterna. γQ = 1,5. Son los coeficientes del resto de la app.",
-              "EI constante en toda la viga. Cargas positivas hacia abajo; el flector se dibuja del lado traccionado.",
+              "EI constante en toda la viga, con Ecm (Anejo 19, art. 3.1.3, tabla A19.3.1) y la inercia bruta: la flecha es elástica, sin fisuración. Cargas positivas hacia abajo; el flector se dibuja del lado traccionado.",
             ]}
             avisos={avisos}
           />
@@ -254,7 +304,7 @@ export default function VigaLibrePage() {
           descripcion="Lleva los esfuerzos de cálculo de un tramo a la verificación de vigas: M en la cara del apoyo y Vd a d del borde."
         >
           {leido.ok ? (
-            <PasarTramoAVigas datos={leido.datos} anchosApoyoM={anchosDelModelo(modelo)} />
+            <PasarTramoAVigas datos={leido.datos} anchosApoyoM={anchosDelModelo(modelo)} seccion={seccion} />
           ) : (
             <p className="text-sm text-muted-foreground">{leido.motivo}</p>
           )}

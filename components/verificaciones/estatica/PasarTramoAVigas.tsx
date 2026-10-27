@@ -13,9 +13,9 @@ import {
   type EsfuerzosTramo,
 } from "@/lib/calc/estatica/viga-libre";
 import { guardarCamposDeRuta, leerCamposDeRuta, useCampo } from "@/lib/hooks/useCampo";
-import { tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo, l0DeTramo } from "@/lib/verificaciones/vinculos";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import type { SeccionVigaLibre } from "@/lib/verificaciones/viga-libre-modelo";
 
 const ELU = COMBINACIONES_LIBRE.find((c) => c.id === "elu")!;
 
@@ -23,6 +23,8 @@ interface PasarTramoAVigasProps {
   datos: DatosVigaLibre;
   /** Ancho de cada nudo (m), 0 sin dato. */
   anchosApoyoM: readonly number[];
+  /** La sección definida en la viga libre; viaja con los esfuerzos. */
+  seccion: SeccionVigaLibre;
 }
 
 /**
@@ -30,7 +32,7 @@ interface PasarTramoAVigasProps {
  * envolvente ELU y Q alternada, sea cual sea la combinación que se esté
  * mirando arriba: lo que se dimensiona es eso.
  */
-export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps) {
+export function PasarTramoAVigas({ datos, anchosApoyoM, seccion }: PasarTramoAVigasProps) {
   const router = useRouter();
   const [tramoTexto, setTramo] = useCampo("tramoVigas", "1");
   const [dTexto, setD] = useCampo("dVigas", "");
@@ -51,10 +53,10 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
     }
   }
 
-  // d de la sección cargada en Vigas: h − recubrimiento − Ø estribo − Ø negativa / 2.
+  // d con el h de esta viga y el armado cargado en Vigas: h − recubrimiento − Ø estribo − Ø negativa / 2.
   const traerD = () => {
     const c = leerCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE);
-    const h = aNumero(c.h ?? "0.7");
+    const h = aNumero(seccion.h);
     const rec = aNumero(c.recubrimiento ?? "0.04");
     const est = aNumero(c.diametroEstribo ?? "10") / 1000;
     const neg = aNumero(c.diametroNeg ?? "12") / 1000;
@@ -64,10 +66,9 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
 
   const pasar = () => {
     if (!esfuerzos) return;
-    // El caso de l0 depende de dónde se comprime el ala, y eso lo dice la sección de Vigas.
-    const tipo = tipoSeccionDesdeCampo(leerCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE).tipoSeccion);
-    const l0 = l0DeTramo(datos, esfuerzos, tipo !== "t-invertida");
-    guardarCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo(esfuerzos, l0));
+    // El caso de l0 depende de dónde se comprime el ala.
+    const l0 = l0DeTramo(datos, esfuerzos, seccion.tipoSeccion !== "t-invertida");
+    guardarCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo(esfuerzos, l0, seccion));
     router.push(RUTA_VIGAS_FLEXION_CORTANTE);
   };
 
@@ -91,7 +92,7 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
             <CampoNumerico id="d-vigas" etiqueta="Canto útil d" sufijo="m" valor={dTexto} onChange={setD} />
           </div>
           <Button variant="ghost" size="sm" onClick={traerD}>
-            Usar el de Vigas
+            Con rec. y Ø de Vigas
           </Button>
         </div>
       </div>
@@ -123,8 +124,8 @@ export function PasarTramoAVigas({ datos, anchosApoyoM }: PasarTramoAVigasProps)
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-3">
             <p className="text-xs text-muted-foreground">
-              Envolvente ELU con Q alternada. Pisa los esfuerzos de Vigas y el caso de l0 del ancho eficaz (según la
-              sección que tenga cargada); la sección, los materiales y las armaduras quedan como estaban.
+              Envolvente ELU con Q alternada. Pisa en Vigas los esfuerzos, la sección, el fck y el caso de l0 del
+              ancho eficaz; el acero, el recubrimiento y las armaduras quedan como estaban.
             </p>
             <Button type="button" size="sm" onClick={pasar}>
               Verificar el tramo {esfuerzos.tramo} en Vigas <ArrowRight className="h-4 w-4" />

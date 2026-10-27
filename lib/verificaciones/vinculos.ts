@@ -1,5 +1,6 @@
 import type { DatosVigaLibre, EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
 import type { TramoL0 } from "@/lib/calc/hormigon/vigas/seccion-t";
+import type { SeccionVigaLibre } from "./viga-libre-modelo";
 import { fmt } from "./formato";
 import type { IdVerificacion } from "./registry";
 
@@ -148,8 +149,9 @@ export function camposCapitelDesdePunzonamiento(campos: Record<string, string>):
 
 /**
  * De la viga libre a la verificación de vigas: los esfuerzos de cálculo de un
- * tramo, sacados de la envolvente ELU con Q alternada. Sección, materiales y
- * armaduras no viajan: la viga libre no los conoce, quedan los que ya estaban.
+ * tramo, sacados de la envolvente ELU con Q alternada, con la sección y el fck
+ * con que se definió la viga. El acero, el recubrimiento y las armaduras no
+ * viajan: la viga libre no los conoce, quedan los que ya estaban.
  *
  * Las zonas de estribos se encienden sólo si el cortante baja hacia el centro;
  * con una puntual fuerte en el vano la ley lineal de zonas no representa el
@@ -157,8 +159,17 @@ export function camposCapitelDesdePunzonamiento(campos: Record<string, string>):
  */
 export const RUTA_VIGAS_FLEXION_CORTANTE = "/verificaciones/vigas-flexion-cortante";
 
-export function camposVigasDesdeTramo(e: EsfuerzosTramo, l0?: L0DeTramo): Record<string, string> {
+export function camposVigasDesdeTramo(e: EsfuerzosTramo, l0?: L0DeTramo, seccion?: SeccionVigaLibre): Record<string, string> {
   const zonas = e.vdCentroKN < e.vdKN;
+  const camposSeccionLibre: Record<string, string> = seccion
+    ? {
+        tipoSeccion: seccion.tipoSeccion,
+        b: seccion.b,
+        h: seccion.h,
+        fck: seccion.fck,
+        ...(seccion.tipoSeccion !== "rectangular" ? { anchoAla: seccion.anchoAla, espesorAla: seccion.espesorAla } : {}),
+      }
+    : {};
   const casoL0: Record<string, string> = l0
     ? {
         tramoL0: l0.tramoL0,
@@ -169,6 +180,7 @@ export function camposVigasDesdeTramo(e: EsfuerzosTramo, l0?: L0DeTramo): Record
       }
     : {};
   return {
+    ...camposSeccionLibre,
     ...casoL0,
     momentoPos: e.momentoPosKNm.toFixed(2),
     momentoNeg: e.momentoNegKNm.toFixed(2),

@@ -7,6 +7,8 @@
 
 import type { CasoCarga, DatosVigaLibre, CargaLibre } from "@/lib/calc/estatica/viga-libre";
 import type { TipoApoyo } from "@/lib/calc/estatica/viga-continua";
+import { moduloSecanteGPa } from "@/lib/calc/hormigon/comun/materiales";
+import { propiedadesT, type TipoSeccion } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { aNumero } from "@/lib/verificaciones/formato";
 
 export type TipoCargaLibre = CargaLibre["tipo"];
@@ -71,6 +73,54 @@ export function anchosDelModelo(modelo: ModeloVigaLibre): number[] {
     const a = aNumero(t ?? "");
     return apoyos[i] !== "libre" && Number.isFinite(a) && a > 0 ? a : 0;
   });
+}
+
+/**
+ * La sección de la viga, en los mismos campos y unidades que la verificación
+ * de vigas, para mandarlos tal cual. Con T, b es el alma y el ala va aparte.
+ */
+export interface SeccionVigaLibre {
+  tipoSeccion: TipoSeccion;
+  b: string;
+  h: string;
+  anchoAla: string;
+  espesorAla: string;
+  fck: string;
+}
+
+export interface RigidezSeccion {
+  /** Ecm, Anejo 19, art. 3.1.3, tabla A19.3.1 (GPa). */
+  eGPa: number;
+  /** Inercia bruta de la sección de hormigón, sin fisurar (m⁴). */
+  inerciaM4: number;
+  eiKNm2: number;
+  /** Por qué no se puede calcular, o null. */
+  motivo: string | null;
+}
+
+/**
+ * EI de la viga con la sección bruta y Ecm (criterio del usuario, 2026-10-27).
+ * Sólo escala la flecha: con EI constante, reacciones, V y M no dependen de
+ * ella. La flecha con fisuración se verifica aparte, en deformaciones.
+ */
+export function rigidezDeSeccion(s: SeccionVigaLibre): RigidezSeccion {
+  const b = aNumero(s.b);
+  const h = aNumero(s.h);
+  const fck = aNumero(s.fck);
+  const ala = aNumero(s.anchoAla);
+  const hf = aNumero(s.espesorAla);
+  const conAla = s.tipoSeccion !== "rectangular";
+
+  let motivo: string | null = null;
+  if (!(b > 0 && h > 0)) motivo = "Falta b o h de la sección.";
+  else if (conAla && !(ala >= b && hf > 0 && hf < h))
+    motivo = "El ala tiene que ser al menos tan ancha como el alma, con hf entre 0 y h.";
+  else if (!(fck > 0)) motivo = "Falta el fck del hormigón.";
+
+  const inerciaM4 = motivo ? NaN : conAla ? propiedadesT(b, h, ala, hf).inerciaM4 : (b * h ** 3) / 12;
+  const eGPa = fck > 0 ? moduloSecanteGPa(fck) : NaN;
+  // E en GPa son 10⁶ kN/m².
+  return { eGPa, inerciaM4, eiKNm2: eGPa * 1e6 * inerciaM4, motivo };
 }
 
 /** Los datos para el motor, o el motivo por el que todavía no se pueden armar. */

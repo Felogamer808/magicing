@@ -195,3 +195,21 @@ describe("cerco del ala", () => {
     expect(fino.seccionT!.rasante!.verificaArmadura).toBe(true);
   });
 });
+
+describe("V en el borde del apoyo", () => {
+  // Anejo 19, art. 6.2.1 (8): el Vd puede tomarse a d del borde, pero VRd,max se comprueba con el del apoyo.
+  it("comprueba las bielas con el V del borde si es mayor, y los estribos con el Vd", () => {
+    const sinBorde = resolverVigaFlexionCortante(BASE)!;
+    const vRdMax = sinBorde.cortante.vRdMax;
+    const r = resolverVigaFlexionCortante({ ...BASE, vdBorde: String(vRdMax * 1.1) })!;
+    expect(r.vdBielasKN).toBeCloseTo(vRdMax * 1.1, 6);
+    expect(r.cortante.verificaVRdMax).toBe(false);
+    expect(r.cortante.separacionAdoptadaM).toBe(sinBorde.cortante.separacionAdoptadaM);
+  });
+
+  it("en blanco o menor que Vd no cambia nada", () => {
+    const r = resolverVigaFlexionCortante({ ...BASE, vdBorde: "" })!;
+    expect(r.vdBielasKN).toBe(r.v.vd);
+    expect(resolverVigaFlexionCortante({ ...BASE, vdBorde: "1" })!.vdBielasKN).toBe(r.v.vd);
+  });
+});

@@ -209,10 +209,19 @@ export interface EnvolventeVigaLibre {
  * Es la que pide el Anejo 19, art. 5.1.3 (1), pág. 45: las hipótesis de carga
  * tienen que dar las condiciones críticas en todas las secciones.
  */
-export function calcularEnvolventeVigaLibre(datos: DatosVigaLibre, combinacion: CombinacionLibre): EnvolventeVigaLibre {
+export function calcularEnvolventeVigaLibre(
+  datos: DatosVigaLibre,
+  combinacion: CombinacionLibre,
+  /** Secciones donde se quiere el valor exacto y no interpolado (caras de apoyo, d del borde). */
+  abscisasExtra: readonly number[] = []
+): EnvolventeVigaLibre {
   const todoCargado = calcularVigaLibre(datos, combinacion);
   const base = todoCargado.entrada;
-  const cortes = cortesComunes(datos.cargas);
+  const largo = base.largoM;
+  const cortes = [
+    ...cortesComunes(datos.cargas),
+    ...abscisasExtra.filter((x) => x > 0 && x < largo).map((xM): CargaViga => ({ tipo: "puntual", xM, pKN: 0 })),
+  ];
   const resolver = (cargas: CargaViga[]) => calcularVigaContinua({ ...base, cargas: [...cargas, ...cortes] });
 
   const soloG = resolver(
@@ -315,5 +324,155 @@ export function envolventeTodoCargado(datos: DatosVigaLibre, combinacion: Combin
     cortanteMax: conTramos(r.cortanteMax),
     flechaMax: conTramos(r.flechaMax),
     todoCargado,
+  };
+}
+
+// --------------------------------------------------------------------------
+// Esfuerzos de un tramo para la verificación de vigas
+// --------------------------------------------------------------------------
+
+/** Valor de una curva en x, interpolado; en un salto toma el lado de `lado`. */
+function valorEn(xs: readonly number[], ys: readonly number[], x: number, lado: 1 | -1): number {
+  for (let k = 0; k < xs.length - 1; k++) {
+    const a = xs[k];
+    const b = xs[k + 1];
+    if (!(b > a)) continue;
+    const dentro = lado === 1 ? x >= a && x < b : x > a && x <= b;
+    if (dentro) return ys[k] + ((ys[k + 1] - ys[k]) * (x - a)) / (b - a);
+  }
+  return ys[lado === 1 ? 0 : ys.length - 1];
+}
+
+/** El mayor módulo de la envolvente de cortante en x. */
+function cortanteEn(env: EnvolventeVigaLibre, x: number, lado: 1 | -1) {
+  return Math.max(Math.abs(valorEn(env.xs, env.cortante.max, x, lado)), Math.abs(valorEn(env.xs, env.cortante.min, x, lado)));
+}
+
+/** Caras de apoyo y secciones a d del borde: donde `esfuerzosDeTramo` lee la envolvente. */
+export function seccionesDeApoyo(lucesM: readonly number[], anchosApoyoM: readonly number[], dM: number): number[] {
+  return abscisasNudos(lucesM).flatMap((x, i) => {
+    const t = Math.max(anchosApoyoM[i] || 0, 0) / 2;
+    return [x - t, x + t, x - t - dM, x + t + dM];
+  });
+}
+
+export interface ExtremoTramo {
+  /** Número de nudo (desde 1). */
+  nudo: number;
+  /** Momento negativo en la cara del apoyo, en módulo (kN·m). */
+  momentoCaraKNm: number;
+  /** 0,65 del momento de empotramiento perfecto del tramo en ese extremo (kN·m); 0 si no hay continuidad. */
+  minimoEmpotramientoKNm: number;
+  /** Cortante en el borde del apoyo y a d del borde, en módulo (kN). */
+  vBordeKN: number;
+  vdKN: number;
+  /** Distancia del eje del apoyo a la sección del Vd: semiancho + d (m). */
+  distanciaVdM: number;
+}
+
+export interface EsfuerzosTramo {
+  tramo: number;
+  luzM: number;
+  momentoPosKNm: number;
+  /** El mayor de los dos extremos, ya con el mínimo de 0,65 del empotramiento. */
+  momentoNegKNm: number;
+  vdKN: number;
+  vBordeKN: number;
+  vdCentroKN: number;
+  /** Distancia del eje a la sección del Vd en el extremo que gobierna (m). */
+  inicioLeyM: number;
+  extremos: ExtremoTramo[];
+}
+
+/**
+ * Lo que la verificación de vigas necesita de un tramo, sacado de la
+ * envolvente con los criterios del usuario (2026-10-27):
+ *  - M⁺: el máximo del tramo.
+ *  - M⁻: en la cara de cada apoyo con continuidad, Anejo 19, art. 5.3.2.2 (3),
+ *    pág. 50, sin bajar de 0,65 del momento de empotramiento perfecto (nota
+ *    del mismo apartado). Gana el mayor de los dos extremos.
+ *  - Vd: a d del borde de cada apoyo, art. 6.2.1 (8), pág. 75; se toma el
+ *    mayor módulo desde ahí hasta el centro, así una puntual más adentro no
+ *    queda afuera. El V del borde va aparte, para VRd,max.
+ *
+ * `anchosApoyoM` es el ancho de cada nudo (0 en un nudo libre o sin dato: la
+ * cara queda en el eje). `dM` es el canto útil de la viga.
+ */
+export function esfuerzosDeTramo(
+  datos: DatosVigaLibre,
+  combinacion: CombinacionLibre,
+  env: EnvolventeVigaLibre,
+  indice: number,
+  anchosApoyoM: readonly number[],
+  dM: number
+): EsfuerzosTramo {
+  const xsNudos = abscisasNudos(datos.lucesM);
+  const xi = xsNudos[indice];
+  const xj = xsNudos[indice + 1];
+  const luzM = xj - xi;
+  const mitad = (xi + xj) / 2;
+
+  // Empotramiento perfecto del tramo con todas sus cargas de la combinación.
+  const enTramo = datos.cargas.flatMap((c): CargaLibre[] => {
+    if (c.tipo !== "distribuida") return c.xM >= xi && c.xM <= xj ? [{ ...c, xM: c.xM - xi }] : [];
+    const a = Math.max(c.desdeM, xi);
+    const b = Math.min(c.hastaM, xj);
+    if (!(b > a)) return [];
+    const q = (x: number) => c.qInicialKNm + ((c.qFinalKNm - c.qInicialKNm) * (x - c.desdeM)) / (c.hastaM - c.desdeM);
+    return [{ ...c, desdeM: a - xi, hastaM: b - xi, qInicialKNm: q(a), qFinalKNm: q(b) }];
+  });
+  const empotrado = calcularVigaLibre(
+    { lucesM: [luzM], apoyos: ["empotrado", "empotrado"], cargas: enTramo, eiKNm2: datos.eiKNm2 },
+    combinacion
+  ).resultado.reacciones;
+
+  let momentoPosKNm = 0;
+  env.xs.forEach((x, k) => {
+    if (x >= xi && x <= xj) momentoPosKNm = Math.max(momentoPosKNm, env.momento.max[k]);
+  });
+
+  const extremos: ExtremoTramo[] = [];
+  for (const [nudo, xApoyo, lado] of [
+    [indice, xi, 1],
+    [indice + 1, xj, -1],
+  ] as const) {
+    if (datos.apoyos[nudo] === "libre") continue;
+    const semiancho = Math.min(Math.max(anchosApoyoM[nudo] || 0, 0) / 2, luzM / 2);
+    const xCara = xApoyo + lado * semiancho;
+    const momentoCaraKNm = Math.max(-valorEn(env.xs, env.momento.min, xCara, lado), 0);
+    // Continuidad: un nudo interior o un empotramiento. En un apoyo simple de
+    // extremo el momento es cero y el mínimo no corresponde.
+    const interior = nudo > 0 && nudo < datos.lucesM.length;
+    const continuo = interior || datos.apoyos[nudo] === "empotrado";
+    const minimoEmpotramientoKNm = continuo ? 0.65 * Math.abs(empotrado[lado === 1 ? 0 : 1].mKNm) : 0;
+
+    const distanciaVdM = Math.min(semiancho + dM, luzM / 2);
+    const desde = xApoyo + lado * distanciaVdM;
+    let vdKN = cortanteEn(env, desde, lado);
+    env.xs.forEach((x, k) => {
+      const entre = lado === 1 ? x > desde && x <= mitad : x < desde && x >= mitad;
+      if (entre) vdKN = Math.max(vdKN, Math.abs(env.cortante.max[k]), Math.abs(env.cortante.min[k]));
+    });
+    extremos.push({
+      nudo: nudo + 1,
+      momentoCaraKNm,
+      minimoEmpotramientoKNm,
+      vBordeKN: cortanteEn(env, xCara, lado),
+      vdKN,
+      distanciaVdM,
+    });
+  }
+
+  const gobierna = extremos.reduce<ExtremoTramo | null>((g, e) => (!g || e.vdKN > g.vdKN ? e : g), null);
+  return {
+    tramo: indice + 1,
+    luzM,
+    momentoPosKNm,
+    momentoNegKNm: Math.max(0, ...extremos.map((e) => Math.max(e.momentoCaraKNm, e.minimoEmpotramientoKNm))),
+    vdKN: gobierna?.vdKN ?? 0,
+    vBordeKN: Math.max(0, ...extremos.map((e) => e.vBordeKN)),
+    vdCentroKN: Math.max(cortanteEn(env, mitad, 1), cortanteEn(env, mitad, -1)),
+    inicioLeyM: gobierna?.distanciaVdM ?? 0,
+    extremos,
   };
 }

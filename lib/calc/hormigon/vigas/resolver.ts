@@ -114,6 +114,12 @@ export interface ResueltoVigaFlexionCortante {
   flexionNegativa: ResultadoFlexion;
   cortante: ResultadoCortante;
   /**
+   * Cortante con el que se comprueba VRd,max (kN): el Vd cargado o, si vino el
+   * del borde del apoyo y es mayor, ése. Anejo 19, art. 6.2.1 (8): aunque el
+   * Vd se tome a d del borde, las bielas se comprueban con el del apoyo.
+   */
+  vdBielasKN: number;
+  /**
    * Estribos por zonas, apoyo y vano (2026-10-27). null con una sola zona, que
    * es lo de siempre: `cortante` es entonces el de toda la viga y, con zonas,
    * el del apoyo.
@@ -274,12 +280,18 @@ export function resolverVigaFlexionCortante(
     conCercoAla && rasantePrevio?.requiereArmadura ? areaCercoAlaCm2 / rasantePrevio.asNecCm2PorM : null;
   const topeSeparacionM = separacionPorRasanteM ?? undefined;
 
-  const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
+  // Opcional y en blanco por defecto: lo llena la viga libre cuando pasa el Vd
+  // a d del borde. Sin él las bielas se comprueban con el Vd cargado, como siempre.
+  const vdBorde = n("vdBorde");
+  const vdBielasKN = Number.isFinite(vdBorde) && vdBorde > v.vd ? vdBorde : v.vd;
+  const conBielasDelBorde = (c: ResultadoCortante): ResultadoCortante => ({ ...c, verificaVRdMax: c.vRdMax >= vdBielasKN });
+
+  const cortante = conBielasDelBorde(calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     vd: v.vd,
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
     topeSeparacionM,
-  });
+  }));
 
   // Estribos por zonas (criterio del usuario, 2026-10-27): el Vd cargado es el
   // del apoyo y se suma el del centro del vano, con la luz y los estribos del
@@ -294,14 +306,17 @@ export function resolverVigaFlexionCortante(
       Object.values(z).every((x) => Number.isFinite(x) && x >= 0) &&
       z.luz > 0 && z.diametroVano > 0 && z.ramasVano > 0 && z.vdCentro <= v.vd;
     if (!zonasValidas) return null;
-    cortanteZonas = calcularCortantePorZonas(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
+    const inicioLey = n("inicioLeyZonas");
+    const zonas = calcularCortantePorZonas(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
       vdApoyoKN: v.vd,
       vdCentroKN: z.vdCentro,
       luzM: z.luz,
       apoyo: { diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas },
       vano: { diametroEstriboMm: z.diametroVano, numeroRamas: z.ramasVano },
       topeSeparacionM,
+      inicioLeyM: Number.isFinite(inicioLey) && inicioLey > 0 ? inicioLey : 0,
     });
+    cortanteZonas = { ...zonas, apoyo: conBielasDelBorde(zonas.apoyo) };
   }
 
   let seccionT: ResueltoSeccionT | null = null;
@@ -321,6 +336,6 @@ export function resolverVigaFlexionCortante(
 
   return {
     v, seccionT, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
-    cortanteZonas, momentoNegativoCalculo, gobiernaMinimoApoyo,
+    vdBielasKN, cortanteZonas, momentoNegativoCalculo, gobiernaMinimoApoyo,
   };
 }

@@ -360,6 +360,13 @@ export interface DatosCortanteZonas {
   vano: EstribosZona;
   /** Tope de separación para las dos zonas (m), como `DatosCortante.topeSeparacionM` */
   topeSeparacionM?: number;
+  /**
+   * Dónde está el Vd del apoyo, medido desde el eje (m). Cero es el eje. Con el
+   * Vd tomado a d del borde (Anejo 19, art. 6.2.1 (8)) la ley lineal arranca
+   * ahí, y hasta ahí llegan igual los estribos del apoyo: el artículo pide
+   * darles continuidad hasta el apoyo.
+   */
+  inicioLeyM?: number;
 }
 
 export interface ResultadoCortanteZonas {
@@ -410,6 +417,7 @@ export function calcularCortantePorZonas(
   const vRdVanoKN = Math.min(Math.max(vRdS, vano.vRdC, vano.vRdCMin), vano.vRdMax);
 
   const mitad = luzM / 2;
+  const inicio = Math.min(Math.max(datos.inicioLeyM ?? 0, 0), mitad);
   // La separación de cada zona se dimensiona para su propio Vd, así que el vano
   // no alcanza sólo si fallan las bielas o si pide menos de un paso de
   // separación (5 cm), que no se puede armar.
@@ -419,7 +427,7 @@ export function calcularCortantePorZonas(
   if (!vanoAlcanza) largoApoyoExactoM = mitad;
   else if (vRdVanoKN >= vdApoyoKN) largoApoyoExactoM = 0;
   else if (vdApoyoKN <= vdCentroKN) largoApoyoExactoM = mitad;
-  else largoApoyoExactoM = ((vdApoyoKN - vRdVanoKN) / (vdApoyoKN - vdCentroKN)) * mitad;
+  else largoApoyoExactoM = inicio + ((vdApoyoKN - vRdVanoKN) / (vdApoyoKN - vdCentroKN)) * (mitad - inicio);
   const largoApoyoM =
     largoApoyoExactoM <= 0 ? 0 : Math.min(Math.ceil(largoApoyoExactoM / PASO_ZONA_APOYO_M - 1e-9) * PASO_ZONA_APOYO_M, mitad);
 

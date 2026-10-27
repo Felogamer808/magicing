@@ -53,6 +53,18 @@ export interface DatosVigaCompartidos {
   diametroPos2?: string;
   /** Diámetro de la armadura superior, sólo para situar d'. */
   diametroNeg: string;
+  /**
+   * Diámetro del estribo (mm). En la viga el recubrimiento llega al estribo;
+   * en fisuración y en d' hace falta el de la barra longitudinal, que es éste
+   * más el estribo.
+   */
+  diametroEstribo?: string;
+  /**
+   * Campos de la sección en T, con los nombres que usan las tres páginas
+   * (tipoSeccion, anchoAla, espesorAla, tramoL0, luz1, luz2, l0). Sin ellos
+   * la viga es rectangular.
+   */
+  seccionT?: Record<string, string>;
   /** Canto útil de la armadura positiva (m), que la viga ya calculó. */
   dUtilM: number;
   /** As necesaria en ELU de la positiva (cm²). */
@@ -132,6 +144,17 @@ export function camposCapitelDesdePunzonamiento(campos: Record<string, string>):
 }
 
 /** Número a texto con el formato que esperan los campos (coma decimal admitida). */
+/**
+ * Sección del destino: la T tal cual o, si la viga es rectangular, rectangular
+ * explícito, para no dejar del otro lado una T de un cálculo anterior.
+ */
+const camposSeccion = (d: DatosVigaCompartidos): Record<string, string> =>
+  d.seccionT ?? { tipoSeccion: "rectangular" };
+
+/** Recubrimiento hasta la barra longitudinal: el de la viga más el estribo (m). */
+const recubrimientoABarra = (d: DatosVigaCompartidos): number =>
+  Number(d.recubrimiento.replace(",", ".")) + Number((d.diametroEstribo ?? "0").replace(",", ".")) / 1000;
+
 const txt = (n: number, decimales: number) => n.toFixed(decimales);
 
 /**
@@ -154,7 +177,12 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
         fyk: d.fyk,
         b: d.b,
         h: d.h,
-        rg: d.recubrimiento,
+        // c de la ec. (7.11) es el recubrimiento de la armadura longitudinal: en
+        // la viga se carga hasta el estribo, así que se le suma.
+        rg: txt(recubrimientoABarra(d), 4),
+        // La armadura que viaja es la positiva: el momento es positivo.
+        ...camposSeccion(d),
+        signoMomento: "positivo",
         // Fisuración pide las barras con los mismos nombres que la viga, así que
         // el arrastre es 1:1 y no hay conversión donde equivocarse.
         numero1: d.numeroPos,
@@ -195,11 +223,8 @@ export const VINCULOS_SERVICIO: Vinculo[] = [
         // la armadura superior como de compresión. Las barras comprimidas se
         // dejan en cero a propósito —que la negativa comprima en centro de vano
         // es una decisión de quien calcula, no algo deducible de la flexión—.
-        dComp: txt(
-          Number(d.recubrimiento.replace(",", ".")) +
-            Number(d.diametroNeg.replace(",", ".")) / 2000,
-          4
-        ),
+        dComp: txt(recubrimientoABarra(d) + Number(d.diametroNeg.replace(",", ".")) / 2000, 4),
+        ...camposSeccion(d),
         numeroAsComp: "0",
       };
     },

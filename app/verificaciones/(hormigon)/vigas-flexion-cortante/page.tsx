@@ -953,19 +953,21 @@ export default function VigasFlexionCortantePage() {
               </Subgrupo>
               )}
 
-              {!conAla && (
               <PanelVinculos
                 vinculos={VINCULOS_SERVICIO}
                 datos={{
                   fck, fyk, b, h, recubrimiento,
                   numeroPos, diametroPos, numeroPos2, diametroPos2,
-                  diametroNeg,
+                  diametroNeg, diametroEstribo,
+                  // Fisuración y deformaciones ya calculan la T: viaja con su ala.
+                  seccionT: conAla
+                    ? { tipoSeccion, anchoAla, espesorAla, tramoL0: tramoL0Campo, luz1, luz2, l0 }
+                    : undefined,
                   dUtilM: resultado.d,
                   asNecPosCm2: resultado.flexionPositiva.asNecCm2,
                   asRealPosCm2: resultado.flexionPositiva.asRealCm2,
                 }}
               />
-              )}
             </div>
           )}
         </Etapa>

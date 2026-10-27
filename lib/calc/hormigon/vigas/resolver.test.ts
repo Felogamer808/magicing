@@ -169,12 +169,29 @@ describe("cerco del ala", () => {
     ...BASE, tipoSeccion: "t-invertida", anchoAla: "1.5", espesorAla: "0.15", l0: "6",
     diametroAla: "8", separacionAla: "0.2", capasAla: "1", momentoNeg: "150",
   };
-  /** Ø8 c/0,20: 2,51 cm²/m por capa. Con cerco son 2 capas, sin importar lo cargado en capas. */
-  it("con cerco, sus dos ramas horizontales cosen la unión ala–alma", () => {
+  const cerco = { ...T, transversalAla: "cerco" };
+
+  /** Ø8 c/0,20 en una capa: 2,51 cm²/m. */
+  it("con barras, la armadura del ala es la cargada", () => {
     const barras = resolverVigaFlexionCortante(T)!;
-    const cerco = resolverVigaFlexionCortante({ ...T, transversalAla: "cerco" })!;
-    const capa = (Math.PI * 0.8 ** 2) / 4 / 0.2;
-    expect(barras.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo(capa, 9);
-    expect(cerco.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo(2 * capa, 9);
+    expect(barras.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo((Math.PI * 0.8 ** 2) / 4 / 0.2, 9);
+    expect(barras.seccionT!.separacionCercoAlaM).toBeNull();
+  });
+
+  /** El cerco del ala va a la separación del alma, con sus 2 ramas horizontales; no usa la separación cargada. */
+  it("con cerco, va a la separación del cerco del alma con 2 ramas", () => {
+    const r = resolverVigaFlexionCortante({ ...cerco, separacionAla: "" })!;
+    const s = r.cortante.separacionAdoptadaM;
+    expect(r.seccionT!.separacionCercoAlaM).toBeCloseTo(s, 9);
+    expect(r.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo((2 * Math.PI * 0.8 ** 2) / 4 / s, 9);
+  });
+
+  /** Con un cerco del ala fino el rasante pide más juntos: la separación de los dos cercos baja a la suya. */
+  it("si el rasante pide más que el cortante, la separación de los dos es la del rasante", () => {
+    const fino = resolverVigaFlexionCortante({ ...cerco, diametroAla: "6", momentoNeg: "400", vd: "50" })!;
+    const sRas = fino.seccionT!.separacionPorRasanteM!;
+    expect(sRas).toBeGreaterThan(0);
+    expect(fino.cortante.separacionAdoptadaM).toBeLessThanOrEqual(sRas + 1e-9);
+    expect(fino.seccionT!.rasante!.verificaArmadura).toBe(true);
   });
 });

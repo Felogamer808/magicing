@@ -93,6 +93,10 @@ export interface ResueltoSeccionT {
   asTransversalAlaCm2PorM: number;
   /** null si ese momento es 0 o la sección está sobrearmada */
   rasante: ResultadoRasante | null;
+  /** Con cerco del ala: su separación, la misma del cerco del alma (m); null con barras */
+  separacionCercoAlaM: number | null;
+  /** Lo más abierto que admite el rasante con el cerco del ala (m); null si no pide armadura */
+  separacionPorRasanteM: number | null;
 }
 
 export interface ResueltoVigaFlexionCortante {
@@ -177,6 +181,7 @@ export function resolverVigaFlexionCortante(
   const tipo = tipoSeccionDesdeCampo(campos.tipoSeccion);
   let ala: GeometriaAla | null = null;
   let asTransversalAlaCm2PorM = 0;
+  const conCercoAla = tipo !== "rectangular" && campos.transversalAla === "cerco";
   // l0 sale de la fig. A19.5.2 con las luces, o se carga a mano (lo único
   // que había antes: sin el campo del caso, los cálculos guardados no cambian).
   const tramoL0 = tramoL0DesdeCampo(campos.tramoL0);
@@ -186,10 +191,10 @@ export function resolverVigaFlexionCortante(
     const l0M = tramoL0 === "manual" ? n("l0") : calcularL0(tramoL0, n("luz1"), n("luz2"));
     ala = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M };
     // Con un cerco cerrado en el ala, sus dos ramas horizontales cruzan la unión
-    // con el alma: son 2 capas (criterio del usuario, 2026-10-27). Sin el campo
-    // —cálculos guardados antes— siguen siendo barras con las capas cargadas.
-    const conCerco = campos.transversalAla === "cerco";
-    const t = { diametro: n("diametroAla"), separacion: n("separacionAla"), capas: conCerco ? 2 : n("capasAla") };
+    // con el alma: son 2 capas, y va a la misma separación que el cerco del alma,
+    // que se resuelve más abajo (criterio del usuario, 2026-10-27). Sin el campo
+    // —cálculos guardados antes— siguen siendo barras con sus capas y separación.
+    const t = { diametro: n("diametroAla"), separacion: conCercoAla ? 1 : n("separacionAla"), capas: conCercoAla ? 2 : n("capasAla") };
     const alaValida = ala.anchoM >= v.b && ala.espesorM > 0 && ala.espesorM < v.h && ala.l0M > 0;
     const transversalValida = [t.diametro, t.separacion, t.capas].every((x) => Number.isFinite(x) && x > 0);
     if (!alaValida || !transversalValida) return null;
@@ -238,10 +243,42 @@ export function resolverVigaFlexionCortante(
     armaduraReal: gruposNegativa,
     seccionT: seccionTPara(false),
   });
+  // Rasante entre ala y alma con el momento que comprime el ala (art. 6.2.4).
+  // Va antes del cortante: con cerco del ala, la separación que pide fija un
+  // tope para los dos cercos.
+  const flexionAla = alaArriba ? flexionPositiva : flexionNegativa;
+  const momentoAlaComprimidaKNm = alaArriba ? v.momentoPos : momentoNegativoCalculo;
+  const hayRasante = !!(ala && anchoEficaz && flexionAla.alaComprimida && momentoAlaComprimidaKNm > 0 && !flexionAla.sobrearmada);
+  const calcularRasante = (asReal: number) =>
+    hayRasante && ala && anchoEficaz && flexionAla.alaComprimida
+      ? rasanteAlaAlma({
+          momentoKNm: momentoAlaComprimidaKNm,
+          flexion: flexionAla.alaComprimida,
+          anchoAlmaM: v.b,
+          anchoEficazM: anchoEficaz.anchoEficazM,
+          espesorAlaM: ala.espesorM,
+          l0M: ala.l0M,
+          fckMPa: materiales.fck,
+          fcdMPa: materiales.fcd,
+          fydMPa: materiales.fyd,
+          fctmMPa: materiales.fctm,
+          asTransversalRealCm2PorM: asReal,
+        })
+      : null;
+  // Cerco del ala a la misma separación que el del alma: la separación de los
+  // dos es la menor entre la que pide el cortante y la que pide el rasante,
+  // 2 ramas del cerco del ala sobre su Asf/sf necesaria.
+  const areaCercoAlaCm2 = 2 * areaBarraCm2(n("diametroAla"));
+  const rasantePrevio = calcularRasante(asTransversalAlaCm2PorM);
+  const separacionPorRasanteM =
+    conCercoAla && rasantePrevio?.requiereArmadura ? areaCercoAlaCm2 / rasantePrevio.asNecCm2PorM : null;
+  const topeSeparacionM = separacionPorRasanteM ?? undefined;
+
   const cortante = calcularCortante(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
     vd: v.vd,
     diametroEstriboMm: v.diametroEstribo,
     numeroRamas: v.numeroRamas,
+    topeSeparacionM,
   });
 
   // Estribos por zonas (criterio del usuario, 2026-10-27): el Vd cargado es el
@@ -263,31 +300,23 @@ export function resolverVigaFlexionCortante(
       luzM: z.luz,
       apoyo: { diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas },
       vano: { diametroEstriboMm: z.diametroVano, numeroRamas: z.ramasVano },
+      topeSeparacionM,
     });
   }
 
-  // Rasante entre ala y alma con el momento que comprime el ala (art. 6.2.4).
   let seccionT: ResueltoSeccionT | null = null;
   if (tipo !== "rectangular" && ala && anchoEficaz) {
-    const flexionAla = alaArriba ? flexionPositiva : flexionNegativa;
-    const momentoAlaComprimidaKNm = alaArriba ? v.momentoPos : momentoNegativoCalculo;
-    const rasante =
-      flexionAla.alaComprimida && momentoAlaComprimidaKNm > 0 && !flexionAla.sobrearmada
-        ? rasanteAlaAlma({
-            momentoKNm: momentoAlaComprimidaKNm,
-            flexion: flexionAla.alaComprimida,
-            anchoAlmaM: v.b,
-            anchoEficazM: anchoEficaz.anchoEficazM,
-            espesorAlaM: ala.espesorM,
-            l0M: ala.l0M,
-            fckMPa: materiales.fck,
-            fcdMPa: materiales.fcd,
-            fydMPa: materiales.fyd,
-            fctmMPa: materiales.fctm,
-            asTransversalRealCm2PorM: asTransversalAlaCm2PorM,
-          })
-        : null;
-    seccionT = { tipo, ala, tramoL0, anchoEficaz, momentoAlaComprimidaKNm, asTransversalAlaCm2PorM, rasante };
+    // Con cerco, el rasante se verifica con la separación más abierta de la
+    // viga: la del vano si hay zonas, que es la que menos acero deja.
+    const separacionCercoAlaM = conCercoAla
+      ? Math.max(cortante.separacionAdoptadaM, cortanteZonas?.vano.separacionAdoptadaM ?? 0)
+      : null;
+    if (separacionCercoAlaM) asTransversalAlaCm2PorM = areaCercoAlaCm2 / separacionCercoAlaM;
+    const rasante = calcularRasante(asTransversalAlaCm2PorM);
+    seccionT = {
+      tipo, ala, tramoL0, anchoEficaz, momentoAlaComprimidaKNm, asTransversalAlaCm2PorM, rasante,
+      separacionCercoAlaM, separacionPorRasanteM,
+    };
   }
 
   return {

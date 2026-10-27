@@ -271,7 +271,7 @@ export function calcularCortante(
 ): ResultadoCortante {
   const { b, recubrimiento } = geometria;
   const { fck, fyk, fcd, fydEstribos } = materiales;
-  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
+  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05, topeSeparacionM = Infinity } = datos;
 
   const vRdMax = cortanteMaximoBielas(fcd, b, d);
   const verificaVRdMax = vd <= vRdMax;
@@ -311,7 +311,7 @@ export function calcularCortante(
 
   const sepMax = separacionMaxM(d);
   const separacionAdoptadaM = Math.min(
-    redondearSeparacionM(Math.min(sepMax, separacionNecM), pasoSeparacionM),
+    redondearSeparacionM(Math.min(sepMax, separacionNecM, topeSeparacionM), pasoSeparacionM),
     TOPE_SEPARACION_OFICINA_M
   );
 
@@ -358,6 +358,8 @@ export interface DatosCortanteZonas {
   luzM: number;
   apoyo: EstribosZona;
   vano: EstribosZona;
+  /** Tope de separación para las dos zonas (m), como `DatosCortante.topeSeparacionM` */
+  topeSeparacionM?: number;
 }
 
 export interface ResultadoCortanteZonas {
@@ -398,6 +400,7 @@ export function calcularCortantePorZonas(
       vd,
       diametroEstriboMm: e.diametroEstriboMm,
       numeroRamas: e.numeroRamas,
+      topeSeparacionM: datos.topeSeparacionM,
     });
   const apoyo = zona(vdApoyoKN, datos.apoyo);
   const vano = zona(vdCentroKN, datos.vano);

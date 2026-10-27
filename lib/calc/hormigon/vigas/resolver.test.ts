@@ -142,3 +142,39 @@ describe("l0 desde la fig. A19.5.2", () => {
     expect(resolverVigaFlexionCortante({ ...INV, tramoL0: "apoyo", luz1: "6", luz2: "" })).toBeNull();
   });
 });
+
+describe("estribos por zonas", () => {
+  const zonas = { ...BASE, vd: "300", zonasCortante: "si", vdCentro: "60", luzVano: "6", diametroEstriboVano: "6", numeroRamasVano: "2" };
+
+  it("sin el campo, una sola zona como siempre", () => {
+    expect(resolverVigaFlexionCortante(BASE)!.cortanteZonas).toBeNull();
+  });
+
+  it("el Vd cargado es el del apoyo; la zona de apoyo sale calculada", () => {
+    const r = resolverVigaFlexionCortante(zonas)!;
+    expect(r.cortanteZonas).not.toBeNull();
+    expect(r.cortanteZonas!.apoyo.separacionAdoptadaM).toBeCloseTo(r.cortante.separacionAdoptadaM, 9);
+    expect(r.cortanteZonas!.largoApoyoM).toBeGreaterThan(0);
+    expect(r.cortanteZonas!.largoApoyoM).toBeLessThanOrEqual(3);
+  });
+
+  it("el Vd del centro no puede superar al del apoyo, y hace falta la luz", () => {
+    expect(resolverVigaFlexionCortante({ ...zonas, vdCentro: "400" })).toBeNull();
+    expect(resolverVigaFlexionCortante({ ...zonas, luzVano: "" })).toBeNull();
+  });
+});
+
+describe("cerco del ala", () => {
+  const T = {
+    ...BASE, tipoSeccion: "t-invertida", anchoAla: "1.5", espesorAla: "0.15", l0: "6",
+    diametroAla: "8", separacionAla: "0.2", capasAla: "1", momentoNeg: "150",
+  };
+  /** Ø8 c/0,20: 2,51 cm²/m por capa. Con cerco son 2 capas, sin importar lo cargado en capas. */
+  it("con cerco, sus dos ramas horizontales cosen la unión ala–alma", () => {
+    const barras = resolverVigaFlexionCortante(T)!;
+    const cerco = resolverVigaFlexionCortante({ ...T, transversalAla: "cerco" })!;
+    const capa = (Math.PI * 0.8 ** 2) / 4 / 0.2;
+    expect(barras.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo(capa, 9);
+    expect(cerco.seccionT!.asTransversalAlaCm2PorM).toBeCloseTo(2 * capa, 9);
+  });
+});

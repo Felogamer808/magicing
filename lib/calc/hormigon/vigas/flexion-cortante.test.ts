@@ -5,6 +5,7 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   calcularCantoUtil,
   calcularCortante,
+  calcularCortantePorZonas,
   calcularDisposicionArmadura,
   calcularFlexion,
   momentoReducidoLimite,
@@ -405,5 +406,50 @@ describe("diámetro de estribo cargado", () => {
     expect(ancho10.capacidadPorGrupo[0]).toBe(6);
     expect(ancho6.filas).toHaveLength(1);
     expect(ancho10.filas).toHaveLength(2);
+  });
+});
+
+describe("cortante por zonas: apoyo y vano", () => {
+  const materiales = derivarMateriales({ fck: 30, fyk: 500 });
+  const geometria = { b: 0.9, h: 0.7, recubrimiento: 0.04, diametroEstriboMm: 10 };
+  const d = calcularCantoUtil(geometria, [{ numero: 10, diametroMm: 10 }]);
+  const asNeg = 5.65486677646163;
+  const z = calcularCortantePorZonas(materiales, geometria, d, asNeg, {
+    vdApoyoKN: 1076, vdCentroKN: 200, luzM: 8,
+    apoyo: { diametroEstriboMm: 10, numeroRamas: 6 },
+    vano: { diametroEstriboMm: 8, numeroRamas: 4 },
+  });
+
+  it("cada zona se verifica con su Vd y sus estribos", () => {
+    const sola = calcularCortante(materiales, geometria, d, asNeg, { vd: 1076, diametroEstriboMm: 10, numeroRamas: 6 });
+    expect(z.apoyo.separacionAdoptadaM).toBeCloseTo(sola.separacionAdoptadaM, 9);
+    expect(z.vano.aEstriboCm2).toBeCloseTo(4 * Math.PI * 0.8 ** 2 / 4, 9);
+  });
+
+  /** VRd del vano = (Asw/s)·0,9d·400/10; el cambio cae donde 1076 − (876/4)·x = VRd. */
+  it("la zona de apoyo llega hasta donde V(x) baja a lo que resisten los estribos del vano", () => {
+    const vRdS = (z.vano.areaRealCm2PorM * 400 * 0.9 * d) / 10;
+    expect(z.vRdVanoKN).toBeCloseTo(Math.max(vRdS, z.vano.vRdC, z.vano.vRdCMin), 9);
+    expect(z.largoApoyoExactoM).toBeCloseTo(((1076 - z.vRdVanoKN) / (1076 - 200)) * 4, 9);
+    expect(z.largoApoyoM).toBeGreaterThanOrEqual(z.largoApoyoExactoM);
+    expect(z.largoApoyoM - z.largoApoyoExactoM).toBeLessThan(0.05);
+    expect(z.vanoAlcanza).toBe(true);
+  });
+
+  it("si los estribos del vano alcanzan para el apoyo, no hace falta zona de apoyo", () => {
+    const fuerte = calcularCortantePorZonas(materiales, geometria, d, asNeg, {
+      vdApoyoKN: 300, vdCentroKN: 100, luzM: 8,
+      apoyo: { diametroEstriboMm: 10, numeroRamas: 6 }, vano: { diametroEstriboMm: 10, numeroRamas: 6 },
+    });
+    expect(fuerte.largoApoyoM).toBe(0);
+  });
+
+  it("si los del vano no alcanzan ni en el centro, se avisa y la zona de apoyo cubre medio vano", () => {
+    const flojo = calcularCortantePorZonas(materiales, geometria, d, asNeg, {
+      vdApoyoKN: 1076, vdCentroKN: 1000, luzM: 8,
+      apoyo: { diametroEstriboMm: 10, numeroRamas: 6 }, vano: { diametroEstriboMm: 6, numeroRamas: 2 },
+    });
+    expect(flojo.vanoAlcanza).toBe(false);
+    expect(flojo.largoApoyoM).toBeCloseTo(4, 9);
   });
 });

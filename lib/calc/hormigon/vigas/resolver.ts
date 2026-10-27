@@ -23,7 +23,9 @@ import type {
 import {
   calcularCantoUtil,
   calcularCortante,
+  calcularCortantePorZonas,
   calcularFlexion,
+  type ResultadoCortanteZonas,
 } from "@/lib/calc/hormigon/vigas/flexion-cortante";
 import { aNumero } from "@/lib/verificaciones/formato";
 import { BETA_1_EMPOTRAMIENTO_PARCIAL } from "@/lib/calc/hormigon/comun/coeficientes";
@@ -108,6 +110,12 @@ export interface ResueltoVigaFlexionCortante {
   flexionNegativa: ResultadoFlexion;
   cortante: ResultadoCortante;
   /**
+   * Estribos por zonas, apoyo y vano (2026-10-27). null con una sola zona, que
+   * es lo de siempre: `cortante` es entonces el de toda la viga y, con zonas,
+   * el del apoyo.
+   */
+  cortanteZonas: ResultadoCortanteZonas | null;
+  /**
    * Momento con el que se dimensionó la armadura superior: el cargado o, en
    * construcción monolítica, β1·M+ si es mayor (Anejo 19, art. 9.2.1.2 (1)).
    */
@@ -177,7 +185,11 @@ export function resolverVigaFlexionCortante(
     if (!lucesValidas) return null;
     const l0M = tramoL0 === "manual" ? n("l0") : calcularL0(tramoL0, n("luz1"), n("luz2"));
     ala = { anchoM: n("anchoAla"), espesorM: n("espesorAla"), l0M };
-    const t = { diametro: n("diametroAla"), separacion: n("separacionAla"), capas: n("capasAla") };
+    // Con un cerco cerrado en el ala, sus dos ramas horizontales cruzan la unión
+    // con el alma: son 2 capas (criterio del usuario, 2026-10-27). Sin el campo
+    // —cálculos guardados antes— siguen siendo barras con las capas cargadas.
+    const conCerco = campos.transversalAla === "cerco";
+    const t = { diametro: n("diametroAla"), separacion: n("separacionAla"), capas: conCerco ? 2 : n("capasAla") };
     const alaValida = ala.anchoM >= v.b && ala.espesorM > 0 && ala.espesorM < v.h && ala.l0M > 0;
     const transversalValida = [t.diametro, t.separacion, t.capas].every((x) => Number.isFinite(x) && x > 0);
     if (!alaValida || !transversalValida) return null;
@@ -232,6 +244,28 @@ export function resolverVigaFlexionCortante(
     numeroRamas: v.numeroRamas,
   });
 
+  // Estribos por zonas (criterio del usuario, 2026-10-27): el Vd cargado es el
+  // del apoyo y se suma el del centro del vano, con la luz y los estribos del
+  // vano. Sin el campo, una sola zona como siempre.
+  let cortanteZonas: ResultadoCortanteZonas | null = null;
+  if (campos.zonasCortante === "si") {
+    const z = {
+      vdCentro: n("vdCentro"), luz: n("luzVano"),
+      diametroVano: n("diametroEstriboVano"), ramasVano: n("numeroRamasVano"),
+    };
+    const zonasValidas =
+      Object.values(z).every((x) => Number.isFinite(x) && x >= 0) &&
+      z.luz > 0 && z.diametroVano > 0 && z.ramasVano > 0 && z.vdCentro <= v.vd;
+    if (!zonasValidas) return null;
+    cortanteZonas = calcularCortantePorZonas(materiales, geometria, dNegativo, flexionNegativa.asRealCm2, {
+      vdApoyoKN: v.vd,
+      vdCentroKN: z.vdCentro,
+      luzM: z.luz,
+      apoyo: { diametroEstriboMm: v.diametroEstribo, numeroRamas: v.numeroRamas },
+      vano: { diametroEstriboMm: z.diametroVano, numeroRamas: z.ramasVano },
+    });
+  }
+
   // Rasante entre ala y alma con el momento que comprime el ala (art. 6.2.4).
   let seccionT: ResueltoSeccionT | null = null;
   if (tipo !== "rectangular" && ala && anchoEficaz) {
@@ -258,6 +292,6 @@ export function resolverVigaFlexionCortante(
 
   return {
     v, seccionT, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
-    momentoNegativoCalculo, gobiernaMinimoApoyo,
+    cortanteZonas, momentoNegativoCalculo, gobiernaMinimoApoyo,
   };
 }

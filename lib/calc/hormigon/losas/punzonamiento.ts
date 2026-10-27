@@ -32,7 +32,8 @@
  *   término suma resistencia. Mismo criterio que `comun/cortante.ts`.
  * - **Huecos próximos** (art. 6.4.2(3)): si hay un hueco a menos de 6d hay que
  *   descontar la parte del perímetro que queda a la sombra. No se modela.
- * - **Capiteles** (art. 6.4.2(8) a (11)).
+ * - **Capiteles** (art. 6.4.2(8) a (11)): van en `capitel.ts`, su propia
+ *   verificación, a la que la página lleva los datos si no verifica.
  * - **β por la ec. (6.39)**: se usan los valores recomendados de la figura
  *   A19.6.21, o uno cargado a mano. Ver `BETA_RECOMENDADO`.
  */
@@ -344,7 +345,7 @@ function areaBarraMm2(diametroMm: number): number {
  * ancho se cancela: ρ = (Aφ/s)/d. Lo que sí importa del ancho es dónde tiene que
  * estar puesta esa armadura, y eso lo informa `anchoCuantiaC*M`.
  */
-function cuantia(diametroMm: number, separacionM: number, dM: number): number {
+export function cuantia(diametroMm: number, separacionM: number, dM: number): number {
   const asMm2PorM = areaBarraMm2(diametroMm) / separacionM;
   return asMm2PorM / (dM * 1000 * 1000);
 }
@@ -355,7 +356,7 @@ function cuantia(diametroMm: number, separacionM: number, dM: number): number {
  * En borde y esquina no es el perímetro del pilar: la norma lo topa porque la
  * biela no se puede desarrollar hacia el borde libre.
  */
-function perimetroCaraPilar(
+export function perimetroCaraPilar(
   posicion: PosicionPilar,
   c1M: number,
   c2M: number,

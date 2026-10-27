@@ -3,6 +3,7 @@ import {
   type ResueltoVigaCentradoraPilotes,
 } from "@/lib/calc/hormigon/cimentaciones/resolver-viga-centradora-pilotes";
 import type { ResultadoFlexion } from "@/lib/calc/hormigon/comun/types";
+import type { AnclajeSuperiorCentradora } from "@/lib/calc/hormigon/cimentaciones/viga-centradora-pilotes";
 import { evaluar, recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
 import { CITA_PATILLA, campo, m, palancaDiametro, palancaFck, palancaOpcion, palancaValor, EFECTO_H, type Campos } from "./palancas";
 import { RAMAS } from "./vigas-flexion-cortante";
@@ -31,6 +32,21 @@ const NOMBRES: Record<ClaveVigaCentradoraPilotes, string> = {
 
 const aprovechamiento = (f: ResultadoFlexion) => (f.sobrearmada ? Infinity : f.aprovechamiento);
 
+/**
+ * En U el retorno se dimensiona para completar lbd: lo que se comprueba es
+ * que la curva entre en el canto. Con horquillas, la peor entre su área, su
+ * propio anclaje y la curva.
+ */
+export function utilizacionAnclaje(a: AnclajeSuperiorCentradora): number {
+  const curva = a.mandril ? a.mandril.ocupaMm / a.mandril.disponibleCantoMm : 0;
+  if (a.forma === "u") return curva;
+  if (a.horquillas) {
+    const hq = a.horquillas;
+    return Math.max(hq.asNecCm2 / hq.asRealCm2, hq.lbdHorquillaMm / hq.disponibleHorquillaMm, curva);
+  }
+  return Math.max(a.lbdMm / a.disponibleMm, curva);
+}
+
 function utilizaciones({ r }: ResueltoVigaCentradoraPilotes): Partial<Record<ClaveVigaCentradoraPilotes, number>> {
   const v = r.voladizo;
   return {
@@ -40,7 +56,7 @@ function utilizaciones({ r }: ResueltoVigaCentradoraPilotes): Partial<Record<Cla
     bielasTramo: r.cortanteTramoKN / r.cortanteTramo.vRdMax,
     bielasVoladizo: v.vEdKN / Math.min(v.vRdMaxKN, v.vLimite65KN),
     ramas: r.cortanteTramo.separacionTransversalM / r.cortanteTramo.separacionTransversalMaxM,
-    anclaje: r.anclajeSuperior.lbdMm / r.anclajeSuperior.disponibleMm,
+    anclaje: utilizacionAnclaje(r.anclajeSuperior),
     fisuracion: r.fisuracion.resultado.wkMm / r.fisuracion.wMaxMm,
   };
 }
@@ -67,10 +83,17 @@ const ANCHO = palancaValor(campo("b"), {
 });
 const FCK = palancaFck(campo("fck"));
 const PATILLA = palancaOpcion<Campos>(
-  (e) => e.formaAnclaje !== "gancho",
+  (e) => !e.formaAnclaje || e.formaAnclaje === "recta",
   (e) => ({ ...e, formaAnclaje: "gancho" }),
   "Terminar la superior en patilla a 90° sobre el pilar (hoy recta)",
   { cita: CITA_PATILLA }
+);
+/** La U siempre completa lbd con su retorno: queda el mandril. */
+const EN_U = palancaOpcion<Campos>(
+  (e) => e.formaAnclaje !== "u",
+  (e) => ({ ...e, formaAnclaje: "u" }),
+  "Doblar la superior en U: baja por el extremo y vuelve por abajo lo que falte",
+  { cita: "Anejo 19, art. 8.4.3 (3) y 8.3" }
 );
 
 function palancasPorClave(clave: ClaveVigaCentradoraPilotes): readonly Palanca<Campos>[] {
@@ -88,7 +111,7 @@ function palancasPorClave(clave: ClaveVigaCentradoraPilotes): readonly Palanca<C
       return [RAMAS];
     case "anclaje":
       // Más barras bajan σsd y con ella lbd; la patilla suma la pata.
-      return [PATILLA, ...barras("numeroSup", "diametroSup", "Superior: ")];
+      return [EN_U, PATILLA, ...barras("numeroSup", "diametroSup", "Superior: "), CANTO];
     case "fisuracion":
       // Más barras más finas: más acero y fisuras más juntas.
       return [...barras("numeroSup", "diametroSup", "Superior: "), CANTO];

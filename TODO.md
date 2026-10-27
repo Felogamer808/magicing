@@ -133,8 +133,10 @@ Independientes, contra `main`:
     8.4; la fisuración, por el art. 7.3.4 en el pilote con Nqp = G + ψ2·Q (ψ2
     por proyecto, 0,3 sin dato) y wmax de la tabla 27.2 (XC2: 0,3 mm). Con
     barras gruesas sobre un pilar chico el anclaje no entra ni con patilla
-    (Ø25 sobre 0,40 m: lbd ≈ 960 mm contra 880): falta ofrecer la horquilla o
-    la barra en U que vuelve por abajo.
+    (Ø25 sobre 0,40 m: lbd ≈ 960 mm contra 880). Resuelto el 2026-10-26: el
+    extremo puede ser la misma barra en U (se dimensiona el retorno por
+    abajo) u horquillas solapadas (art. 8.7.3, α6 = 1,5), con el mandril de
+    la tabla A19.8.1 y la ec. (8.1) y la curva dentro de h − 2·rec.
     Contraste con la planilla REV08: Md al 1 % en VC1, VC2, VC5 y VC6; en VC3
     y VC4 (medianero de 2 pilotes) −8 % y +5 % porque la planilla usa el F de
     Robot. El voladizo pilar–pilote, por la ec. (6.19), pide estribos densos

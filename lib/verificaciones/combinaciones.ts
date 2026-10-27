@@ -252,6 +252,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "zona-parcialmente-cargada": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   punzonamiento: ELU_MAYORADAS,
+  capiteles: ELU_MAYORADAS,
   zapatas: ZAPATAS,
   "zapata-corrida": ZAPATAS,
   "zapata-viga-centradora": ZAPATAS,

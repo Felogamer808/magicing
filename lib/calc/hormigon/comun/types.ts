@@ -147,6 +147,11 @@ export interface DatosCortante {
   atPorRamaCm2PorM?: number;
   /** Paso al que se redondea hacia abajo la separación adoptada (m). Por defecto 0.05. */
   pasoSeparacionM?: number;
+  /**
+   * Otro tope para la separación adoptada (m): el que pide otra armadura que
+   * va con los estribos, como el cerco del ala para el rasante en la T.
+   */
+  topeSeparacionM?: number;
 }
 
 export interface ResultadoCortante {

@@ -38,6 +38,9 @@ import {
   type TramoL0,
 } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { CroquisL0, CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
+import { CroquisCercosT } from "@/components/verificaciones/croquis/CroquisCercosT";
+import { DiagramaZonasCortante } from "@/components/verificaciones/hormigon/DiagramaZonasCortante";
+import type { ResultadoCortante } from "@/lib/calc/hormigon/comun/types";
 
 /** Qué es cada luz en cada caso de la fig. A19.5.2. */
 const ETIQUETAS_LUZ: Record<TramoL0, { luz1?: string; luz2?: string }> = {
@@ -151,6 +154,17 @@ export default function VigasFlexionCortantePage() {
   const [vd, setVd] = useCampo("vd", "1076");
   const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "10");
   const [numeroRamas, setNumeroRamas] = useCampo("numeroRamas", "6");
+  // Estribos por zonas, apoyo y vano (2026-10-27). Apagado por defecto: los
+  // cálculos guardados antes siguen con una sola zona.
+  const [zonasCortante, setZonasCortante] = useCampo("zonasCortante", "no");
+  const [vdCentro, setVdCentro] = useCampo("vdCentro", "200");
+  const [luzVano, setLuzVano] = useCampo("luzVano", "6");
+  const [diametroEstriboVano, setDiametroEstriboVano] = useCampo("diametroEstriboVano", "8");
+  const [numeroRamasVano, setNumeroRamasVano] = useCampo("numeroRamasVano", "4");
+  const conZonas = zonasCortante === "si";
+  // Armadura transversal del ala: barras de una losa o un cerco propio del ala.
+  const [transversalAla, setTransversalAla] = useCampo("transversalAla", "barras");
+  const conCercoAla = transversalAla === "cerco";
 
   const [foco, setFoco] = useState<string | null>(null);
 
@@ -165,6 +179,7 @@ export default function VigasFlexionCortantePage() {
       momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
       vd, diametroEstribo, numeroRamas, monolitica,
       tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0: tramoL0Campo, luz1, luz2,
+      zonasCortante, vdCentro, luzVano, diametroEstriboVano, numeroRamasVano, transversalAla,
     }),
     [
     fck, fyk, b, h, recubrimiento,
@@ -172,11 +187,31 @@ export default function VigasFlexionCortantePage() {
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas, monolitica,
     tipoSeccion, anchoAla, espesorAla, l0, diametroAla, separacionAla, capasAla, tramoL0Campo, luz1, luz2,
+    zonasCortante, vdCentro, luzVano, diametroEstriboVano, numeroRamasVano, transversalAla,
     ]
   );
   const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
   const rec = useMemo(() => recomendarVigaFlexionCortante(campos), [campos]);
+
+  /** Desarrollo del cortante de una zona (o de toda la viga): las mismas filas para cada una. */
+  const filasCortante = (c: ResultadoCortante) => [
+    { etiqueta: "d⁻", valor: `${fmt(resultado?.dNegativo ?? 0, 3)} m` },
+    { etiqueta: "k", valor: fmt(c.k, 3) },
+    { etiqueta: "ρl", valor: fmt(c.rhoL, 5) },
+    { etiqueta: "VRd,c", valor: `${fmt(c.vRdC)} kN` },
+    { etiqueta: "VRd,c,mín", valor: `${fmt(c.vRdCMin)} kN` },
+    { etiqueta: "VEd que toman los estribos  (6.8)", valor: c.requiereEstribos ? `${fmt(c.vEdEstribos)} kN` : "0 (VEd ≤ VRd,c)" },
+    { etiqueta: "A90 necesaria", valor: `${fmt(c.a90NecCm2PorM)} cm²/m` },
+    { etiqueta: "A90 mínima ρw,min·b  (9.5)", valor: `${fmt(c.a90MinCm2PorM)} cm²/m` },
+    { etiqueta: "Separación necesaria", valor: `${fmt(c.separacionNecM * 100, 1)} cm` },
+    { etiqueta: "Separación máxima 0,75·d  (9.6)", valor: `${fmt(c.separacionMaxM * 100, 1)} cm` },
+    ...(resultado?.seccionT?.separacionPorRasanteM
+      ? [{ etiqueta: "Tope por el rasante (cerco del ala, misma separación)", valor: `${fmt(resultado.seccionT.separacionPorRasanteM * 100, 1)} cm` }]
+      : []),
+    { etiqueta: "Tope de oficina (no del Anejo)", valor: "25 cm" },
+    { etiqueta: "Separación adoptada", valor: `${fmt(c.separacionAdoptadaM * 100, 0)} cm` },
+  ];
 
   // La sección se dibuja con los datos de geometría y armadura, aunque el
   // resto del formulario (cortante) todavía no sea válido.
@@ -430,7 +465,31 @@ export default function VigasFlexionCortantePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <CampoNumerico id="momentoPos" etiqueta="M+ positivo" sufijo="kN·m" valor={momentoPos} onChange={setMomentoPos} />
               <CampoNumerico id="momentoNeg" etiqueta="M− negativo" sufijo="kN·m" valor={momentoNeg} onChange={setMomentoNeg} />
-              <CampoNumerico id="vd" etiqueta="Vd cortante" sufijo="kN" valor={vd} onChange={setVd} />
+              <CampoNumerico id="vd" etiqueta={conZonas ? "Vd en el apoyo" : "Vd cortante"} sufijo="kN" valor={vd} onChange={setVd} />
+            </div>
+            <div className="space-y-3 rounded-md border border-border/60 p-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  id="zonasCortante"
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+                  checked={conZonas}
+                  onChange={(e) => setZonasCortante(e.target.checked ? "si" : "no")}
+                />
+                <span>
+                  Estribos por zonas: densos en los apoyos y otros en el vano
+                  <span className="block text-xs text-muted-foreground">
+                    El cortante baja lineal del Vd del apoyo al del centro; la zona de apoyo llega hasta
+                    donde lo resisten los estribos del vano.
+                  </span>
+                </span>
+              </label>
+              {conZonas && (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <CampoNumerico id="vdCentro" etiqueta="Vd en el centro del vano" sufijo="kN" valor={vdCentro} onChange={setVdCentro} />
+                  <CampoNumerico id="luzVano" etiqueta="Luz del vano L" sufijo="m" valor={luzVano} onChange={setLuzVano} />
+                </div>
+              )}
             </div>
             <div className="flex justify-center">
               <ConvencionMomentosViga
@@ -512,13 +571,27 @@ export default function VigasFlexionCortantePage() {
             <div className="mt-10 max-w-xl">
               <Subgrupo titulo="Transversal del ala">
                 <div className="grid grid-cols-3 gap-4">
-                  <CampoDiametro id="diametroAla" etiqueta="Ø" valor={diametroAla} onChange={setDiametroAla} />
-                  <CampoNumerico id="separacionAla" etiqueta="Separación" sufijo="m" valor={separacionAla} onChange={setSeparacionAla} />
-                  <CampoNumerico id="capasAla" etiqueta="Capas" valor={capasAla} onChange={setCapasAla} />
+                  <div className="col-span-full max-w-xs">
+                    <CampoSeleccion
+                      id="transversalAla"
+                      etiqueta="Qué cose el ala con el alma"
+                      valor={conCercoAla ? "Cerco del ala" : "Barras de la losa"}
+                      opciones={["Cerco del ala", "Barras de la losa"]}
+                      onChange={(x) => setTransversalAla(x === "Cerco del ala" ? "cerco" : "barras")}
+                    />
+                  </div>
+                  <CampoDiametro id="diametroAla" etiqueta={conCercoAla ? "Ø cerco del ala" : "Ø"} valor={diametroAla} onChange={setDiametroAla} />
+                  {!conCercoAla && (
+                    <>
+                      <CampoNumerico id="separacionAla" etiqueta="Separación" sufijo="m" valor={separacionAla} onChange={setSeparacionAla} />
+                      <CampoNumerico id="capasAla" etiqueta="Capas" valor={capasAla} onChange={setCapasAla} />
+                    </>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Las barras del ala que cruzan la unión con el alma, por metro de viga. Son las que toman
-                  el rasante entre ala y alma (art. 6.2.4).
+                  {conCercoAla
+                    ? "El cerco cerrado del ala, del ancho del ala: sus dos ramas horizontales cruzan la unión con el alma (2 capas) y toman el rasante entre ala y alma (art. 6.2.4). Va a la misma separación que el cerco del alma, que sale del cálculo: la menor entre la que pide el cortante y la que pide el rasante. No suma al cortante."
+                    : "Las barras del ala que cruzan la unión con el alma, por metro de viga. Son las que toman el rasante entre ala y alma (art. 6.2.4)."}
                 </p>
               </Subgrupo>
             </div>
@@ -527,24 +600,39 @@ export default function VigasFlexionCortantePage() {
           <div className="mt-10">
             <DatosConDibujo
               datos={
-                <Subgrupo titulo="Transversal · estribos">
+                <Subgrupo titulo={conAla ? "Transversal · cerco del alma (toma el cortante)" : "Transversal · estribos"}>
+                  {conZonas && <p className="text-sm font-medium">Zona de apoyo</p>}
                   <div className="grid grid-cols-2 gap-4">
                     <CampoDiametro id="diametroEstribo" etiqueta="Ø estribo" valor={diametroEstribo} onChange={setDiametroEstribo} />
                     <CampoNumerico id="numeroRamas" etiqueta="Nº de ramas" valor={numeroRamas} onChange={setNumeroRamas} />
                   </div>
+                  {conZonas && (
+                    <>
+                      <p className="pt-2 text-sm font-medium">Zona de vano</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <CampoDiametro id="diametroEstriboVano" etiqueta="Ø estribo" valor={diametroEstriboVano} onChange={setDiametroEstriboVano} />
+                        <CampoNumerico id="numeroRamasVano" etiqueta="Nº de ramas" valor={numeroRamasVano} onChange={setNumeroRamasVano} />
+                      </div>
+                    </>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Las ramas son las patas verticales que cortan la sección en un mismo plano: un
-                    estribo cerrado aporta 2. La separación a lo largo de la viga no se carga: la
-                    calcula la herramienta y aparece en los resultados.
+                    {conAla
+                      ? "Sólo cuentan las ramas que atraviesan el alma en toda su altura: un cerco del alma aporta 2. El cerco del ala no suma acá."
+                      : "Las ramas son las patas verticales que cortan la sección en un mismo plano: un estribo cerrado aporta 2."}{" "}
+                    La separación a lo largo de la viga no se carga: la calcula la herramienta y aparece en los resultados.
                   </p>
                 </Subgrupo>
               }
               dibujo={
-                <EstriboTransversal
-                  ramas={aNumero(numeroRamas)}
-                  diametroMm={aNumero(diametroEstribo)}
-                  resaltado={resaltarSeccion === "estribo"}
-                />
+                conAla ? (
+                  <CroquisCercosT invertida={tipo === "t-invertida"} conCercoAla={conCercoAla} />
+                ) : (
+                  <EstriboTransversal
+                    ramas={aNumero(numeroRamas)}
+                    diametroMm={aNumero(diametroEstribo)}
+                    resaltado={resaltarSeccion === "estribo"}
+                  />
+                )
               }
             />
           </div>
@@ -598,6 +686,9 @@ export default function VigasFlexionCortantePage() {
                     "W de la ec. (9.1) con la T de ancho b_eff, respecto de la fibra que tracciona en cada caso.",
                     "Rasante entre ala y alma por el art. 6.2.4: ΔFd = compresión en el vuelo de un lado con el momento máximo, en Δx = l0/4; cot θf el mayor que cumple la ec. (6.22). No combina con la flexión transversal del ala (6.2.4 (5)).",
                     "El cortante del alma usa bw. El ala como apoyo de losas (talón de la T invertida) no se verifica acá.",
+                    conCercoAla
+                      ? "Cercos de la T: el del alma toma el cortante; el del ala no suma al cortante y sus dos ramas horizontales entran como 2 capas al rasante ala–alma. Los dos van a la misma separación, la menor entre la del cortante y la del rasante; el rasante se verifica con la más abierta de la viga."
+                      : "Cercos de la T: sólo las ramas que atraviesan el alma toman el cortante; el rasante ala–alma lo toman las barras del ala cargadas.",
                   ]
                 : []),
               "Canto útil d⁺ hasta la armadura inferior para M+; d⁻ hasta la superior para M− y para el cortante.",
@@ -606,6 +697,11 @@ export default function VigasFlexionCortantePage() {
               "Mínima ρw,min = 0,08·√fck/fyk y separación máxima 0,75·d (art. 9.2.2). La adoptada se topa además en 25 cm: criterio de oficina, no de la norma.",
               "La cuantía ρl del cortante se toma con la armadura superior.",
               "La separación de estribos la dimensiona la herramienta: no es un dato.",
+              ...(conZonas
+                ? [
+                    "Estribos por zonas: cada zona con su Vd y sus estribos. El cortante va lineal del Vd del apoyo al del centro del vano (L/2); la zona de apoyo llega hasta donde V(x) baja a máx(VRd,c; VRd,s) de los estribos del vano, y se redondea hacia arriba a 5 cm.",
+                  ]
+                : []),
               monolitica === "si"
                 ? "Construcción monolítica: M− de cálculo ≥ 0,15·M+ (Anejo 19, art. 9.2.1.2 (1), pág. 140)."
                 : "Sin mínimo de empotramiento parcial: la viga no es monolítica con sus apoyos.",
@@ -893,6 +989,57 @@ export default function VigasFlexionCortantePage() {
                 </div>
               </Subgrupo>
 
+              {resultado.cortanteZonas && (
+                <Subgrupo titulo="Estribos por zonas" detalle="apoyo y vano">
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Zona de apoyo · {fmt(resultado.cortanteZonas.largoApoyoM, 2)} m desde la cara</p>
+                        <p className="font-mono text-base font-semibold tabular-nums">
+                          {fmt(aNumero(numeroRamas), 0)} ramas Ø{fmt(aNumero(diametroEstribo), 0)} c/
+                          {fmt(resultado.cortanteZonas.apoyo.separacionAdoptadaM * 100, 0)} cm
+                        </p>
+                        <p className="text-xs text-muted-foreground">con Vd = {fmt(aNumero(vd))} kN</p>
+                      </div>
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Zona de vano · el resto, hasta el centro</p>
+                        <p className="font-mono text-base font-semibold tabular-nums">
+                          {fmt(aNumero(numeroRamasVano), 0)} ramas Ø{fmt(aNumero(diametroEstriboVano), 0)} c/
+                          {fmt(resultado.cortanteZonas.vano.separacionAdoptadaM * 100, 0)} cm
+                        </p>
+                        <p className="text-xs text-muted-foreground">resisten {fmt(resultado.cortanteZonas.vRdVanoKN)} kN</p>
+                      </div>
+                    </div>
+                    <ResultadoCheck
+                      etiqueta="Los estribos del vano se pueden armar"
+                      verifica={resultado.cortanteZonas.vanoAlcanza}
+                      detalle={
+                        resultado.cortanteZonas.vanoAlcanza
+                          ? `Con V lineal de ${fmt(aNumero(vd), 0)} a ${fmt(aNumero(vdCentro), 0)} kN, V(x) baja a ${fmt(resultado.cortanteZonas.vRdVanoKN, 0)} kN a ${fmt(resultado.cortanteZonas.largoApoyoExactoM, 3)} m del apoyo; se redondea a ${fmt(resultado.cortanteZonas.largoApoyoM, 2)} m.`
+                          : "Con esos estribos el vano pide menos de 5 cm de separación o agota las bielas: más ramas o más diámetro en el vano."
+                      }
+                    />
+                    <div className="mx-auto w-full max-w-xl">
+                      <DiagramaZonasCortante
+                        zonas={resultado.cortanteZonas}
+                        vdApoyoKN={aNumero(vd)}
+                        vdCentroKN={aNumero(vdCentro)}
+                        luzM={aNumero(luzVano)}
+                        textoApoyo={`${fmt(aNumero(numeroRamas), 0)} ramas Ø${fmt(aNumero(diametroEstribo), 0)} c/${fmt(resultado.cortanteZonas.apoyo.separacionAdoptadaM * 100, 0)}`}
+                        textoVano={`${fmt(aNumero(numeroRamasVano), 0)} ramas Ø${fmt(aNumero(diametroEstriboVano), 0)} c/${fmt(resultado.cortanteZonas.vano.separacionAdoptadaM * 100, 0)}`}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Simétrico: la misma zona de apoyo va en el otro extremo si su Vd es el mismo. Si el
+                      otro apoyo tiene otro Vd (viga continua), verificalo con su propio valor.
+                    </p>
+                    <PanelFormulas titulo="Ver desarrollo · zona de apoyo" filas={filasCortante(resultado.cortanteZonas.apoyo)} />
+                    <PanelFormulas titulo="Ver desarrollo · zona de vano" filas={filasCortante(resultado.cortanteZonas.vano)} />
+                  </div>
+                </Subgrupo>
+              )}
+
+              {!resultado.cortanteZonas && (
               <Subgrupo titulo="Estribado adoptado" detalle="dimensionamiento, no verificación">
                 <DatosConDibujo
                   datos={
@@ -906,22 +1053,7 @@ export default function VigasFlexionCortantePage() {
                         resultante {fmt(resultado.cortante.areaRealCm2PorM)} cm²/m; necesaria{" "}
                         {fmt(resultado.cortante.a90Cm2PorM)} cm²/m.
                       </p>
-                      <PanelFormulas
-                        titulo="Ver desarrollo del cortante"
-                        filas={[
-                          { etiqueta: "d⁻", valor: `${fmt(resultado.dNegativo, 3)} m` },
-                          { etiqueta: "k", valor: fmt(resultado.cortante.k, 3) },
-                          { etiqueta: "ρl", valor: fmt(resultado.cortante.rhoL, 5) },
-                          { etiqueta: "VRd,c", valor: `${fmt(resultado.cortante.vRdC)} kN` },
-                          { etiqueta: "VRd,c,mín", valor: `${fmt(resultado.cortante.vRdCMin)} kN` },
-                          { etiqueta: "VEd que toman los estribos  (6.8)", valor: resultado.cortante.requiereEstribos ? `${fmt(resultado.cortante.vEdEstribos)} kN` : "0 (VEd ≤ VRd,c)" },
-                          { etiqueta: "A90 necesaria", valor: `${fmt(resultado.cortante.a90NecCm2PorM)} cm²/m` },
-                          { etiqueta: "A90 mínima ρw,min·b  (9.5)", valor: `${fmt(resultado.cortante.a90MinCm2PorM)} cm²/m` },
-                          { etiqueta: "Separación necesaria", valor: `${fmt(resultado.cortante.separacionNecM * 100, 1)} cm` },
-                          { etiqueta: "Separación máxima 0,75·d  (9.6)", valor: `${fmt(resultado.cortante.separacionMaxM * 100, 1)} cm` },
-                          { etiqueta: "Tope de oficina (no del Anejo)", valor: "25 cm" },
-                        ]}
-                      />
+                      <PanelFormulas titulo="Ver desarrollo del cortante" filas={filasCortante(resultado.cortante)} />
                     </>
                   }
                   dibujo={
@@ -932,6 +1064,7 @@ export default function VigasFlexionCortantePage() {
                   }
                 />
               </Subgrupo>
+              )}
 
               {!resultado.flexionPositiva.sobrearmada && !conAla && (
               <Subgrupo titulo="Estado de rotura con el momento positivo">

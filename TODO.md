@@ -291,6 +291,15 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
 
 ## Funcionalidad pendiente
 
+- **Vigas como en Ftool** (objetivo del usuario, 2026-10-27): cargar la viga
+  real —cargas repartidas y puntuales, apoyos— y sacar de ahí M y V para la
+  verificación, sin pasar por Ftool. La base es el Formulario de vigas
+  (rigidez directa, 20 casos). Hoy los estribos por zonas usan la opción
+  rápida: Vd en el apoyo y en el centro, lineal entre medio; con el diagrama
+  real, la zona de apoyo saldría del V(x) verdadero y de cada apoyo por
+  separado. Mantener también la carga rápida a mano.
+- **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
+  ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación.** Hoy hay un solo juego de valores
   por verificación: no se puede tener "Viga V1" y "Viga V2" y alternar. Es lo más
   valioso que falta para usar la herramienta en un proyecto real.

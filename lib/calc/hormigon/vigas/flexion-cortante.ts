@@ -271,7 +271,7 @@ export function calcularCortante(
 ): ResultadoCortante {
   const { b, recubrimiento } = geometria;
   const { fck, fyk, fcd, fydEstribos } = materiales;
-  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05 } = datos;
+  const { vd, diametroEstriboMm, numeroRamas, atPorRamaCm2PorM = 0, pasoSeparacionM = 0.05, topeSeparacionM = Infinity } = datos;
 
   const vRdMax = cortanteMaximoBielas(fcd, b, d);
   const verificaVRdMax = vd <= vRdMax;
@@ -311,7 +311,7 @@ export function calcularCortante(
 
   const sepMax = separacionMaxM(d);
   const separacionAdoptadaM = Math.min(
-    redondearSeparacionM(Math.min(sepMax, separacionNecM), pasoSeparacionM),
+    redondearSeparacionM(Math.min(sepMax, separacionNecM, topeSeparacionM), pasoSeparacionM),
     TOPE_SEPARACION_OFICINA_M
   );
 
@@ -343,4 +343,85 @@ export function calcularCortante(
     separacionTransversalMaxM: sepTransversalMax,
     verificaSeparacionTransversal: sepTransversal <= sepTransversalMax + 1e-9,
   };
+}
+
+export interface EstribosZona {
+  diametroEstriboMm: number;
+  numeroRamas: number;
+}
+
+export interface DatosCortanteZonas {
+  /** Vd en el apoyo y en el centro del vano (kN), los dos de cálculo */
+  vdApoyoKN: number;
+  vdCentroKN: number;
+  /** Luz del vano (m): el cortante va lineal del apoyo a L/2 */
+  luzM: number;
+  apoyo: EstribosZona;
+  vano: EstribosZona;
+  /** Tope de separación para las dos zonas (m), como `DatosCortante.topeSeparacionM` */
+  topeSeparacionM?: number;
+}
+
+export interface ResultadoCortanteZonas {
+  /** Cada zona con su Vd: el del apoyo y el del centro */
+  apoyo: ResultadoCortante;
+  vano: ResultadoCortante;
+  /** Lo que resisten los estribos del vano: máx(VRd,c; VRd,s) con su separación adoptada (kN) */
+  vRdVanoKN: number;
+  /** Donde V(x) baja a vRdVanoKN, medido desde el apoyo (m) */
+  largoApoyoExactoM: number;
+  /** Redondeado hacia arriba a 5 cm: hasta acá van los estribos del apoyo */
+  largoApoyoM: number;
+  /** Los estribos del vano se pueden armar para el Vd del centro: bielas y separación ≥ 5 cm */
+  vanoAlcanza: boolean;
+}
+
+/** Paso con el que se redondea hacia arriba el largo de la zona de apoyo (m). */
+export const PASO_ZONA_APOYO_M = 0.05;
+
+/**
+ * Estribos por zonas: densos en el apoyo y otros en el vano (criterio del
+ * usuario, 2026-10-27). Cada zona se verifica con su Vd y sus estribos, igual
+ * que el cortante de una sola zona (art. 6.2.2, 6.2.3 y 9.2.2). El cambio de
+ * zona se calcula: el cortante va lineal del Vd del apoyo al del centro del
+ * vano, y la zona de apoyo llega hasta donde V(x) baja a lo que resisten los
+ * estribos del vano, máx(VRd,c; VRd,s) con su separación adoptada y cot θ = 1.
+ */
+export function calcularCortantePorZonas(
+  materiales: MaterialesDerivados,
+  geometria: GeometriaViga,
+  d: number,
+  asNegativaRealCm2: number,
+  datos: DatosCortanteZonas
+): ResultadoCortanteZonas {
+  const { vdApoyoKN, vdCentroKN, luzM } = datos;
+  const zona = (vd: number, e: EstribosZona) =>
+    calcularCortante(materiales, { ...geometria, diametroEstriboMm: e.diametroEstriboMm }, d, asNegativaRealCm2, {
+      vd,
+      diametroEstriboMm: e.diametroEstriboMm,
+      numeroRamas: e.numeroRamas,
+      topeSeparacionM: datos.topeSeparacionM,
+    });
+  const apoyo = zona(vdApoyoKN, datos.apoyo);
+  const vano = zona(vdCentroKN, datos.vano);
+
+  // VRd,s = (Asw/s)·0,9d·fywd con cot θ = 1, ec. (6.8); cm²/m · MPa · m / 10 = kN.
+  const vRdS = (vano.areaRealCm2PorM * materiales.fydEstribos * 0.9 * d) / 10;
+  const vRdVanoKN = Math.min(Math.max(vRdS, vano.vRdC, vano.vRdCMin), vano.vRdMax);
+
+  const mitad = luzM / 2;
+  // La separación de cada zona se dimensiona para su propio Vd, así que el vano
+  // no alcanza sólo si fallan las bielas o si pide menos de un paso de
+  // separación (5 cm), que no se puede armar.
+  const vanoAlcanza = vano.verificaVRdMax && vano.separacionAdoptadaM >= PASO_ZONA_APOYO_M - 1e-9;
+  let largoApoyoExactoM: number;
+  // Sin vano armable su VRd no significa nada (con separación 0 sale infinito).
+  if (!vanoAlcanza) largoApoyoExactoM = mitad;
+  else if (vRdVanoKN >= vdApoyoKN) largoApoyoExactoM = 0;
+  else if (vdApoyoKN <= vdCentroKN) largoApoyoExactoM = mitad;
+  else largoApoyoExactoM = ((vdApoyoKN - vRdVanoKN) / (vdApoyoKN - vdCentroKN)) * mitad;
+  const largoApoyoM =
+    largoApoyoExactoM <= 0 ? 0 : Math.min(Math.ceil(largoApoyoExactoM / PASO_ZONA_APOYO_M - 1e-9) * PASO_ZONA_APOYO_M, mitad);
+
+  return { apoyo, vano, vRdVanoKN, largoApoyoExactoM, largoApoyoM, vanoAlcanza };
 }

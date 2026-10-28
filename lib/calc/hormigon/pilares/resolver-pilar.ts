@@ -7,7 +7,14 @@ import {
   perimetroExpuestoM,
   tamanoTeoricoMm,
 } from "@/lib/calc/hormigon/comun/diferidas";
-import { calcularPilar, type DireccionPilar } from "@/lib/calc/hormigon/pilares/pilar";
+import {
+  calcularPilar,
+  cercosAutomaticos,
+  type CercosAutomaticos,
+  type DireccionPilar,
+  type EsfuerzosPilar,
+  type GeometriaPilar,
+} from "@/lib/calc/hormigon/pilares/pilar";
 
 /** Casos de la figura A19.5.7, y uno libre para escribir β a mano. */
 export const COACCIONES_PILAR = [
@@ -34,6 +41,13 @@ export const MODOS_FLUENCIA = [
 ] as const;
 
 /**
+ * Cercos fijados por la longitudinal (art. 9.5.3 y cortante) o cargados a
+ * mano. Sin el campo se toman a mano: así se leen los cálculos guardados
+ * antes de que existiera la opción.
+ */
+export const MODOS_CERCOS = ["Automáticos (art. 9.5.3)", "A mano"] as const;
+
+/**
  * Cálculo de la página a partir de sus campos, tal como se cargaron.
  *
  * Vive acá y no en la página porque lo corren la pantalla y las
@@ -50,16 +64,18 @@ export function resolverPilar(campos: Record<string, string>) {
     m01H: num("m01H"), m02H: num("m02H"), vEdH: num("vEdH"),
     m01B: num("m01B"), m02B: num("m02B"), vEdB: num("vEdB"),
     phi: num("phi"), nCaraB: num("nCaraB"), nCaraH: num("nCaraH"),
-    phiCerco: num("phiCerco"), sepCercos: num("sepCercos"), ramasH: num("ramasH"), ramasB: num("ramasB"),
+    phiCerco: num("phiCerco"), sepCercos: num("sepCercos"),
+    // Los cálculos guardados antes de la zona de nudo no la traen: la corriente.
+    sepCercosNudo: campos.sepCercosNudo === undefined ? num("sepCercos") : num("sepCercosNudo"),
+    ramasH: num("ramasH"), ramasB: num("ramasB"),
   };
-  const positivos = [v.fck, v.fyk, v.b, v.h, v.altura, v.rec, v.nEd, v.phi, v.phiCerco, v.sepCercos];
+  const cercosAuto = campos.cercos === MODOS_CERCOS[0];
+  const positivos = [v.fck, v.fyk, v.b, v.h, v.altura, v.rec, v.nEd, v.phi];
+  if (!cercosAuto) positivos.push(v.phiCerco, v.sepCercos, v.sepCercosNudo);
   if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
   if (![v.m01H, v.m02H, v.vEdH, v.m01B, v.m02B, v.vEdB].every(Number.isFinite)) return null;
   const enteros = [v.nCaraB, v.nCaraH, v.ramasH, v.ramasB];
   if (!enteros.every((x) => Number.isInteger(x) && x >= 2)) return null;
-  // Las barras tienen que entrar con recubrimiento de los dos lados.
-  const r = v.rec + v.phiCerco / 1000 + v.phi / 2000;
-  if (2 * r >= Math.min(v.b, v.h)) return null;
 
   const beta = (dir: DireccionPilar) => {
     const sufijo = dir === "h" ? "H" : "B";
@@ -92,22 +108,40 @@ export function resolverPilar(campos: Record<string, string>) {
     fluenciaEficaz = fluenciaBasica * relacion;
   }
 
+  const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
+  const geometria: GeometriaPilar = { bM: v.b, hM: v.h, alturaLibreM: v.altura, recubrimientoM: v.rec };
+  const longitudinal = { diametroMm: v.phi, barrasCaraB: v.nCaraB, barrasCaraH: v.nCaraH, ramasH: v.ramasH, ramasB: v.ramasB };
+  const esfuerzos: EsfuerzosPilar = {
+    nEdKN: v.nEd,
+    h: { beta: betaH, arriostrado: campos.arriostradoH !== ARRIOSTRAMIENTO[1], m01KNm: v.m01H, m02KNm: v.m02H, vEdKN: v.vEdH },
+    b: { beta: betaB, arriostrado: campos.arriostradoB !== ARRIOSTRAMIENTO[1], m01KNm: v.m01B, m02KNm: v.m02B, vEdKN: v.vEdB },
+    fluenciaEficaz,
+  };
+
+  // En automático, los cercos calculados reemplazan a los cargados también en
+  // `v`: el dibujo y la revisión muestran los que se usan.
+  let cercos: CercosAutomaticos | undefined;
+  if (cercosAuto) {
+    cercos = cercosAutomaticos(materiales, geometria, longitudinal, esfuerzos);
+    v.phiCerco = cercos.diametroCercoMm;
+    v.sepCercos = cercos.separacionCercosM;
+    v.sepCercosNudo = cercos.separacionCercosNudoM;
+  }
+  // Las barras tienen que entrar con recubrimiento de los dos lados.
+  const r = v.rec + v.phiCerco / 1000 + v.phi / 2000;
+  if (2 * r >= Math.min(v.b, v.h)) return null;
+
   const r0 = calcularPilar(
-    derivarMateriales({ fck: v.fck, fyk: v.fyk }),
-    { bM: v.b, hM: v.h, alturaLibreM: v.altura, recubrimientoM: v.rec },
+    materiales,
+    geometria,
     {
-      diametroMm: v.phi, barrasCaraB: v.nCaraB, barrasCaraH: v.nCaraH,
-      diametroCercoMm: v.phiCerco, separacionCercosM: v.sepCercos, ramasH: v.ramasH, ramasB: v.ramasB,
+      ...longitudinal,
+      diametroCercoMm: v.phiCerco, separacionCercosM: v.sepCercos, separacionCercosNudoM: v.sepCercosNudo,
     },
-    {
-      nEdKN: v.nEd,
-      h: { beta: betaH, arriostrado: campos.arriostradoH !== ARRIOSTRAMIENTO[1], m01KNm: v.m01H, m02KNm: v.m02H, vEdKN: v.vEdH },
-      b: { beta: betaB, arriostrado: campos.arriostradoB !== ARRIOSTRAMIENTO[1], m01KNm: v.m01B, m02KNm: v.m02B, vEdKN: v.vEdB },
-      fluenciaEficaz,
-    }
+    esfuerzos
   );
 
-  return { v, r: r0, beta: { h: betaH, b: betaB }, fluencia: { modo: modoFluencia, basica: fluenciaBasica, h0Mm } };
+  return { v, r: r0, cercos, beta: { h: betaH, b: betaB }, fluencia: { modo: modoFluencia, basica: fluenciaBasica, h0Mm } };
 }
 
 export type ResueltoPilar = NonNullable<ReturnType<typeof resolverPilar>>;

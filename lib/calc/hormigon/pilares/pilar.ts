@@ -35,7 +35,7 @@
 import { ES_MPA, FLUENCIA_EFICAZ_SIN_DATO, GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import { factorEscalaK, tensionCortanteResistente } from "@/lib/calc/hormigon/comun/cortante";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
-import { areaBarraCm2 } from "@/lib/calc/armaduras";
+import { areaBarraCm2, DIAMETROS_ARMADURA } from "@/lib/calc/armaduras";
 import { momentoResistente, type PuntoInteraccion } from "@/lib/calc/hormigon/muros/portante";
 
 export type DireccionPilar = "h" | "b";
@@ -59,7 +59,10 @@ export interface ArmaduraPilar {
   /** Barras en cada cara de ancho h, contando las de esquina (≥ 2). */
   barrasCaraH: number;
   diametroCercoMm: number;
+  /** Separación en la zona corriente del pilar. */
   separacionCercosM: number;
+  /** Separación junto a vigas y losas, y en los solapes, art. 9.5.3(4). */
+  separacionCercosNudoM: number;
   /** Ramas de cerco paralelas a h: resisten el cortante de la dirección h. */
   ramasH: number;
   /** Ramas de cerco paralelas a b: resisten el cortante de la dirección b. */
@@ -254,9 +257,10 @@ export interface ResultadoPilar {
     diametroCercoMinimoMm: number;
     verificaDiametroCerco: boolean;
     separacionMaximaM: number;
-    /** 0,6·s,max junto a vigas y losas, art. 9.5.3(4): informativo. */
+    /** 0,6·s,max junto a vigas y losas, y en los solapes, art. 9.5.3(4). */
     separacionZonaNudoM: number;
     verificaSeparacion: boolean;
+    verificaSeparacionNudo: boolean;
     /** Mayor distancia de una barra a otra sujeta por un cerco (m), por cara. */
     distanciaLibre: Record<DireccionPilar, number>;
     verificaSujecion: boolean;
@@ -293,13 +297,118 @@ export function exponenteEsviada(nEdSobreNRd: number): number {
   return 2;
 }
 
+/** Cortante en una dirección, art. 6.2: VRd,c con k1·σcp y cercos por la (6.8). */
+export function cortantePilar(
+  materiales: MaterialesDerivados,
+  geometria: GeometriaPilar,
+  armadura: ArmaduraPilar,
+  esfuerzos: EsfuerzosPilar,
+  dir: DireccionPilar
+): ResultadoCortanteDireccion {
+  const { fck, fcd, fyk } = materiales;
+  const { bM, hM } = geometria;
+  const r = recubrimientoMecanico(geometria, armadura);
+  const sigmaCpMPa = Math.min(esfuerzos.nEdKN / (bM * hM * 1000), 0.2 * fcd);
+  const nu1 = 0.6 * (1 - fck / 250);
+  const fywd = fyk / GAMMA_S;
+  const vEdKN = Math.abs(esfuerzos[dir].vEdKN);
+  const canto = dir === "h" ? hM : bM;
+  const bw = dir === "h" ? bM : hM;
+  const dM = canto - r;
+  const asTraccionCm2 = (dir === "h" ? armadura.barrasCaraB : armadura.barrasCaraH) * areaBarraCm2(armadura.diametroMm);
+  const rhoL = Math.min(asTraccionCm2 / 1e4 / (bw * dM), 0.02);
+  // ecs. (6.2.a) y (6.2.b): k1·σcp con k1 = 0,15 suma a las dos.
+  const vRdCKN = (tensionCortanteResistente(factorEscalaK(dM), rhoL, fck) + 0.15 * sigmaCpMPa) * bw * dM * 1000;
+  const zM = 0.9 * dM;
+  const ramas = dir === "h" ? armadura.ramasH : armadura.ramasB;
+  const aswM2 = (ramas * areaBarraCm2(armadura.diametroCercoMm)) / 1e4;
+  // ec. (6.8) y (6.9) con cot θ = 1 y αcw = 1 (sin pretensado).
+  const vRdSKN = (aswM2 / armadura.separacionCercosM) * zM * fywd * 1000;
+  const vRdMaxKN = (bw * zM * nu1 * fcd * 1000) / 2;
+  const requiereCercos = vEdKN > vRdCKN;
+  return {
+    vEdKN, dM, rhoL, sigmaCpMPa, vRdCKN, requiereCercos, zM, vRdSKN, vRdMaxKN,
+    verifica: vEdKN <= vRdMaxKN && (!requiereCercos || vEdKN <= vRdSKN),
+  };
+}
+
+/** Art. 9.5.3(1): Ø del cerco ≥ máx(6 mm; Ø longitudinal / 4). */
+export const diametroCercoMinimo = (diametroMm: number) => Math.max(6, diametroMm / 4);
+
+/** Art. 9.5.3(3): s ≤ mín(15·Ø longitudinal; 300 mm; lado menor). */
+export const separacionMaximaCercos = (diametroMm: number, bM: number, hM: number) =>
+  Math.min((15 * diametroMm) / 1000, 0.3, Math.min(bM, hM));
+
+/**
+ * Separación llevada hacia abajo al múltiplo de 2,5 cm, criterio del usuario
+ * del 2026-10-28. Nunca menos de 2,5 cm: si el cortante pide menos, se deja
+ * ahí y la comprobación lo marca.
+ */
+export const redondearSeparacionCercos = (sM: number) =>
+  Math.max(1, Math.floor(sM / 0.025 + 1e-9)) * 25 / 1000;
+
+/** Debajo de esta separación se prueba con el Ø de cerco siguiente. */
+const SEPARACION_MINIMA_RAZONABLE_M = 0.1;
+/** Mayor Ø de cerco que se propone solo. */
+const DIAMETRO_CERCO_MAXIMO_MM = 12;
+
+export interface CercosAutomaticos {
+  diametroCercoMm: number;
+  separacionCercosM: number;
+  separacionCercosNudoM: number;
+  /** El cortante pidió una separación menor que la constructiva del 9.5.3(3). */
+  gobiernaCortante: boolean;
+}
+
+/**
+ * Cercos fijados por la armadura longitudinal, criterio del usuario del
+ * 2026-10-28:
+ * - Ø: el menor de la serie comercial que cumple el art. 9.5.3(1).
+ * - s en la zona corriente: la del art. 9.5.3(3), o la que pide el cortante
+ *   por la (6.8) si es menor. Si ésa baja de 10 cm, se sube un Ø (hasta 12).
+ * - s junto a vigas, losas y solapes: 0,6·s,máx del art. 9.5.3(4), sin pasar
+ *   la de la zona corriente.
+ * Todas redondeadas hacia abajo a 2,5 cm. Las ramas siguen siendo un dato.
+ */
+export function cercosAutomaticos(
+  materiales: MaterialesDerivados,
+  geometria: GeometriaPilar,
+  armadura: Omit<ArmaduraPilar, "diametroCercoMm" | "separacionCercosM" | "separacionCercosNudoM">,
+  esfuerzos: EsfuerzosPilar
+): CercosAutomaticos {
+  const sMaxM = separacionMaximaCercos(armadura.diametroMm, geometria.bM, geometria.hM);
+  const sConstructivaM = redondearSeparacionCercos(sMaxM);
+  const sNudoM = redondearSeparacionCercos(0.6 * sMaxM);
+  const minimo = diametroCercoMinimo(armadura.diametroMm);
+  const candidatos: number[] = DIAMETROS_ARMADURA.filter((d) => d >= minimo && d <= DIAMETRO_CERCO_MAXIMO_MM);
+  if (candidatos.length === 0) candidatos.push(DIAMETROS_ARMADURA.find((d) => d >= minimo) ?? Math.ceil(minimo));
+
+  let elegido: CercosAutomaticos | undefined;
+  for (const diametroCercoMm of candidatos) {
+    // Con s = 1 m, VRd,s es lo que resiste cada metro de separación: s = VRd,s(1)/VEd.
+    const prueba = { ...armadura, diametroCercoMm, separacionCercosM: 1, separacionCercosNudoM: 1 };
+    let sCortanteM = Infinity;
+    for (const dir of DIRECCIONES_PILAR) {
+      const c = cortantePilar(materiales, geometria, prueba, esfuerzos, dir);
+      if (c.requiereCercos) sCortanteM = Math.min(sCortanteM, c.vRdSKN / c.vEdKN);
+    }
+    const gobiernaCortante = sCortanteM < sConstructivaM;
+    const separacionCercosM = gobiernaCortante ? redondearSeparacionCercos(sCortanteM) : sConstructivaM;
+    elegido = {
+      diametroCercoMm, separacionCercosM, separacionCercosNudoM: Math.min(sNudoM, separacionCercosM), gobiernaCortante,
+    };
+    if (!gobiernaCortante || separacionCercosM >= SEPARACION_MINIMA_RAZONABLE_M - 1e-9) break;
+  }
+  return elegido!;
+}
+
 export function calcularPilar(
   materiales: MaterialesDerivados,
   geometria: GeometriaPilar,
   armadura: ArmaduraPilar,
   esfuerzos: EsfuerzosPilar
 ): ResultadoPilar {
-  const { fck, fcd, fyd, fyk } = materiales;
+  const { fck, fcd, fyd } = materiales;
   const { bM, hM, alturaLibreM } = geometria;
   const { nEdKN } = esfuerzos;
 
@@ -409,41 +518,19 @@ export function calcularPilar(
     verifica: cumple538 || valor <= 1,
   };
 
-  // ---------------------------------------------------- cortante, 6.2
-  const r = recubrimientoMecanico(geometria, armadura);
-  const sigmaCpMPa = Math.min(nEdKN / (areaHormigonM2 * 1000), 0.2 * fcd);
-  const nu1 = 0.6 * (1 - fck / 250);
-  const fywd = fyk / GAMMA_S;
-  const cortanteDir = (dir: DireccionPilar): ResultadoCortanteDireccion => {
-    const vEdKN = Math.abs(esfuerzos[dir].vEdKN);
-    const canto = dir === "h" ? hM : bM;
-    const bw = dir === "h" ? bM : hM;
-    const dM = canto - r;
-    const asTraccionCm2 = (dir === "h" ? armadura.barrasCaraB : armadura.barrasCaraH) * areaBarra;
-    const rhoL = Math.min(asTraccionCm2 / 1e4 / (bw * dM), 0.02);
-    // ecs. (6.2.a) y (6.2.b): k1·σcp con k1 = 0,15 suma a las dos.
-    const vRdCKN = (tensionCortanteResistente(factorEscalaK(dM), rhoL, fck) + 0.15 * sigmaCpMPa) * bw * dM * 1000;
-    const zM = 0.9 * dM;
-    const ramas = dir === "h" ? armadura.ramasH : armadura.ramasB;
-    const aswM2 = (ramas * areaBarraCm2(armadura.diametroCercoMm)) / 1e4;
-    // ec. (6.8) y (6.9) con cot θ = 1 y αcw = 1 (sin pretensado).
-    const vRdSKN = (aswM2 / armadura.separacionCercosM) * zM * fywd * 1000;
-    const vRdMaxKN = (bw * zM * nu1 * fcd * 1000) / 2;
-    const requiereCercos = vEdKN > vRdCKN;
-    return {
-      vEdKN, dM, rhoL, sigmaCpMPa, vRdCKN, requiereCercos, zM, vRdSKN, vRdMaxKN,
-      verifica: vEdKN <= vRdMaxKN && (!requiereCercos || vEdKN <= vRdSKN),
-    };
+  const cortante = {
+    h: cortantePilar(materiales, geometria, armadura, esfuerzos, "h"),
+    b: cortantePilar(materiales, geometria, armadura, esfuerzos, "b"),
   };
-  const cortante = { h: cortanteDir("h"), b: cortanteDir("b") };
+  const r = recubrimientoMecanico(geometria, armadura);
 
   // ------------------------------------------------------- armado, 9.5
   const fycdMPa = Math.min(fyd, 400);
   const asMinimaCaraCm2 = ((0.05 * nEdKN) / (fycdMPa * 1000)) * 1e4;
   const asCara = { h: armadura.barrasCaraB * areaBarra, b: armadura.barrasCaraH * areaBarra };
   const asMaximaCm2 = 0.04 * areaHormigonM2 * 1e4;
-  const diametroCercoMinimoMm = Math.max(6, armadura.diametroMm / 4);
-  const separacionMaximaM = Math.min((15 * armadura.diametroMm) / 1000, 0.3, Math.min(bM, hM));
+  const diametroCercoMinimoMm = diametroCercoMinimo(armadura.diametroMm);
+  const separacionMaximaM = separacionMaximaCercos(armadura.diametroMm, bM, hM);
 
   // art. 9.5.3(6): cada rama sujeta una barra de cada cara que atraviesa. Con
   // las ramas repartidas, la barra más alejada de una sujeta queda a la mitad
@@ -477,6 +564,7 @@ export function calcularPilar(
       separacionMaximaM,
       separacionZonaNudoM: 0.6 * separacionMaximaM,
       verificaSeparacion: armadura.separacionCercosM <= separacionMaximaM + 1e-9,
+      verificaSeparacionNudo: armadura.separacionCercosNudoM <= 0.6 * separacionMaximaM + 1e-9,
       distanciaLibre: libre,
       verificaSujecion: libre.h <= 0.15 + 1e-9 && libre.b <= 0.15 + 1e-9,
     },

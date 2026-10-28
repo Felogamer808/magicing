@@ -50,14 +50,25 @@ export interface GeometriaPilar {
   alturaLibreM: number;
   /** Recubrimiento hasta el cerco (m). */
   recubrimientoM: number;
+  /** Tamaño máximo del árido dg (mm), para la separación libre del art. 8.2(2). */
+  tamanoMaximoAridoMm: number;
 }
 
+/**
+ * Cuatro barras de esquina y, en cada par de caras opuestas, una fila de
+ * intermedias con su propio diámetro. Simétrica: las dos caras de ancho b
+ * llevan lo mismo, y las dos de ancho h también.
+ */
 export interface ArmaduraPilar {
-  diametroMm: number;
+  diametroEsquinaMm: number;
   /** Barras en cada cara de ancho b, contando las de esquina (≥ 2). */
   barrasCaraB: number;
+  /** Ø de las intermedias de las caras de ancho b. */
+  diametroCaraBMm: number;
   /** Barras en cada cara de ancho h, contando las de esquina (≥ 2). */
   barrasCaraH: number;
+  /** Ø de las intermedias de las caras de ancho h. */
+  diametroCaraHMm: number;
   diametroCercoMm: number;
   /** Separación en la zona corriente del pilar. */
   separacionCercosM: number;
@@ -264,29 +275,101 @@ export interface ResultadoPilar {
     /** Mayor distancia de una barra a otra sujeta por un cerco (m), por cara. */
     distanciaLibre: Record<DireccionPilar, number>;
     verificaSujecion: boolean;
+    /** Separación libre entre barras vecinas de cada cara, art. 8.2(2). */
+    separacionBarras: Record<DireccionPilar, SeparacionBarrasCara>;
+    verificaSeparacionBarras: boolean;
   };
 }
 
-/** Posición del eje de las barras desde la cara (m). */
-const recubrimientoMecanico = (g: GeometriaPilar, a: ArmaduraPilar) =>
-  g.recubrimientoM + a.diametroCercoMm / 1000 + a.diametroMm / 2000;
+/** Por cara: la menor distancia libre entre barras vecinas y la que exige el art. 8.2(2). */
+export interface SeparacionBarrasCara {
+  libreM: number;
+  /** máx(Ø mayor de la cara; dg + 5 mm; 20 mm). */
+  exigidaM: number;
+  verifica: boolean;
+}
 
-/** Capas de barras para la flexión en una dirección. */
-export function capasPilar(g: GeometriaPilar, a: ArmaduraPilar, dir: DireccionPilar): CapaPilar[] {
-  const canto = dir === "h" ? g.hM : g.bM;
-  const nCara = dir === "h" ? a.barrasCaraB : a.barrasCaraH;
-  const nLado = dir === "h" ? a.barrasCaraH : a.barrasCaraB;
-  const r = recubrimientoMecanico(g, a);
-  const areaM2 = areaBarraCm2(a.diametroMm) / 1e4;
-  const capas: CapaPilar[] = [
-    { uM: r, areaM2: nCara * areaM2 },
-    { uM: canto - r, areaM2: nCara * areaM2 },
-  ];
-  // Las intermedias de los costados: dos por nivel.
-  for (let i = 1; i < nLado - 1; i++) {
-    capas.push({ uM: r + ((canto - 2 * r) * i) / (nLado - 1), areaM2: 2 * areaM2 });
+/** Distancia del eje de una barra apoyada contra el cerco a la cara (m). */
+const ejeDesdeCara = (g: GeometriaPilar, a: Pick<ArmaduraPilar, "diametroCercoMm">, diametroMm: number) =>
+  g.recubrimientoM + a.diametroCercoMm / 1000 + diametroMm / 2000;
+
+/** Diámetros que de verdad hay: las intermedias sólo si la cara tiene más de dos barras. */
+export function diametrosLongitudinales(
+  a: Pick<ArmaduraPilar, "diametroEsquinaMm" | "barrasCaraB" | "diametroCaraBMm" | "barrasCaraH" | "diametroCaraHMm">
+): number[] {
+  const usados = [a.diametroEsquinaMm];
+  if (a.barrasCaraB > 2) usados.push(a.diametroCaraBMm);
+  if (a.barrasCaraH > 2) usados.push(a.diametroCaraHMm);
+  return usados;
+}
+
+/**
+ * Una barra de la sección. El centro se mide desde la esquina de arriba a la
+ * izquierda: x a lo largo de b, y a lo largo de h. "b" son las intermedias de
+ * las caras de ancho b (arriba y abajo); "h", las de las caras de ancho h.
+ */
+export interface BarraPilar {
+  xM: number;
+  yM: number;
+  diametroMm: number;
+  fila: "esquina" | "b" | "h";
+}
+
+/**
+ * Dónde cae cada barra. Todas apoyan contra el cerco; las intermedias se
+ * reparten a paso constante entre los ejes de las esquinas. La usan el
+ * cálculo y el dibujo, así que el dibujo es lo que se calcula.
+ */
+export function barrasPilar(g: GeometriaPilar, a: ArmaduraPilar): BarraPilar[] {
+  const { bM, hM } = g;
+  const e = ejeDesdeCara(g, a, a.diametroEsquinaMm);
+  const barras: BarraPilar[] = [
+    [e, e], [bM - e, e], [e, hM - e], [bM - e, hM - e],
+  ].map(([xM, yM]) => ({ xM, yM, diametroMm: a.diametroEsquinaMm, fila: "esquina" as const }));
+  const eb = ejeDesdeCara(g, a, a.diametroCaraBMm);
+  for (let i = 1; i < a.barrasCaraB - 1; i++) {
+    const xM = e + ((bM - 2 * e) * i) / (a.barrasCaraB - 1);
+    barras.push({ xM, yM: eb, diametroMm: a.diametroCaraBMm, fila: "b" }, { xM, yM: hM - eb, diametroMm: a.diametroCaraBMm, fila: "b" });
   }
-  return capas;
+  const eh = ejeDesdeCara(g, a, a.diametroCaraHMm);
+  for (let j = 1; j < a.barrasCaraH - 1; j++) {
+    const yM = e + ((hM - 2 * e) * j) / (a.barrasCaraH - 1);
+    barras.push({ xM: eh, yM, diametroMm: a.diametroCaraHMm, fila: "h" }, { xM: bM - eh, yM, diametroMm: a.diametroCaraHMm, fila: "h" });
+  }
+  return barras;
+}
+
+/** "4Ø20 + 4Ø16": las barras agrupadas por diámetro, de mayor a menor. */
+export function describirArmadoPilar(barras: readonly BarraPilar[]): string {
+  const cuenta = new Map<number, number>();
+  for (const b of barras) cuenta.set(b.diametroMm, (cuenta.get(b.diametroMm) ?? 0) + 1);
+  return [...cuenta].sort(([p], [q]) => q - p).map(([d, n]) => `${n}Ø${d}`).join(" + ");
+}
+
+/** Distancia de la barra a la cara comprimida en la dirección dada (m). */
+const profundidad = (b: BarraPilar, dir: DireccionPilar) => (dir === "h" ? b.yM : b.xM);
+
+/**
+ * Barras de la cara traccionada en una dirección: las esquinas y la fila de
+ * esa cara (para la dirección h, la de ancho b de abajo).
+ */
+function barrasCaraTraccionada(g: GeometriaPilar, a: ArmaduraPilar, dir: DireccionPilar): BarraPilar[] {
+  const canto = dir === "h" ? g.hM : g.bM;
+  const fila = dir === "h" ? "b" : "h";
+  return barrasPilar(g, a).filter((b) => (b.fila === "esquina" || b.fila === fila) && profundidad(b, dir) > canto / 2);
+}
+
+/** Capas de barras para la flexión en una dirección: las que quedan a la misma profundidad se suman. */
+export function capasPilar(g: GeometriaPilar, a: ArmaduraPilar, dir: DireccionPilar): CapaPilar[] {
+  const capas = new Map<number, CapaPilar>();
+  for (const b of barrasPilar(g, a)) {
+    const uM = profundidad(b, dir);
+    const clave = Math.round(uM * 1e9);
+    const capa = capas.get(clave) ?? { uM, areaM2: 0 };
+    capa.areaM2 += areaBarraCm2(b.diametroMm) / 1e4;
+    capas.set(clave, capa);
+  }
+  return [...capas.values()];
 }
 
 /** Interpolación del exponente a de la ec. (5.39) para secciones rectangulares. */
@@ -307,15 +390,16 @@ export function cortantePilar(
 ): ResultadoCortanteDireccion {
   const { fck, fcd, fyk } = materiales;
   const { bM, hM } = geometria;
-  const r = recubrimientoMecanico(geometria, armadura);
   const sigmaCpMPa = Math.min(esfuerzos.nEdKN / (bM * hM * 1000), 0.2 * fcd);
   const nu1 = 0.6 * (1 - fck / 250);
   const fywd = fyk / GAMMA_S;
   const vEdKN = Math.abs(esfuerzos[dir].vEdKN);
-  const canto = dir === "h" ? hM : bM;
   const bw = dir === "h" ? bM : hM;
-  const dM = canto - r;
-  const asTraccionCm2 = (dir === "h" ? armadura.barrasCaraB : armadura.barrasCaraH) * areaBarraCm2(armadura.diametroMm);
+  // d hasta el baricentro de la cara traccionada: esquinas y fila pueden tener Ø distinto.
+  const traccionadas = barrasCaraTraccionada(geometria, armadura, dir);
+  const asTraccionCm2 = traccionadas.reduce((suma, b) => suma + areaBarraCm2(b.diametroMm), 0);
+  const dM = traccionadas.reduce((suma, b) => suma + areaBarraCm2(b.diametroMm) * profundidad(b, dir), 0) / asTraccionCm2;
+
   const rhoL = Math.min(asTraccionCm2 / 1e4 / (bw * dM), 0.02);
   // ecs. (6.2.a) y (6.2.b): k1·σcp con k1 = 0,15 suma a las dos.
   const vRdCKN = (tensionCortanteResistente(factorEscalaK(dM), rhoL, fck) + 0.15 * sigmaCpMPa) * bw * dM * 1000;
@@ -376,10 +460,11 @@ export function cercosAutomaticos(
   armadura: Omit<ArmaduraPilar, "diametroCercoMm" | "separacionCercosM" | "separacionCercosNudoM">,
   esfuerzos: EsfuerzosPilar
 ): CercosAutomaticos {
-  const sMaxM = separacionMaximaCercos(armadura.diametroMm, geometria.bM, geometria.hM);
+  const diametros = diametrosLongitudinales(armadura);
+  const sMaxM = separacionMaximaCercos(Math.min(...diametros), geometria.bM, geometria.hM);
   const sConstructivaM = redondearSeparacionCercos(sMaxM);
   const sNudoM = redondearSeparacionCercos(0.6 * sMaxM);
-  const minimo = diametroCercoMinimo(armadura.diametroMm);
+  const minimo = diametroCercoMinimo(Math.max(...diametros));
   const candidatos: number[] = DIAMETROS_ARMADURA.filter((d) => d >= minimo && d <= DIAMETRO_CERCO_MAXIMO_MM);
   if (candidatos.length === 0) candidatos.push(DIAMETROS_ARMADURA.find((d) => d >= minimo) ?? Math.ceil(minimo));
 
@@ -413,9 +498,10 @@ export function calcularPilar(
   const { nEdKN } = esfuerzos;
 
   const areaHormigonM2 = bM * hM;
-  const numeroBarras = 2 * armadura.barrasCaraB + 2 * armadura.barrasCaraH - 4;
-  const areaBarra = areaBarraCm2(armadura.diametroMm);
-  const asTotalCm2 = numeroBarras * areaBarra;
+  const barras = barrasPilar(geometria, armadura);
+  const numeroBarras = barras.length;
+  const asTotalCm2 = barras.reduce((suma, b) => suma + areaBarraCm2(b.diametroMm), 0);
+  const diametros = diametrosLongitudinales(armadura);
 
   const fluenciaAdoptada = esfuerzos.fluenciaEficaz === undefined;
   const fluenciaEficaz = esfuerzos.fluenciaEficaz ?? FLUENCIA_EFICAZ_SIN_DATO;
@@ -522,22 +608,27 @@ export function calcularPilar(
     h: cortantePilar(materiales, geometria, armadura, esfuerzos, "h"),
     b: cortantePilar(materiales, geometria, armadura, esfuerzos, "b"),
   };
-  const r = recubrimientoMecanico(geometria, armadura);
+  const e = ejeDesdeCara(geometria, armadura, armadura.diametroEsquinaMm);
 
   // ------------------------------------------------------- armado, 9.5
   const fycdMPa = Math.min(fyd, 400);
   const asMinimaCaraCm2 = ((0.05 * nEdKN) / (fycdMPa * 1000)) * 1e4;
-  const asCara = { h: armadura.barrasCaraB * areaBarra, b: armadura.barrasCaraH * areaBarra };
+  const areaFila = (n: number, d: number) => 2 * areaBarraCm2(armadura.diametroEsquinaMm) + (n - 2) * areaBarraCm2(d);
+  const asCara = {
+    h: areaFila(armadura.barrasCaraB, armadura.diametroCaraBMm),
+    b: areaFila(armadura.barrasCaraH, armadura.diametroCaraHMm),
+  };
   const asMaximaCm2 = 0.04 * areaHormigonM2 * 1e4;
-  const diametroCercoMinimoMm = diametroCercoMinimo(armadura.diametroMm);
-  const separacionMaximaM = separacionMaximaCercos(armadura.diametroMm, bM, hM);
+  // art. 9.5.3(1) con el Ø mayor y 9.5.3(3) con el menor de la longitudinal.
+  const diametroCercoMinimoMm = diametroCercoMinimo(Math.max(...diametros));
+  const separacionMaximaM = separacionMaximaCercos(Math.min(...diametros), bM, hM);
 
   // art. 9.5.3(6): cada rama sujeta una barra de cada cara que atraviesa. Con
   // las ramas repartidas, la barra más alejada de una sujeta queda a la mitad
   // del mayor tramo entre sujetas.
   const distanciaLibre = (n: number, ramas: number, anchoCara: number) => {
     if (n <= 2) return 0;
-    const paso = (anchoCara - 2 * r) / (n - 1);
+    const paso = (anchoCara - 2 * e) / (n - 1);
     const sujetas = Math.min(Math.max(ramas, 2), n);
     const tramo = Math.ceil((n - 1) / (sujetas - 1));
     return Math.floor(tramo / 2) * paso;
@@ -547,12 +638,29 @@ export function calcularPilar(
     b: distanciaLibre(armadura.barrasCaraH, armadura.ramasB, hM),
   };
 
+  // art. 8.2(2): entre barras vecinas de una cara, libre ≥ máx(Ø; dg + 5 mm; 20 mm).
+  const separacionCara = (dir: DireccionPilar): SeparacionBarrasCara => {
+    const fila = dir === "h" ? "b" : "h";
+    const cara = barras
+      .filter((b) => (b.fila === "esquina" || b.fila === fila) && (dir === "h" ? b.yM < hM / 2 : b.xM < bM / 2))
+      .sort((p, q) => (dir === "h" ? p.xM - q.xM : p.yM - q.yM));
+    let libreM = Infinity;
+    for (let k = 1; k < cara.length; k++) {
+      const eje = dir === "h" ? cara[k].xM - cara[k - 1].xM : cara[k].yM - cara[k - 1].yM;
+      libreM = Math.min(libreM, eje - (cara[k].diametroMm + cara[k - 1].diametroMm) / 2000);
+    }
+    const mayorMm = Math.max(...cara.map((b) => b.diametroMm));
+    const exigidaM = Math.max(mayorMm, geometria.tamanoMaximoAridoMm + 5, 20) / 1000;
+    return { libreM, exigidaM, verifica: libreM >= exigidaM - 1e-9 };
+  };
+  const separacionBarras = { h: separacionCara("h"), b: separacionCara("b") };
+
   return {
     areaHormigonM2, asTotalCm2, numeroBarras, fluenciaEficaz, fluenciaAdoptada, axilReducido, cuantiaMecanica,
     nRdMaxKN, verificaAxil, flexion, esviada, cortante,
     armado: {
       esPilar: Math.max(bM, hM) <= 4 * Math.min(bM, hM),
-      verificaDiametro: armadura.diametroMm >= 12,
+      verificaDiametro: Math.min(...diametros) >= 12,
       asMaximaCm2,
       verificaMaxima: asTotalCm2 <= asMaximaCm2,
       fycdMPa,
@@ -567,6 +675,8 @@ export function calcularPilar(
       verificaSeparacionNudo: armadura.separacionCercosNudoM <= 0.6 * separacionMaximaM + 1e-9,
       distanciaLibre: libre,
       verificaSujecion: libre.h <= 0.15 + 1e-9 && libre.b <= 0.15 + 1e-9,
+      separacionBarras,
+      verificaSeparacionBarras: separacionBarras.h.verifica && separacionBarras.b.verifica,
     },
   };
 }

@@ -18,7 +18,7 @@ import { ValorCalculado } from "@/components/verificaciones/comun/ValorCalculado
 import { DiagramaInteraccionMuro } from "@/components/verificaciones/hormigon/DiagramaInteraccionMuro";
 import { SeccionPilarDiagrama } from "@/components/verificaciones/hormigon/SeccionPilarDiagrama";
 import { NOMBRE_CEMENTO, NOMBRE_EXPOSICION, type ClaseCemento, type ExposicionSeccion } from "@/lib/calc/hormigon/comun/diferidas";
-import { DIRECCIONES_PILAR } from "@/lib/calc/hormigon/pilares/pilar";
+import { barrasPilar, describirArmadoPilar, DIRECCIONES_PILAR } from "@/lib/calc/hormigon/pilares/pilar";
 import { ARRIOSTRAMIENTO, COACCIONES_PILAR, MODOS_CERCOS, MODOS_FLUENCIA, resolverPilar } from "@/lib/calc/hormigon/pilares/resolver-pilar";
 import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -73,6 +73,10 @@ export default function PilaresPage() {
   const [relacionMqp, setRelacionMqp] = useCampo("relacionMqp", "0.7");
 
   const [phi, setPhi] = useCampo("phi", "16");
+  // Vacíos hasta que se eligen: mientras tanto, las filas llevan el Ø de las esquinas.
+  const [phiCaraB, setPhiCaraB] = useCampo("phiCaraB", "");
+  const [phiCaraH, setPhiCaraH] = useCampo("phiCaraH", "");
+  const [dg, setDg] = useCampo("dg", "20");
   const [nCaraB, setNCaraB] = useCampo("nCaraB", "3");
   const [nCaraH, setNCaraH] = useCampo("nCaraH", "3");
   const [cercos, setCercos] = useCampo("cercos", MODOS_CERCOS[0]);
@@ -88,9 +92,11 @@ export default function PilaresPage() {
       coaccionH, betaH, arriostradoH, m01H, m02H, vEdH,
       coaccionB, betaB, arriostradoB, m01B, m02B, vEdB,
       modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp,
-      phi, nCaraB, nCaraH, cercos, phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB,
+      phi, nCaraB, nCaraH, dg, cercos,
+      ...(phiCaraB === "" ? {} : { phiCaraB }),
+      ...(phiCaraH === "" ? {} : { phiCaraH }), phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB,
     }),
-    [fck, fyk, b, h, altura, rec, nEd, coaccionH, betaH, arriostradoH, m01H, m02H, vEdH, coaccionB, betaB, arriostradoB, m01B, m02B, vEdB, modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp, phi, nCaraB, nCaraH, cercos, phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB]
+    [fck, fyk, b, h, altura, rec, nEd, coaccionH, betaH, arriostradoH, m01H, m02H, vEdH, coaccionB, betaB, arriostradoB, m01B, m02B, vEdB, modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp, phi, phiCaraB, phiCaraH, nCaraB, nCaraH, dg, cercos, phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB]
   );
   const resultado = useMemo(() => resolverPilar(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -105,13 +111,9 @@ export default function PilaresPage() {
 
   // Va en la sección y otra vez al lado de la armadura, con los cercos que se usan.
   const dibujoSeccion = resultado ? (
-    <SeccionPilarDiagrama
-      bM={resultado.v.b} hM={resultado.v.h} recubrimientoM={resultado.v.rec}
-      diametroMm={resultado.v.phi} diametroCercoMm={resultado.v.phiCerco}
-      barrasCaraB={resultado.v.nCaraB} barrasCaraH={resultado.v.nCaraH}
-      ramasH={resultado.v.ramasH} ramasB={resultado.v.ramasB}
-    />
+    <SeccionPilarDiagrama geometria={resultado.geometria} armadura={resultado.armadura} />
   ) : null;
+  const armado = resultado ? describirArmadoPilar(barrasPilar(resultado.geometria, resultado.armadura)) : "";
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -157,6 +159,7 @@ export default function PilaresPage() {
                 <CampoNumerico id="h" etiqueta="h" sufijo="m" valor={h} onChange={setH} />
                 <CampoNumerico id="altura" etiqueta="Altura libre l" sufijo="m" valor={altura} onChange={setAltura} />
                 <CampoNumerico id="rec" etiqueta="Recubrimiento geom. al cerco" sufijo="m" valor={rec} onChange={setRec} />
+                <CampoNumerico id="dg" etiqueta="Tamaño máx. del árido dg" sufijo="mm" valor={dg} onChange={setDg} advertencia="Separación entre barras, art. 8.2" />
               </div>
             }
             dibujo={dibujoSeccion}
@@ -219,16 +222,19 @@ export default function PilaresPage() {
           </div>
         </Etapa>
 
-        <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Barras en las cuatro caras, todas del mismo diámetro, y cercos. Los cercos automáticos salen de la longitudinal y del cortante; las ramas se cargan siempre.">
+        <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Cuatro barras de esquina y, en cada par de caras, una fila de intermedias con su propio diámetro; y cercos. Los cercos automáticos salen de la longitudinal y del cortante; las ramas se cargan siempre.">
           {/* El dibujo acompaña a los campos: se ve dónde cae cada barra sin volver a la etapa 1. */}
           <DatosConDibujo
             dibujo={dibujoSeccion}
             datos={
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <CampoDiametro id="phi" etiqueta="Ø barras" valor={phi} onChange={setPhi} />
+                  <CampoDiametro id="phi" etiqueta="Ø esquinas" valor={phi} onChange={setPhi} />
                   <CampoNumerico id="nCaraB" etiqueta="Barras por cara b" valor={nCaraB} onChange={setNCaraB} advertencia="Con las de esquina" />
+                  <CampoDiametro id="phiCaraB" etiqueta="Ø intermedias caras b" valor={phiCaraB || phi} onChange={setPhiCaraB} />
+                  <div className="hidden sm:block" />
                   <CampoNumerico id="nCaraH" etiqueta="Barras por cara h" valor={nCaraH} onChange={setNCaraH} advertencia="Con las de esquina" />
+                  <CampoDiametro id="phiCaraH" etiqueta="Ø intermedias caras h" valor={phiCaraH || phi} onChange={setPhiCaraH} />
                 </div>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   <CampoSeleccion id="cercos" etiqueta="Cercos" valor={cercos} opciones={MODOS_CERCOS} onChange={setCercos} />
@@ -277,7 +283,7 @@ export default function PilaresPage() {
               { etiqueta: "NEd", valor: `${nEd} kN` },
               ...(resultado
                 ? [
-                    { etiqueta: "Armadura", valor: `${resultado.r.numeroBarras}Ø${resultado.v.phi} = ${fmt(resultado.r.asTotalCm2)} cm²`, derivado: true },
+                    { etiqueta: "Armadura", valor: `${armado} = ${fmt(resultado.r.asTotalCm2)} cm²`, derivado: true },
                     {
                       etiqueta: "Cercos",
                       valor: `Ø${resultado.v.phiCerco} c/${fmt(resultado.v.sepCercos * 100, 1)} cm, c/${fmt(resultado.v.sepCercosNudo * 100, 1)} cm junto a nudos${cercosAuto ? " (automáticos)" : ""}`,
@@ -322,7 +328,7 @@ export default function PilaresPage() {
                     valor: `${fmt(resultado.r.flexion[dir].mEdKNm, 1)} / ${fmt(resultado.r.flexion[dir].mRdKNm, 1)} kN·m`,
                     nota: resultado.r.flexion[dir].ignoraSegundoOrden ? "sin segundo orden" : `M2 ${fmt(resultado.r.flexion[dir].m2KNm, 1)}`,
                   })),
-                  { etiqueta: "Armadura", valor: `${resultado.r.numeroBarras}Ø${resultado.v.phi}`, nota: `${fmt(resultado.r.asTotalCm2)} cm²` },
+                  { etiqueta: "Armadura", valor: armado, nota: `${fmt(resultado.r.asTotalCm2)} cm²` },
                 ]}
               />
 
@@ -449,7 +455,7 @@ export default function PilaresPage() {
                   <ResultadoCheck
                     etiqueta="Diámetro de las barras"
                     verifica={resultado.r.armado.verificaDiametro}
-                    detalle="Art. 9.5.2(1): Ø ≥ 12 mm."
+                    detalle="Art. 9.5.2(1): Ø ≥ 12 mm en todas las barras."
                     recomendaciones={propuestas.diametro}
                   />
                   {DIRECCIONES_PILAR.map((dir) => (
@@ -480,13 +486,13 @@ export default function PilaresPage() {
                   <ResultadoCheck
                     etiqueta="Diámetro del cerco"
                     verifica={resultado.r.armado.verificaDiametroCerco}
-                    detalle={`Art. 9.5.3(1): Ø ≥ máx(6 mm; Ø/4) = ${fmt(resultado.r.armado.diametroCercoMinimoMm, 1)} mm.`}
+                    detalle={`Art. 9.5.3(1): Ø ≥ máx(6 mm; Ø mayor/4) = ${fmt(resultado.r.armado.diametroCercoMinimoMm, 1)} mm.`}
                     recomendaciones={propuestas.diametroCerco}
                   />
                   <ResultadoCheck
                     etiqueta="Separación de los cercos"
                     verifica={resultado.r.armado.verificaSeparacion}
-                    detalle="Art. 9.5.3(3): mín(15Ø; 300 mm; lado menor), en la zona corriente del pilar."
+                    detalle="Art. 9.5.3(3): mín(15·Ø menor; 300 mm; lado menor), en la zona corriente del pilar."
                     comparacion={{
                       real: { etiqueta: "s", valor: resultado.v.sepCercos },
                       limite: { etiqueta: "s,máx", valor: resultado.r.armado.separacionMaximaM },
@@ -511,6 +517,23 @@ export default function PilaresPage() {
                     detalle={`Art. 9.5.3(6): ninguna barra comprimida a más de 150 mm de una sujeta. Con las ramas repartidas, la más alejada queda a ${fmt(Math.max(resultado.r.armado.distanciaLibre.h, resultado.r.armado.distanciaLibre.b) * 1000, 0)} mm.`}
                     recomendaciones={propuestas.sujecion}
                   />
+                  {DIRECCIONES_PILAR.map((dir) => {
+                    const sep = resultado.r.armado.separacionBarras[dir];
+                    return (
+                      <ResultadoCheck
+                        key={`sep${dir}`}
+                        etiqueta={`Separación libre entre barras de las caras ${dir === "h" ? "b" : "h"}`}
+                        verifica={sep.verifica}
+                        detalle={`Art. 8.2(2): libre ≥ máx(Ø mayor de la cara; dg + 5 mm; 20 mm), con dg = ${fmt(resultado.v.dg, 0)} mm.`}
+                        comparacion={{
+                          real: { etiqueta: "libre", valor: sep.libreM * 1000 },
+                          limite: { etiqueta: "mínima", valor: sep.exigidaM * 1000 },
+                          unidad: "mm", exige: "≥", decimales: 0,
+                        }}
+                        recomendaciones={propuestas[dir === "h" ? "separacionBarrasH" : "separacionBarrasB"]}
+                      />
+                    );
+                  })}
                 </div>
               </Subgrupo>
             </div>

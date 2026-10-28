@@ -1,6 +1,6 @@
 import { resolverPilar, type ResueltoPilar } from "@/lib/calc/hormigon/pilares/resolver-pilar";
 import { recomendarTodas, siNo, type Palanca, type Recomendacion } from "./motor";
-import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos } from "./palancas";
+import { campo, m, palancaDiametro, palancaFck, palancaValor, type Campos, type Dato } from "./palancas";
 
 export type ClavePilar =
   | "axil"
@@ -16,7 +16,9 @@ export type ClavePilar =
   | "diametroCerco"
   | "separacion"
   | "separacionNudo"
-  | "sujecion";
+  | "sujecion"
+  | "separacionBarrasH"
+  | "separacionBarrasB";
 export type RecomendacionesPilar = Partial<Record<ClavePilar, Recomendacion[]>>;
 
 const NOMBRES: Record<ClavePilar, string> = {
@@ -34,6 +36,8 @@ const NOMBRES: Record<ClavePilar, string> = {
   separacion: "separación de los cercos",
   separacionNudo: "separación de los cercos junto a nudos y solapes",
   sujecion: "barras sujetas por los cercos",
+  separacionBarrasH: "separación entre barras de las caras b",
+  separacionBarrasB: "separación entre barras de las caras h",
 };
 
 const BINARIAS: readonly ClavePilar[] = ["diametro", "diametroCerco", "sujecion"];
@@ -57,6 +61,8 @@ const utilizaciones = ({ r, v }: ResueltoPilar): Record<ClavePilar, number> => (
   separacion: v.sepCercos / r.armado.separacionMaximaM,
   separacionNudo: v.sepCercosNudo / r.armado.separacionZonaNudoM,
   sujecion: siNo(r.armado.verificaSujecion),
+  separacionBarrasH: r.armado.separacionBarras.h.exigidaM / r.armado.separacionBarras.h.libreM,
+  separacionBarrasB: r.armado.separacionBarras.b.exigidaM / r.armado.separacionBarras.b.libreM,
 });
 
 const EFECTO_SECCION = "Cambia la sección del pilar: las vigas y la fundación que llegan también.";
@@ -71,18 +77,59 @@ const lado = (nombre: "b" | "h") =>
     efectoColateral: EFECTO_SECCION,
   });
 
-const textoArmado = (e: Campos, d = campo("phi").leer(e)) => {
+/** Ø de una fila: sin el campo, el de las esquinas, como lo lee el resolver. */
+const diametroFila = (e: Campos, nombre: "phiCaraB" | "phiCaraH") =>
+  e[nombre] === undefined ? campo("phi").leer(e) : campo(nombre).leer(e);
+
+/** "4Ø20 + 4Ø16": las barras agrupadas por Ø, de mayor a menor. */
+const textoArmado = (e: Campos) => {
   const nB = campo("nCaraB").leer(e);
   const nH = campo("nCaraH").leer(e);
-  return `${2 * nB + 2 * nH - 4}Ø${d}`;
+  const cuenta = new Map<number, number>();
+  const sumar = (d: number, n: number) => n > 0 && cuenta.set(d, (cuenta.get(d) ?? 0) + n);
+  sumar(campo("phi").leer(e), 4);
+  sumar(diametroFila(e, "phiCaraB"), 2 * (nB - 2));
+  sumar(diametroFila(e, "phiCaraH"), 2 * (nH - 2));
+  return [...cuenta].sort(([a], [b]) => b - a).map(([d, n]) => `${n}Ø${d}`).join(" + ");
 };
 
-const DIAMETRO = palancaDiametro(campo("phi"), "mayor", (e, d) => textoArmado(e, d));
+/** Todas las barras a un mismo Ø, partiendo del de las esquinas. */
+const TODAS: Dato<Campos> = {
+  leer: (e) => campo("phi").leer(e),
+  escribir: (e, d) => ({ ...e, phi: String(d), phiCaraB: String(d), phiCaraH: String(d) }),
+};
+/** El armado con el Ø cambiado; con el de hoy, el armado tal como está. */
+const conDiametro = (dato: Dato<Campos>) => (e: Campos, d: number) =>
+  textoArmado(d === dato.leer(e) ? e : dato.escribir(e, d));
+
+const DIAMETRO = palancaDiametro(TODAS, "mayor", conDiametro(TODAS));
+
+/** Sólo la fila de un par de caras; la otra queda como estaba. */
+const fila = (nombre: "phiCaraB" | "phiCaraH"): Dato<Campos> => ({
+  leer: (e) => diametroFila(e, nombre),
+  escribir: (e, d) => ({
+    ...e,
+    phiCaraB: String(diametroFila(e, "phiCaraB")),
+    phiCaraH: String(diametroFila(e, "phiCaraH")),
+    [nombre]: String(d),
+  }),
+});
+const DIAMETRO_FILA_B = palancaDiametro(fila("phiCaraB"), "mayor", conDiametro(fila("phiCaraB")));
+const DIAMETRO_FILA_H = palancaDiametro(fila("phiCaraH"), "mayor", conDiametro(fila("phiCaraH")));
 
 const barras = (nombre: "nCaraB" | "nCaraH") =>
   palancaValor(campo(nombre), {
     paso: 1,
     tope: (n) => n + 4,
+    decimales: 0,
+    rotulo: nombre === "nCaraB" ? "Por cara b: " : "Por cara h: ",
+    texto: (n) => `${n} barras`,
+  });
+
+const menosBarras = (nombre: "nCaraB" | "nCaraH") =>
+  palancaValor(campo(nombre), {
+    paso: -1,
+    tope: () => 2,
     decimales: 0,
     rotulo: nombre === "nCaraB" ? "Por cara b: " : "Por cara h: ",
     texto: (n) => `${n} barras`,
@@ -120,9 +167,9 @@ function palancasPorClave(clave: ClavePilar): readonly Palanca<Campos>[] {
     case "axil":
       return [lado("b"), lado("h"), palancaFck(campo("fck")), DIAMETRO];
     case "flexionH":
-      return [DIAMETRO, barras("nCaraB"), lado("h"), palancaFck(campo("fck"))];
+      return [DIAMETRO, barras("nCaraB"), DIAMETRO_FILA_B, lado("h"), palancaFck(campo("fck"))];
     case "flexionB":
-      return [DIAMETRO, barras("nCaraH"), lado("b"), palancaFck(campo("fck"))];
+      return [DIAMETRO, barras("nCaraH"), DIAMETRO_FILA_H, lado("b"), palancaFck(campo("fck"))];
     case "esviada":
       return [DIAMETRO, barras("nCaraB"), barras("nCaraH"), lado("h"), lado("b")];
     case "cortanteH":
@@ -130,9 +177,9 @@ function palancasPorClave(clave: ClavePilar): readonly Palanca<Campos>[] {
     case "cortanteB":
       return [SEPARACION, ramas("ramasB"), DIAMETRO_CERCO, lado("b")];
     case "minimaH":
-      return [DIAMETRO, barras("nCaraB")];
+      return [DIAMETRO, barras("nCaraB"), DIAMETRO_FILA_B];
     case "minimaB":
-      return [DIAMETRO, barras("nCaraH")];
+      return [DIAMETRO, barras("nCaraH"), DIAMETRO_FILA_H];
     case "maxima":
       return [lado("b"), lado("h")];
     case "diametro":
@@ -145,6 +192,10 @@ function palancasPorClave(clave: ClavePilar): readonly Palanca<Campos>[] {
       return [SEPARACION_NUDO];
     case "sujecion":
       return [ramas("ramasH"), ramas("ramasB")];
+    case "separacionBarrasH":
+      return [menosBarras("nCaraB"), lado("b")];
+    case "separacionBarrasB":
+      return [menosBarras("nCaraH"), lado("h")];
   }
 }
 

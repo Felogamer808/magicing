@@ -62,4 +62,20 @@ describe("resolverPilar", () => {
     expect(mano.r.armado.verificaSeparacionNudo).toBe(true);
     expect(resolverPilar({ ...BASE, cercos: MODOS_CERCOS[1], sepCercosNudo: "" })).toBeNull();
   });
+
+  it("filas: sin Ø propio toman el de las esquinas; dg por defecto 20 mm", () => {
+    const viejo = resolverPilar(BASE)!;
+    expect(viejo.v.phiCaraB).toBe(16);
+    expect(viejo.v.phiCaraH).toBe(16);
+    expect(viejo.v.dg).toBe(20);
+    const mixto = resolverPilar({ ...BASE, phi: "20", phiCaraB: "12", phiCaraH: "16", dg: "12" })!;
+    // 30 × 40, 3 por cara: 4Ø20 + 2Ø12 + 2Ø16.
+    expect(mixto.r.asTotalCm2).toBeCloseTo(Math.PI * (4 * 1 + 2 * 0.36 + 2 * 0.64), 9);
+    expect(mixto.r.armado.separacionBarras.h.exigidaM).toBeCloseTo(0.02, 12);
+  });
+
+  it("el Ø de una fila vacía puede quedar en blanco; el de una fila con barras, no", () => {
+    expect(resolverPilar({ ...BASE, nCaraH: "2", phiCaraH: "" })).not.toBeNull();
+    expect(resolverPilar({ ...BASE, phiCaraH: "" })).toBeNull();
+  });
 });

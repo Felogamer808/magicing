@@ -10,6 +10,8 @@ import {
 import {
   calcularPilar,
   cercosAutomaticos,
+  diametrosLongitudinales,
+  type ArmaduraPilar,
   type CercosAutomaticos,
   type DireccionPilar,
   type EsfuerzosPilar,
@@ -40,6 +42,9 @@ export const MODOS_FLUENCIA = [
   "Calcular con el Apéndice B",
 ] as const;
 
+/** dg sin dato: el árido de 20 mm habitual en edificación. */
+export const TAMANO_ARIDO_POR_DEFECTO_MM = 20;
+
 /**
  * Cercos fijados por la longitudinal (art. 9.5.3 y cortante) o cargados a
  * mano. Sin el campo se toman a mano: así se leen los cálculos guardados
@@ -64,18 +69,26 @@ export function resolverPilar(campos: Record<string, string>) {
     m01H: num("m01H"), m02H: num("m02H"), vEdH: num("vEdH"),
     m01B: num("m01B"), m02B: num("m02B"), vEdB: num("vEdB"),
     phi: num("phi"), nCaraB: num("nCaraB"), nCaraH: num("nCaraH"),
+    // Antes todas las barras tenían el Ø de `phi`, que ahora es el de las
+    // esquinas: lo guardado sin las filas lleva ése mismo.
+    phiCaraB: campos.phiCaraB === undefined ? num("phi") : num("phiCaraB"),
+    phiCaraH: campos.phiCaraH === undefined ? num("phi") : num("phiCaraH"),
+    dg: campos.dg === undefined ? TAMANO_ARIDO_POR_DEFECTO_MM : num("dg"),
     phiCerco: num("phiCerco"), sepCercos: num("sepCercos"),
     // Los cálculos guardados antes de la zona de nudo no la traen: la corriente.
     sepCercosNudo: campos.sepCercosNudo === undefined ? num("sepCercos") : num("sepCercosNudo"),
     ramasH: num("ramasH"), ramasB: num("ramasB"),
   };
   const cercosAuto = campos.cercos === MODOS_CERCOS[0];
-  const positivos = [v.fck, v.fyk, v.b, v.h, v.altura, v.rec, v.nEd, v.phi];
+  const enteros = [v.nCaraB, v.nCaraH, v.ramasH, v.ramasB];
+  if (!enteros.every((x) => Number.isInteger(x) && x >= 2)) return null;
+  const positivos = [v.fck, v.fyk, v.b, v.h, v.altura, v.rec, v.nEd, v.phi, v.dg];
+  // El Ø de una fila sólo hace falta si la fila tiene barras.
+  if (v.nCaraB > 2) positivos.push(v.phiCaraB);
+  if (v.nCaraH > 2) positivos.push(v.phiCaraH);
   if (!cercosAuto) positivos.push(v.phiCerco, v.sepCercos, v.sepCercosNudo);
   if (!positivos.every((x) => Number.isFinite(x) && x > 0)) return null;
   if (![v.m01H, v.m02H, v.vEdH, v.m01B, v.m02B, v.vEdB].every(Number.isFinite)) return null;
-  const enteros = [v.nCaraB, v.nCaraH, v.ramasH, v.ramasB];
-  if (!enteros.every((x) => Number.isInteger(x) && x >= 2)) return null;
 
   const beta = (dir: DireccionPilar) => {
     const sufijo = dir === "h" ? "H" : "B";
@@ -109,8 +122,15 @@ export function resolverPilar(campos: Record<string, string>) {
   }
 
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-  const geometria: GeometriaPilar = { bM: v.b, hM: v.h, alturaLibreM: v.altura, recubrimientoM: v.rec };
-  const longitudinal = { diametroMm: v.phi, barrasCaraB: v.nCaraB, barrasCaraH: v.nCaraH, ramasH: v.ramasH, ramasB: v.ramasB };
+  const geometria: GeometriaPilar = {
+    bM: v.b, hM: v.h, alturaLibreM: v.altura, recubrimientoM: v.rec, tamanoMaximoAridoMm: v.dg,
+  };
+  const longitudinal = {
+    diametroEsquinaMm: v.phi,
+    barrasCaraB: v.nCaraB, diametroCaraBMm: v.phiCaraB,
+    barrasCaraH: v.nCaraH, diametroCaraHMm: v.phiCaraH,
+    ramasH: v.ramasH, ramasB: v.ramasB,
+  };
   const esfuerzos: EsfuerzosPilar = {
     nEdKN: v.nEd,
     h: { beta: betaH, arriostrado: campos.arriostradoH !== ARRIOSTRAMIENTO[1], m01KNm: v.m01H, m02KNm: v.m02H, vEdKN: v.vEdH },
@@ -128,20 +148,16 @@ export function resolverPilar(campos: Record<string, string>) {
     v.sepCercosNudo = cercos.separacionCercosNudoM;
   }
   // Las barras tienen que entrar con recubrimiento de los dos lados.
-  const r = v.rec + v.phiCerco / 1000 + v.phi / 2000;
+  const r = v.rec + v.phiCerco / 1000 + Math.max(...diametrosLongitudinales(longitudinal)) / 2000;
   if (2 * r >= Math.min(v.b, v.h)) return null;
 
-  const r0 = calcularPilar(
-    materiales,
-    geometria,
-    {
-      ...longitudinal,
-      diametroCercoMm: v.phiCerco, separacionCercosM: v.sepCercos, separacionCercosNudoM: v.sepCercosNudo,
-    },
-    esfuerzos
-  );
+  const armadura: ArmaduraPilar = {
+    ...longitudinal,
+    diametroCercoMm: v.phiCerco, separacionCercosM: v.sepCercos, separacionCercosNudoM: v.sepCercosNudo,
+  };
+  const r0 = calcularPilar(materiales, geometria, armadura, esfuerzos);
 
-  return { v, r: r0, cercos, beta: { h: betaH, b: betaB }, fluencia: { modo: modoFluencia, basica: fluenciaBasica, h0Mm } };
+  return { v, geometria, armadura, r: r0, cercos, beta: { h: betaH, b: betaB }, fluencia: { modo: modoFluencia, basica: fluenciaBasica, h0Mm } };
 }
 
 export type ResueltoPilar = NonNullable<ReturnType<typeof resolverPilar>>;

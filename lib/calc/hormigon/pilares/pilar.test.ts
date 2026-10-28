@@ -8,6 +8,7 @@ import {
   calcularPilar,
   cercosAutomaticos,
   exponenteEsviada,
+  maximoBarrasCara,
   redondearSeparacionCercos,
   type ArmaduraPilar,
   type EsfuerzosPilar,
@@ -338,5 +339,20 @@ describe("pilar — esquinas y filas con Ø distinto", () => {
     const gruesa = calcularPilar(materiales, { ...geometria, tamanoMaximoAridoMm: 32 }, { ...armadura, barrasCaraB: 6 }, esfuerzos);
     expect(gruesa.armado.separacionBarras.h.exigidaM).toBeCloseTo(0.037, 12);
     expect(gruesa.armado.verificaSeparacionBarras).toBe(false);
+  });
+});
+
+describe("pilar — cuántas barras entran por cara (art. 8.2(2))", () => {
+  it("30 cm con Ø16: entran 6, la 7.ª deja 18,7 mm libres < 25", () => {
+    expect(maximoBarrasCara(geometria, armadura, "h")).toBe(6);
+    // Con dg = 32 se exigen 37 mm: con 5, paso 0,052 y libre 0,036.
+    expect(maximoBarrasCara({ ...geometria, tamanoMaximoAridoMm: 32 }, armadura, "h")).toBe(4);
+  });
+
+  it("la intermedia más fina no alcanza si manda el par esquina-intermedia; cada par mira su lado", () => {
+    // Esquinas Ø16, intermedias Ø12 en 30 cm: con 7, paso 0,0347 y libre junto a la esquina 0,0207 < 0,025.
+    expect(maximoBarrasCara(geometria, { ...armadura, diametroCaraBMm: 12 }, "h")).toBe(6);
+    // h = 60 cm: con 13, paso 0,508/12 = 0,0423 y libre 0,0263; con 14, 0,0231.
+    expect(maximoBarrasCara({ ...geometria, hM: 0.6 }, armadura, "b")).toBe(13);
   });
 });

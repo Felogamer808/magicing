@@ -339,6 +339,37 @@ export function barrasPilar(g: GeometriaPilar, a: ArmaduraPilar): BarraPilar[] {
   return barras;
 }
 
+/**
+ * Separación libre del art. 8.2(2) entre las barras vecinas de una cara:
+ * la menor que hay y la que se exige. "dir" es la de la flexión, como en el
+ * resto: la h mira las caras de ancho b.
+ */
+function separacionLibreCara(
+  g: GeometriaPilar, a: ArmaduraPilar, dir: DireccionPilar, barrasCara: number
+): SeparacionBarrasCara {
+  const ancho = dir === "h" ? g.bM : g.hM;
+  const fila = dir === "h" ? a.diametroCaraBMm : a.diametroCaraHMm;
+  const e = ejeDesdeCara(g, a, a.diametroEsquinaMm);
+  const paso = (ancho - 2 * e) / (barrasCara - 1);
+  const libreM = barrasCara === 2
+    ? paso - a.diametroEsquinaMm / 1000
+    : Math.min(paso - (a.diametroEsquinaMm + fila) / 2000, barrasCara >= 4 ? paso - fila / 1000 : Infinity);
+  const mayorMm = barrasCara === 2 ? a.diametroEsquinaMm : Math.max(a.diametroEsquinaMm, fila);
+  const exigidaM = Math.max(mayorMm, g.tamanoMaximoAridoMm + 5, 20) / 1000;
+  return { libreM, exigidaM, verifica: libreM >= exigidaM - 1e-9 };
+}
+
+/**
+ * Cuántas barras entran como máximo en cada cara del par, con las esquinas,
+ * sin bajar de la separación libre del art. 8.2(2). El editor no deja pasar
+ * de acá, para que las barras no choquen.
+ */
+export function maximoBarrasCara(g: GeometriaPilar, a: ArmaduraPilar, dir: DireccionPilar): number {
+  let n = 2;
+  while (n < 100 && separacionLibreCara(g, a, dir, n + 1).verifica) n++;
+  return n;
+}
+
 /** "4Ø20 + 4Ø16": las barras agrupadas por diámetro, de mayor a menor. */
 export function describirArmadoPilar(barras: readonly BarraPilar[]): string {
   const cuenta = new Map<number, number>();
@@ -639,21 +670,10 @@ export function calcularPilar(
   };
 
   // art. 8.2(2): entre barras vecinas de una cara, libre ≥ máx(Ø; dg + 5 mm; 20 mm).
-  const separacionCara = (dir: DireccionPilar): SeparacionBarrasCara => {
-    const fila = dir === "h" ? "b" : "h";
-    const cara = barras
-      .filter((b) => (b.fila === "esquina" || b.fila === fila) && (dir === "h" ? b.yM < hM / 2 : b.xM < bM / 2))
-      .sort((p, q) => (dir === "h" ? p.xM - q.xM : p.yM - q.yM));
-    let libreM = Infinity;
-    for (let k = 1; k < cara.length; k++) {
-      const eje = dir === "h" ? cara[k].xM - cara[k - 1].xM : cara[k].yM - cara[k - 1].yM;
-      libreM = Math.min(libreM, eje - (cara[k].diametroMm + cara[k - 1].diametroMm) / 2000);
-    }
-    const mayorMm = Math.max(...cara.map((b) => b.diametroMm));
-    const exigidaM = Math.max(mayorMm, geometria.tamanoMaximoAridoMm + 5, 20) / 1000;
-    return { libreM, exigidaM, verifica: libreM >= exigidaM - 1e-9 };
+  const separacionBarras = {
+    h: separacionLibreCara(geometria, armadura, "h", armadura.barrasCaraB),
+    b: separacionLibreCara(geometria, armadura, "b", armadura.barrasCaraH),
   };
-  const separacionBarras = { h: separacionCara("h"), b: separacionCara("b") };
 
   return {
     areaHormigonM2, asTotalCm2, numeroBarras, fluenciaEficaz, fluenciaAdoptada, axilReducido, cuantiaMecanica,

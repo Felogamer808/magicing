@@ -120,6 +120,8 @@ export default function VigasFlexionCortantePage() {
   const [b, setB] = useCampo("b", "0.9");
   const [h, setH] = useCampo("h", "0.7");
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.04");
+  // Vacío: la separación libre de la planilla, máx(Ø; 20 mm).
+  const [dg, setDg] = useCampo("dg", "");
 
   // Sección en T: b pasa a ser el alma y el ala se carga aparte.
   const [tipoSeccion, setTipoSeccion] = useCampo<TipoSeccion>("tipoSeccion", "rectangular");
@@ -181,7 +183,7 @@ export default function VigasFlexionCortantePage() {
   // número distinto del que muestra esta pantalla.
   const campos = useMemo(
     () => ({
-      fck, fyk, b, h, recubrimiento,
+      fck, fyk, b, h, recubrimiento, dg,
       momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
       momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
       vd, diametroEstribo, numeroRamas, monolitica,
@@ -190,7 +192,7 @@ export default function VigasFlexionCortantePage() {
       vdBorde, inicioLeyZonas,
     }),
     [
-    fck, fyk, b, h, recubrimiento,
+    fck, fyk, b, h, recubrimiento, dg,
     momentoPos, numeroPos, diametroPos, numeroPos2, diametroPos2,
     momentoNeg, numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     vd, diametroEstribo, numeroRamas, monolitica,
@@ -200,6 +202,7 @@ export default function VigasFlexionCortantePage() {
     ]
   );
   const resultado = useMemo(() => resolverVigaFlexionCortante(campos), [campos]);
+  const separacionLibre = `${dg.trim() === "" ? "libre ≥ máx(Ø; 20 mm)" : `libre ≥ máx(Ø; ${dg} + 5 mm; 20 mm)`}, art. 8.2(2)`;
   // Cambios recalculados para lo que no cumple o queda justo.
   const rec = useMemo(() => recomendarVigaFlexionCortante(campos), [campos]);
 
@@ -257,7 +260,11 @@ export default function VigasFlexionCortantePage() {
       return null;
     }
 
-    const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
+    const dgMm = aNumero(dg);
+    const geometria = {
+      b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo,
+      ...(Number.isFinite(dgMm) && dgMm > 0 ? { tamanoMaximoAridoMm: dgMm } : {}),
+    };
     // Con ala, las barras de su cara se reparten en el ancho eficaz, como en el cálculo.
     const datosAla = { anchoM: aNumero(anchoAla), espesorM: aNumero(espesorAla), l0M: l0Efectivo };
     const alaValida = conAla && datosAla.anchoM >= v.b && datosAla.espesorM > 0 && datosAla.espesorM < v.h && datosAla.l0M > 0;
@@ -286,7 +293,7 @@ export default function VigasFlexionCortantePage() {
       ...(alaValida ? { ala: { anchoM: datosAla.anchoM, espesorM: datosAla.espesorM, arriba: alaArriba, anchoEficazM } } : {}),
     };
   }, [
-    b, h, recubrimiento, conAla, tipo, anchoAla, espesorAla, l0Efectivo,
+    b, h, recubrimiento, dg, conAla, tipo, anchoAla, espesorAla, l0Efectivo,
     numeroPos, diametroPos, numeroPos2, diametroPos2,
     numeroNeg, diametroNeg, numeroNeg2, diametroNeg2,
     diametroEstribo,
@@ -401,6 +408,16 @@ export default function VigasFlexionCortantePage() {
                       sufijo="m"
                       valor={recubrimiento}
                       onChange={setRecubrimiento}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico
+                      id="dg"
+                      etiqueta="Tamaño máx. del árido dg"
+                      sufijo="mm"
+                      valor={dg}
+                      onChange={setDg}
+                      advertencia="Separación entre barras, art. 8.2. Vacío: máx(Ø; 20 mm)"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1022,13 +1039,13 @@ export default function VigasFlexionCortantePage() {
                   <ResultadoCheck
                     etiqueta="La armadura inferior entra en el ancho"
                     verifica={resultado.flexionPositiva.verificaEntraEnAncho}
-                    detalle={`${describirCapas(resultado.flexionPositiva.capas)} · máx. por fila ${resultado.flexionPositiva.capacidadPorGrupo.join(" + ")}`}
+                    detalle={`${describirCapas(resultado.flexionPositiva.capas)} · máx. por fila ${resultado.flexionPositiva.capacidadPorGrupo.join(" + ")} · ${separacionLibre}`}
                     recomendaciones={rec.anchoInferior}
                   />
                   <ResultadoCheck
                     etiqueta="La armadura superior entra en el ancho"
                     verifica={resultado.flexionNegativa.verificaEntraEnAncho}
-                    detalle={`${describirCapas(resultado.flexionNegativa.capas)} · máx. por fila ${resultado.flexionNegativa.capacidadPorGrupo.join(" + ")}`}
+                    detalle={`${describirCapas(resultado.flexionNegativa.capas)} · máx. por fila ${resultado.flexionNegativa.capacidadPorGrupo.join(" + ")} · ${separacionLibre}`}
                     recomendaciones={rec.anchoSuperior}
                   />
                 </div>

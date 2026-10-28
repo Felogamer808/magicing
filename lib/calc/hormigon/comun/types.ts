@@ -31,6 +31,11 @@ export interface GeometriaViga {
    * interior: corre el canto útil y achica el ancho disponible.
    */
   diametroEstriboMm: number;
+  /**
+   * Tamaño máximo del árido dg (mm), para la separación libre del art. 8.2(2).
+   * Sin dato se usa máx(Ø; 20 mm), el criterio de la planilla original.
+   */
+  tamanoMaximoAridoMm?: number;
 }
 
 export interface ArmaduraElegida {

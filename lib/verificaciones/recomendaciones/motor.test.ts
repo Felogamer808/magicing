@@ -40,6 +40,13 @@ describe("motor de recomendaciones", () => {
     expect(r[1].fallanOtras).toEqual(["otra comprobación"]);
   });
 
+  it("dice qué datos cambia, con el valor nuevo, para poder aplicarlo", () => {
+    const romper: Palanca<D> = { candidatos: (d) => [{ datos: { ...d, area: 12, otra: 11 }, accion: "rompe" }] };
+    const r = recomendar(problema({ area: 8, otra: 100 }), "resiste", [subirArea, romper]);
+    expect(r[0].cambios).toEqual({ area: 10 });
+    expect(r[1].cambios).toEqual({ area: 12, otra: 11 });
+  });
+
   it("no cuenta como rota la que ya fallaba", () => {
     const [r] = recomendar(problema({ area: 8, otra: 5 }), "resiste", [subirArea]);
     expect(r.fallanOtras).toEqual([]);

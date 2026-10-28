@@ -37,6 +37,20 @@ export interface Recomendacion {
   efectoColateral?: string;
   /** Artículo de la norma del que depende el efecto. */
   cita?: string;
+  /**
+   * Los datos de primer nivel que el cambio toca, con su valor nuevo: lo que
+   * hay que escribir para aplicarlo. En las páginas, campo → texto.
+   */
+  cambios: Record<string, unknown>;
+}
+
+/** Claves de primer nivel que cambian entre dos juegos de datos, con el valor nuevo. */
+function diferencias(antes: unknown, despues: unknown): Record<string, unknown> {
+  if (typeof antes !== "object" || antes === null || typeof despues !== "object" || despues === null) return {};
+  const a = antes as Record<string, unknown>;
+  const cambios: Record<string, unknown> = {};
+  for (const [clave, valor] of Object.entries(despues)) if (a[clave] !== valor) cambios[clave] = valor;
+  return cambios;
 }
 
 /** Un paso de una palanca: los datos con el cambio y cómo se dice. */
@@ -127,6 +141,7 @@ export function recomendar<D, R, K extends string>(
         accion: candidato.accion,
         ...(problema.binarias?.includes(clave) ? {} : { utilizacion: u }),
         fallanOtras,
+        cambios: diferencias(problema.datos, candidato.datos),
         ...(palanca.efectoColateral ? { efectoColateral: palanca.efectoColateral } : {}),
         ...(palanca.cita ? { cita: palanca.cita } : {}),
       });

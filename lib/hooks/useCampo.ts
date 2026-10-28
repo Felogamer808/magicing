@@ -106,6 +106,25 @@ export function useCampo(nombre: string, inicial: string): [string, (valor: stri
 }
 
 /**
+ * Los cambios que propone una recomendación, si todos son campos que la ruta
+ * tiene montados y escritos como texto; si no, null. Es lo que decide si una
+ * propuesta se puede aplicar con un clic: una cuyo motor no trabaja con los
+ * campos de la página (números, objetos, nombres internos) no se aplica, porque
+ * escribirla dejaría la pantalla en un estado que no es el que se calculó.
+ */
+export function cambiosAplicables(ruta: string, cambios: Record<string, unknown>): Record<string, string> | null {
+  const campos = declarados.get(ruta);
+  const entradas = Object.entries(cambios);
+  if (!campos || entradas.length === 0) return null;
+  const aplicables: Record<string, string> = {};
+  for (const [nombre, valor] of entradas) {
+    if (typeof valor !== "string" || !campos.has(nombre)) return null;
+    aplicables[nombre] = valor;
+  }
+  return aplicables;
+}
+
+/**
  * Escribe campos de OTRA ruta, para encadenar verificaciones sin recargar a
  * mano lo que ya se cargó una vez (ver lib/verificaciones/vinculos.ts).
  *

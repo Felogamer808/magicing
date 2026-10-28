@@ -3,6 +3,7 @@ import type { EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
 import type { TipoApoyo } from "@/lib/calc/estatica/viga-continua";
 import {
   VINCULOS_SERVICIO,
+  VINCULO_TORSION,
   camposVigaCentradoraDesdeZapata,
   camposVigasDesdeTramo,
   l0DeTramo,
@@ -66,11 +67,11 @@ describe("vínculos: destinos ofrecidos", () => {
   });
 
   /**
-   * Flexión y torsión no se encadenan entre sí: torsión ya resuelve la flexión
-   * y el cortante de la misma viga, así que no son dos pasos sino dos formas de
-   * calcular lo mismo. Quien tiene torsión arranca ahí.
+   * La lista de servicio la usan las dos páginas de ELU, así que no lleva a
+   * ninguna de ellas: torsión no tiene que ofrecerse a sí misma. El salto de
+   * flexión a torsión es un vínculo aparte, que sólo muestra flexión.
    */
-  it("no ofrece saltar de una verificación de ELU a la otra", () => {
+  it("la lista de servicio no salta de una verificación de ELU a la otra", () => {
     expect(VINCULOS_SERVICIO.map((v) => v.id)).not.toContain("vigas-torsion");
     expect(VINCULOS_SERVICIO.map((v) => v.id)).not.toContain("vigas-flexion-cortante");
   });
@@ -297,5 +298,37 @@ describe("de la viga libre a vigas: la sección viaja", () => {
   it("con T también van el ala y su espesor", () => {
     const c = camposVigasDesdeTramo(e, undefined, { tipoSeccion: "t", ...base });
     expect(c).toMatchObject({ tipoSeccion: "t", anchoAla: "1,2", espesorAla: "0,15" });
+  });
+});
+
+describe("de flexión y cortante a la misma viga con torsión", () => {
+  const flexion: Record<string, string> = {
+    fck: "30", fyk: "500", b: "0,3", h: "0,6", recubrimiento: "0,03", dg: "20",
+    tipoSeccion: "t", anchoAla: "1,2", espesorAla: "0,15", tramoL0: "extremo", luz1: "6", luz2: "6", l0: "9",
+    momentoPos: "120", numeroPos: "4", diametroPos: "16", numeroPos2: "2", diametroPos2: "12",
+    momentoNeg: "150", numeroNeg: "3", diametroNeg: "20", vd: "140", vdCentro: "40", zonasCortante: "si",
+    diametroEstribo: "8", numeroRamas: "2", origenEsfuerzos: "Viga libre · tramo 1",
+  };
+
+  it("lleva tal cual lo que torsión tiene, con el mismo nombre", () => {
+    const c = VINCULO_TORSION.campos(viga, flexion);
+    expect(c).toMatchObject({
+      fck: "30", b: "0,3", h: "0,6", recubrimiento: "0,03", tipoSeccion: "t", anchoAla: "1,2", espesorAla: "0,15",
+      momentoPos: "120", numeroPos: "4", diametroPos: "16", momentoNeg: "150", numeroNeg: "3", diametroNeg: "20",
+      vd: "140", diametroEstribo: "8", numeroRamas: "2",
+    });
+  });
+
+  it("el l0 va calculado con la fig. A19.5.2, o el de mano si así se cargó", () => {
+    expect(VINCULO_TORSION.campos(viga, flexion).l0).toBe("5.10");
+    expect(VINCULO_TORSION.campos(viga, { ...flexion, tramoL0: "manual", l0: "4,5" }).l0).toBe("4,5");
+  });
+
+  it("no inventa lo que torsión no tiene: ni 2ª capa, ni zonas, ni Td", () => {
+    const c = VINCULO_TORSION.campos(viga, flexion);
+    for (const k of ["numeroPos2", "diametroPos2", "vdCentro", "zonasCortante", "dg", "origenEsfuerzos", "td"]) {
+      expect(c).not.toHaveProperty(k);
+    }
+    expect(VINCULO_TORSION.blanquear).toEqual(["td"]);
   });
 });

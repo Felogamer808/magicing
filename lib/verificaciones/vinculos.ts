@@ -1,5 +1,5 @@
 import type { DatosVigaLibre, EsfuerzosTramo } from "@/lib/calc/estatica/viga-libre";
-import type { TramoL0 } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { calcularL0, tramoL0DesdeCampo, type TramoL0 } from "@/lib/calc/hormigon/vigas/seccion-t";
 import type { SeccionVigaLibre } from "./viga-libre-modelo";
 import { fmt } from "./formato";
 import type { IdVerificacion } from "./registry";
@@ -14,11 +14,10 @@ import type { IdVerificacion } from "./registry";
  * Volver a tipear todo en cada página es trabajo repetido y, peor, una
  * oportunidad de que las verificaciones terminen hablando de vigas distintas.
  *
- * El encadenado va siempre de ELU a servicio, y por eso la misma lista sirve
- * para las dos páginas de origen. Entre flexión y torsión no hay vínculo: no
- * son dos pasos de lo mismo sino dos formas de calcular la misma viga —torsión
- * ya resuelve la flexión y el cortante—, así que quien tiene torsión arranca
- * ahí directamente.
+ * De ELU a servicio la misma lista sirve para las dos páginas de origen. De
+ * flexión a torsión hay además un vínculo propio (pedido del usuario,
+ * 2026-10-28): torsión resuelve también la flexión y el cortante, pero la viga
+ * suele cargarse primero en flexión y recién después aparece el Td.
  *
  * Cómo está resuelto y por qué así:
  *
@@ -85,7 +84,11 @@ export interface Vinculo {
   lleva: string;
   /** Qué queda por cargar del otro lado, si algo. */
   falta?: string;
-  campos: (d: DatosVigaCompartidos) => Record<string, string>;
+  /**
+   * Los campos del destino. `origen` son los de la página de origen tal como
+   * están escritos, para los vínculos que llevan más que lo compartido.
+   */
+  campos: (d: DatosVigaCompartidos, origen?: Record<string, string>) => Record<string, string>;
   /**
    * Campos que el destino tiene que pedir sí o sí y que la viga no puede
    * aportar. Se dejan en blanco al llegar —si nunca se cargaron— para que la
@@ -299,6 +302,41 @@ const recubrimientoABarra = (d: DatosVigaCompartidos): number =>
   Number(d.recubrimiento.replace(",", ".")) + Number((d.diametroEstribo ?? "0").replace(",", ".")) / 1000;
 
 const txt = (n: number, decimales: number) => n.toFixed(decimales);
+
+/**
+ * De flexión y cortante a la misma viga con torsión. Las dos páginas usan los
+ * mismos nombres de campo y la misma norma, así que viaja tal cual todo lo que
+ * torsión tiene. Lo que no:
+ *  - Td: la viga sin torsión no lo conoce. Se deja en blanco.
+ *  - 2ª capa de barras: torsión no la contempla. No se suma a la primera
+ *    porque cambiaría el canto útil; se avisa.
+ *  - l0 de la T: torsión lo pide directo, así que va el que flexión calculó con
+ *    la fig. A19.5.2 (o el cargado a mano).
+ *  - Vd: con zonas de estribos, flexión carga el del apoyo, que es el máximo.
+ */
+export const VINCULO_TORSION: Vinculo = {
+  id: "vigas-torsion",
+  titulo: "Vigas con torsión",
+  ruta: "/verificaciones/vigas-torsion",
+  lleva: "materiales, sección (también la T, con su l0), recubrimiento, M⁺, M⁻, Vd del apoyo, la primera capa de barras y los estribos",
+  falta: "el Td, y la 2ª capa de barras si la viga la tiene: torsión trabaja con una sola",
+  blanquear: ["td"],
+  campos: (_d, o = {}) => {
+    const tramo = tramoL0DesdeCampo(o.tramoL0);
+    const n = (k: string) => Number((o[k] ?? "").replace(",", "."));
+    const calculado = tramo === "manual" ? NaN : calcularL0(tramo, n("luz1"), n("luz2"));
+    const l0 = tramo === "manual" ? o.l0 : calculado > 0 ? calculado.toFixed(2) : undefined;
+    const copiar = [
+      "fck", "fyk", "b", "h", "recubrimiento", "tipoSeccion", "anchoAla", "espesorAla",
+      "momentoPos", "numeroPos", "diametroPos", "momentoNeg", "numeroNeg", "diametroNeg",
+      "vd", "diametroEstribo", "numeroRamas",
+    ];
+    const destino: Record<string, string> = {};
+    for (const k of copiar) if (o[k] !== undefined) destino[k] = o[k];
+    if (l0 !== undefined) destino.l0 = l0;
+    return destino;
+  },
+};
 
 /**
  * Destinos de servicio, comunes a las dos páginas de ELU: se calcula la viga

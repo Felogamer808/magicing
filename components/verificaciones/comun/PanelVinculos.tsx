@@ -5,7 +5,7 @@ import { heredarElementoAbierto } from "@/lib/proyectos/activo";
 import { ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
+import { guardarCamposDeRuta, leerCamposDeRuta } from "@/lib/hooks/useCampo";
 import type { DatosVigaCompartidos, Vinculo } from "@/lib/verificaciones/vinculos";
 
 /**
@@ -27,7 +27,7 @@ export function PanelVinculos({ vinculos, datos }: Props) {
   const ruta = usePathname();
 
   const seguirCon = (vinculo: Vinculo) => {
-    guardarCamposDeRuta(vinculo.ruta, vinculo.campos(datos), vinculo.blanquear);
+    guardarCamposDeRuta(vinculo.ruta, vinculo.campos(datos, leerCamposDeRuta(ruta)), vinculo.blanquear);
     heredarElementoAbierto(ruta, vinculo.ruta);
     router.push(vinculo.ruta);
   };

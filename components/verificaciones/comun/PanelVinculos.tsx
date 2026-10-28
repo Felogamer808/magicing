@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { heredarElementoAbierto } from "@/lib/proyectos/activo";
 import { ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,11 @@ interface Props {
 
 export function PanelVinculos({ vinculos, datos }: Props) {
   const router = useRouter();
+  const ruta = usePathname();
 
   const seguirCon = (vinculo: Vinculo) => {
     guardarCamposDeRuta(vinculo.ruta, vinculo.campos(datos), vinculo.blanquear);
+    heredarElementoAbierto(ruta, vinculo.ruta);
     router.push(vinculo.ruta);
   };
 

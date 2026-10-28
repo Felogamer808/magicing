@@ -1,29 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Check, FolderOpen, Save } from "lucide-react";
+import { Check, FolderOpen, Plus, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { leerCamposDeRuta } from "@/lib/hooks/useCampo";
-import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
+import { guardarCamposDeRuta, leerCamposDeRuta, useFirmaCampos } from "@/lib/hooks/useCampo";
+import { useElementoAbierto, useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import { useProyectos } from "@/lib/proyectos/almacen";
 import {
   agregarElemento,
+  cambiarDeElemento,
   crearCalculo,
   crearElemento,
   guardarCalculoEnElemento,
+  hayCambiosSinGuardar,
 } from "@/lib/proyectos/modelo";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 
+const NUEVO = "__nuevo__";
+
 /**
- * Barra de proyecto en las páginas de verificación: guardar lo que está en
- * pantalla dentro de un elemento de la obra.
+ * Barra de proyecto en las páginas de verificación: de qué elemento de la obra
+ * son los datos en pantalla, y pasar de uno a otro sin salir de la página.
  *
- * Toma los campos de la ruta tal como quedaron, sin pedirlos de nuevo ni pasar
- * por el motor de cálculo. Guardar los datos de entrada y no los resultados es
- * lo que permite reabrir el cálculo y seguir editándolo, que es para lo que se
- * pidió esto; el resultado se recalcula al abrir.
+ * Calcular la V1, la V2 y la V3 de una obra es elegirlas en el desplegable:
+ * al cambiar, lo que había se guarda solo en el elemento que estaba abierto
+ * (criterio del usuario, 2026-10-28) y se cargan los datos del otro. Si el
+ * otro todavía no tiene esta verificación, la pantalla queda como estaba, para
+ * arrancarlo desde el anterior y cambiarle sólo lo que difiere.
+ *
+ * Se guardan los datos de entrada, no los resultados: es lo que permite
+ * reabrir el cálculo y seguir editándolo, y el resultado se recalcula al abrir.
  *
  * No aparece si no hay proyecto activo: quien entra a hacer una cuenta suelta
  * no tiene por qué ver nada de proyectos. Y no aparece en las rutas que no
@@ -35,46 +43,88 @@ export function BarraProyecto() {
   const [idActivo] = useProyectoActivo();
   const { proyectos, guardar } = useProyectos();
   const proyecto = proyectos.find((p) => p.id === idActivo) ?? null;
-  const [idDestinoGuardado, elegirDestino] = useElementoDestino();
+  const [, elegirDestino] = useElementoDestino();
+  const [idAbiertoGuardado, fijarAbierto] = useElementoAbierto(ruta);
+  const idAbierto = proyecto?.elementos.some((e) => e.id === idAbiertoGuardado) ? idAbiertoGuardado : null;
 
-  // null: todavía no se tocó el desplegable y se propone el elemento de
-  // destino, el que se eligió con "Calcular" o el último donde se guardó.
-  const [elegido, setIdElemento] = useState<string | null>(null);
-  const destinoValido = proyecto?.elementos.some((e) => e.id === idDestinoGuardado) ? idDestinoGuardado! : "";
-  const idElemento = elegido ?? destinoValido;
+  // La barra está en el layout y se dibuja antes que la página, cuando los
+  // campos todavía no declararon su valor por defecto: se vuelve a leer una vez
+  // montada, para no marcar como cambio un campo que sólo no se había leído.
+  const [, releer] = useReducer((n: number) => n + 1, 0);
+  useEffect(releer, [ruta, releer]);
+  const firma = useFirmaCampos(ruta);
+
+  const [creando, setCreando] = useState(false);
   const [nombreNuevo, setNombreNuevo] = useState("");
-  const [guardado, setGuardado] = useState<string | null>(null);
+  // Elemento elegido sin tener uno abierto, que ya tiene esta verificación:
+  // hay que decidir qué datos quedan.
+  const [pendiente, setPendiente] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   if (!meta || !proyecto) return null;
 
-  function guardarAca() {
+  const enPantalla = (): Record<string, string> => leerCamposDeRuta(ruta);
+  const nombreDe = (id: string) => proyecto.elementos.find((e) => e.id === id)?.nombre ?? "el elemento";
+  const tieneEsta = (id: string) =>
+    proyecto.elementos.find((e) => e.id === id)?.calculos.some((c) => c.verificacion === meta.id) ?? false;
+  const conCambios = idAbierto !== null && firma !== "" && hayCambiosSinGuardar(proyecto, meta.id, idAbierto, JSON.parse(firma));
+
+  const avisar = (texto: string) => {
+    setAviso(texto);
+    window.setTimeout(() => setAviso(null), 4000);
+  };
+
+  const abrir = (id: string) => {
+    fijarAbierto(id);
+    elegirDestino(id);
+    setPendiente(null);
+    setCreando(false);
+  };
+
+  function cambiarA(id: string) {
     if (!proyecto || !meta) return;
-    const campos = leerCamposDeRuta(ruta);
-    const calculo = crearCalculo(meta.id, campos);
-
-    let destino = proyecto;
-    let idDestino = idElemento;
-
-    // Crear el elemento desde acá mismo: al calcular la V-204 no hay que ir al
-    // proyecto, darla de alta y volver.
-    if (!idDestino && nombreNuevo.trim()) {
-      const elemento = crearElemento(nombreNuevo);
-      destino = agregarElemento(proyecto, elemento);
-      idDestino = elemento.id;
+    if (!idAbierto && tieneEsta(id)) {
+      setPendiente(id);
+      return;
     }
-    if (!idDestino) return;
-
-    guardar(guardarCalculoEnElemento(destino, idDestino, calculo));
-    elegirDestino(idDestino);
-    const nombre =
-      destino.elementos.find((e) => e.id === idDestino)?.nombre ?? "el elemento";
-    setGuardado(nombre);
-    setNombreNuevo("");
-    setIdElemento(idDestino);
-    window.setTimeout(() => setGuardado(null), 4000);
+    const r = cambiarDeElemento(proyecto, meta.id, idAbierto, enPantalla(), id);
+    if (r.proyecto !== proyecto) guardar(r.proyecto);
+    if (r.cargar) guardarCamposDeRuta(ruta, r.cargar);
+    abrir(id);
+    if (idAbierto && r.proyecto !== proyecto) avisar(`${nombreDe(idAbierto)} guardada. Abierta ${nombreDe(id)}.`);
   }
 
-  const puedeGuardar = Boolean(idElemento) || nombreNuevo.trim().length > 0;
+  function resolverPendiente(id: string, conservarPantalla: boolean) {
+    if (!proyecto || !meta) return;
+    if (conservarPantalla) {
+      guardar(guardarCalculoEnElemento(proyecto, id, crearCalculo(meta.id, enPantalla())));
+      avisar(`Guardado en ${nombreDe(id)}.`);
+    } else {
+      const guardado = proyecto.elementos.find((e) => e.id === id)?.calculos.find((c) => c.verificacion === meta.id);
+      if (guardado) guardarCamposDeRuta(ruta, guardado.campos);
+    }
+    abrir(id);
+  }
+
+  function guardarAbierto() {
+    if (!proyecto || !meta || !idAbierto) return;
+    guardar(guardarCalculoEnElemento(proyecto, idAbierto, crearCalculo(meta.id, enPantalla())));
+    avisar(`Guardado en ${nombreDe(idAbierto)}.`);
+  }
+
+  // Crear la V-204 desde acá: se guarda lo que había en la abierta, la nueva
+  // arranca con los mismos datos y queda abierta.
+  function crearNuevo() {
+    if (!proyecto || !meta || !nombreNuevo.trim()) return;
+    const campos = enPantalla();
+    let p = idAbierto ? cambiarDeElemento(proyecto, meta.id, idAbierto, campos, idAbierto).proyecto : proyecto;
+    const elemento = crearElemento(nombreNuevo);
+    p = guardarCalculoEnElemento(agregarElemento(p, elemento), elemento.id, crearCalculo(meta.id, campos));
+    guardar(p);
+    abrir(elemento.id);
+    setNombreNuevo("");
+    avisar(`${elemento.nombre} creada con los datos en pantalla.`);
+  }
 
   return (
     <div className="mb-6 rounded-lg border border-primary/30 bg-primary/[0.04] p-3 print:hidden">
@@ -83,63 +133,121 @@ export function BarraProyecto() {
           <FolderOpen className="h-3.5 w-3.5 shrink-0" />
           Proyecto activo
         </span>
-        <Link
-          href={`/proyectos/${proyecto.id}`}
-          className="text-sm font-medium underline-offset-2 hover:underline"
-        >
+        <Link href={`/proyectos/${proyecto.id}`} className="text-sm font-medium underline-offset-2 hover:underline">
           {proyecto.nombre}
         </Link>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {proyecto.elementos.length > 0 && (
-            <select
-              value={idElemento}
-              onChange={(e) => {
-                setIdElemento(e.target.value);
-                if (e.target.value) setNombreNuevo("");
-              }}
-              aria-label="Elemento donde guardar"
-              className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
-            >
-              <option value="">Elemento nuevo…</option>
-              {proyecto.elementos.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                  {e.ubicacion ? ` · ${e.ubicacion}` : ""}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {!idElemento && (
-            <Input
-              value={nombreNuevo}
-              onChange={(e) => setNombreNuevo(e.target.value)}
-              placeholder="V-204"
-              aria-label="Nombre del elemento nuevo"
-              className="h-8 w-28"
-            />
-          )}
-
-          <button
-            type="button"
-            onClick={guardarAca}
-            disabled={!puedeGuardar}
-            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          <select
+            value={creando ? NUEVO : (pendiente ?? idAbierto ?? "")}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === NUEVO) {
+                setCreando(true);
+                setPendiente(null);
+              } else if (v) {
+                setCreando(false);
+                cambiarA(v);
+              }
+            }}
+            aria-label="Elemento abierto"
+            className="h-8 max-w-[16rem] rounded-lg border border-input bg-transparent px-2 text-sm"
           >
-            <Save className="h-3.5 w-3.5" />
-            Guardar en el proyecto
-          </button>
+            {!idAbierto && !pendiente && !creando && (
+              <option value="" disabled>
+                Sin elemento…
+              </option>
+            )}
+            {proyecto.elementos.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre}
+                {e.ubicacion ? ` · ${e.ubicacion}` : ""}
+                {tieneEsta(e.id) ? "" : " (sin calcular)"}
+              </option>
+            ))}
+            <option value={NUEVO}>+ Elemento nuevo…</option>
+          </select>
+
+          {creando ? (
+            <>
+              <Input
+                autoFocus
+                value={nombreNuevo}
+                onChange={(e) => setNombreNuevo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && crearNuevo()}
+                placeholder="V-204"
+                aria-label="Nombre del elemento nuevo"
+                className="h-8 w-28"
+              />
+              <button
+                type="button"
+                onClick={crearNuevo}
+                disabled={!nombreNuevo.trim()}
+                className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Crear
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreando(false)}
+                className="h-8 rounded-lg px-2 text-sm text-muted-foreground hover:bg-secondary"
+              >
+                Cancelar
+              </button>
+            </>
+          ) : (
+            idAbierto && (
+              <button
+                type="button"
+                onClick={guardarAbierto}
+                disabled={!conCambios}
+                className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Guardar
+              </button>
+            )
+          )}
         </div>
       </div>
 
-      {guardado && (
-        <p
-          className="mt-2 flex items-center gap-1.5 text-xs text-exito"
-          role="status"
-        >
+      {pendiente ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted-foreground">
+            {nombreDe(pendiente)} ya tiene {meta.nombre.toLowerCase()} guardada, y lo que hay en pantalla no es de
+            ningún elemento.
+          </span>
+          <button
+            type="button"
+            onClick={() => resolverPendiente(pendiente, false)}
+            className="rounded-md border border-input px-2 py-0.5 hover:bg-secondary"
+          >
+            Abrir lo guardado
+          </button>
+          <button
+            type="button"
+            onClick={() => resolverPendiente(pendiente, true)}
+            className="rounded-md border border-input px-2 py-0.5 hover:bg-secondary"
+          >
+            Guardar lo de pantalla en {nombreDe(pendiente)}
+          </button>
+          <button type="button" onClick={() => setPendiente(null)} className="px-1 text-muted-foreground hover:underline">
+            Cancelar
+          </button>
+        </div>
+      ) : aviso ? (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-exito" role="status">
           <Check className="h-3.5 w-3.5 shrink-0" />
-          {meta.nombre} guardada en {guardado}. Si volvés a guardar, se reemplaza.
+          {aviso}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {!idAbierto
+            ? "Lo que hay en pantalla no es de ningún elemento: elegí uno o creá uno nuevo para guardarlo."
+            : conCambios
+              ? `Cambios sin guardar en ${nombreDe(idAbierto)}: se guardan solos al pasar a otro elemento.`
+              : `${nombreDe(idAbierto)} al día.`}
         </p>
       )}
     </div>

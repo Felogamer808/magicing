@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator } from "lucide-react";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
-import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
+import { fijarElementoAbierto, useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import type { ElementoProyecto } from "@/lib/proyectos/tipos";
 import { agruparPorSeccion, registroVerificaciones } from "@/lib/verificaciones/registry";
 
@@ -30,6 +30,7 @@ export function CalcularElemento({ idProyecto, elemento }: { idProyecto: string;
     if (!meta) return;
     const previo = elemento.calculos.find((c) => c.verificacion === meta.id);
     if (previo) guardarCamposDeRuta(meta.ruta, previo.campos);
+    fijarElementoAbierto(meta.ruta, elemento.id);
     activar(idProyecto);
     elegirDestino(elemento.id);
     router.push(meta.ruta);

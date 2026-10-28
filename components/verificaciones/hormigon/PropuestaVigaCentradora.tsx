@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { heredarElementoAbierto } from "@/lib/proyectos/activo";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { guardarCamposDeRuta, leerCamposDeRuta } from "@/lib/hooks/useCampo";
@@ -26,6 +27,7 @@ export function PropuestaVigaCentradora({ necesaria }: { necesaria: boolean }) {
   const resolver = () => {
     const destino = camposVigaCentradoraDesdeZapata(leerCamposDeRuta(ruta));
     guardarCamposDeRuta(RUTA_VIGA_CENTRADORA, destino, BLANQUEAR_VIGA_CENTRADORA);
+    heredarElementoAbierto(ruta, RUTA_VIGA_CENTRADORA);
     router.push(RUTA_VIGA_CENTRADORA);
   };
 

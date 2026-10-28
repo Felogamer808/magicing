@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { heredarElementoAbierto } from "@/lib/proyectos/activo";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
@@ -34,6 +35,7 @@ interface PasarTramoAVigasProps {
  */
 export function PasarTramoAVigas({ datos, anchosApoyoM, seccion }: PasarTramoAVigasProps) {
   const router = useRouter();
+  const ruta = usePathname();
   const [tramoTexto, setTramo] = useCampo("tramoVigas", "1");
   const [dTexto, setD] = useCampo("dVigas", "");
 
@@ -69,6 +71,7 @@ export function PasarTramoAVigas({ datos, anchosApoyoM, seccion }: PasarTramoAVi
     // El caso de l0 depende de dónde se comprime el ala.
     const l0 = l0DeTramo(datos, esfuerzos, seccion.tipoSeccion !== "t-invertida");
     guardarCamposDeRuta(RUTA_VIGAS_FLEXION_CORTANTE, camposVigasDesdeTramo(esfuerzos, l0, seccion));
+    heredarElementoAbierto(ruta, RUTA_VIGAS_FLEXION_CORTANTE);
     router.push(RUTA_VIGAS_FLEXION_CORTANTE);
   };
 

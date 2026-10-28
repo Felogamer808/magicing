@@ -18,7 +18,7 @@ import { modoPilotes } from "@/lib/cad-revit/descargas";
 import { ImportarIfc } from "@/components/proyectos/ImportarIfc";
 import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
-import { useProyectoActivo } from "@/lib/proyectos/activo";
+import { fijarElementoAbierto, useProyectoActivo } from "@/lib/proyectos/activo";
 import { descargarProyectos, useProyectos } from "@/lib/proyectos/almacen";
 import {
   actualizarProyecto,
@@ -316,6 +316,7 @@ export default function ProyectoPage() {
                                 // ruta y navegar: el resultado se recalcula con
                                 // el motor de hoy, no se guarda congelado.
                                 guardarCamposDeRuta(meta.ruta, calculo.campos);
+                                fijarElementoAbierto(meta.ruta, elemento.id);
                                 activar(proyecto.id);
                                 router.push(meta.ruta);
                               }}

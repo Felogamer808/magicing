@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 import {
   FLUENCIA_EFICAZ_SIN_DATO,
+  barrasPilar,
   bloqueRectangular,
+  capasPilar,
   calcularPilar,
   cercosAutomaticos,
   exponenteEsviada,
@@ -16,9 +18,9 @@ import {
 // HA-25 / B500, recubrimiento 3 cm al cerco Ø8, 8Ø16 (3 por cara), NEd = 1000 kN
 // sin momentos de primer orden. Barras a r = 0,03 + 0,008 + 0,008 = 0,046 m.
 const materiales = derivarMateriales({ fck: 25, fyk: 500 });
-const geometria: GeometriaPilar = { bM: 0.3, hM: 0.3, alturaLibreM: 3, recubrimientoM: 0.03 };
+const geometria: GeometriaPilar = { bM: 0.3, hM: 0.3, alturaLibreM: 3, recubrimientoM: 0.03, tamanoMaximoAridoMm: 20 };
 const armadura: ArmaduraPilar = {
-  diametroMm: 16, barrasCaraB: 3, barrasCaraH: 3,
+  diametroEsquinaMm: 16, barrasCaraB: 3, diametroCaraBMm: 16, barrasCaraH: 3, diametroCaraHMm: 16,
   diametroCercoMm: 8, separacionCercosM: 0.15, separacionCercosNudoM: 0.1, ramasH: 2, ramasB: 2,
 };
 const sinMomentos = { beta: 1, arriostrado: true, m01KNm: 0, m02KNm: 0, vEdKN: 50 };
@@ -229,7 +231,7 @@ describe("pilar — detalles de armado (art. 9.5)", () => {
       diametroCercoMm: 6, separacionCercosM: 0.225, separacionCercosNudoM: 0.125, gobiernaCortante: false,
     });
     // Ø25: Ø ≥ 6,25 → Ø8; s,máx = mín(375; 300; 300) mm → 30 cm; 0,18 → 17,5 cm.
-    const gruesas = cercosAutomaticos(materiales, geometria, { ...armadura, diametroMm: 25 }, esfuerzos);
+    const gruesas = cercosAutomaticos(materiales, geometria, { ...armadura, diametroEsquinaMm: 25, diametroCaraBMm: 25, diametroCaraHMm: 25 }, esfuerzos);
     expect(gruesas.diametroCercoMm).toBe(8);
     expect(gruesas.separacionCercosM).toBeCloseTo(0.3, 12);
     expect(gruesas.separacionCercosNudoM).toBeCloseTo(0.175, 12);
@@ -264,5 +266,77 @@ describe("pilar — detalles de armado (art. 9.5)", () => {
   it("h > 4·b deja de ser pilar (art. 9.5.1)", () => {
     const r = calcularPilar(materiales, { ...geometria, bM: 0.2, hM: 0.9 }, armadura, esfuerzos);
     expect(r.armado.esPilar).toBe(false);
+  });
+});
+
+// Esquinas Ø20 y, en las caras de ancho b, una intermedia Ø16; las caras h sin
+// intermedias. Ejes: esquinas a 0,03 + 0,008 + 0,010 = 0,048 de cada cara; la
+// intermedia a 0,03 + 0,008 + 0,008 = 0,046.
+const mixta: ArmaduraPilar = { ...armadura, diametroEsquinaMm: 20, diametroCaraBMm: 16, barrasCaraH: 2, diametroCaraHMm: 6 };
+const a20 = (Math.PI * 2 ** 2) / 4;
+const a16 = (Math.PI * 1.6 ** 2) / 4;
+
+describe("pilar — esquinas y filas con Ø distinto", () => {
+  it("cada barra contra el cerco con su Ø, las intermedias a paso constante entre esquinas", () => {
+    const barras = barrasPilar(geometria, mixta);
+    expect(barras).toHaveLength(6);
+    const esquina = barras.find((b) => b.fila === "esquina")!;
+    expect(esquina.xM).toBeCloseTo(0.048, 12);
+    expect(esquina.yM).toBeCloseTo(0.048, 12);
+    const fila = barras.filter((b) => b.fila === "b").map((b) => [b.xM, b.yM]);
+    expect(fila[0][0]).toBeCloseTo(0.15, 12);
+    expect(fila[0][1]).toBeCloseTo(0.046, 12);
+    expect(fila[1][1]).toBeCloseTo(0.254, 12);
+  });
+
+  it("capas: en h la fila y las esquinas quedan a profundidades distintas; en b se suman", () => {
+    const enH = capasPilar(geometria, mixta, "h").sort((p, q) => p.uM - q.uM);
+    expect(enH.map((c) => c.uM)).toEqual([0.046, 0.048, 0.252, 0.254].map((u) => expect.closeTo(u, 12)));
+    expect(enH[0].areaM2).toBeCloseTo(a16 / 1e4, 12);
+    expect(enH[1].areaM2).toBeCloseTo((2 * a20) / 1e4, 12);
+    const enB = capasPilar(geometria, mixta, "b").sort((p, q) => p.uM - q.uM);
+    expect(enB).toHaveLength(3);
+    expect(enB[1].areaM2).toBeCloseTo((2 * a16) / 1e4, 12);
+  });
+
+  it("áreas por cara y total; el Ø de una fila vacía no cuenta", () => {
+    const r = calcularPilar(materiales, geometria, mixta, esfuerzos);
+    expect(r.numeroBarras).toBe(6);
+    expect(r.asTotalCm2).toBeCloseTo(4 * a20 + 2 * a16, 9);
+    expect(r.armado.asCara.h).toBeCloseTo(2 * a20 + a16, 9);
+    expect(r.armado.asCara.b).toBeCloseTo(2 * a20, 9);
+    // La fila h vacía tiene Ø6, que no llega a 12, pero no hay barras de ese Ø.
+    expect(r.armado.verificaDiametro).toBe(true);
+  });
+
+  it("cortante: d hasta el baricentro de la cara traccionada", () => {
+    const r = calcularPilar(materiales, geometria, mixta, esfuerzos);
+    expect(r.cortante.h.dM).toBeCloseTo((2 * a20 * 0.252 + a16 * 0.254) / (2 * a20 + a16), 12);
+    expect(r.cortante.b.dM).toBeCloseTo(0.252, 12);
+  });
+
+  it("cercos: Ø mínimo con el Ø mayor (9.5.3(1)) y s,máx con el menor (9.5.3(3))", () => {
+    const r = calcularPilar(materiales, geometria, { ...mixta, diametroEsquinaMm: 25, diametroCaraBMm: 12 }, esfuerzos);
+    expect(r.armado.diametroCercoMinimoMm).toBeCloseTo(6.25, 12);
+    expect(r.armado.separacionMaximaM).toBeCloseTo(0.18, 12);
+  });
+
+  it("separación libre del art. 8.2(2): máx(Ø; dg + 5 mm; 20 mm)", () => {
+    // Paso (0,30 − 2·0,048)/2 = 0,102; libre 0,102 − (0,020 + 0,016)/2 = 0,084.
+    const r = calcularPilar(materiales, geometria, mixta, esfuerzos);
+    expect(r.armado.separacionBarras.h.libreM).toBeCloseTo(0.084, 12);
+    expect(r.armado.separacionBarras.h.exigidaM).toBeCloseTo(0.025, 12);
+    // Caras h, sólo las esquinas: 0,30 − 2·0,048 − 0,020 = 0,184.
+    expect(r.armado.separacionBarras.b.libreM).toBeCloseTo(0.184, 12);
+    expect(r.armado.verificaSeparacionBarras).toBe(true);
+    // 7 Ø16 en 30 cm: paso 0,208/6 = 0,0347, libre 0,0187 < 0,025.
+    const apretada = calcularPilar(materiales, geometria, { ...armadura, barrasCaraB: 7 }, esfuerzos);
+    expect(apretada.armado.separacionBarras.h.libreM).toBeCloseTo(0.208 / 6 - 0.016, 12);
+    expect(apretada.armado.verificaSeparacionBarras).toBe(false);
+    // 6 Ø16: libre 0,0256, cumple con dg = 20 y no con dg = 32 (exige 37 mm).
+    expect(calcularPilar(materiales, geometria, { ...armadura, barrasCaraB: 6 }, esfuerzos).armado.verificaSeparacionBarras).toBe(true);
+    const gruesa = calcularPilar(materiales, { ...geometria, tamanoMaximoAridoMm: 32 }, { ...armadura, barrasCaraB: 6 }, esfuerzos);
+    expect(gruesa.armado.separacionBarras.h.exigidaM).toBeCloseTo(0.037, 12);
+    expect(gruesa.armado.verificaSeparacionBarras).toBe(false);
   });
 });

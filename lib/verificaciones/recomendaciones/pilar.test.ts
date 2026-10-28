@@ -27,4 +27,17 @@ describe("recomendaciones del pilar", () => {
     const r = recomendarPilar({ ...BASE, b: "0.5", nCaraB: "5" }).sujecion ?? [];
     expect(r[0].accion).toMatch(/^Ramas \/\/ h: 3/);
   });
+
+  it("con filas de otro Ø, el texto agrupa por diámetro", () => {
+    const fila = recomendarPilar({ ...BASE, m02H: "130", phi: "20", phiCaraB: "16", phiCaraH: "16" }).flexionH ?? [];
+    expect(fila.map((p) => p.accion)).toContain("2Ø25 + 4Ø20 + 2Ø16 (hoy 4Ø20 + 4Ø16)");
+    const todas = recomendarPilar({ ...BASE, m02H: "160", phi: "20", phiCaraB: "16", phiCaraH: "16" }).flexionH ?? [];
+    expect(todas.map((p) => p.accion)).toContain("8Ø25 (hoy 4Ø20 + 4Ø16)");
+  });
+
+  it("barras demasiado juntas (art. 8.2): menos barras en esa cara", () => {
+    const r = recomendarPilar({ ...BASE, nCaraB: "7" }).separacionBarrasH ?? [];
+    expect(r[0].accion).toMatch(/^Por cara b: 6 barras/);
+    for (const p of r) expect(p.utilizacion).toBeLessThanOrEqual(1);
+  });
 });

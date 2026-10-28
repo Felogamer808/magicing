@@ -309,9 +309,9 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   viajan a Vigas con los esfuerzos.
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
-- **Varios casos guardados por verificación.** Hoy hay un solo juego de valores
-  por verificación: no se puede tener "Viga V1" y "Viga V2" y alternar. Es lo más
-  valioso que falta para usar la herramienta en un proyecto real.
+- **Varios casos guardados por verificación** (hecho, 2026-10-28): cada caso
+  es un elemento del proyecto activo. La barra de proyecto elige qué elemento
+  está abierto en la página; al pasar a otro, lo que había se guarda solo.
 - **Errores de validación que nombren el campo.** Cuando un dato es inválido los
   resultados desaparecen con un aviso genérico, sin decir cuál falta.
 - **Encabezado en la impresión** con obra y fecha. Hoy el PDF sale por el diálogo

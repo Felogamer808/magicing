@@ -4,6 +4,7 @@ import {
   actualizarProyecto,
   agregarElemento,
   armarArchivo,
+  cambiarDeElemento,
   contarCalculos,
   convertirRetirados,
   crearCalculo,
@@ -12,6 +13,7 @@ import {
   eliminarCalculo,
   eliminarElemento,
   guardarCalculoEnElemento,
+  hayCambiosSinGuardar,
   incorporarIfc,
   leerArchivo,
   nombreDeArchivo,
@@ -382,5 +384,50 @@ describe("convertirRetirados — la zapata de medianería pasa a zapata aislada"
   it("no toca proyectos sin cálculos retirados", () => {
     const p = [crearProyecto("Obra")];
     expect(convertirRetirados(p)).toBe(p);
+  });
+});
+
+describe("cambiar de elemento desde la verificación", () => {
+  /** V-203 con flexión guardada y V-204 sin cálculos. */
+  function dosVigas() {
+    const { p, idViga } = proyectoConViga();
+    const otra = crearElemento("V-204");
+    return { p: agregarElemento(p, otra), idV203: idViga, idV204: otra.id };
+  }
+  const flexion = "vigas-flexion-cortante" as const;
+
+  it("detecta cambios contra lo guardado; un campo que falta cuenta como vacío", () => {
+    const { p, idV203, idV204 } = dosVigas();
+    expect(hayCambiosSinGuardar(p, flexion, idV203, { fck: "30", b: "0,20" })).toBe(false);
+    expect(hayCambiosSinGuardar(p, flexion, idV203, { fck: "30", b: "0,20", h: "" })).toBe(false);
+    expect(hayCambiosSinGuardar(p, flexion, idV203, { fck: "35", b: "0,20" })).toBe(true);
+    // Sin ese cálculo, lo que hay en pantalla no está guardado en ningún lado.
+    expect(hayCambiosSinGuardar(p, flexion, idV204, { fck: "30" })).toBe(true);
+  });
+
+  it("guarda solo lo que había en el abierto y carga el otro", () => {
+    const { p, idV203, idV204 } = dosVigas();
+    const ida = cambiarDeElemento(p, flexion, idV203, { fck: "35", b: "0,25" }, idV204);
+    expect(ida.proyecto.elementos.find((e) => e.id === idV203)!.calculos[0].campos).toEqual({ fck: "35", b: "0,25" });
+    // La V-204 no tiene flexión: la pantalla queda como estaba, para arrancarla desde la V-203.
+    expect(ida.cargar).toBeNull();
+
+    const vuelta = cambiarDeElemento(ida.proyecto, flexion, idV204, { fck: "35", b: "0,30" }, idV203);
+    expect(vuelta.proyecto.elementos.find((e) => e.id === idV204)!.calculos[0].campos).toEqual({ fck: "35", b: "0,30" });
+    expect(vuelta.cargar).toEqual({ fck: "35", b: "0,25" });
+  });
+
+  it("sin cambios no guarda, y sin elemento abierto no guarda nada", () => {
+    const { p, idV203, idV204 } = dosVigas();
+    expect(cambiarDeElemento(p, flexion, idV203, { fck: "30", b: "0,20" }, idV204).proyecto).toBe(p);
+    expect(cambiarDeElemento(p, flexion, null, { fck: "99" }, idV203)).toEqual({ proyecto: p, cargar: { fck: "30", b: "0,20" } });
+  });
+
+  it("no toca los cálculos de otras verificaciones del mismo elemento", () => {
+    const { p, idV203, idV204 } = dosVigas();
+    const conFisura = guardarCalculoEnElemento(p, idV203, crearCalculo("fisuracion", { wmax: "0,3" }));
+    const r = cambiarDeElemento(conFisura, flexion, idV203, { fck: "40" }, idV204);
+    const v203 = r.proyecto.elementos.find((e) => e.id === idV203)!;
+    expect(v203.calculos.find((c) => c.verificacion === "fisuracion")!.campos).toEqual({ wmax: "0,3" });
   });
 });

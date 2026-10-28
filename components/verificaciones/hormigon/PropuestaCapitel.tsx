@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { heredarElementoAbierto } from "@/lib/proyectos/activo";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { guardarCamposDeRuta, leerCamposDeRuta } from "@/lib/hooks/useCampo";
@@ -20,6 +21,7 @@ export function PropuestaCapitel({ motivo }: { motivo: string }) {
 
   const resolver = () => {
     guardarCamposDeRuta(RUTA_CAPITELES, camposCapitelDesdePunzonamiento(leerCamposDeRuta(ruta)), BLANQUEAR_CAPITELES);
+    heredarElementoAbierto(ruta, RUTA_CAPITELES);
     router.push(RUTA_CAPITELES);
   };
 

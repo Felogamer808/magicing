@@ -191,6 +191,17 @@ export function leerCamposDeRuta(ruta: string): Record<string, string> {
   return campos;
 }
 
+/**
+ * Los campos de una ruta como un texto que cambia cada vez que cambia uno.
+ * Para quien mira la página entera y no un campo, como la barra de proyecto
+ * que avisa si hay cambios sin guardar. El texto es la firma estable que pide
+ * useSyncExternalStore: un objeto nuevo en cada lectura lo haría re-renderizar
+ * sin fin.
+ */
+export function useFirmaCampos(ruta: string): string {
+  return useSyncExternalStore(suscribir, () => JSON.stringify(leerCamposDeRuta(ruta)), () => "");
+}
+
 /** Borra los valores guardados de una ruta y devuelve los campos a su valor por defecto. */
 export function restablecerCampos(ruta: string) {
   try {

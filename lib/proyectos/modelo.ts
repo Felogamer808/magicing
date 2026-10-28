@@ -173,6 +173,59 @@ export function guardarCalculoEnElemento(
   });
 }
 
+/** Mismos campos con los mismos textos; uno que falta cuenta como vacío. */
+function camposIguales(a: Record<string, string>, b: Record<string, string>): boolean {
+  const nombres = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const n of nombres) if ((a[n] ?? "") !== (b[n] ?? "")) return false;
+  return true;
+}
+
+/**
+ * Si lo que hay en pantalla difiere de lo guardado para ese elemento y esa
+ * verificación. Un elemento que todavía no tiene ese cálculo siempre tiene
+ * cambios: lo que hay en pantalla todavía no está en ningún lado.
+ */
+export function hayCambiosSinGuardar(
+  proyecto: Proyecto,
+  verificacion: IdVerificacion,
+  idElemento: string,
+  campos: Record<string, string>
+): boolean {
+  const elemento = proyecto.elementos.find((e) => e.id === idElemento);
+  if (!elemento) return false;
+  const guardado = elemento.calculos.find((c) => c.verificacion === verificacion);
+  return !guardado || !camposIguales(guardado.campos, campos);
+}
+
+/**
+ * Pasar la pantalla de una verificación de un elemento a otro, guardando sola
+ * lo que había (criterio del usuario, 2026-10-28: al cambiar de la V1 a la V2
+ * no se pregunta, se guarda la V1 y se abre la V2).
+ *
+ * Devuelve el proyecto con lo guardado y los campos a cargar. Sin cálculo de
+ * esa verificación en el elemento nuevo, `cargar` es null y la pantalla queda
+ * como estaba: es la forma de arrancar la V2 desde la V1 y cambiarle sólo lo
+ * que difiere, igual que el botón Calcular del proyecto.
+ *
+ * Sólo se guarda si hay cambios, para no tocar la fecha de edición de un
+ * cálculo que sólo se miró.
+ */
+export function cambiarDeElemento(
+  proyecto: Proyecto,
+  verificacion: IdVerificacion,
+  idAbierto: string | null,
+  enPantalla: Record<string, string>,
+  idNuevo: string
+): { proyecto: Proyecto; cargar: Record<string, string> | null } {
+  let resultado = proyecto;
+  if (idAbierto && hayCambiosSinGuardar(proyecto, verificacion, idAbierto, enPantalla)) {
+    resultado = guardarCalculoEnElemento(proyecto, idAbierto, crearCalculo(verificacion, enPantalla));
+  }
+  const nuevo = resultado.elementos.find((e) => e.id === idNuevo);
+  const guardado = nuevo?.calculos.find((c) => c.verificacion === verificacion);
+  return { proyecto: resultado, cargar: guardado ? { ...guardado.campos } : null };
+}
+
 export function eliminarCalculo(
   proyecto: Proyecto,
   idElemento: string,

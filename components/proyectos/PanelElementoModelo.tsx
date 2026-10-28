@@ -5,7 +5,7 @@ import { Pencil, X } from "lucide-react";
 import { CalcularElemento } from "@/components/proyectos/CalcularElemento";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { describirSeccion, ROTULO_CLASE } from "@/lib/ifc/formato";
-import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
+import { fijarElementoAbierto, useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import { estadoDeCalculo, estadoDeElemento, ROTULO_ESTADO } from "@/lib/proyectos/estado";
 import type { ElementoProyecto } from "@/lib/proyectos/tipos";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
@@ -74,6 +74,7 @@ export function PanelElementoModelo({
                       // Igual que desde la vista del proyecto: se vuelven a
                       // escribir los campos y el motor de hoy recalcula.
                       guardarCamposDeRuta(meta.ruta, calculo.campos);
+                      fijarElementoAbierto(meta.ruta, elemento.id);
                       activar(idProyecto);
                       elegirDestino(elemento.id);
                       router.push(meta.ruta);

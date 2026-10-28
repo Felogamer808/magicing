@@ -10,7 +10,7 @@ import { completarDiametros } from "@/lib/cad-revit/armadura";
 import { derivarCargas, ndPilar } from "@/lib/cad-revit/cargas";
 import { guardarCamposDeRuta } from "@/lib/hooks/useCampo";
 import { estadoDeElemento, ROTULO_ESTADO } from "@/lib/proyectos/estado";
-import { useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
+import { fijarElementoAbierto, useElementoDestino, useProyectoActivo } from "@/lib/proyectos/activo";
 import { actualizarProyecto } from "@/lib/proyectos/modelo";
 import type { CalculoGuardado, PilarCargado, PlantaGuardada, Proyecto } from "@/lib/proyectos/tipos";
 import { fmt } from "@/lib/verificaciones/formato";
@@ -84,6 +84,7 @@ export function PanelPiezaProyecto({
     const meta = registroVerificaciones.find((v) => v.id === c.verificacion);
     if (!meta) return;
     guardarCamposDeRuta(meta.ruta, c.campos);
+    fijarElementoAbierto(meta.ruta, elemento!.id);
     activar(proyecto.id);
     elegirDestino(elemento!.id);
     router.push(meta.ruta);

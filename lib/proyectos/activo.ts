@@ -63,3 +63,66 @@ export const useProyectoActivo = hookDeId("magicing:proyecto-activo:v1", "magici
  * Si el elemento ya no está en el proyecto activo, la barra no lo usa.
  */
 export const useElementoDestino = hookDeId("magicing:elemento-destino:v1", "magicing:elemento-destino");
+
+/**
+ * Elemento abierto en cada verificación: de qué elemento son los datos que hay
+ * en pantalla en esa ruta. Es lo que permite pasar de la V1 a la V2 desde la
+ * misma página guardando sola la V1: sin saber de quién son los datos, el
+ * guardado automático podría escribir los de una viga en otra.
+ *
+ * Es por ruta y no global como el elemento de destino, porque cada página
+ * tiene sus propios campos: flexión puede tener abierta la V1 y pilares la P3.
+ * Lo fijan todos los lugares que cargan un cálculo guardado en una ruta.
+ */
+const CLAVE_ABIERTOS = "magicing:elemento-abierto:v1";
+const EVENTO_ABIERTOS = "magicing:elemento-abierto";
+
+function leerAbiertos(): Record<string, string> {
+  try {
+    const crudo = JSON.parse(window.localStorage.getItem(CLAVE_ABIERTOS) ?? "{}");
+    return crudo && typeof crudo === "object" ? crudo : {};
+  } catch {
+    return {};
+  }
+}
+
+export function elementoAbiertoEn(ruta: string): string | null {
+  return leerAbiertos()[ruta] ?? null;
+}
+
+export function fijarElementoAbierto(ruta: string, id: string | null) {
+  const abiertos = leerAbiertos();
+  if (id) abiertos[ruta] = id;
+  else delete abiertos[ruta];
+  try {
+    window.localStorage.setItem(CLAVE_ABIERTOS, JSON.stringify(abiertos));
+  } catch {
+    // Sin almacenamiento no hay guardado automático que proteger.
+  }
+  window.dispatchEvent(new Event(EVENTO_ABIERTOS));
+}
+
+/**
+ * Al encadenar de una página a otra (seguir con fisuración, pasar un tramo a
+ * vigas), los datos que llegan son del mismo elemento que el origen, o de
+ * ninguno si el origen no tenía uno abierto. Nunca del que la página de
+ * destino hubiera tenido abierto antes.
+ */
+export function heredarElementoAbierto(rutaOrigen: string, rutaDestino: string) {
+  fijarElementoAbierto(rutaDestino, elementoAbiertoEn(rutaOrigen));
+}
+
+const suscribirAbiertos = (alCambiar: () => void) => {
+  window.addEventListener(EVENTO_ABIERTOS, alCambiar);
+  window.addEventListener("storage", alCambiar);
+  return () => {
+    window.removeEventListener(EVENTO_ABIERTOS, alCambiar);
+    window.removeEventListener("storage", alCambiar);
+  };
+};
+
+export function useElementoAbierto(ruta: string): [string | null, (id: string | null) => void] {
+  const id = useSyncExternalStore(suscribirAbiertos, () => elementoAbiertoEn(ruta), () => null);
+  const fijar = useCallback((nuevo: string | null) => fijarElementoAbierto(ruta, nuevo), [ruta]);
+  return [id, fijar];
+}

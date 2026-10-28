@@ -4,7 +4,9 @@ import {
   FLUENCIA_EFICAZ_SIN_DATO,
   bloqueRectangular,
   calcularPilar,
+  cercosAutomaticos,
   exponenteEsviada,
+  redondearSeparacionCercos,
   type ArmaduraPilar,
   type EsfuerzosPilar,
   type GeometriaPilar,
@@ -17,7 +19,7 @@ const materiales = derivarMateriales({ fck: 25, fyk: 500 });
 const geometria: GeometriaPilar = { bM: 0.3, hM: 0.3, alturaLibreM: 3, recubrimientoM: 0.03 };
 const armadura: ArmaduraPilar = {
   diametroMm: 16, barrasCaraB: 3, barrasCaraH: 3,
-  diametroCercoMm: 8, separacionCercosM: 0.15, ramasH: 2, ramasB: 2,
+  diametroCercoMm: 8, separacionCercosM: 0.15, separacionCercosNudoM: 0.1, ramasH: 2, ramasB: 2,
 };
 const sinMomentos = { beta: 1, arriostrado: true, m01KNm: 0, m02KNm: 0, vEdKN: 50 };
 const esfuerzos: EsfuerzosPilar = { nEdKN: 1000, h: sinMomentos, b: sinMomentos };
@@ -208,6 +210,45 @@ describe("pilar — detalles de armado (art. 9.5)", () => {
     expect(r.armado.separacionZonaNudoM).toBeCloseTo(0.144, 9);
     const ancho = calcularPilar(materiales, geometria, { ...armadura, separacionCercosM: 0.25 }, esfuerzos);
     expect(ancho.armado.verificaSeparacion).toBe(false);
+    // Zona de nudo: 0,10 ≤ 0,144 cumple; 0,15 no.
+    expect(r.armado.verificaSeparacionNudo).toBe(true);
+    const nudo = calcularPilar(materiales, geometria, { ...armadura, separacionCercosNudoM: 0.15 }, esfuerzos);
+    expect(nudo.armado.verificaSeparacionNudo).toBe(false);
+  });
+
+  it("separación redondeada hacia abajo a 2,5 cm, nunca menos de 2,5 cm", () => {
+    expect(redondearSeparacionCercos(0.24)).toBeCloseTo(0.225, 12);
+    expect(redondearSeparacionCercos(0.225)).toBeCloseTo(0.225, 12);
+    expect(redondearSeparacionCercos(0.144)).toBeCloseTo(0.125, 12);
+    expect(redondearSeparacionCercos(0.01)).toBeCloseTo(0.025, 12);
+  });
+
+  it("cercos automáticos: Ø mínimo comercial y s,máx redondeada; 0,6·s,máx junto a los nudos", () => {
+    // Ø16: Ø ≥ máx(6; 4) → Ø6; s,máx = mín(240; 300; 300) mm → 22,5 cm; 0,6·0,24 = 0,144 → 12,5 cm.
+    expect(cercosAutomaticos(materiales, geometria, armadura, esfuerzos)).toEqual({
+      diametroCercoMm: 6, separacionCercosM: 0.225, separacionCercosNudoM: 0.125, gobiernaCortante: false,
+    });
+    // Ø25: Ø ≥ 6,25 → Ø8; s,máx = mín(375; 300; 300) mm → 30 cm; 0,18 → 17,5 cm.
+    const gruesas = cercosAutomaticos(materiales, geometria, { ...armadura, diametroMm: 25 }, esfuerzos);
+    expect(gruesas.diametroCercoMm).toBe(8);
+    expect(gruesas.separacionCercosM).toBeCloseTo(0.3, 12);
+    expect(gruesas.separacionCercosNudoM).toBeCloseTo(0.175, 12);
+  });
+
+  it("cercos automáticos: si el cortante pide menos de 10 cm, sube el Ø", () => {
+    // VEd = 100 kN > VRd,c. Con 2 ramas: s = Asw·z·fywd/VEd, z = 0,9·d y
+    // d = 0,30 − (0,03 + Øc + 0,008). Ø6 → 5,7 cm y Ø8 → 9,99 cm no llegan a 10;
+    // Ø10 → 15,5 cm, que se redondea a 15.
+    const conCortante = { ...esfuerzos, h: { ...sinMomentos, vEdKN: 100 } };
+    const s = (dc: number) => ((2 * Math.PI * (dc / 10) ** 2) / 4 / 1e4) * 0.9 * (0.3 - 0.038 - dc / 1000) * fyd * 1000 / 100;
+    expect(s(6)).toBeLessThan(0.1);
+    expect(s(8)).toBeLessThan(0.1);
+    expect(s(10)).toBeCloseTo(0.1549, 3);
+    expect(cercosAutomaticos(materiales, geometria, armadura, conCortante)).toEqual({
+      diametroCercoMm: 10, separacionCercosM: 0.15, separacionCercosNudoM: 0.125, gobiernaCortante: true,
+    });
+    const r = calcularPilar(materiales, geometria, { ...armadura, diametroCercoMm: 10, separacionCercosM: 0.15 }, conCortante);
+    expect(r.cortante.h.verifica).toBe(true);
   });
 
   it("barras sujetas a ≤ 150 mm: con 5 por cara y 2 ramas la del medio queda a 204 mm", () => {

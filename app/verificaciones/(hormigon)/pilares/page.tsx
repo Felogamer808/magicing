@@ -14,12 +14,13 @@ import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { ValorCalculado } from "@/components/verificaciones/comun/ValorCalculado";
 import { DiagramaInteraccionMuro } from "@/components/verificaciones/hormigon/DiagramaInteraccionMuro";
 import { SeccionPilarDiagrama } from "@/components/verificaciones/hormigon/SeccionPilarDiagrama";
 import { NOMBRE_CEMENTO, NOMBRE_EXPOSICION, type ClaseCemento, type ExposicionSeccion } from "@/lib/calc/hormigon/comun/diferidas";
 import { DIRECCIONES_PILAR } from "@/lib/calc/hormigon/pilares/pilar";
-import { ARRIOSTRAMIENTO, COACCIONES_PILAR, MODOS_FLUENCIA, resolverPilar } from "@/lib/calc/hormigon/pilares/resolver-pilar";
-import { aNumero, fmt } from "@/lib/verificaciones/formato";
+import { ARRIOSTRAMIENTO, COACCIONES_PILAR, MODOS_CERCOS, MODOS_FLUENCIA, resolverPilar } from "@/lib/calc/hormigon/pilares/resolver-pilar";
+import { fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { recomendarPilar } from "@/lib/verificaciones/recomendaciones/pilar";
 
@@ -74,8 +75,10 @@ export default function PilaresPage() {
   const [phi, setPhi] = useCampo("phi", "16");
   const [nCaraB, setNCaraB] = useCampo("nCaraB", "3");
   const [nCaraH, setNCaraH] = useCampo("nCaraH", "3");
+  const [cercos, setCercos] = useCampo("cercos", MODOS_CERCOS[0]);
   const [phiCerco, setPhiCerco] = useCampo("phiCerco", "8");
   const [sepCercos, setSepCercos] = useCampo("sepCercos", "0.2");
+  const [sepCercosNudo, setSepCercosNudo] = useCampo("sepCercosNudo", "0.1");
   const [ramasH, setRamasH] = useCampo("ramasH", "2");
   const [ramasB, setRamasB] = useCampo("ramasB", "2");
 
@@ -85,9 +88,9 @@ export default function PilaresPage() {
       coaccionH, betaH, arriostradoH, m01H, m02H, vEdH,
       coaccionB, betaB, arriostradoB, m01B, m02B, vEdB,
       modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp,
-      phi, nCaraB, nCaraH, phiCerco, sepCercos, ramasH, ramasB,
+      phi, nCaraB, nCaraH, cercos, phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB,
     }),
-    [fck, fyk, b, h, altura, rec, nEd, coaccionH, betaH, arriostradoH, m01H, m02H, vEdH, coaccionB, betaB, arriostradoB, m01B, m02B, vEdB, modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp, phi, nCaraB, nCaraH, phiCerco, sepCercos, ramasH, ramasB]
+    [fck, fyk, b, h, altura, rec, nEd, coaccionH, betaH, arriostradoH, m01H, m02H, vEdH, coaccionB, betaB, arriostradoB, m01B, m02B, vEdB, modoFluencia, phiEf, hr, t0, cemento, exposicion, relacionMqp, phi, nCaraB, nCaraH, cercos, phiCerco, sepCercos, sepCercosNudo, ramasH, ramasB]
   );
   const resultado = useMemo(() => resolverPilar(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -97,6 +100,8 @@ export default function PilaresPage() {
     h: { coaccion: coaccionH, setCoaccion: setCoaccionH, beta: betaH, setBeta: setBetaH, arriostrado: arriostradoH, setArriostrado: setArriostradoH, m01: m01H, setM01: setM01H, m02: m02H, setM02: setM02H, vEd: vEdH, setVEd: setVEdH },
     b: { coaccion: coaccionB, setCoaccion: setCoaccionB, beta: betaB, setBeta: setBetaB, arriostrado: arriostradoB, setArriostrado: setArriostradoB, m01: m01B, setM01: setM01B, m02: m02B, setM02: setM02B, vEd: vEdB, setVEd: setVEdB },
   };
+
+  const cercosAuto = cercos === MODOS_CERCOS[0];
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -112,6 +117,8 @@ export default function PilaresPage() {
       avisos.push({ tipo: "aviso", texto: "El lado mayor supera cuatro veces el menor: a efectos del art. 9.5.1 no es un pilar sino un muro." });
     if (r.cortante.h.requiereCercos || r.cortante.b.requiereCercos)
       avisos.push({ tipo: "aviso", texto: "El cortante supera VRd,c: los cercos se dimensionan por la ec. (6.8), sin sumar el aporte del hormigón." });
+    if (resultado.cercos?.gobiernaCortante)
+      avisos.push({ tipo: "aviso", texto: "Los cercos automáticos los fija el cortante: piden menos separación que el art. 9.5.3(3)." });
   }
 
   return (
@@ -211,13 +218,42 @@ export default function PilaresPage() {
           </div>
         </Etapa>
 
-        <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Barras en las cuatro caras, todas del mismo diámetro, y cercos.">
+        <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Barras en las cuatro caras, todas del mismo diámetro, y cercos. Los cercos automáticos salen de la longitudinal y del cortante; las ramas se cargan siempre.">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <CampoDiametro id="phi" etiqueta="Ø barras" valor={phi} onChange={setPhi} />
             <CampoNumerico id="nCaraB" etiqueta="Barras por cara b" valor={nCaraB} onChange={setNCaraB} advertencia="Con las de esquina" />
             <CampoNumerico id="nCaraH" etiqueta="Barras por cara h" valor={nCaraH} onChange={setNCaraH} advertencia="Con las de esquina" />
-            <CampoDiametro id="phiCerco" etiqueta="Ø cerco" valor={phiCerco} onChange={setPhiCerco} />
-            <CampoNumerico id="sepCercos" etiqueta="Separación cercos" sufijo="m" valor={sepCercos} onChange={setSepCercos} />
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <CampoSeleccion id="cercos" etiqueta="Cercos" valor={cercos} opciones={MODOS_CERCOS} onChange={setCercos} />
+            {cercosAuto ? (
+              <>
+                <ValorCalculado
+                  etiqueta="Ø cerco" sufijo="mm"
+                  valor={resultado ? `Ø${resultado.v.phiCerco}` : ""}
+                  nota="máx(6 mm; Ø/4), art. 9.5.3(1)"
+                />
+                <ValorCalculado
+                  etiqueta="Separación corriente" sufijo="m"
+                  valor={resultado ? fmt(resultado.v.sepCercos, 3) : ""}
+                  nota={resultado?.cercos?.gobiernaCortante ? "La fija el cortante, ec. (6.8)" : "mín(15Ø; 300 mm; lado menor), art. 9.5.3(3)"}
+                />
+                <ValorCalculado
+                  etiqueta="Junto a nudos y solapes" sufijo="m"
+                  valor={resultado ? fmt(resultado.v.sepCercosNudo, 3) : ""}
+                  nota="0,6·s,máx, art. 9.5.3(4)"
+                />
+              </>
+            ) : (
+              <>
+                <CampoDiametro id="phiCerco" etiqueta="Ø cerco" valor={phiCerco} onChange={setPhiCerco} />
+                <CampoNumerico id="sepCercos" etiqueta="Separación corriente" sufijo="m" valor={sepCercos} onChange={setSepCercos} />
+                <CampoNumerico
+                  id="sepCercosNudo" etiqueta="Junto a nudos y solapes" sufijo="m" valor={sepCercosNudo} onChange={setSepCercosNudo}
+                  advertencia="Art. 9.5.3(4)"
+                />
+              </>
+            )}
             <CampoNumerico id="ramasH" etiqueta="Ramas // h" valor={ramasH} onChange={setRamasH} advertencia="Cortante de la dirección h" />
             <CampoNumerico id="ramasB" etiqueta="Ramas // b" valor={ramasB} onChange={setRamasB} advertencia="Cortante de la dirección b" />
           </div>
@@ -233,6 +269,11 @@ export default function PilaresPage() {
               ...(resultado
                 ? [
                     { etiqueta: "Armadura", valor: `${resultado.r.numeroBarras}Ø${resultado.v.phi} = ${fmt(resultado.r.asTotalCm2)} cm²`, derivado: true },
+                    {
+                      etiqueta: "Cercos",
+                      valor: `Ø${resultado.v.phiCerco} c/${fmt(resultado.v.sepCercos * 100, 1)} cm, c/${fmt(resultado.v.sepCercosNudo * 100, 1)} cm junto a nudos${cercosAuto ? " (automáticos)" : ""}`,
+                      derivado: cercosAuto,
+                    },
                     { etiqueta: "β (h / b)", valor: `${fmt(resultado.beta.h, 2)} / ${fmt(resultado.beta.b, 2)}`, derivado: true },
                     { etiqueta: "φef", valor: `${fmt(resultado.r.fluenciaEficaz, 2)}${resultado.r.fluenciaAdoptada ? " (adoptado)" : ""}`, derivado: true },
                   ]
@@ -246,6 +287,7 @@ export default function PilaresPage() {
               "Esviada por la ec. (5.39), salvo que se cumplan (5.38a) y (5.38b).",
               "Cortante con k1·σcp (art. 6.2.2) y, si no alcanza, cercos por la ec. (6.8) con cot θ = 1.",
               "Armado según el art. 9.5, con el mínimo por cara 0,05·NEd/fyc,d y fyc,d ≤ 400 MPa.",
+              "Cercos automáticos: el menor Ø comercial que cumple el art. 9.5.3(1) y la menor separación entre la del art. 9.5.3(3) y la que pide el cortante; si ésa baja de 10 cm, se sube un Ø (hasta Ø12). Junto a vigas, losas y solapes, 0,6·s,máx (art. 9.5.3(4)). Todo redondeado hacia abajo a 2,5 cm.",
               "Sin φef se toma A = 0,7 y φef = 2,14, el mismo en λlim y en la curvatura.",
             ]}
             avisos={avisos}
@@ -435,13 +477,24 @@ export default function PilaresPage() {
                   <ResultadoCheck
                     etiqueta="Separación de los cercos"
                     verifica={resultado.r.armado.verificaSeparacion}
-                    detalle={`Art. 9.5.3(3): mín(15Ø; 300 mm; lado menor). En una longitud igual al lado mayor arriba y abajo de cada viga o losa, y en los solapes con Ø > 14, se reduce a 0,6·s = ${fmt(resultado.r.armado.separacionZonaNudoM * 100, 1)} cm (art. 9.5.3(4)).`}
+                    detalle="Art. 9.5.3(3): mín(15Ø; 300 mm; lado menor), en la zona corriente del pilar."
                     comparacion={{
-                      real: { etiqueta: "s", valor: aNumero(sepCercos) },
+                      real: { etiqueta: "s", valor: resultado.v.sepCercos },
                       limite: { etiqueta: "s,máx", valor: resultado.r.armado.separacionMaximaM },
                       unidad: "m", exige: "≤", decimales: 3,
                     }}
                     recomendaciones={propuestas.separacion}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Separación de los cercos junto a nudos y solapes"
+                    verifica={resultado.r.armado.verificaSeparacionNudo}
+                    detalle={`Art. 9.5.3(4): 0,6·s,máx en una longitud igual al lado mayor (${fmt(Math.max(resultado.v.b, resultado.v.h) * 100, 0)} cm) arriba y abajo de cada viga o losa, y en los solapes si Ø > 14 mm, con al menos 3 cercos por solape.`}
+                    comparacion={{
+                      real: { etiqueta: "s", valor: resultado.v.sepCercosNudo },
+                      limite: { etiqueta: "0,6·s,máx", valor: resultado.r.armado.separacionZonaNudoM },
+                      unidad: "m", exige: "≤", decimales: 3,
+                    }}
+                    recomendaciones={propuestas.separacionNudo}
                   />
                   <ResultadoCheck
                     etiqueta="Barras sujetas por los cercos"

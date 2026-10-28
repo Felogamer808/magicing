@@ -15,6 +15,7 @@ export type ClavePilar =
   | "diametro"
   | "diametroCerco"
   | "separacion"
+  | "separacionNudo"
   | "sujecion";
 export type RecomendacionesPilar = Partial<Record<ClavePilar, Recomendacion[]>>;
 
@@ -31,6 +32,7 @@ const NOMBRES: Record<ClavePilar, string> = {
   diametro: "diámetro mínimo de las barras",
   diametroCerco: "diámetro del cerco",
   separacion: "separación de los cercos",
+  separacionNudo: "separación de los cercos junto a nudos y solapes",
   sujecion: "barras sujetas por los cercos",
 };
 
@@ -53,6 +55,7 @@ const utilizaciones = ({ r, v }: ResueltoPilar): Record<ClavePilar, number> => (
   diametro: siNo(r.armado.verificaDiametro),
   diametroCerco: siNo(r.armado.verificaDiametroCerco),
   separacion: v.sepCercos / r.armado.separacionMaximaM,
+  separacionNudo: v.sepCercosNudo / r.armado.separacionZonaNudoM,
   sujecion: siNo(r.armado.verificaSujecion),
 });
 
@@ -93,6 +96,14 @@ const SEPARACION = palancaValor(campo("sepCercos"), {
   texto: m,
 });
 
+const SEPARACION_NUDO = palancaValor(campo("sepCercosNudo"), {
+  paso: -0.025,
+  tope: () => 0.05,
+  decimales: 3,
+  rotulo: "Junto a nudos c/",
+  texto: m,
+});
+
 const DIAMETRO_CERCO = palancaDiametro(campo("phiCerco"), "mayor", (_e, d) => `cerco Ø${d}`);
 
 const ramas = (nombre: "ramasH" | "ramasB") =>
@@ -130,6 +141,8 @@ function palancasPorClave(clave: ClavePilar): readonly Palanca<Campos>[] {
       return [DIAMETRO_CERCO];
     case "separacion":
       return [SEPARACION];
+    case "separacionNudo":
+      return [SEPARACION_NUDO];
     case "sujecion":
       return [ramas("ramasH"), ramas("ramasB")];
   }

@@ -24,7 +24,7 @@ import { ConvencionMomentosViga } from "@/components/verificaciones/hormigon/Con
 import { EstriboLongitudinal, EstriboTransversal } from "@/components/verificaciones/hormigon/EstribosViga";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { PanelVinculos } from "@/components/verificaciones/comun/PanelVinculos";
-import { VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
+import { VINCULO_TORSION, VINCULOS_SERVICIO } from "@/lib/verificaciones/vinculos";
 import { armarGrupos, resolverVigaFlexionCortante, tipoSeccionDesdeCampo } from "@/lib/calc/hormigon/vigas/resolver";
 import {
   anchoEficazAla,
@@ -1200,7 +1200,7 @@ export default function VigasFlexionCortantePage() {
               )}
 
               <PanelVinculos
-                vinculos={VINCULOS_SERVICIO}
+                vinculos={[VINCULO_TORSION, ...VINCULOS_SERVICIO]}
                 datos={{
                   fck, fyk, b, h, recubrimiento,
                   numeroPos, diametroPos, numeroPos2, diametroPos2,

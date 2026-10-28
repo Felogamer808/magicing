@@ -23,9 +23,13 @@ import {
 } from "@/lib/calc/hormigon/comun/cuantias";
 import { flexionAlaComprimida, moduloResistenteT, propiedadesT } from "@/lib/calc/hormigon/vigas/seccion-t";
 
-/** Separación libre mínima entre barras (EC2 8.2): el mayor entre el diámetro de barra y 20 mm. */
-function separacionMinM(diametroMm: number): number {
-  return Math.max(diametroMm, 20) / 1000;
+/**
+ * Separación libre mínima entre barras, art. 8.2(2): máx(Ø; dg + 5 mm; 20 mm).
+ * Sin dg, máx(Ø; 20 mm), como la planilla original (criterio del usuario,
+ * 2026-10-28: lo guardado y los tests contra la planilla no cambian).
+ */
+function separacionMinM(diametroMm: number, tamanoMaximoAridoMm?: number): number {
+  return Math.max(diametroMm, tamanoMaximoAridoMm === undefined ? 0 : tamanoMaximoAridoMm + 5, 20) / 1000;
 }
 
 /**
@@ -82,7 +86,7 @@ export function calcularDisposicionArmadura(
 
   const capacidadPorGrupo = grupos.map((g) => {
     const diametroM = g.diametroMm / 1000;
-    const sMin = separacionMinM(g.diametroMm);
+    const sMin = separacionMinM(g.diametroMm, geometria.tamanoMaximoAridoMm);
     return anchoDisponible > 0 ? Math.floor((anchoDisponible + sMin) / (diametroM + sMin)) : 0;
   });
 
@@ -98,7 +102,7 @@ export function calcularDisposicionArmadura(
     const diametroM = fila.diametroMm / 1000;
     if (i > 0) {
       const anterior = filasSinUbicar[i - 1];
-      const sVerticalM = Math.max(fila.diametroMm, anterior.diametroMm, 20) / 1000;
+      const sVerticalM = separacionMinM(Math.max(fila.diametroMm, anterior.diametroMm), geometria.tamanoMaximoAridoMm);
       bordeM += anterior.diametroMm / 1000 + sVerticalM;
     }
     const distanciaM = bordeM + diametroM / 2;

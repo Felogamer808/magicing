@@ -213,3 +213,13 @@ describe("V en el borde del apoyo", () => {
     expect(resolverVigaFlexionCortante({ ...BASE, vdBorde: "1" })!.vdBielasKN).toBe(r.v.vd);
   });
 });
+
+describe("tamaño del árido (art. 8.2(2))", () => {
+  it("vacío deja la separación de la planilla; cargado, la exige con dg + 5 mm", () => {
+    // Ancho disponible 0,30 − 2·(0,04 + 0,008) = 0,204: con 20 mm entran 5 Ø20; con dg = 32 (37 mm), 4.
+    const cinco = { ...BASE, numeroPos: "5" };
+    expect(resolverVigaFlexionCortante(cinco)!.flexionPositiva.capacidadPorGrupo).toEqual([5]);
+    expect(resolverVigaFlexionCortante({ ...cinco, dg: "" })!.flexionPositiva.capacidadPorGrupo).toEqual([5]);
+    expect(resolverVigaFlexionCortante({ ...cinco, dg: "32" })!.flexionPositiva.capacidadPorGrupo).toEqual([4]);
+  });
+});

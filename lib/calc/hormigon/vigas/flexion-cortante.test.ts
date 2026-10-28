@@ -246,6 +246,25 @@ describe("armadura que no entra en una fila (viga angosta)", () => {
   });
 });
 
+describe("separación libre con el árido, art. 8.2(2): máx(Ø; dg + 5 mm; 20 mm)", () => {
+  // Misma viga angosta: ancho disponible 0,208 m, 6 Ø20.
+  const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
+  const armadura = [{ numero: 6, diametroMm: 20 }];
+
+  it("sin dg, o con un dg chico, manda máx(Ø; 20 mm), como la planilla", () => {
+    expect(calcularDisposicionArmadura(geometria, armadura).capacidadPorGrupo).toEqual([5]);
+    expect(calcularDisposicionArmadura({ ...geometria, tamanoMaximoAridoMm: 10 }, armadura).capacidadPorGrupo).toEqual([5]);
+  });
+
+  it("con dg = 32 se exigen 37 mm: entran 4 por fila y la segunda capa se aleja", () => {
+    // (0,208 + 0,037) / (0,020 + 0,037) = 4,3 → 4. Capas a 0,056 y 0,056 + 0,020 + 0,037 = 0,113.
+    const d = calcularDisposicionArmadura({ ...geometria, tamanoMaximoAridoMm: 32 }, armadura);
+    expect(d.capacidadPorGrupo).toEqual([4]);
+    expect(d.filas.map((f) => f.numero)).toEqual([3, 3]);
+    expect(d.distanciaCentroideM).toBeCloseTo((0.056 + 0.113) / 2, 9);
+  });
+});
+
 describe("armadura con dos capas de diámetro distinto (ej. 2Ø16 + 2Ø20)", () => {
   const geometria = { b: 0.3, h: 0.5, recubrimiento: 0.04, diametroEstriboMm: ESTRIBO_PLANILLA_MM };
   const grupos = [

@@ -214,7 +214,12 @@ export function resolverVigaFlexionCortante(
       : undefined;
 
   const materiales = derivarMateriales({ fck: v.fck, fyk: v.fyk });
-  const geometria = { b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo };
+  // dg vacío: la separación libre de la planilla, máx(Ø; 20 mm).
+  const dg = n("dg");
+  const geometria = {
+    b: v.b, h: v.h, recubrimiento: v.recubrimiento, diametroEstriboMm: v.diametroEstribo,
+    ...(Number.isFinite(dg) && dg > 0 ? { tamanoMaximoAridoMm: dg } : {}),
+  };
   // Las barras de la cara del ala se reparten en el ancho eficaz (art. 9.2.1.2 (2)).
   const geometriaCara = (positivo: boolean) => {
     const t = seccionTPara(positivo);

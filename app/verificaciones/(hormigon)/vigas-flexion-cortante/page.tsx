@@ -18,6 +18,7 @@ import {
   SeccionVigaDiagrama,
   type ElementoSeccionViga,
 } from "@/components/verificaciones/hormigon/SeccionVigaDiagrama";
+import { EditorSeccionViga, type CampoArmadoViga, type CapaEditable } from "@/components/verificaciones/hormigon/EditorSeccionViga";
 import { DiagramaRotura } from "@/components/verificaciones/hormigon/DiagramaRotura";
 import { ConvencionMomentosViga } from "@/components/verificaciones/hormigon/ConvencionMomentosViga";
 import { EstriboLongitudinal, EstriboTransversal } from "@/components/verificaciones/hormigon/EstribosViga";
@@ -280,8 +281,21 @@ export default function VigasFlexionCortantePage() {
     );
     const d = geometria.h - disposicionPositiva.distanciaCentroideM;
     const dNegativo = geometria.h - disposicionNegativa.distanciaCentroideM;
+    // Para el editor: cuántas entran por fila y en cuántas filas va cada capa,
+    // con la misma cuenta que distribuirEnCapas del motor.
+    const editables = (grupos: typeof gruposPositiva, capacidad: number[]): CapaEditable[] =>
+      grupos.map((g, i) => ({
+        numero: g.numero,
+        diametroMm: g.diametroMm,
+        capacidadPorFila: capacidad[i],
+        filas: Math.max(1, Math.ceil(g.numero / Math.max(1, capacidad[i]))),
+      }));
 
     return {
+      reparto: {
+        inferior: editables(gruposPositiva, disposicionPositiva.capacidadPorGrupo),
+        superior: editables(gruposNegativa, disposicionNegativa.capacidadPorGrupo),
+      },
       bM: v.b,
       hM: v.h,
       recubrimientoM: v.recubrimiento,
@@ -317,12 +331,41 @@ export default function VigasFlexionCortantePage() {
     superior: resultado ? !resultado.flexionNegativa.verificaEntraEnAncho : false,
   };
 
-  const dibujoSeccion = diagrama ? (
-    <SeccionVigaDiagrama {...diagrama} resaltar={resaltarSeccion} noEntra={noEntra} sinResumen />
+  // El reparto de las capas es para el editor; el resto, para el dibujo.
+  const seccion = diagrama
+    ? (({ reparto, ...resto }) => ({ reparto, propsDiagrama: { ...resto, resaltar: resaltarSeccion, noEntra, sinResumen: true } }))(diagrama)
+    : null;
+  const propsDiagrama = seccion?.propsDiagrama ?? null;
+  const dibujoSeccion = propsDiagrama ? (
+    <SeccionVigaDiagrama {...propsDiagrama} />
   ) : (
     <p className="py-10 text-center text-sm text-muted-foreground">
       La sección se dibuja cuando la geometría y la armadura tienen valores válidos.
     </p>
+  );
+
+  const [editorGrande, setEditorGrande] = useState(false);
+  const escritoresArmado: Record<CampoArmadoViga, (valor: string) => void> = {
+    numeroPos: setNumeroPos, diametroPos: setDiametroPos, numeroPos2: setNumeroPos2, diametroPos2: setDiametroPos2,
+    numeroNeg: setNumeroNeg, diametroNeg: setDiametroNeg, numeroNeg2: setNumeroNeg2, diametroNeg2: setDiametroNeg2,
+    diametroEstribo: setDiametroEstribo, numeroRamas: setNumeroRamas,
+    diametroEstriboVano: setDiametroEstriboVano, numeroRamasVano: setNumeroRamasVano,
+  };
+  const editorSeccion = seccion ? (
+    <EditorSeccionViga
+      diagrama={seccion.propsDiagrama}
+      capas={seccion.reparto}
+      estribo={{
+        diametroMm: aNumero(diametroEstribo),
+        ramas: aNumero(numeroRamas) || 2,
+        ...(conZonas ? { vano: { diametroMm: aNumero(diametroEstriboVano), ramas: aNumero(numeroRamasVano) || 2 } } : {}),
+      }}
+      onCambiar={(campo, valor) => escritoresArmado[campo](valor)}
+      grande={editorGrande}
+      onAmpliar={() => setEditorGrande((g) => !g)}
+    />
+  ) : (
+    dibujoSeccion
   );
 
   const croquisGeometria =
@@ -360,6 +403,38 @@ export default function VigasFlexionCortantePage() {
   }
 
   const botonCapa = "text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline";
+
+  const longitudinal = (
+    <Subgrupo titulo="Longitudinal">
+      <EditorCapas
+        filas={[
+          capa("Inferior", 1, ["numeroPos", numeroPos, setNumeroPos], ["diametroPos", diametroPos, setDiametroPos]),
+          ...(aNumero(numeroPos2) > 0
+            ? [capa("Inferior", 2, ["numeroPos2", numeroPos2, setNumeroPos2], ["diametroPos2", diametroPos2, setDiametroPos2], () => setNumeroPos2("0"))]
+            : []),
+          capa("Superior", 1, ["numeroNeg", numeroNeg, setNumeroNeg], ["diametroNeg", diametroNeg, setDiametroNeg]),
+          ...(aNumero(numeroNeg2) > 0
+            ? [capa("Superior", 2, ["numeroNeg2", numeroNeg2, setNumeroNeg2], ["diametroNeg2", diametroNeg2, setDiametroNeg2], () => setNumeroNeg2("0"))]
+            : []),
+        ]}
+      />
+      <div className="flex flex-wrap gap-x-5">
+        {!(aNumero(numeroPos2) > 0) && (
+          <button type="button" className={botonCapa} onClick={() => setNumeroPos2("2")}>
+            + 2ª capa inferior
+          </button>
+        )}
+        {!(aNumero(numeroNeg2) > 0) && (
+          <button type="button" className={botonCapa} onClick={() => setNumeroNeg2("2")}>
+            + 2ª capa superior
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        La inferior toma el momento positivo; la superior, el negativo.
+      </p>
+    </Subgrupo>
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -594,40 +669,15 @@ export default function VigasFlexionCortantePage() {
         </Etapa>
 
         <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Barras longitudinales por cara y estribos.">
-          <DatosConDibujo
-            datos={
-              <Subgrupo titulo="Longitudinal">
-                <EditorCapas
-                  filas={[
-                    capa("Inferior", 1, ["numeroPos", numeroPos, setNumeroPos], ["diametroPos", diametroPos, setDiametroPos]),
-                    ...(aNumero(numeroPos2) > 0
-                      ? [capa("Inferior", 2, ["numeroPos2", numeroPos2, setNumeroPos2], ["diametroPos2", diametroPos2, setDiametroPos2], () => setNumeroPos2("0"))]
-                      : []),
-                    capa("Superior", 1, ["numeroNeg", numeroNeg, setNumeroNeg], ["diametroNeg", diametroNeg, setDiametroNeg]),
-                    ...(aNumero(numeroNeg2) > 0
-                      ? [capa("Superior", 2, ["numeroNeg2", numeroNeg2, setNumeroNeg2], ["diametroNeg2", diametroNeg2, setDiametroNeg2], () => setNumeroNeg2("0"))]
-                      : []),
-                  ]}
-                />
-                <div className="flex flex-wrap gap-x-5">
-                  {!(aNumero(numeroPos2) > 0) && (
-                    <button type="button" className={botonCapa} onClick={() => setNumeroPos2("2")}>
-                      + 2ª capa inferior
-                    </button>
-                  )}
-                  {!(aNumero(numeroNeg2) > 0) && (
-                    <button type="button" className={botonCapa} onClick={() => setNumeroNeg2("2")}>
-                      + 2ª capa superior
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  La inferior toma el momento positivo; la superior, el negativo.
-                </p>
-              </Subgrupo>
-            }
-            dibujo={dibujoSeccion}
-          />
+          {/* El editor acompaña a los campos y escribe en ellos; ampliado, va arriba a todo el ancho. */}
+          {editorGrande ? (
+            <div className="space-y-8">
+              {editorSeccion}
+              {longitudinal}
+            </div>
+          ) : (
+            <DatosConDibujo datos={longitudinal} dibujo={editorSeccion} />
+          )}
 
           {conAla && (
             <div className="mt-10 max-w-xl">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { CapaMaterial } from "@/components/verificaciones/croquis/Primitivas";
 
 interface FilaDiagrama {
@@ -39,6 +39,28 @@ interface SeccionVigaDiagramaProps {
    * ancho eficaz, como las reparte el cálculo.
    */
   ala?: AlaDiagrama;
+  /** Ramas del estribo: las interiores se dibujan repartidas, punteadas. */
+  numeroRamas?: number;
+  /** Con esto, las capas y el estribo se tocan para editarlos (EditorSeccionViga). */
+  edicion?: EdicionSeccionViga;
+}
+
+/** Una capa cargada (1.ª o 2.ª de una cara) o el estribo. */
+export type SeleccionSeccionViga =
+  | { tipo: "capa"; cara: "inferior" | "superior"; grupo: number }
+  | { tipo: "estribo" }
+  | null;
+
+export interface EdicionSeccionViga {
+  seleccion: SeleccionSeccionViga;
+  onSeleccionar: (s: SeleccionSeccionViga) => void;
+  /**
+   * Filas físicas que ocupa cada capa cargada, por cara: [2, 1] es que la
+   * 1.ª se repartió en dos filas porque no entraba en una.
+   */
+  filasPorGrupo: { inferior: readonly number[]; superior: readonly number[] };
+  /** Barras que pide el tirador para la capa, sin tope: el motor reparte el resto. */
+  onArrastrar: (cara: "inferior" | "superior", grupo: number, numero: number) => void;
 }
 
 export interface AlaDiagrama {
@@ -100,8 +122,12 @@ export function SeccionVigaDiagrama({
   noEntra = { inferior: false, superior: false },
   sinResumen = false,
   ala,
+  numeroRamas,
+  edicion,
 }: SeccionVigaDiagramaProps) {
   const arrowId = useId();
+  const svg = useRef<SVGSVGElement>(null);
+  const arrastrando = useRef(false);
 
   if (!(bM > 0) || !(hM > 0)) return null;
 
@@ -176,13 +202,97 @@ export function SeccionVigaDiagrama({
     noEntra[cara] ? "var(--destructive)" : "var(--mat-armadura)";
   const halo = (cara: "inferior" | "superior") => resaltar === cara;
 
+  // Edición: a qué capa cargada pertenece cada fila física, y qué está elegido.
+  const grupoDeFila = (cara: "inferior" | "superior", fila: number) => {
+    let acumulado = 0;
+    const filas = edicion?.filasPorGrupo[cara] ?? [];
+    for (let g = 0; g < filas.length; g++) {
+      acumulado += filas[g];
+      if (fila < acumulado) return g;
+    }
+    return 0;
+  };
+  const capaElegida = (cara: "inferior" | "superior", grupo: number) =>
+    edicion?.seleccion?.tipo === "capa" && edicion.seleccion.cara === cara && edicion.seleccion.grupo === grupo;
+  const estriboElegido = edicion?.seleccion?.tipo === "estribo";
+  const pulsable = (s: SeleccionSeccionViga, etiqueta: string) =>
+    edicion
+      ? {
+          role: "button",
+          tabIndex: 0,
+          "aria-label": etiqueta,
+          style: { cursor: "pointer", outline: "none" },
+          onClick: (ev: React.MouseEvent) => {
+            ev.stopPropagation();
+            edicion.onSeleccionar(s);
+          },
+          onKeyDown: (ev: React.KeyboardEvent) => {
+            if (ev.key === "Enter" || ev.key === " ") {
+              ev.preventDefault();
+              edicion.onSeleccionar(s);
+            }
+          },
+        }
+      : {};
+
+  // Una cara: cada fila física con sus barras. En edición, la fila es
+  // clicable, la capa elegida se resalta y las filas que el motor agregó
+  // porque la capa no entraba en una se marcan punteadas.
+  const dibujarCara = (cara: "inferior" | "superior", filas: ReturnType<typeof ubicarFilas>, xA: number, xB: number) =>
+    filas.map((fila, i) => {
+      const grupo = grupoDeFila(cara, i);
+      const elegida = capaElegida(cara, grupo);
+      const agregada = edicion !== undefined && i > 0 && grupoDeFila(cara, i - 1) === grupo;
+      return (
+        <g key={`${cara}-${i}`} {...pulsable({ tipo: "capa", cara, grupo }, `${cara === "inferior" ? "Inferior" : "Superior"} · capa ${grupo + 1}`)}>
+          {edicion && (
+            <rect x={xA - 2} y={fila.y - fila.radio - 3} width={xB - xA + 4} height={2 * fila.radio + 6} rx={3}
+                  fill={elegida ? "var(--primary)" : "transparent"} fillOpacity={elegida ? 0.15 : 1}
+                  stroke={agregada ? "currentColor" : "none"} strokeDasharray="3 2" strokeOpacity={0.7} />
+          )}
+          {distribuir(fila.numero, xA + fila.radio, xB - fila.radio).map((x, j) => (
+            <circle key={j} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra(cara)}
+                    stroke={halo(cara) || elegida ? "var(--mat-cota)" : "none"} strokeWidth="2" />
+          ))}
+        </g>
+      );
+    });
+
+  // Tirador de la capa elegida, sobre la segunda barra de su primera fila:
+  // acercarlo a la primera agrega barras; alejarlo, las quita.
+  const tirador = (() => {
+    if (edicion?.seleccion?.tipo !== "capa") return null;
+    const { cara, grupo } = edicion.seleccion;
+    const filas = cara === "inferior" ? filasPos : filasNeg;
+    const [xA, xB] = cara === "inferior" ? [posX0, posX1] : [negX0, negX1];
+    const i = filas.findIndex((_, k) => grupoDeFila(cara, k) === grupo);
+    if (i < 0) return null;
+    const fila = filas[i];
+    const xs = distribuir(fila.numero, xA + fila.radio, xB - fila.radio);
+    const primera = xA + fila.radio;
+    return { cara, grupo, x: xs[1] ?? (primera + xB - fila.radio) / 2, y: fila.y, primera, largo: xB - xA - 2 * fila.radio };
+  })();
+  const moverTirador = (ev: React.PointerEvent) => {
+    if (!arrastrando.current || !tirador || !edicion || !svg.current) return;
+    const matriz = svg.current.getScreenCTM();
+    if (!matriz) return;
+    const paso = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(matriz.inverse()).x - tirador.primera;
+    // Paso entre ejes → barras de la fila: n − 1 = largo / paso.
+    const numero = paso <= 1 ? 60 : Math.min(60, Math.max(1, Math.round(tirador.largo / paso) + 1));
+    edicion.onArrastrar(tirador.cara, tirador.grupo, numero);
+  };
+  // Ramas interiores del estribo, repartidas entre las exteriores.
+  const ramasInteriores = numeroRamas && numeroRamas > 2 ? distribuir(numeroRamas, coverX0, coverX1).slice(1, -1) : [];
+
   return (
     <div className="flex flex-col items-center gap-3">
       <svg
+        ref={svg}
         viewBox={`0 0 ${viewW} ${viewH}`}
-        className="h-auto w-full text-primary"
+        className={`h-auto w-full text-primary ${edicion ? "touch-none select-none" : ""}`}
         fill="none"
-        role="img"
+        role={edicion ? "group" : "img"}
+        onClick={edicion ? () => edicion.onSeleccionar(null) : undefined}
         aria-label={`Sección de ${fmtM(bM)} por ${fmtM(hM)}, recubrimiento ${fmtM(recubrimientoM)}. Armadura inferior ${etiquetaArmadura(armaduraPositiva)}, superior ${etiquetaArmadura(armaduraNegativa)}, estribo Ø${diametroEstriboMm}.`}
       >
         <defs>
@@ -319,18 +429,37 @@ export function SeccionVigaDiagrama({
           </g>
         )}
 
-        {/* armadura negativa (superior), una fila por capa */}
-        {filasNeg.map((fila, i) =>
-          distribuir(fila.numero, negX0 + fila.radio, negX1 - fila.radio).map((x, j) => (
-            <circle key={`neg-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("superior")} stroke={halo("superior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
-          ))
+        {/* ramas interiores del estribo */}
+        {ramasInteriores.map((x, k) => (
+          <path key={`rama-${k}`} d={`M${x} ${coverY0} L${x} ${coverY1}`} stroke="var(--mat-armadura)" strokeWidth={1} strokeDasharray="3 2" opacity={0.7} />
+        ))}
+        {/* en edición, el estribo se toca por su contorno */}
+        {edicion && (
+          <rect x={coverX0} y={coverY0} width={Math.max(coverX1 - coverX0, 0)} height={Math.max(coverY1 - coverY0, 0)} rx="3"
+                stroke={estriboElegido ? "var(--primary)" : "transparent"} strokeOpacity={estriboElegido ? 0.5 : 1} strokeWidth={8} fill="none"
+                {...pulsable({ tipo: "estribo" }, "Estribo")} />
         )}
 
-        {/* armadura positiva (inferior), una fila por capa */}
-        {filasPos.map((fila, i) =>
-          distribuir(fila.numero, posX0 + fila.radio, posX1 - fila.radio).map((x, j) => (
-            <circle key={`pos-${i}-${j}`} cx={x} cy={fila.y} r={fila.radio} fill={colorBarra("inferior")} stroke={halo("inferior") ? "var(--mat-cota)" : "none"} strokeWidth="2" />
-          ))
+        {/* armadura negativa (superior) y positiva (inferior), una fila por capa física */}
+        {dibujarCara("superior", filasNeg, negX0, negX1)}
+        {dibujarCara("inferior", filasPos, posX0, posX1)}
+
+        {tirador && (
+          <circle
+            cx={tirador.x} cy={tirador.y} r={8}
+            fill="var(--background)" fillOpacity={0.6} stroke="var(--primary)" strokeWidth={2}
+            style={{ cursor: "ew-resize" }}
+            aria-hidden="true"
+            onClick={(ev) => ev.stopPropagation()}
+            onPointerDown={(ev) => {
+              ev.stopPropagation();
+              ev.currentTarget.setPointerCapture(ev.pointerId);
+              arrastrando.current = true;
+            }}
+            onPointerMove={moverTirador}
+            onPointerUp={() => (arrastrando.current = false)}
+            onPointerCancel={() => (arrastrando.current = false)}
+          />
         )}
         {noEntra.superior && (
           <text x={(x0 + x1) / 2} y={y0 - 26} textAnchor="middle" fill="var(--destructive)" className="font-mono" fontSize="9.5">

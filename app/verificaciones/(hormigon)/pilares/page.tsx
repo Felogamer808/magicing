@@ -103,6 +103,16 @@ export default function PilaresPage() {
 
   const cercosAuto = cercos === MODOS_CERCOS[0];
 
+  // Va en la sección y otra vez al lado de la armadura, con los cercos que se usan.
+  const dibujoSeccion = resultado ? (
+    <SeccionPilarDiagrama
+      bM={resultado.v.b} hM={resultado.v.h} recubrimientoM={resultado.v.rec}
+      diametroMm={resultado.v.phi} diametroCercoMm={resultado.v.phiCerco}
+      barrasCaraB={resultado.v.nCaraB} barrasCaraH={resultado.v.nCaraH}
+      ramasH={resultado.v.ramasH} ramasB={resultado.v.ramasB}
+    />
+  ) : null;
+
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
     avisos.push({
@@ -149,16 +159,7 @@ export default function PilaresPage() {
                 <CampoNumerico id="rec" etiqueta="Recubrimiento geom. al cerco" sufijo="m" valor={rec} onChange={setRec} />
               </div>
             }
-            dibujo={
-              resultado ? (
-                <SeccionPilarDiagrama
-                  bM={resultado.v.b} hM={resultado.v.h} recubrimientoM={resultado.v.rec}
-                  diametroMm={resultado.v.phi} diametroCercoMm={resultado.v.phiCerco}
-                  barrasCaraB={resultado.v.nCaraB} barrasCaraH={resultado.v.nCaraH}
-                  ramasH={resultado.v.ramasH} ramasB={resultado.v.ramasB}
-                />
-              ) : null
-            }
+            dibujo={dibujoSeccion}
           />
         </Etapa>
 
@@ -219,44 +220,52 @@ export default function PilaresPage() {
         </Etapa>
 
         <Etapa id="armadura" numero={4} titulo="Armadura" descripcion="Barras en las cuatro caras, todas del mismo diámetro, y cercos. Los cercos automáticos salen de la longitudinal y del cortante; las ramas se cargan siempre.">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <CampoDiametro id="phi" etiqueta="Ø barras" valor={phi} onChange={setPhi} />
-            <CampoNumerico id="nCaraB" etiqueta="Barras por cara b" valor={nCaraB} onChange={setNCaraB} advertencia="Con las de esquina" />
-            <CampoNumerico id="nCaraH" etiqueta="Barras por cara h" valor={nCaraH} onChange={setNCaraH} advertencia="Con las de esquina" />
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <CampoSeleccion id="cercos" etiqueta="Cercos" valor={cercos} opciones={MODOS_CERCOS} onChange={setCercos} />
-            {cercosAuto ? (
-              <>
-                <ValorCalculado
-                  etiqueta="Ø cerco" sufijo="mm"
-                  valor={resultado ? `Ø${resultado.v.phiCerco}` : ""}
-                  nota="máx(6 mm; Ø/4), art. 9.5.3(1)"
-                />
-                <ValorCalculado
-                  etiqueta="Separación corriente" sufijo="m"
-                  valor={resultado ? fmt(resultado.v.sepCercos, 3) : ""}
-                  nota={resultado?.cercos?.gobiernaCortante ? "La fija el cortante, ec. (6.8)" : "mín(15Ø; 300 mm; lado menor), art. 9.5.3(3)"}
-                />
-                <ValorCalculado
-                  etiqueta="Junto a nudos y solapes" sufijo="m"
-                  valor={resultado ? fmt(resultado.v.sepCercosNudo, 3) : ""}
-                  nota="0,6·s,máx, art. 9.5.3(4)"
-                />
-              </>
-            ) : (
-              <>
-                <CampoDiametro id="phiCerco" etiqueta="Ø cerco" valor={phiCerco} onChange={setPhiCerco} />
-                <CampoNumerico id="sepCercos" etiqueta="Separación corriente" sufijo="m" valor={sepCercos} onChange={setSepCercos} />
-                <CampoNumerico
-                  id="sepCercosNudo" etiqueta="Junto a nudos y solapes" sufijo="m" valor={sepCercosNudo} onChange={setSepCercosNudo}
-                  advertencia="Art. 9.5.3(4)"
-                />
-              </>
-            )}
-            <CampoNumerico id="ramasH" etiqueta="Ramas // h" valor={ramasH} onChange={setRamasH} advertencia="Cortante de la dirección h" />
-            <CampoNumerico id="ramasB" etiqueta="Ramas // b" valor={ramasB} onChange={setRamasB} advertencia="Cortante de la dirección b" />
-          </div>
+          {/* El dibujo acompaña a los campos: se ve dónde cae cada barra sin volver a la etapa 1. */}
+          <DatosConDibujo
+            dibujo={dibujoSeccion}
+            datos={
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <CampoDiametro id="phi" etiqueta="Ø barras" valor={phi} onChange={setPhi} />
+                  <CampoNumerico id="nCaraB" etiqueta="Barras por cara b" valor={nCaraB} onChange={setNCaraB} advertencia="Con las de esquina" />
+                  <CampoNumerico id="nCaraH" etiqueta="Barras por cara h" valor={nCaraH} onChange={setNCaraH} advertencia="Con las de esquina" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <CampoSeleccion id="cercos" etiqueta="Cercos" valor={cercos} opciones={MODOS_CERCOS} onChange={setCercos} />
+                  {cercosAuto ? (
+                    <>
+                      <ValorCalculado
+                        etiqueta="Ø cerco" sufijo="mm"
+                        valor={resultado ? `Ø${resultado.v.phiCerco}` : ""}
+                        nota="máx(6 mm; Ø/4), art. 9.5.3(1)"
+                      />
+                      <ValorCalculado
+                        etiqueta="Separación corriente" sufijo="m"
+                        valor={resultado ? fmt(resultado.v.sepCercos, 3) : ""}
+                        nota={resultado?.cercos?.gobiernaCortante ? "La fija el cortante, ec. (6.8)" : "mín(15Ø; 300 mm; lado menor), art. 9.5.3(3)"}
+                      />
+                      <ValorCalculado
+                        etiqueta="Junto a nudos y solapes" sufijo="m"
+                        valor={resultado ? fmt(resultado.v.sepCercosNudo, 3) : ""}
+                        nota="0,6·s,máx, art. 9.5.3(4)"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <CampoDiametro id="phiCerco" etiqueta="Ø cerco" valor={phiCerco} onChange={setPhiCerco} />
+                      <CampoNumerico id="sepCercos" etiqueta="Separación corriente" sufijo="m" valor={sepCercos} onChange={setSepCercos} />
+                      <CampoNumerico
+                        id="sepCercosNudo" etiqueta="Junto a nudos y solapes" sufijo="m" valor={sepCercosNudo} onChange={setSepCercosNudo}
+                        advertencia="Art. 9.5.3(4)"
+                      />
+                    </>
+                  )}
+                  <CampoNumerico id="ramasH" etiqueta="Ramas // h" valor={ramasH} onChange={setRamasH} advertencia="Cortante de la dirección h" />
+                  <CampoNumerico id="ramasB" etiqueta="Ramas // b" valor={ramasB} onChange={setRamasB} advertencia="Cortante de la dirección b" />
+                </div>
+              </div>
+            }
+          />
         </Etapa>
 
         <Etapa id="revision" numero={5} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">

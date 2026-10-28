@@ -13,6 +13,7 @@ import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
 import { CampoDiametro } from "@/components/verificaciones/comun/CampoDiametro";
 import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
+import { ProveedorAplicarPropuestas } from "@/components/verificaciones/comun/RecomendacionesCheck";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { ValorCalculado } from "@/components/verificaciones/comun/ValorCalculado";
 import { DiagramaInteraccionMuro } from "@/components/verificaciones/hormigon/DiagramaInteraccionMuro";
@@ -119,6 +120,18 @@ export default function PilaresPage() {
   const setters: Record<CampoArmadoPilar, (valor: string) => void> = {
     phi: setPhi, nCaraB: setNCaraB, phiCaraB: setPhiCaraB, nCaraH: setNCaraH, phiCaraH: setPhiCaraH,
   };
+  // "Aplicar" en una propuesta escribe los campos que cambia, como si se tipearan.
+  const escritores: Record<string, (valor: string) => void> = {
+    ...setters,
+    fck: setFck, fyk: setFyk, b: setB, h: setH, altura: setAltura, rec: setRec, nEd: setNEd, dg: setDg,
+    cercos: setCercos, phiCerco: setPhiCerco, sepCercos: setSepCercos, sepCercosNudo: setSepCercosNudo,
+    ramasH: setRamasH, ramasB: setRamasB,
+  };
+  const aplicarPropuesta = (cambios: Record<string, unknown>) => {
+    for (const [campo, valor] of Object.entries(cambios)) {
+      if (typeof valor === "string") escritores[campo]?.(valor);
+    }
+  };
   const editorSeccion = resultado ? (
     <EditorSeccionPilar
       geometria={resultado.geometria}
@@ -198,6 +211,7 @@ export default function PilaresPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
+      <ProveedorAplicarPropuestas aplicar={aplicarPropuesta}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="spec-label">Pilares · flexocompresión</p>
@@ -562,6 +576,7 @@ export default function PilaresPage() {
           )}
         </Etapa>
       </div>
+      </ProveedorAplicarPropuestas>
       </ProveedorComprobaciones>
     </main>
   );

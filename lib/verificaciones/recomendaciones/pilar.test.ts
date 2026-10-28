@@ -33,6 +33,8 @@ describe("recomendaciones del pilar", () => {
     expect(fila.map((p) => p.accion)).toContain("2Ø25 + 4Ø20 + 2Ø16 (hoy 4Ø20 + 4Ø16)");
     const todas = recomendarPilar({ ...BASE, m02H: "160", phi: "20", phiCaraB: "16", phiCaraH: "16" }).flexionH ?? [];
     expect(todas.map((p) => p.accion)).toContain("8Ø25 (hoy 4Ø20 + 4Ø16)");
+    // Aplicar escribe los tres Ø: los campos de la página, como texto.
+    expect(todas.find((p) => p.accion.startsWith("8Ø25"))!.cambios).toEqual({ phi: "25", phiCaraB: "25", phiCaraH: "25" });
   });
 
   it("barras demasiado juntas (art. 8.2): menos barras en esa cara", () => {

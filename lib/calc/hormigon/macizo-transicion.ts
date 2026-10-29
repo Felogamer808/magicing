@@ -21,6 +21,10 @@ import { calcularZonaCargada, type ResultadoZonaCargada } from "@/lib/calc/hormi
  *    comprimido que trabaja a σRd,max = k1·ν'·fcd (ec. 6.60). Su ancho sale del
  *    equilibrio. Si la resultante cae dentro del pilar con margen para eso, no
  *    hacen falta esperas traccionadas: Ts = 0 y tampoco hay tirante.
+ *    El nudo es sólo hormigón: las barras comprimidas del pilar inferior, que
+ *    suben dentro del macizo, no se cuentan (criterio del usuario, 2026-10-29,
+ *    del lado seguro). Por eso las esperas salen mayores que en una
+ *    verificación de la sección del pilar, donde esas barras sí trabajan.
  *  - Si no, las esperas del lado opuesto toman Ts y el tirante superior T
  *    junta la carga sobre el pilar: T = Nd·(yN − yC)/z = Ts·(yC − yT)/z.
  *  - z va del eje del tirante a la cara inferior del macizo, que es la cabeza

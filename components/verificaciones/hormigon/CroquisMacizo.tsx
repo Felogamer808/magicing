@@ -179,17 +179,25 @@ export function CroquisArmadoMacizo({
   const r = 8;
   const rojo = "var(--color-destructive)";
 
-  // Corte transversal por el tirante, a la derecha.
-  const cx0 = xFin + 50;
+  // Planta cortada por el macizo, a la derecha y con la misma escala que el
+  // alzado: el cerco rodea todo, las esperas quedan del lado opuesto a la carga
+  // y el tirante se ve desde arriba, a trazos.
+  const px0 = xFin + 56;
   const pPx = m.profundidadM * escala;
-  const hCorte = 60;
-  const barras = (n: number) =>
+  const yP0 = yTop;
+  const xp = (y: number) => px0 + (y - yIni) * escala;
+  const repartir = (n: number, ancho: number) =>
     Array.from({ length: Math.max(Math.round(n), 0) }, (_, i) =>
-      n > 1 ? cx0 + cob + ((pPx - 2 * cob) * i) / (n - 1) : cx0 + pPx / 2
+      n > 1 ? -ancho / 2 + (ancho * i) / (n - 1) : 0
     );
+  const cobM = m.recubrimientoM + armado.diametroEstriboMm / 1000;
+  const yEspM = -m.infPlanoM / 2 + cobM + armado.diametroEsperasMm / 2000;
+  const tEsperas = repartir(armado.numeroEsperas, m.infTransversalM - 2 * cobM - armado.diametroEsperasMm / 1000);
+  const tTirante = repartir(armado.numeroTirante, m.profundidadM - 2 * cobM - armado.diametroTiranteMm / 1000);
+  const ypt = (t: number) => yP0 + pPx / 2 + t * escala;
 
   return (
-    <svg viewBox={`0 0 ${cx0 + pPx + 20} ${yBase + 90}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
+    <svg viewBox={`0 0 ${xp(yIni + m.anchoM) + 70} ${Math.max(yBase + 90, yP0 + pPx + 40)}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       {/* hormigón */}
       <rect x={x(m.excentricidadM - m.supPlanoM / 2)} y={yTop - 26} width={m.supPlanoM * escala} height={26}
             stroke="var(--mat-hormigon-borde)" strokeWidth="1.2" fill="var(--mat-hormigon)" />
@@ -199,7 +207,7 @@ export function CroquisArmadoMacizo({
 
       {/* cerco */}
       <rect x={xIni + rec} y={yTop + rec} width={m.anchoM * escala - 2 * rec} height={hPx - 2 * rec} rx="3"
-            stroke={col(a("estribo"), "currentColor")} strokeWidth={a("estribo") ? 2.2 : 1} opacity={a("estribo") ? 1 : 0.6} />
+            stroke={col(a("estribo"), "currentColor")} strokeWidth={a("estribo") ? 2.6 : 1.6} />
 
       {/* esperas: suben del pilar inferior, patilla sobre el tirante hacia la cara opuesta */}
       <path
@@ -229,15 +237,26 @@ export function CroquisArmadoMacizo({
         cerco Ø{armado.diametroEstriboMm}
       </text>
 
-      {/* corte transversal por el tirante */}
-      <text x={cx0} y={yTop - 10} className="fill-current font-mono" fontSize="9.5" opacity="0.7">CORTE</text>
-      <rect x={cx0} y={yTop} width={pPx} height={hCorte} stroke="currentColor" strokeWidth="1.4" fill="var(--mat-hormigon)" />
-      {barras(armado.numeroTirante).map((bx, i) => (
-        <circle key={i} cx={bx} cy={yTop + cob} r={Math.max(armado.diametroTiranteMm / 8, 2.2)}
-                fill={col(a("tirante"), "currentColor")} />
+      {/* planta cortada */}
+      <text x={px0} y={yTop - 10} className="fill-current font-mono" fontSize="9.5" opacity="0.7">PLANTA CORTADA</text>
+      <rect x={xp(yIni)} y={yP0} width={m.anchoM * escala} height={pPx} stroke="currentColor" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+      <rect x={xp(-m.infPlanoM / 2)} y={ypt(-m.infTransversalM / 2)} width={m.infPlanoM * escala} height={m.infTransversalM * escala}
+            stroke="var(--mat-hormigon-borde)" strokeWidth="1" strokeDasharray="4 3" />
+      <rect x={xp(yIni) + rec} y={yP0 + rec} width={m.anchoM * escala - 2 * rec} height={pPx - 2 * rec} rx="3"
+            stroke={col(a("estribo"), "currentColor")} strokeWidth={a("estribo") ? 2.6 : 1.6} />
+      {tTirante.map((t, i) => (
+        <path key={i} d={`M${xp(yEspM)} ${ypt(t)} L${xp(yIni + m.anchoM) - cob} ${ypt(t)}`}
+              stroke={col(a("tirante"), "currentColor")} strokeWidth={a("tirante") ? 2.2 : 1.4} strokeDasharray="5 3" />
       ))}
-      <text x={cx0 + pPx / 2} y={yTop + hCorte + 14} textAnchor="middle" className="fill-current font-mono" fontSize="9" opacity="0.7">
-        {fmt(m.profundidadM, 2)} m
+      {tEsperas.map((t, i) => (
+        <circle key={i} cx={xp(yEspM)} cy={ypt(t)} r={Math.max(armado.diametroEsperasMm / 6, 2.4)}
+                fill={col(a("esperas"), rojo)} />
+      ))}
+      <text x={xp(yIni)} y={yP0 + pPx + 16} className="fill-current font-mono" fontSize="9" opacity="0.75">
+        cerco · esperas ●
+      </text>
+      <text x={xp(yIni)} y={yP0 + pPx + 28} className="fill-current font-mono" fontSize="9" opacity="0.75">
+        tirante a trazos
       </text>
     </svg>
   );

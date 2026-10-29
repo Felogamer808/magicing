@@ -257,6 +257,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "mensula-corta": ELU_MAYORADAS,
   pilares: ELU_MAYORADAS,
   "zona-parcialmente-cargada": ELU_MAYORADAS,
+  "macizo-transicion": ELU_MAYORADAS,
   losas: ELU_MAYORADAS,
   punzonamiento: ELU_MAYORADAS,
   capiteles: ELU_MAYORADAS,

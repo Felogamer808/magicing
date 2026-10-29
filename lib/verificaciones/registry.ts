@@ -58,6 +58,7 @@ export type IdVerificacion =
   | "carga-colgada"
   | "mensula-corta"
   | "zona-parcialmente-cargada"
+  | "macizo-transicion"
   | "losas"
   | "punzonamiento"
   | "capiteles"
@@ -294,6 +295,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Carga concentrada sobre un área chica (apoyo, placa, aparato de apoyo): aplastamiento local con el área de distribución y armadura para las tracciones transversales.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/zona-parcialmente-cargada",
+    disponible: true,
+  },
+  {
+    id: "macizo-transicion",
+    nombre: "Macizo de transición",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Pilar que descarga descentrado sobre el de abajo a través de un macizo: bielas y tirantes con nudos, tirante superior, esperas traccionadas y su anclaje, carga concentrada, y el N y M que quedan para el pilar inferior.",
+    normasDisponibles: ["EC2"],
+    ruta: "/verificaciones/macizo-transicion",
     disponible: true,
   },
   {

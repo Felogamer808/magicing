@@ -142,6 +142,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nivel: "probada",
     nota: "Sólo Anejo 19, sin planilla de referencia: tests contra la cuenta a mano de la esbeltez, la curvatura nominal, un punto del diagrama N-M y el cortante. Contrastar el primer caso contra un cálculo propio.",
   },
+  "macizo-transicion": {
+    nivel: "probada",
+    nota: "Sólo Anejo 19, sin planilla de referencia: los tests fijan el equilibrio contra la cuenta a mano del caso del usuario (2026-10-29). Contrastar el primer caso contra un cálculo propio.",
+  },
   "zona-parcialmente-cargada": {
     nivel: "probada",
     nota: "Sin planilla de referencia: los tests fijan geometría exacta. Contrastar el primer caso contra un cálculo propio.",

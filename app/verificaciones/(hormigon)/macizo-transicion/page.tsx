@@ -14,6 +14,7 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaMacizoTransicion } from "@/components/verificaciones/hormigon/DiagramaMacizoTransicion";
+import { DobladoMacizo } from "@/components/verificaciones/hormigon/DobladoMacizo";
 import {
   CroquisArmadoMacizo,
   CroquisGeometriaMacizo,
@@ -41,6 +42,7 @@ const ELEMENTO_DE_CAMPO: Record<string, ElementoMacizo> = {
   supPlano: "supPlano", supTransversal: "supTransversal", infPlano: "infPlano", infTransversal: "infTransversal",
   e: "e", bordeTraccionado: "borde",
   numeroU: "u", diametroU: "u", mandrilU: "u", patillaInferior: "u",
+  numeroEsperasComp: "comprimidas", diametroEsperasComp: "comprimidas",
   diametroCerco: "cercos", ramasX: "cercos", ramasY: "cercos", separacionCercos: "cercos",
   numeroInferior: "inferior", diametroInferior: "inferior",
 };
@@ -84,6 +86,8 @@ export default function MacizoTransicionPage() {
   const [numeroU, setNumeroU] = useCampo("numeroU", "4");
   const [diametroU, setDiametroU] = useCampo("diametroU", "16");
   const [mandrilU, setMandrilU] = useCampo("mandrilU", "");
+  const [numeroEsperasComp, setNumeroEsperasComp] = useCampo("numeroEsperasComp", "");
+  const [diametroEsperasComp, setDiametroEsperasComp] = useCampo("diametroEsperasComp", "");
   const [patillaInferior, setPatillaInferior] = useCampo("patillaInferior", "no");
   const [diametroCerco, setDiametroCerco] = useCampo("diametroCerco", "8");
   const [ramasX, setRamasX] = useCampo("ramasX", "2");
@@ -96,11 +100,11 @@ export default function MacizoTransicionPage() {
     () => ({
       fck, fyk, nEd, mEd, h, ancho, profundidad, recubrimiento, supPlano, supTransversal, infPlano, infTransversal,
       e, bordeTraccionado, numeroU, diametroU, mandrilU, patillaInferior, diametroCerco, ramasX, ramasY, separacionCercos,
-      numeroInferior, diametroInferior,
+      numeroInferior, diametroInferior, numeroEsperasComp, diametroEsperasComp,
     }),
     [fck, fyk, nEd, mEd, h, ancho, profundidad, recubrimiento, supPlano, supTransversal, infPlano, infTransversal,
      e, bordeTraccionado, numeroU, diametroU, mandrilU, patillaInferior, diametroCerco, ramasX, ramasY, separacionCercos,
-     numeroInferior, diametroInferior]
+     numeroInferior, diametroInferior, numeroEsperasComp, diametroEsperasComp]
   );
   const resuelto = useMemo(() => resolverMacizoTransicion(campos), [campos]);
   const res = resuelto.ok ? resuelto : null;
@@ -231,6 +235,16 @@ export default function MacizoTransicionPage() {
                     pilar, no en el macizo). Mandril en blanco: el mínimo de la tabla A19.8.1.
                   </p>
                 </Subgrupo>
+                <Subgrupo titulo="Esperas comprimidas (lado de la carga)">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroEsperasComp" etiqueta="Barras" valor={numeroEsperasComp} onChange={setNumeroEsperasComp} />
+                    <CampoNumerico id="diametroEsperasComp" etiqueta="Ø" sufijo="mm" valor={diametroEsperasComp} onChange={setDiametroEsperasComp} />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Las barras del pilar inferior del lado de la carga, que siguen rectas dentro del macizo y ayudan
+                    al hormigón en el nudo C con σs&apos; = Es·εc2 (400 MPa hasta fck 50). En blanco, las mismas que la U.
+                  </p>
+                </Subgrupo>
                 <Subgrupo titulo="Cercos horizontales (planos XY e YZ)">
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="diametroCerco" etiqueta="Ø" sufijo="mm" valor={diametroCerco} onChange={setDiametroCerco} />
@@ -258,11 +272,13 @@ export default function MacizoTransicionPage() {
                 armado={{
                   numeroU: n(numeroU, 0),
                   diametroUMm: n(diametroU, 16),
-                  mandrilUMm: res ? res.v.mandrilU : n(mandrilU, 64),
+                  mandrilUMm: res ? (res.v.mandrilU ?? res.r.dobladoA?.mandrilNecMm ?? res.r.mandrilMinimoTablaMm) : n(mandrilU, 64),
                   patillaInferior: patillaInferior === "si",
                   diametroCercoMm: n(diametroCerco, 8),
                   separacionCercosM: n(separacionCercos, 0.15),
                   numeroInferior: n(numeroInferior, 0),
+                  numeroComprimidas: res ? res.v.numeroComp : n(numeroEsperasComp, n(numeroU, 0)),
+                  diametroComprimidasMm: res ? res.v.diametroComp : n(diametroEsperasComp, n(diametroU, 16)),
                   diametroInferiorMm: n(diametroInferior, 12),
                 }}
               />
@@ -284,7 +300,7 @@ export default function MacizoTransicionPage() {
             ]}
             hipotesis={[
               "Región D por bielas y tirantes, Anejo 19, art. 6.5, en el plano de la excentricidad.",
-              "Nudo C, en la cabeza del pilar inferior: sólo compresión, σRd,max = k1·ν'·fcd con k1 = 1,0 (ec. 6.60, pág. 98). Su ancho y la tracción de las esperas Ts salen del equilibrio. Si la resultante entra en el pilar con ese ancho, no hay Ts ni tirante.",
+              "Nudo C, en la cabeza del pilar inferior: el hormigón a σRd,max = k1·ν'·fcd con k1 = 1,0 (ec. 6.60, pág. 98) en un ancho c, más las esperas comprimidas a σs' = Es·εc2 (tabla A19.3.1; deformación media de una zona comprimida uniforme, art. 6.1 (5), pág. 74, por analogía). c y Ts salen del equilibrio; el nudo verifica si existe c dentro del pilar. Si la resultante entra en el pilar sólo con hormigón, no hay Ts ni tirante.",
               "Nudo B, bajo el pilar superior: k2 = 0,85 con tirante (ec. 6.61) o k1 sin él. Con Md, la carga ocupa un ancho c − 2·Md/Nd.",
               "Nudo A, tirante y esperas: k3 = 0,75 (ec. 6.62, pág. 99). ν' = 1 − fck/250 (ec. 6.57, pág. 97).",
               "Brazo z: del eje del tirante a la cara inferior del macizo, que es la cabeza del pilar inferior.",
@@ -313,7 +329,7 @@ export default function MacizoTransicionPage() {
                 metricas={[
                   { etiqueta: "Ts esperas", valor: `${fmt(r.traccionEsperasKN, 0)} kN`, nota: r.sinTraccion ? "la resultante entra en el pilar" : "rama de la U" },
                   { etiqueta: "T tirante", valor: `${fmt(r.traccionTiranteKN, 0)} kN`, nota: `U: As ${fmt(r.asNecUCm2)} cm²` },
-                  { etiqueta: "C pilar inferior", valor: `${fmt(r.compresionCKN, 0)} kN`, nota: `ancho ${fmt(r.anchoNudoCM, 3)} m` },
+                  { etiqueta: "C pilar inferior", valor: `${fmt(r.compresionCKN, 0)} kN`, nota: `Cc ${fmt(r.compresionHormigonCKN, 0)} (c = ${fmt(r.anchoNudoCM * 1000, 0)} mm) + Fs' ${fmt(r.compresionEsperasKN, 0)}` },
                   { etiqueta: "Para Pilares", valor: `M = ${fmt(r.mPilarInferiorKNm, 1)} kN·m`, nota: `N = ${fmt(r.nPilarInferiorKN, 0)} kN` },
                 ]}
               />
@@ -337,6 +353,9 @@ export default function MacizoTransicionPage() {
                       traccionEsperasKN: r.traccionEsperasKN,
                       traccionTiranteKN: r.traccionTiranteKN,
                       compresionCKN: r.compresionCKN,
+                      yEsperasComprimidasM: r.yEsperasComprimidasM,
+                      compresionEsperasKN: r.compresionEsperasKN,
+                      compresionHormigonCKN: r.compresionHormigonCKN,
                     }}
                   />
                 </div>
@@ -377,25 +396,35 @@ export default function MacizoTransicionPage() {
                     }}
                   />
                   {r.dobladoA && (
-                    <ResultadoCheck
+                    <DobladoMacizo
                       etiqueta="Doblado en A, de las esperas al tirante"
-                      verifica={r.dobladoA.verifica}
-                      detalle={`ec. (8.1): Fbt = ${fmt(r.dobladoA.fuerzaBarraKN, 1)} kN por barra, ab = ${fmt(r.dobladoA.abMm, 0)} mm; tabla A19.8.1: ${r.mandrilMinimoTablaMm} mm`}
-                      comparacion={{
-                        real: { etiqueta: "φm,min", valor: r.dobladoA.mandrilNecMm },
-                        limite: { etiqueta: "mandril", valor: res.v.mandrilU },
-                        unidad: "mm", exige: "≤", decimales: 0,
-                      }}
+                      fuerza="Ts"
+                      d={r.dobladoA}
+                      diametroMm={res.v.diametroU}
+                      fcdTopeMPa={r.fcdDobladoMPa}
+                      mandrilTablaMm={r.mandrilMinimoTablaMm}
+                      mandrilMm={res.v.mandrilU}
                     />
                   )}
                   {r.dobladoB && (
-                    <ResultadoCheck
+                    <DobladoMacizo
                       etiqueta="Doblado en B, del tirante a la rama"
-                      verifica={r.dobladoB.verifica}
-                      detalle={`ec. (8.1): Fbt = ${fmt(r.dobladoB.fuerzaBarraKN, 1)} kN por barra`}
+                      fuerza="T"
+                      d={r.dobladoB}
+                      diametroMm={res.v.diametroU}
+                      fcdTopeMPa={r.fcdDobladoMPa}
+                      mandrilTablaMm={r.mandrilMinimoTablaMm}
+                      mandrilMm={res.v.mandrilU}
+                    />
+                  )}
+                  {r.anclajeEsperasComprimidas && (
+                    <ResultadoCheck
+                      etiqueta="Anclaje a compresión de las esperas comprimidas"
+                      verifica={r.anclajeEsperasComprimidas.verifica}
+                      detalle={`recto, art. 8.4; σs' = ${fmt(r.sigmaEsperasComprimidasMPa, 0)} MPa; desde la cara inferior del macizo`}
                       comparacion={{
-                        real: { etiqueta: "φm,min", valor: r.dobladoB.mandrilNecMm },
-                        limite: { etiqueta: "mandril", valor: res.v.mandrilU },
+                        real: { etiqueta: "lbd", valor: r.anclajeEsperasComprimidas.lbdMm },
+                        limite: { etiqueta: "disponible", valor: r.anclajeEsperasComprimidas.disponibleMm },
                         unidad: "mm", exige: "≤", decimales: 0,
                       }}
                     />
@@ -419,7 +448,10 @@ export default function MacizoTransicionPage() {
                       { etiqueta: "yT esperas", valor: `${fmt(r.yEsperasM, 3)} m` },
                       { etiqueta: "yC nudo C", valor: `${fmt(r.yNudoCM, 3)} m` },
                       { etiqueta: "z", valor: `${fmt(r.zM, 3)} m` },
-                      { etiqueta: "Ts = C − Nd", valor: `${fmt(r.traccionEsperasKN, 1)} kN` },
+                      { etiqueta: "Fs' = As'·σs'", sustitucion: `${res.v.numeroComp}Ø${res.v.diametroComp} · ${fmt(r.sigmaEsperasComprimidasMPa, 0)} MPa`, valor: `${fmt(r.compresionEsperasKN, 1)} kN` },
+                      { etiqueta: "c (hormigón a k1·ν'·fcd)", valor: `${fmt(r.anchoNudoCM * 1000, 1)} mm` },
+                      { etiqueta: "Cc = σRd,max·b·c", valor: `${fmt(r.compresionHormigonCKN, 1)} kN` },
+                      { etiqueta: "Ts = Cc + Fs' − Nd", valor: `${fmt(r.traccionEsperasKN, 1)} kN` },
                       { etiqueta: "T = Nd·(yN − yC)/z", sustitucion: `${fmt(res.v.nEd, 0)}·(${fmt(r.yCargaM, 3)} − ${fmt(r.yNudoCM, 3)})/${fmt(r.zM, 3)}`, valor: `${fmt(r.traccionTiranteKN, 1)} kN` },
                     ]}
                   />

@@ -25,6 +25,8 @@ const datos: DatosMacizo = {
   nEdKN: 1000,
   mEdKNm: 0,
   u: { numero: 4, diametroMm: 16 },
+  // Sin esperas comprimidas: el nudo C sólo con hormigón, el modelo de base.
+  esperasComprimidas: { numero: 0, diametroMm: 16 },
   mandrilUMm: 64,
   patillaInferior: false,
   cercos: { diametroMm: 8, ramasX: 2, ramasY: 2, separacionM: 0.15 },
@@ -160,5 +162,84 @@ describe("macizo de transición: pilar descentrado sobre pilar", () => {
     const r = calcularMacizoTransicion(hormigon, geometria, datos);
     expect(r.zonaCargada.ac0M2).toBeCloseTo(0.5 * 0.2, 12);
     expect(r.zonaCargada.verificaAplastamiento).toBe(true);
+  });
+});
+
+describe("macizo de transición con esperas comprimidas (caso O132, macizo 1, vista 13)", () => {
+  // fck 30, Nd 1244 kN; macizo 0,8 × 0,5 × 0,6, rec 0,02; U 4Ø20 con mandril 250;
+  // esperas comprimidas 4Ø20; cercos Ø10 c/0,15. Control a mano del usuario:
+  // c ≈ 105 mm, Cc ≈ 1110 kN, Ts ≈ 370 kN, T ≈ 80 kN, nudo A ≈ 7 MPa, U ≈ 8,5 cm²,
+  // mandril en A ≈ 240 mm.
+  const caso = (mandril: number | null) =>
+    calcularMacizoTransicion(
+      hormigon,
+      { ...geometria, recubrimientoM: 0.02 },
+      {
+        nEdKN: 1244,
+        mEdKNm: 0,
+        u: { numero: 4, diametroMm: 20 },
+        esperasComprimidas: { numero: 4, diametroMm: 20 },
+        mandrilUMm: mandril,
+        patillaInferior: false,
+        cercos: { diametroMm: 10, ramasX: 2, ramasY: 2, separacionM: 0.15 },
+        inferior: { numero: 4, diametroMm: 12 },
+      }
+    );
+
+  it("el nudo C suma la fuerza de las esperas comprimidas, As'·Es·εc2, y Ts baja", () => {
+    const r = caso(250);
+    // σs' = 200 000 · 0,002 = 400 MPa; Fs' = 4·π·2²/4 · 400 / 10 = 502,7 kN.
+    expect(r.sigmaEsperasComprimidasMPa).toBe(400);
+    expect(r.compresionEsperasKN).toBeCloseTo(502.65, 1);
+    // d'' = 0,02 + 0,010 + 0,010 = 0,040; yT = −0,085; D = 0,21; ys' = 0,085.
+    // 10 560·c·(0,21 − c/2) = 1244·0,21 − 502,65·0,17
+    const momentoNeto = 1244 * 0.21 - 502.65 * 0.17;
+    const c = 0.21 - Math.sqrt(0.21 ** 2 - (2 * momentoNeto) / 10560);
+    expect(r.anchoNudoCM).toBeCloseTo(c, 4);
+    expect(r.anchoNudoCM * 1000).toBeCloseTo(106, 0);
+    expect(r.compresionHormigonCKN).toBeCloseTo(10560 * c, 0);
+    expect(r.traccionEsperasKN).toBeCloseTo(10560 * c + 502.65 - 1244, 0);
+    expect(r.zM).toBeCloseTo(0.76, 9);
+    expect(r.traccionTiranteKN).toBeCloseTo(80.2, 0);
+    expect(r.nudoA!.sigmaMPa).toBeCloseTo(6.8, 1);
+    expect(r.asNecUCm2).toBeCloseTo((r.traccionEsperasKN * 10) / fyd, 9);
+    expect(r.verificaU).toBe(true);
+  });
+
+  it("todo cumple, y el anclaje a compresión de las esperas comprimidas es recto en la altura del macizo", () => {
+    const r = caso(250);
+    expect(r.nudoC.verifica && r.nudoA!.verifica && r.nudoBApoyo.verifica && r.nudoBBiela.verifica).toBe(true);
+    expect(r.dobladoA!.verifica && r.dobladoB!.verifica && r.anclajeTirante!.verifica).toBe(true);
+    expect(r.verificaCercos && r.verificaInferior && r.zonaCargada.verificaAplastamiento).toBe(true);
+    expect(r.anclajeEsperasComprimidas!.disponibleMm).toBeCloseTo(800 - 30, 9);
+    expect(r.anclajeEsperasComprimidas!.verifica).toBe(true);
+  });
+
+  it("doblado en A: Fbt = Ts/n sin tope, y manda la barra de borde con ab = rec + Ø/2", () => {
+    const d = caso(250).dobladoA!;
+    expect(d.limitadaPorFyd).toBe(false);
+    expect(d.fuerzaBarraKN).toBeCloseTo(d.fuerzaTotalKN / 4, 9);
+    // Borde: 30 + 10 = 40. Interior: (600 − 60 − 20)/3 / 2 = 86,7. Manda el borde.
+    expect(d.abBordeMm).toBeCloseTo(40, 9);
+    expect(d.abInteriorMm).toBeCloseTo(520 / 3 / 2, 9);
+    expect(d.barraQueManda).toBe("borde");
+    expect(d.mandrilNecMm).toBeCloseTo((d.fuerzaBarraKN * 1000 * (1 / 40 + 1 / 40)) / 20, 9);
+    expect(d.mandrilNecMm).toBeCloseTo(237, 0);
+    expect(d.verifica).toBe(true);
+  });
+
+  it("con el mandril en blanco se informa el requerido y no se marca si cumple", () => {
+    const r = caso(null);
+    expect(r.dobladoA!.verifica).toBeNull();
+    expect(r.dobladoA!.mandrilNecMm).toBeCloseTo(237, 0);
+    expect(r.dobladoB!.verifica).toBeNull();
+  });
+
+  it("si la U no alcanza para Ts, Fbt es el tope fyd·A de una barra (el caso de 5Ø20 con Ts = 995)", () => {
+    const d = calcularMacizoTransicion(hormigon, geometria, { ...datos, nEdKN: 1244, u: { numero: 5, diametroMm: 20 } }).dobladoA!;
+    expect(d.fuerzaRepartidaKN).toBeGreaterThan(d.topeBarraKN);
+    expect(d.limitadaPorFyd).toBe(true);
+    expect(d.topeBarraKN).toBeCloseTo((fyd * Math.PI * 2 ** 2) / 4 / 10, 9); // 136,6 kN
+    expect(d.fuerzaBarraKN).toBeCloseTo(136.6, 1);
   });
 });

@@ -15,6 +15,7 @@ export type ElementoMacizo =
   | "e"
   | "borde"
   | "u"
+  | "comprimidas"
   | "cercos"
   | "inferior";
 
@@ -148,6 +149,9 @@ export interface ArmadoMacizo {
   diametroCercoMm: number;
   separacionCercosM: number;
   numeroInferior: number;
+  /** Esperas comprimidas del lado de la carga */
+  numeroComprimidas: number;
+  diametroComprimidasMm: number;
   diametroInferiorMm: number;
 }
 
@@ -211,6 +215,9 @@ export function CroquisArmadoMacizo({
   const yEspM = -m.infPlanoM / 2 + cobM + armado.diametroUMm / 2000;
   const yCargaM = yIni + m.anchoM - cobM - armado.diametroUMm / 2000;
   const tU = repartir(armado.numeroU, m.infTransversalM - 2 * cobM - armado.diametroUMm / 1000);
+  const yCompM = m.infPlanoM / 2 - cobM - armado.diametroComprimidasMm / 2000;
+  const xComp = x(yCompM);
+  const tComp = repartir(armado.numeroComprimidas, m.infTransversalM - 2 * cobM - armado.diametroComprimidasMm / 1000);
   const alto = Math.max(yBase + 70, yTop + pPx + 46);
 
   return (
@@ -232,6 +239,14 @@ export function CroquisArmadoMacizo({
       <path d={`M${xIni + cob} ${yAbajo + 3} L${xFin - cob} ${yAbajo + 3}`}
             stroke={col(a("inferior"), "currentColor")} strokeWidth={grosor(armado.diametroInferiorMm, a("inferior"))}
             strokeDasharray="6 3" strokeLinecap="round" />
+      {/* esperas comprimidas: suben rectas del pilar por el lado de la carga */}
+      <path d={`M${xComp} ${yBase + 50} L${xComp} ${yArr + 2 * cob}`}
+            stroke={col(a("comprimidas"), "currentColor")} strokeWidth={grosor(armado.diametroComprimidasMm, a("comprimidas"))}
+            strokeLinecap="round" />
+      <text x={xComp + 5} y={yBase - 6} className="font-mono" fontSize="9"
+            fill={col(a("comprimidas"), "currentColor")} fontWeight={a("comprimidas") ? 700 : 400}>
+        {armado.numeroComprimidas}Ø{armado.diametroComprimidasMm} comp.
+      </text>
       {/* U invertida continua */}
       <path d={pathU} stroke={col(a("u"), rojo)} strokeWidth={grosor(armado.diametroUMm, a("u"))} strokeLinecap="round" />
 
@@ -257,6 +272,10 @@ export function CroquisArmadoMacizo({
             stroke="var(--mat-hormigon-borde)" strokeWidth="1" strokeDasharray="4 3" />
       <rect x={xp(yIni) + rec} y={yTop + rec} width={m.anchoM * escala - 2 * rec} height={pPx - 2 * rec} rx="3"
             stroke={col(a("cercos"), "currentColor")} strokeWidth={a("cercos") ? 2.6 : 1.6} />
+      {tComp.map((t, i) => (
+        <circle key={`c${i}`} cx={xp(yCompM)} cy={ypt(t)} r={Math.max(armado.diametroComprimidasMm / 6, 2.4)}
+                fill={col(a("comprimidas"), "currentColor")} />
+      ))}
       {tU.map((t, i) => (
         <g key={i}>
           <path d={`M${xp(yEspM)} ${ypt(t)} L${xp(yCargaM)} ${ypt(t)}`}

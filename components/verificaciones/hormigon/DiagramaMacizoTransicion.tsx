@@ -22,6 +22,10 @@ interface DiagramaMacizoTransicionProps {
     traccionEsperasKN: number;
     traccionTiranteKN: number;
     compresionCKN: number;
+    /** Esperas comprimidas en el nudo C: posición y fuerza Fs' */
+    yEsperasComprimidasM: number;
+    compresionEsperasKN: number;
+    compresionHormigonCKN: number;
   };
 }
 
@@ -118,8 +122,18 @@ export function DiagramaMacizoTransicion({
           <RotuloNudo cx={xCarga + 12} cy={(conTraccion ? yTir : yTop) + 14} letra="B" />
           <circle cx={x(modelo.yNudoCM)} cy={yBase} r="3.5" fill="currentColor" />
           <RotuloNudo cx={x(modelo.yNudoCM) - 14} cy={yBase - 14} letra="C" />
+          {modelo.compresionEsperasKN > 0 && (
+            <>
+              {/* Fs': las esperas comprimidas empujan dentro del nudo C */}
+              <path d={`M${x(modelo.yEsperasComprimidasM)} ${yBase + 40} L${x(modelo.yEsperasComprimidasM)} ${yBase - 22}`}
+                    stroke="currentColor" strokeWidth="3" markerEnd="url(#macizo-flecha)" />
+              <text x={x(modelo.yEsperasComprimidasM) - 6} y={yBase + 44} textAnchor="end" className="fill-current font-mono" fontSize="9.5">
+                Fs&apos; = {fmt(modelo.compresionEsperasKN, 0)}
+              </text>
+            </>
+          )}
           <text x={x(infPlanoM / 2) + 6} y={yBase + 22} className="fill-current font-mono" fontSize="10">
-            C = {fmt(modelo.compresionCKN, 0)} kN
+            C = {fmt(modelo.compresionCKN, 0)} kN{modelo.compresionEsperasKN > 0 ? ` (Cc ${fmt(modelo.compresionHormigonCKN, 0)})` : ""}
           </text>
         </>
       )}

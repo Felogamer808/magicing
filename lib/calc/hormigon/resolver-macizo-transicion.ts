@@ -1,6 +1,5 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import { mandrilMinimoMm } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularMacizoTransicion } from "@/lib/calc/hormigon/macizo-transicion";
 
 /**
@@ -28,7 +27,12 @@ export function resolverMacizoTransicion(campos: Record<string, string>) {
   const borde = aNumero(campos.bordeTraccionado ?? "") || 0;
   const patillaInferior = campos.patillaInferior === "si";
   // Mandril en blanco: el mínimo de la tabla A19.8.1.
-  const mandrilU = aNumero(campos.mandrilU ?? "") || mandrilMinimoMm(v.diametroU);
+  // Mandril en blanco: no adoptado; el motor informa el requerido.
+  const mandrilTexto = aNumero(campos.mandrilU ?? "");
+  const mandrilU = Number.isFinite(mandrilTexto) && mandrilTexto > 0 ? mandrilTexto : null;
+  // Esperas comprimidas en blanco: las mismas barras que la U.
+  const numeroComp = aNumero(campos.numeroEsperasComp ?? "") || v.numeroU;
+  const diametroComp = aNumero(campos.diametroEsperasComp ?? "") || v.diametroU;
 
   const falla = (motivo: string) => ({ ok: false as const, motivo });
   const { e, ...positivos } = v;
@@ -68,13 +72,14 @@ export function resolverMacizoTransicion(campos: Record<string, string>) {
       nEdKN: v.nEd,
       mEdKNm: mEd,
       u: { numero: v.numeroU, diametroMm: v.diametroU },
+      esperasComprimidas: { numero: numeroComp, diametroMm: diametroComp },
       mandrilUMm: mandrilU,
       patillaInferior,
       cercos: { diametroMm: v.diametroCerco, ramasX: v.ramasX, ramasY: v.ramasY, separacionM: v.separacionCercos },
       inferior: { numero: v.numeroInferior, diametroMm: v.diametroInferior },
     }
   );
-  return { ok: true as const, v: { ...v, mEd, borde, patillaInferior, mandrilU }, materiales, r };
+  return { ok: true as const, v: { ...v, mEd, borde, patillaInferior, mandrilU, numeroComp, diametroComp }, materiales, r };
 }
 
 export type ResueltoMacizoTransicion = Extract<ReturnType<typeof resolverMacizoTransicion>, { ok: true }>;

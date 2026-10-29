@@ -1,6 +1,6 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
-import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { mandrilMinimoMm } from "@/lib/calc/hormigon/comun/anclaje";
 import { calcularMacizoTransicion } from "@/lib/calc/hormigon/macizo-transicion";
 
 /**
@@ -19,19 +19,21 @@ export function resolverMacizoTransicion(campos: Record<string, string>) {
     supPlano: num("supPlano"), supTransversal: num("supTransversal"),
     infPlano: num("infPlano"), infTransversal: num("infTransversal"),
     e: num("e"),
-    numeroTirante: num("numeroTirante"), diametroTirante: num("diametroTirante"),
-    numeroEsperas: num("numeroEsperas"), diametroEsperas: num("diametroEsperas"),
-    diametroEstribo: num("diametroEstribo"),
+    numeroU: num("numeroU"), diametroU: num("diametroU"),
+    diametroCerco: num("diametroCerco"), ramasX: num("ramasX"), ramasY: num("ramasY"), separacionCercos: num("separacionCercos"),
+    numeroInferior: num("numeroInferior"), diametroInferior: num("diametroInferior"),
   };
   // Opcionales: en blanco valen 0.
   const mEd = aNumero(campos.mEd ?? "") || 0;
   const borde = aNumero(campos.bordeTraccionado ?? "") || 0;
-  const forma: FormaAnclaje = campos.formaTirante === "recta" ? "recta" : "gancho";
+  const patillaInferior = campos.patillaInferior === "si";
+  // Mandril en blanco: el mínimo de la tabla A19.8.1.
+  const mandrilU = aNumero(campos.mandrilU ?? "") || mandrilMinimoMm(v.diametroU);
 
   const falla = (motivo: string) => ({ ok: false as const, motivo });
   const { e, ...positivos } = v;
   if (!Object.values(positivos).every((n) => Number.isFinite(n) && n > 0) || !(Number.isFinite(e) && e >= 0)) {
-    return falla("Hay datos vacíos o no válidos: todos tienen que ser positivos (e puede ser 0; Md y el borde pueden quedar en blanco).");
+    return falla("Hay datos vacíos o no válidos: todos tienen que ser positivos (e puede ser 0; Md, el borde y el mandril pueden quedar en blanco).");
   }
   if (borde < 0) return falla("El borde del lado de las esperas no puede ser negativo.");
   const eTotal = v.e + mEd / v.nEd;
@@ -65,13 +67,14 @@ export function resolverMacizoTransicion(campos: Record<string, string>) {
     {
       nEdKN: v.nEd,
       mEdKNm: mEd,
-      tirante: { numero: v.numeroTirante, diametroMm: v.diametroTirante },
-      esperas: { numero: v.numeroEsperas, diametroMm: v.diametroEsperas },
-      diametroEstriboMm: v.diametroEstribo,
-      formaAnclajeTirante: forma,
+      u: { numero: v.numeroU, diametroMm: v.diametroU },
+      mandrilUMm: mandrilU,
+      patillaInferior,
+      cercos: { diametroMm: v.diametroCerco, ramasX: v.ramasX, ramasY: v.ramasY, separacionM: v.separacionCercos },
+      inferior: { numero: v.numeroInferior, diametroMm: v.diametroInferior },
     }
   );
-  return { ok: true as const, v: { ...v, mEd, borde, forma }, materiales, r };
+  return { ok: true as const, v: { ...v, mEd, borde, patillaInferior, mandrilU }, materiales, r };
 }
 
 export type ResueltoMacizoTransicion = Extract<ReturnType<typeof resolverMacizoTransicion>, { ok: true }>;

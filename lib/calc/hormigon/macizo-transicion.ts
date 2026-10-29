@@ -1,4 +1,4 @@
-import { calcularAnclaje, mandrilMinimoMm, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularAnclaje, mandrilMinimoMm } from "@/lib/calc/hormigon/comun/anclaje";
 import type { ArmaduraElegida, MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 import { calcularZonaCargada, type ResultadoZonaCargada } from "@/lib/calc/hormigon/zona-parcialmente-cargada";
 
@@ -7,36 +7,41 @@ import { calcularZonaCargada, type ResultadoZonaCargada } from "@/lib/calc/hormi
  * través de un macizo de hormigón donde apoya entero. Es una región D y se
  * resuelve por bielas y tirantes con el Anejo 19 y nada más.
  *
- * El modelo, en el plano de la excentricidad (criterios del usuario, 2026-10-29):
+ * Se arma como un cabezal, por planos (criterios del usuario, 2026-10-29). X
+ * es la dirección de la excentricidad, Y la transversal y Z la vertical.
  *
- *              A ═══════ tirante T ═══════ B   ↓ Nd (+ Md)
- *              ║ ⋱                     ⋰
- *    esperas   ║    ⋱ biela AC    ⋰ biela BC
- *       Ts     ║        ⋱     ⋰
- *              ║            C          ← zona comprimida del pilar inferior
- *         ─────╨────────────▲──────    cara inferior del macizo
+ * Plano XZ, el de la excentricidad:
+ *
+ *              A ╔═══════ U, tramo superior: T ═══════╗ B   ↓ Nd (+ Md)
+ *              ║ ⋱                               ⋰   ║
+ *    U, rama   ║    ⋱ biela AC          ⋰ biela BC     ║ U, rama del lado
+ *    esperas   ║        ⋱          ⋰                   ║ de la carga
+ *       Ts     ║            C                          ║ (ancla T)
+ *         ─────╨────────────▲──────────────────────────╨─  barras inferiores
  *                      C = Nd + Ts
  *
- *  - C es la zona comprimida de la cabeza del pilar inferior, un nudo sólo
- *    comprimido que trabaja a σRd,max = k1·ν'·fcd (ec. 6.60). Su ancho sale del
- *    equilibrio. Si la resultante cae dentro del pilar con margen para eso, no
- *    hacen falta esperas traccionadas: Ts = 0 y tampoco hay tirante.
- *    El nudo es sólo hormigón: las barras comprimidas del pilar inferior, que
- *    suben dentro del macizo, no se cuentan (criterio del usuario, 2026-10-29,
- *    del lado seguro). Por eso las esperas salen mayores que en una
- *    verificación de la sección del pilar, donde esas barras sí trabajan.
- *  - Si no, las esperas del lado opuesto toman Ts y el tirante superior T
- *    junta la carga sobre el pilar: T = Nd·(yN − yC)/z = Ts·(yC − yT)/z.
- *  - z va del eje del tirante a la cara inferior del macizo, que es la cabeza
- *    del pilar inferior.
- *  - Las esperas se anclan arriba, en el nudo A: suben hasta el tirante y se
- *    doblan en patilla sobre él hasta la cara opuesta del macizo. El anclaje
- *    se mide desde la cara interior del nudo por el eje de la barra.
+ *  - C es la zona comprimida de la cabeza del pilar inferior, un nudo sólo de
+ *    hormigón que trabaja a σRd,max = k1·ν'·fcd (ec. 6.60). Las barras
+ *    comprimidas del pilar, que suben dentro del macizo, no se cuentan: es del
+ *    lado seguro, y por eso Ts sale mayor que en la sección del pilar. Si la
+ *    resultante entra en el pilar, Ts = 0 y no hay tirante.
+ *  - T = Nd·(yN − yC)/z = Ts·(yC − yT)/z, con z del eje del tirante a la cara
+ *    inferior del macizo, que es la cabeza del pilar inferior.
+ *  - Tirante y esperas son una sola armadura, una U invertida continua: sube
+ *    del pilar como esperas, gira en A, cruza como tirante y baja por la cara
+ *    del lado de la carga, que es su anclaje (con una patilla abajo si no
+ *    alcanza). Viene del pilar —sus barras o esperas solapadas en el pilar,
+ *    no en el macizo—, así que dentro del macizo no hay solape ni anclaje de
+ *    esperas: en A la fuerza pasa por el doblado, y se verifica el mandril.
  *  - El Md del pilar superior, si lo hay, corre la carga: e total = e + Md/Nd.
  *
- * En la otra dirección en planta no hay excentricidad, pero el pilar superior
- * puede ser más angosto que el macizo: eso es una carga concentrada y se
- * verifica con el art. 6.7, con el mismo cálculo que Zona parcialmente cargada.
+ * Planos YZ y XY: cercos horizontales en toda la altura. Sus ramas en Y cosen
+ * la tracción transversal de la carga que se abre del pilar superior al
+ * macizo (art. 6.7 y 6.5.3); sus ramas en X, la de la otra dirección si la hay.
+ *
+ * Cara inferior: barras aparte con la cuantía mínima de la malla de las vigas
+ * de gran canto (art. 9.7 (1)), por analogía: el macizo trabaja en XZ como una
+ * viga de gran canto de espesor igual a su lado en Y.
  *
  * El pilar inferior queda con N = Nd y M = Nd·e total en su cabeza, que se
  * verifican en Pilares; repartir ese momento entre la losa y la base es parte
@@ -44,12 +49,14 @@ import { calcularZonaCargada, type ResultadoZonaCargada } from "@/lib/calc/hormi
  *
  * Referencias (Anejo 19, RD 470/2021):
  * - art. 6.5.2 (2), ec. (6.57), pág. 97 — ν' = 1 − fck/250.
+ * - art. 6.5.3 (3), ec. (6.58), (6.59), págs. 97-98 — tracción transversal.
  * - art. 6.5.4 (4), ec. (6.60), (6.61), (6.62), págs. 98-99 — nudos, k1, k2, k3.
  * - art. 6.5.4 (7), pág. 100 — el anclaje empieza en la cara interior del nudo.
- * - art. 6.5.4 (8), pág. 100 — nudo de tres bielas: tensiones iguales.
  * - art. 6.7, ec. (6.63), pág. 101 — carga concentrada.
- * - art. 8.4.3 (3), pág. 124 — en patillas, lbd se mide por el eje de la barra.
+ * - art. 8.3 (3), ec. (8.1), pág. 122 — mandril de una barra doblada con carga.
  * - art. 8.3, tabla A19.8.1, pág. 122 — mandril mínimo.
+ * - art. 8.4.3 (3), pág. 124 — en patillas, lbd se mide por el eje de la barra.
+ * - art. 9.7 (1) y (2), pág. 152 — malla mínima y separación de vigas de gran canto.
  */
 
 /** Sección rectangular de un pilar: un lado en el plano de la excentricidad y otro transversal. */
@@ -67,7 +74,7 @@ export interface GeometriaMacizo {
   anchoM: number;
   /** Lado del macizo transversal a la excentricidad (m) */
   profundidadM: number;
-  /** Recubrimiento hasta la cara exterior del estribo (m) */
+  /** Recubrimiento hasta la cara exterior del cerco (m) */
   recubrimientoM: number;
   pilarSuperior: SeccionPilar;
   pilarInferior: SeccionPilar;
@@ -80,18 +87,30 @@ export interface GeometriaMacizo {
   bordeTraccionadoM: number;
 }
 
+/** Cercos horizontales del macizo, en toda su altura. */
+export interface CercosMacizo {
+  diametroMm: number;
+  /** Ramas que corren en X: cosen tracciones en X */
+  ramasX: number;
+  /** Ramas que corren en Y: cosen tracciones en Y */
+  ramasY: number;
+  separacionM: number;
+}
+
 export interface DatosMacizo {
   /** Nd del pilar superior, mayorado (kN) */
   nEdKN: number;
   /** Md del pilar superior en el plano; positivo si aleja la carga del eje del pilar inferior (kN·m) */
   mEdKNm: number;
-  /** Tirante superior, una capa */
-  tirante: ArmaduraElegida;
-  /** Barras del pilar inferior en la cara opuesta a la carga, que suben como esperas */
-  esperas: ArmaduraElegida;
-  diametroEstriboMm: number;
-  /** Cómo termina el tirante del lado de la carga */
-  formaAnclajeTirante: FormaAnclaje;
+  /** U invertida: esperas, tirante y rama del lado de la carga, las mismas barras */
+  u: ArmaduraElegida;
+  /** Diámetro del mandril de los doblados de la U (mm) */
+  mandrilUMm: number;
+  /** La rama del lado de la carga termina con una patilla horizontal abajo */
+  patillaInferior: boolean;
+  cercos: CercosMacizo;
+  /** Barras de la cara inferior, en X, repartidas en el ancho transversal */
+  inferior: ArmaduraElegida;
 }
 
 export interface ComprobacionTension {
@@ -107,6 +126,17 @@ export interface AnclajeMacizo {
   lbdMm: number;
   /** Longitud de barra disponible desde la cara interior del nudo, por su eje (mm) */
   disponibleMm: number;
+  verifica: boolean;
+}
+
+/** Un doblado de la U con carga, ec. (8.1). */
+export interface DobladoU {
+  /** Fbt: fuerza en una barra al empezar el doblado (kN) */
+  fuerzaBarraKN: number;
+  /** a_b: mitad de la separación entre barras, o recubrimiento + Ø/2 si es la de borde (mm) */
+  abMm: number;
+  /** φm,min de la ec. (8.1), sin bajar del de la tabla A19.8.1 (mm) */
+  mandrilNecMm: number;
   verifica: boolean;
 }
 
@@ -145,19 +175,35 @@ export interface ResultadoMacizo {
   /** Nudo A, tirante y esperas: k3. null sin tracción. */
   nudoA: ComprobacionTension | null;
 
-  asNecTiranteCm2: number;
-  asRealTiranteCm2: number;
-  verificaTirante: boolean;
-  asNecEsperasCm2: number;
-  asRealEsperasCm2: number;
-  verificaEsperas: boolean;
-
-  /** Esperas con patilla sobre el tirante, desde la cara interior del nudo A. null sin tracción. */
-  anclajeEsperas: AnclajeMacizo | null;
-  /** Tirante del lado de la carga, desde la cara interior del nudo B. null sin tirante. */
+  /** La U lleva Ts en la rama de las esperas y T arriba: manda la mayor */
+  asNecUCm2: number;
+  asRealUCm2: number;
+  verificaU: boolean;
+  mandrilMinimoTablaMm: number;
+  /** Doblado en A, de Ts a T. null sin tracción. */
+  dobladoA: DobladoU | null;
+  /** Doblado en B, de T a la rama que baja. null sin tirante. */
+  dobladoB: DobladoU | null;
+  /** T anclado por la rama del lado de la carga, desde la cara interior del nudo B. null sin tirante. */
   anclajeTirante: AnclajeMacizo | null;
-  mandrilEsperasMm: number;
-  mandrilTiranteMm: number;
+
+  /** Cercos horizontales que entran en la altura, por debajo del tirante */
+  numeroCercos: number;
+  asCercosYCm2: number;
+  asCercosXCm2: number;
+  /** Tracción transversal a coser, art. 6.5.3: en Y y en X (cm²) */
+  asNecCercosYCm2: number;
+  asNecCercosXCm2: number;
+  verificaCercos: boolean;
+  /** Separación máxima de la malla, art. 9.7 (2): mín(300 mm; 2·espesor) (m) */
+  separacionMaxCercosM: number;
+  verificaSeparacionCercos: boolean;
+
+  /** Cara inferior, por m de ancho transversal (cm²/m) */
+  asInferiorCm2PorM: number;
+  /** Mínimo de la malla de vigas de gran canto, art. 9.7 (1) (cm²/m) */
+  asMinInferiorCm2PorM: number;
+  verificaInferior: boolean;
 
   /** El pilar superior sobre el macizo, art. 6.7 */
   zonaCargada: ResultadoZonaCargada;
@@ -174,7 +220,8 @@ const comprobar = (sigmaMPa: number, sigmaMaxMPa: number): ComprobacionTension =
   verifica: sigmaMPa <= sigmaMaxMPa,
 });
 
-const areaCm2 = (a: ArmaduraElegida) => (a.numero * Math.PI * (a.diametroMm / 10) ** 2) / 4;
+const areaBarraCm2 = (phiMm: number) => (Math.PI * (phiMm / 10) ** 2) / 4;
+const areaCm2 = (a: ArmaduraElegida) => a.numero * areaBarraCm2(a.diametroMm);
 
 /** kN sobre m² → MPa */
 const mpa = (kN: number, m2: number) => kN / m2 / 1000;
@@ -188,7 +235,7 @@ export function calcularMacizoTransicion(
 ): ResultadoMacizo {
   const { fck, fyk, fcd, fyd } = materiales;
   const { hM, anchoM, profundidadM, recubrimientoM, pilarSuperior: sup, pilarInferior: inf } = geometria;
-  const { nEdKN: nd, mEdKNm, tirante, esperas, diametroEstriboMm } = datos;
+  const { nEdKN: nd, mEdKNm, u, cercos } = datos;
 
   // ---------------------------------------------------------------- geometría
   // Origen en el eje del pilar inferior, positivo hacia la carga.
@@ -198,9 +245,9 @@ export function calcularMacizoTransicion(
   const excentricidadTotalM = geometria.excentricidadM + mEdKNm / nd;
   const yN = excentricidadTotalM;
 
-  const coberturaM = recubrimientoM + diametroEstriboMm / 1000;
-  const yT = -c / 2 + coberturaM + esperas.diametroMm / 2000;
-  const dTiranteM = coberturaM + tirante.diametroMm / 2000;
+  const coberturaM = recubrimientoM + cercos.diametroMm / 1000;
+  const yT = -c / 2 + coberturaM + u.diametroMm / 2000;
+  const dTiranteM = coberturaM + u.diametroMm / 2000;
   const zM = hM - dTiranteM;
 
   // Anchos transversales de los nudos: nunca más que el macizo.
@@ -273,63 +320,45 @@ export function calcularMacizoTransicion(
   const anchoBielaAM = uTiranteM * Math.cos(anguloAC) + franjaEsperasM * Math.sin(anguloAC);
   const nudoA = sinTraccion ? null : comprobar(mpa(compresionBielaACKN, anchoBielaAM * bInfM), sigmaK3);
 
-  // ---------------------------------------------------------------- armaduras
-  const asNecTiranteCm2 = (traccionTiranteKN / fyd) * 10;
-  const asRealTiranteCm2 = areaCm2(tirante);
-  const asNecEsperasCm2 = (traccionEsperasKN / fyd) * 10;
-  const asRealEsperasCm2 = areaCm2(esperas);
-
-  // ---------------------------------------------------------------- anclajes
-  // Empiezan en la cara interior del nudo (art. 6.5.4 (7)) y, doblados, se
-  // miden por el eje de la barra (art. 8.4.3 (3)).
+  // ---------------------------------------------------------------- U
+  const asRealUCm2 = areaCm2(u);
+  const asNecUCm2 = (Math.max(traccionEsperasKN, traccionTiranteKN) / fyd) * 10;
+  const phi = u.diametroMm;
   const coberturaMm = coberturaM * 1000;
-  const separacion = (n: number, phi: number) =>
-    n > 1 ? (bInfM * 1000 - 2 * coberturaMm - phi) / (n - 1) : Infinity;
-  const cdMm = (a: ArmaduraElegida) => Math.min(coberturaMm, (separacion(a.numero, a.diametroMm) - a.diametroMm) / 2);
+  const mandrilMinimoTablaMm = mandrilMinimoMm(phi);
 
-  const phiE = esperas.diametroMm;
-  const mandrilEsperasMm = mandrilMinimoMm(phiE);
-  let anclajeEsperas: AnclajeMacizo | null = null;
-  if (!sinTraccion) {
-    // Sube desde la cara interior del nudo A (a u del borde superior), se
-    // dobla y corre sobre el tirante hasta la cara opuesta del macizo.
-    const r = mandrilEsperasMm / 2 + phiE / 2;
-    const verticalMm = uTiranteM * 1000 - (coberturaMm + phiE / 2) - r;
-    const horizontalMm = (yFinM - yT) * 1000 - coberturaMm - r;
-    const disponibleMm = Math.max(verticalMm, 0) + (Math.PI / 2) * r + Math.max(horizontalMm, 0);
-    const sigmaSdMPa = Math.min((traccionEsperasKN * 10) / asRealEsperasCm2, fyd);
-    const { lbdMm } = calcularAnclaje(
-      { fckMPa: fck, fykMPa: fyk },
-      { diametroMm: phiE, situacion: "buena", forma: "gancho", esfuerzo: "traccion", recubrimientoMm: cdMm(esperas), sigmaSdMPa }
-    );
-    anclajeEsperas = { sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm };
-  }
+  // Doblados con carga, ec. (8.1): φm ≥ Fbt·(1/ab + 1/(2φ))/fcd, con fcd sin
+  // pasar del de fck = 55. ab: mitad de la separación entre barras, sin pasar
+  // de recubrimiento + Ø/2, que es el de la barra contra el paramento.
+  const fcdTope = Math.min(fcd, (55 / fck) * fcd);
+  const separacionUMm = u.numero > 1 ? (bInfM * 1000 - 2 * coberturaMm - phi) / (u.numero - 1) : Infinity;
+  const abMm = Math.min(separacionUMm / 2, coberturaMm + phi / 2);
+  const doblado = (fuerzaKN: number): DobladoU => {
+    const fuerzaBarraKN = Math.min(fuerzaKN / u.numero, (fyd * areaBarraCm2(phi)) / 10);
+    const ec81 = (fuerzaBarraKN * 1000 * (1 / abMm + 1 / (2 * phi))) / fcdTope;
+    const mandrilNecMm = Math.max(ec81, mandrilMinimoTablaMm);
+    return { fuerzaBarraKN, abMm, mandrilNecMm, verifica: datos.mandrilUMm >= mandrilNecMm };
+  };
+  const dobladoA = sinTraccion ? null : doblado(traccionEsperasKN);
+  const dobladoB = conTirante ? doblado(traccionTiranteKN) : null;
 
-  const phiT = tirante.diametroMm;
-  const mandrilTiranteMm = mandrilMinimoMm(phiT);
+  // T se ancla en la rama del lado de la carga: desde la cara interior del
+  // nudo B (art. 6.5.4 (7)) hasta la cara, el doblado y la bajada; con
+  // patilla, además el tramo inferior hacia adentro hasta la cara del pilar.
   let anclajeTirante: AnclajeMacizo | null = null;
   if (conTirante) {
-    // Del lado de la carga: desde la cara interior del nudo B hasta la cara del
-    // macizo, recto o bajando por ella. Del lado A lo cierran las patillas de
-    // las esperas.
-    const r = mandrilTiranteMm / 2 + phiT / 2;
+    const r = datos.mandrilUMm / 2 + phi / 2;
     const horizontalMm = (yFinM - (yN - anchoBM / 2)) * 1000 - coberturaMm;
-    const verticalMm = (hM - dTiranteM) * 1000 - coberturaMm;
+    const bajadaMm = hM * 1000 - 2 * coberturaMm - phi;
+    const patillaMm = datos.patillaInferior ? Math.max((yFinM - c / 2) * 1000 - coberturaMm - r, 0) : 0;
     const disponibleMm =
-      datos.formaAnclajeTirante === "recta"
-        ? horizontalMm
-        : horizontalMm - r + (Math.PI / 2) * r + (verticalMm - r);
-    const sigmaSdMPa = Math.min((traccionTiranteKN * 10) / asRealTiranteCm2, fyd);
+      horizontalMm - r + (Math.PI / 2) * r + (bajadaMm - r - (datos.patillaInferior ? r : 0)) +
+      (datos.patillaInferior ? (Math.PI / 2) * r + patillaMm : 0);
+    const sigmaSdMPa = Math.min((traccionTiranteKN * 10) / asRealUCm2, fyd);
+    const cdMm = Math.min(coberturaMm, (separacionUMm - phi) / 2);
     const { lbdMm } = calcularAnclaje(
       { fckMPa: fck, fykMPa: fyk },
-      {
-        diametroMm: phiT,
-        situacion: "buena",
-        forma: datos.formaAnclajeTirante,
-        esfuerzo: "traccion",
-        recubrimientoMm: cdMm(tirante),
-        sigmaSdMPa,
-      }
+      { diametroMm: phi, situacion: "buena", forma: "gancho", esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
     );
     anclajeTirante = { sigmaSdMPa, lbdMm, disponibleMm, verifica: lbdMm <= disponibleMm };
   }
@@ -346,6 +375,26 @@ export function calcularMacizoTransicion(
     direccionD: { cargadaM: sup.transversalM, anchoPiezaM: profundidadM, distanciaBordeM: profundidadM / 2 },
     alturaM: hM,
   });
+
+  // ---------------------------------------------------------------- cercos horizontales
+  // Los que entran entre el recubrimiento inferior y el tirante. Si el pilar
+  // ocupa todo el ancho en una dirección, ahí la carga no se abre.
+  const alturaCercosM = hM - dTiranteM - coberturaM;
+  const numeroCercos = Math.max(Math.floor(alturaCercosM / cercos.separacionM + 1e-9) + 1, 0);
+  const aCerco = areaBarraCm2(cercos.diametroMm);
+  const asCercosYCm2 = numeroCercos * cercos.ramasY * aCerco;
+  const asCercosXCm2 = numeroCercos * cercos.ramasX * aCerco;
+  const seAbre = (t: ResultadoZonaCargada["traccionB"]) => t.aM < t.bM - 1e-9;
+  const asNecCercosYCm2 = seAbre(zonaCargada.traccionD) ? zonaCargada.traccionD.asNecCm2 : 0;
+  const asNecCercosXCm2 = seAbre(zonaCargada.traccionB) ? zonaCargada.traccionB.asNecCm2 : 0;
+  // Art. 9.7 (2): la malla no más separada que 300 mm ni que dos espesores.
+  const separacionMaxCercosM = Math.min(0.3, 2 * profundidadM);
+
+  // ---------------------------------------------------------------- cara inferior
+  // Art. 9.7 (1), por analogía: 0,001·Ac por cara y dirección, con Ac por
+  // metro el del espesor en Y; nunca menos de 150 mm²/m.
+  const asInferiorCm2PorM = areaCm2(datos.inferior) / profundidadM;
+  const asMinInferiorCm2PorM = Math.max(0.001 * profundidadM * 1e4, 1.5);
 
   return {
     excentricidadTotalM,
@@ -368,16 +417,24 @@ export function calcularMacizoTransicion(
     nudoBApoyo,
     nudoBBiela,
     nudoA,
-    asNecTiranteCm2,
-    asRealTiranteCm2,
-    verificaTirante: asRealTiranteCm2 >= asNecTiranteCm2,
-    asNecEsperasCm2,
-    asRealEsperasCm2,
-    verificaEsperas: asRealEsperasCm2 >= asNecEsperasCm2,
-    anclajeEsperas,
+    asNecUCm2,
+    asRealUCm2,
+    verificaU: asRealUCm2 >= asNecUCm2,
+    mandrilMinimoTablaMm,
+    dobladoA,
+    dobladoB,
     anclajeTirante,
-    mandrilEsperasMm,
-    mandrilTiranteMm,
+    numeroCercos,
+    asCercosYCm2,
+    asCercosXCm2,
+    asNecCercosYCm2,
+    asNecCercosXCm2,
+    verificaCercos: asCercosYCm2 >= asNecCercosYCm2 && asCercosXCm2 >= asNecCercosXCm2,
+    separacionMaxCercosM,
+    verificaSeparacionCercos: cercos.separacionM <= separacionMaxCercosM + 1e-9,
+    asInferiorCm2PorM,
+    asMinInferiorCm2PorM,
+    verificaInferior: asInferiorCm2PorM >= asMinInferiorCm2PorM,
     zonaCargada,
     nPilarInferiorKN: nd,
     mPilarInferiorKNm: nd * excentricidadTotalM,

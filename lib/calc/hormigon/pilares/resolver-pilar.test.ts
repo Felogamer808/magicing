@@ -44,10 +44,10 @@ describe("resolverPilar", () => {
 
   it("cercos automáticos: reemplazan a los cargados, también en v", () => {
     const auto = resolverPilar({ ...BASE, cercos: MODOS_CERCOS[0], phiCerco: "", sepCercos: "abc" })!;
-    // Ø16 en 30 × 40: Ø6; s,máx = mín(240; 300; 300) mm → 22,5 cm; nudo 0,144 → 12,5 cm.
-    expect(auto.cercos).toEqual({ diametroCercoMm: 6, separacionCercosM: 0.225, separacionCercosNudoM: 0.125, gobiernaCortante: false });
+    // Ø16 en 30 × 40: Ø6; s,máx = mín(240; 300; 300) mm → 20 cm; nudo 0,144 → 10 cm.
+    expect(auto.cercos).toEqual({ diametroCercoMm: 6, separacionCercosM: 0.2, separacionCercosNudoM: 0.1, gobiernaCortante: false });
     expect(auto.v.phiCerco).toBe(6);
-    expect(auto.v.sepCercos).toBe(0.225);
+    expect(auto.v.sepCercos).toBe(0.2);
     expect(auto.r.armado.verificaSeparacion).toBe(true);
     expect(auto.r.armado.verificaSeparacionNudo).toBe(true);
   });

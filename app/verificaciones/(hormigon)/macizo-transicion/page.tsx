@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
@@ -14,6 +14,12 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaMacizoTransicion } from "@/components/verificaciones/hormigon/DiagramaMacizoTransicion";
+import {
+  CroquisArmadoMacizo,
+  CroquisGeometriaMacizo,
+  type ElementoMacizo,
+  type MedidasMacizo,
+} from "@/components/verificaciones/hormigon/CroquisMacizo";
 import type { ComprobacionTension } from "@/lib/calc/hormigon/macizo-transicion";
 import { resolverMacizoTransicion } from "@/lib/calc/hormigon/resolver-macizo-transicion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
@@ -28,6 +34,15 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
+
+/** Qué parte de los dibujos corresponde a cada campo, para resaltarla con el foco. */
+const ELEMENTO_DE_CAMPO: Record<string, ElementoMacizo> = {
+  h: "h", ancho: "ancho", profundidad: "profundidad", recubrimiento: "recubrimiento",
+  supPlano: "supPlano", supTransversal: "supTransversal", infPlano: "infPlano", infTransversal: "infTransversal",
+  e: "e", bordeTraccionado: "borde",
+  numeroTirante: "tirante", diametroTirante: "tirante", formaTirante: "tirante",
+  numeroEsperas: "esperas", diametroEsperas: "esperas", diametroEstribo: "estribo",
+};
 
 const FORMAS = { gancho: "Patilla bajando por la cara", recta: "Recta" } as const;
 
@@ -84,6 +99,14 @@ export default function MacizoTransicionPage() {
   const res = resuelto.ok ? resuelto : null;
   const r = res?.r;
 
+  const [foco, setFoco] = useState<string | null>(null);
+  const resaltar = foco ? (ELEMENTO_DE_CAMPO[foco] ?? null) : null;
+  // El foco se sigue en un contenedor: los eventos de foco de React burbujean.
+  const seguirFoco = {
+    onFocus: (ev: FocusEvent<HTMLElement>) => setFoco(ev.target.id || null),
+    onBlur: () => setFoco(null),
+  };
+
   const avisos: AvisoRevision[] = [];
   if (!resuelto.ok) avisos.push({ tipo: "error", texto: resuelto.motivo });
   else {
@@ -98,6 +121,19 @@ export default function MacizoTransicionPage() {
   const n = (s: string, porDefecto: number) => {
     const x = aNumero(s);
     return Number.isFinite(x) && x > 0 ? x : porDefecto;
+  };
+
+  const medidas: MedidasMacizo = {
+    hM: n(h, 0.8),
+    anchoM: n(ancho, 0.5),
+    profundidadM: n(profundidad, 0.6),
+    recubrimientoM: n(recubrimiento, 0.03),
+    supPlanoM: n(supPlano, 0.5),
+    supTransversalM: n(supTransversal, 0.2),
+    infPlanoM: n(infPlano, 0.25),
+    infTransversalM: n(infTransversal, 0.6),
+    excentricidadM: aNumero(e) || 0,
+    bordeM: aNumero(bordeTraccionado) || 0,
   };
 
   return (
@@ -115,7 +151,7 @@ export default function MacizoTransicionPage() {
 
       <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-12" {...seguirFoco}>
         <Etapa id="cargas" numero={1} titulo="Materiales y cargas" descripcion="Lo que baja del pilar superior, mayorado.">
           <div className="grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
             <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
@@ -161,36 +197,14 @@ export default function MacizoTransicionPage() {
                 </p>
               </>
             }
-            dibujo={
-              <DiagramaMacizoTransicion
-                hM={n(h, 0.8)}
-                anchoM={n(ancho, 0.5)}
-                supPlanoM={n(supPlano, 0.5)}
-                infPlanoM={n(infPlano, 0.25)}
-                bordeM={aNumero(bordeTraccionado) || 0}
-                excentricidadM={r ? r.excentricidadTotalM : aNumero(e) || 0}
-                modelo={
-                  r && res
-                    ? {
-                        zM: r.zM,
-                        yEsperasM: r.yEsperasM,
-                        yNudoCM: r.yNudoCM,
-                        anchoNudoCM: r.anchoNudoCM,
-                        sinTraccion: r.sinTraccion,
-                        nKN: res.v.nEd,
-                        traccionEsperasKN: r.traccionEsperasKN,
-                        traccionTiranteKN: r.traccionTiranteKN,
-                        compresionCKN: r.compresionCKN,
-                      }
-                    : undefined
-                }
-              />
-            }
+            dibujo={<CroquisGeometriaMacizo m={medidas} resaltar={resaltar} />}
           />
         </Etapa>
 
         <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Tirante superior y esperas del pilar inferior del lado opuesto a la carga.">
-          <div className="max-w-2xl space-y-4">
+          <DatosConDibujo
+            datos={
+          <div className="space-y-4">
             <Subgrupo titulo="Tirante superior">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <CampoNumerico id="numeroTirante" etiqueta="Barras" valor={numeroTirante} onChange={setNumeroTirante} />
@@ -218,6 +232,22 @@ export default function MacizoTransicionPage() {
               doblan en patilla sobre él hasta la cara opuesta del macizo.
             </p>
           </div>
+            }
+            dibujo={
+              <CroquisArmadoMacizo
+                m={medidas}
+                resaltar={resaltar}
+                armado={{
+                  numeroTirante: n(numeroTirante, 0),
+                  diametroTiranteMm: n(diametroTirante, 12),
+                  tiranteConPatilla: formaTirante !== "recta",
+                  numeroEsperas: n(numeroEsperas, 0),
+                  diametroEsperasMm: n(diametroEsperas, 16),
+                  diametroEstriboMm: n(diametroEstribo, 8),
+                }}
+              />
+            }
+          />
         </Etapa>
 
         <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -265,6 +295,30 @@ export default function MacizoTransicionPage() {
                   { etiqueta: "Para Pilares", valor: `M = ${fmt(r.mPilarInferiorKNm, 1)} kN·m`, nota: `N = ${fmt(r.nPilarInferiorKN, 0)} kN` },
                 ]}
               />
+
+              <Subgrupo titulo="Modelo de bielas y tirantes" detalle="bielas a trazos, tirantes llenos">
+                <div className="mx-auto w-full max-w-md">
+                  <DiagramaMacizoTransicion
+                    hM={res.v.h}
+                    anchoM={res.v.ancho}
+                    supPlanoM={res.v.supPlano}
+                    infPlanoM={res.v.infPlano}
+                    bordeM={res.v.borde}
+                    excentricidadM={r.excentricidadTotalM}
+                    modelo={{
+                      zM: r.zM,
+                      yEsperasM: r.yEsperasM,
+                      yNudoCM: r.yNudoCM,
+                      anchoNudoCM: r.anchoNudoCM,
+                      sinTraccion: r.sinTraccion,
+                      nKN: res.v.nEd,
+                      traccionEsperasKN: r.traccionEsperasKN,
+                      traccionTiranteKN: r.traccionTiranteKN,
+                      compresionCKN: r.compresionCKN,
+                    }}
+                  />
+                </div>
+              </Subgrupo>
 
               <Subgrupo titulo="Nudos" detalle="art. 6.5.4">
                 <div className="space-y-3">

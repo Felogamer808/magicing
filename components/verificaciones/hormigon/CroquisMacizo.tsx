@@ -45,7 +45,7 @@ function Cota({
       <path d={`M${x0} ${y0} L${x1} ${y1}`} />
       <path d={vertical ? `M${x0 - 4} ${y0} L${x0 + 4} ${y0} M${x1 - 4} ${y1} L${x1 + 4} ${y1}` : `M${x0} ${y0 - 4} L${x0} ${y0 + 4} M${x1} ${y1 - 4} L${x1} ${y1 + 4}`} />
       <text x={tx} y={ty} textAnchor={vertical ? (lado === 1 ? "end" : "start") : "middle"} stroke="none"
-            fill={color} className="font-mono" fontSize="10.5" fontWeight={activa ? 700 : 400}>
+            fill={color} className="font-mono" fontSize="12" fontWeight={activa ? 700 : 400}>
         {texto}
       </text>
     </g>
@@ -58,75 +58,83 @@ function Cota({
  * tirantes, que va en resultados. La cota del campo en edición se resalta.
  */
 export function CroquisGeometriaMacizo({ m, resaltar }: { m: MedidasMacizo; resaltar: ElementoMacizo | null }) {
-  const W = 170;
-  const escala = W / Math.max(m.anchoM, m.hM, m.profundidadM);
-  const x0 = 60;
+  // Alzado y planta lado a lado, cada uno con su escala: apilados quedaban
+  // altos y el tope de altura de los esquemas (globals.css) los achicaba.
+  const P = 150;
+  const x0 = 54;
+  const escalaA = Math.min(P / m.anchoM, 230 / m.hM);
+  const escalaP = Math.min(P / m.anchoM, 190 / m.profundidadM);
   const yIni = -m.infPlanoM / 2 - m.bordeM;
-  const x = (y: number) => x0 + (y - yIni) * escala;
+  const xA = (y: number) => x0 + (y - yIni) * escalaA;
+  const x0P = x0 + m.anchoM * escalaA + 96;
+  const xP = (y: number) => x0P + (y - yIni) * escalaP;
   const a = (e: ElementoMacizo) => resaltar === e;
   const borde = (activo: boolean) => (activo ? RESALTE : "var(--mat-hormigon-borde)");
 
   // Alzado
-  const yTop = 50;
-  const hPx = m.hM * escala;
+  const yTop = 78;
+  const hPx = m.hM * escalaA;
   const yBase = yTop + hPx;
-  const xIni = x(yIni);
-  const xFin = x(yIni + m.anchoM);
-  const rec = m.recubrimientoM * escala;
-  // Planta, debajo
-  const yPlanta = yBase + 110;
-  const pPx = m.profundidadM * escala;
-  const yp = (t: number) => yPlanta + pPx / 2 + t * escala; // t transversal, centrado
-  const alto = yPlanta + pPx + 40;
+  const xIni = xA(yIni);
+  const xFin = xA(yIni + m.anchoM);
+  const rec = m.recubrimientoM * escalaA;
+  // Planta, a la derecha
+  const yPlanta = yTop;
+  const xPIni = xP(yIni);
+  const xPFin = xP(yIni + m.anchoM);
+  const pPx = m.profundidadM * escalaP;
+  const yp = (t: number) => yPlanta + pPx / 2 + t * escalaP; // t transversal, centrado
+  const alto = Math.max(yBase + 100, yPlanta + pPx + 40);
+  const anchoTotal = xPFin + 100;
 
   return (
-    <svg viewBox={`0 0 ${x0 + W + 70} ${alto}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
-      <text x={4} y={14} className="fill-current font-mono" fontSize="10" opacity="0.7">ALZADO, plano de e</text>
+    <svg viewBox={`0 0 ${anchoTotal} ${alto}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
+      <text x={4} y={14} className="fill-current font-mono" fontSize="11.5" opacity="0.7">ALZADO, plano de e</text>
       {/* pilar superior */}
-      <rect x={x(m.excentricidadM - m.supPlanoM / 2)} y={yTop - 34} width={m.supPlanoM * escala} height={34}
+      <rect x={xA(m.excentricidadM - m.supPlanoM / 2)} y={yTop - 34} width={m.supPlanoM * escalaA} height={34}
             stroke={borde(a("supPlano"))} strokeWidth={a("supPlano") ? 2.4 : 1.4} fill="var(--mat-hormigon)" />
       {/* macizo */}
-      <rect x={xIni} y={yTop} width={m.anchoM * escala} height={hPx} fill="var(--mat-hormigon)"
+      <rect x={xIni} y={yTop} width={m.anchoM * escalaA} height={hPx} fill="var(--mat-hormigon)"
             stroke={a("h") || a("ancho") ? RESALTE : "currentColor"} strokeWidth={a("h") || a("ancho") ? 2.6 : 1.8} />
-      <rect x={xIni + rec} y={yTop + rec} width={Math.max(m.anchoM * escala - 2 * rec, 0)} height={Math.max(hPx - 2 * rec, 0)}
+      <rect x={xIni + rec} y={yTop + rec} width={Math.max(m.anchoM * escalaA - 2 * rec, 0)} height={Math.max(hPx - 2 * rec, 0)}
             stroke={a("recubrimiento") ? RESALTE : "currentColor"} strokeWidth={a("recubrimiento") ? 1.6 : 0.7}
             strokeDasharray="3 3" opacity={a("recubrimiento") ? 1 : 0.5} />
       {/* pilar inferior */}
-      <rect x={x(-m.infPlanoM / 2)} y={yBase} width={m.infPlanoM * escala} height={34}
+      <rect x={xA(-m.infPlanoM / 2)} y={yBase} width={m.infPlanoM * escalaA} height={34}
             stroke={borde(a("infPlano"))} strokeWidth={a("infPlano") ? 2.4 : 1.4} fill="var(--mat-hormigon)" />
       {/* ejes */}
-      <path d={`M${x(0)} ${yTop - 6} L${x(0)} ${yBase + 40}`} stroke="currentColor" strokeWidth="0.6" strokeDasharray="6 3" opacity="0.5" />
-      <path d={`M${x(m.excentricidadM)} ${yTop - 40} L${x(m.excentricidadM)} ${yBase}`} stroke="currentColor" strokeWidth="0.6" strokeDasharray="6 3" opacity="0.5" />
+      <path d={`M${xA(0)} ${yTop - 6} L${xA(0)} ${yBase + 40}`} stroke="currentColor" strokeWidth="0.6" strokeDasharray="6 3" opacity="0.5" />
+      <path d={`M${xA(m.excentricidadM)} ${yTop - 40} L${xA(m.excentricidadM)} ${yBase}`} stroke="currentColor" strokeWidth="0.6" strokeDasharray="6 3" opacity="0.5" />
 
-      <Cota x0={x(m.excentricidadM - m.supPlanoM / 2)} y0={yTop - 40} x1={x(m.excentricidadM + m.supPlanoM / 2)} y1={yTop - 40}
+      <Cota x0={xA(m.excentricidadM - m.supPlanoM / 2)} y0={yTop - 40} x1={xA(m.excentricidadM + m.supPlanoM / 2)} y1={yTop - 40}
             texto={fmt(m.supPlanoM, 2)} activa={a("supPlano")} />
       <Cota x0={xIni - 18} y0={yTop} x1={xIni - 18} y1={yBase} texto={`h ${fmt(m.hM, 2)}`} activa={a("h")} />
-      <Cota x0={x(-m.infPlanoM / 2)} y0={yBase + 46} x1={x(m.infPlanoM / 2)} y1={yBase + 46} texto={fmt(m.infPlanoM, 2)} activa={a("infPlano")} />
-      <Cota x0={x(0)} y0={yBase + 66} x1={x(m.excentricidadM)} y1={yBase + 66} texto={`e ${fmt(m.excentricidadM, 3)}`} activa={a("e")} />
+      <Cota x0={xA(-m.infPlanoM / 2)} y0={yBase + 46} x1={xA(m.infPlanoM / 2)} y1={yBase + 46} texto={fmt(m.infPlanoM, 2)} activa={a("infPlano")} />
+      <Cota x0={xA(0)} y0={yBase + 66} x1={xA(m.excentricidadM)} y1={yBase + 66} texto={`e ${fmt(m.excentricidadM, 3)}`} activa={a("e")} />
       <Cota x0={xIni} y0={yBase + 86} x1={xFin} y1={yBase + 86} texto={fmt(m.anchoM, 2)} activa={a("ancho")} />
       {m.bordeM > 0 && (
-        <Cota x0={xIni} y0={yBase + 46} x1={x(-m.infPlanoM / 2)} y1={yBase + 46} texto={fmt(m.bordeM, 2)} activa={a("borde")} />
+        <Cota x0={xIni} y0={yBase + 46} x1={xA(-m.infPlanoM / 2)} y1={yBase + 46} texto={fmt(m.bordeM, 2)} activa={a("borde")} />
       )}
       {a("borde") && m.bordeM === 0 && (
         <text x={xIni} y={yBase + 40} className="font-mono" fontSize="10" fill={RESALTE}>enrasados</text>
       )}
 
-      <text x={4} y={yPlanta - 10} className="fill-current font-mono" fontSize="10" opacity="0.7">PLANTA</text>
+      <text x={x0P} y={14} className="fill-current font-mono" fontSize="11.5" opacity="0.7">PLANTA</text>
       {/* macizo en planta */}
-      <rect x={xIni} y={yPlanta} width={m.anchoM * escala} height={pPx}
+      <rect x={xPIni} y={yPlanta} width={m.anchoM * escalaP} height={pPx}
             stroke={a("ancho") || a("profundidad") ? RESALTE : "currentColor"} strokeWidth={a("ancho") || a("profundidad") ? 2.4 : 1.6} />
-      <rect x={x(-m.infPlanoM / 2)} y={yp(-m.infTransversalM / 2)} width={m.infPlanoM * escala} height={m.infTransversalM * escala}
+      <rect x={xP(-m.infPlanoM / 2)} y={yp(-m.infTransversalM / 2)} width={m.infPlanoM * escalaP} height={m.infTransversalM * escalaP}
             stroke={a("infPlano") || a("infTransversal") ? RESALTE : "var(--mat-hormigon-borde)"} strokeWidth={a("infPlano") || a("infTransversal") ? 2.2 : 1.2}
             strokeDasharray="5 3" fill="var(--mat-hormigon)" fillOpacity="0.6" />
-      <rect x={x(m.excentricidadM - m.supPlanoM / 2)} y={yp(-m.supTransversalM / 2)} width={m.supPlanoM * escala} height={m.supTransversalM * escala}
+      <rect x={xP(m.excentricidadM - m.supPlanoM / 2)} y={yp(-m.supTransversalM / 2)} width={m.supPlanoM * escalaP} height={m.supTransversalM * escalaP}
             stroke={a("supPlano") || a("supTransversal") ? RESALTE : "currentColor"} strokeWidth={a("supPlano") || a("supTransversal") ? 2.2 : 1.2} />
-      <Cota x0={xFin + 16} y0={yPlanta} x1={xFin + 16} y1={yPlanta + pPx} texto={fmt(m.profundidadM, 2)} activa={a("profundidad")} lado={-1} />
-      <Cota x0={xIni - 14} y0={yp(-m.infTransversalM / 2)} x1={xIni - 14} y1={yp(m.infTransversalM / 2)}
+      <Cota x0={xPFin + 16} y0={yPlanta} x1={xPFin + 16} y1={yPlanta + pPx} texto={fmt(m.profundidadM, 2)} activa={a("profundidad")} lado={-1} />
+      <Cota x0={xPIni - 14} y0={yp(-m.infTransversalM / 2)} x1={xPIni - 14} y1={yp(m.infTransversalM / 2)}
             texto={fmt(m.infTransversalM, 2)} activa={a("infTransversal")} />
-      <Cota x0={xFin + 40} y0={yp(-m.supTransversalM / 2)} x1={xFin + 40} y1={yp(m.supTransversalM / 2)}
+      <Cota x0={xPFin + 62} y0={yp(-m.supTransversalM / 2)} x1={xPFin + 62} y1={yp(m.supTransversalM / 2)}
             texto={fmt(m.supTransversalM, 2)} activa={a("supTransversal")} lado={-1} />
-      <text x={x0} y={alto - 8} className="fill-current font-mono" fontSize="9" opacity="0.7">
-        llena: pilar superior · a trazos: pilar inferior
+      <text x={x0P} y={yPlanta + pPx + 26} className="fill-current font-mono" fontSize="9.5" opacity="0.7">
+        planta: llena, pilar superior · a trazos, inferior
       </text>
     </svg>
   );

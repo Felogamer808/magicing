@@ -41,6 +41,12 @@ const OPCIONES_EXPOSICION = (Object.keys(NOMBRE_EXPOSICION) as ExposicionSeccion
 
 const NOMBRE_DIRECCION = { h: "Dirección h (canto h)", b: "Dirección b (canto b)" } as const;
 
+/** Qué es cada dirección, para cargar los momentos sin adivinar. */
+const EXPLICACION_DIRECCION = {
+  h: "El momento gira alrededor del eje paralelo a b: tracciona y comprime las dos caras de ancho b, con brazo en h. Trabajan las esquinas y las intermedias de las caras b; el VEd va paralelo a h y lo toman las ramas // h. Esbeltez con h.",
+  b: "El momento gira alrededor del eje paralelo a h: tracciona y comprime las dos caras de ancho h, con brazo en b. Trabajan las esquinas y las intermedias de las caras h; el VEd va paralelo a b y lo toman las ramas // b. Esbeltez con b.",
+} as const;
+
 export default function PilaresPage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
 
@@ -233,19 +239,27 @@ export default function PilaresPage() {
             <div className="max-w-xs">
               <CampoNumerico id="nEd" etiqueta="NEd (compresión)" sufijo="kN" valor={nEd} onChange={setNEd} />
             </div>
+            <p className="text-sm text-muted-foreground">
+              M01 y M02 son los momentos de primer orden en los dos extremos del pilar: M02 el de mayor valor absoluto
+              y M01 el menor (si se cargan al revés, se ordenan solos). El signo dice la curvatura: iguales si los dos
+              extremos traccionan la misma cara (curvatura simple); opuestos si cada uno tracciona una cara distinta
+              (curvatura doble, lo habitual en pórticos arriostrados), que sube λlim y baja M0e. Cargar curvatura doble
+              con el mismo signo queda del lado de la seguridad, pero sobredimensiona. Sin arriostrar sólo cuenta M02.
+            </p>
             {DIRECCIONES_PILAR.map((dir) => {
               const e = entradas[dir];
               const s = dir === "h" ? "H" : "B";
               return (
                 <Subgrupo key={dir} titulo={NOMBRE_DIRECCION[dir]}>
+                  <p className="text-sm text-muted-foreground">{EXPLICACION_DIRECCION[dir]}</p>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     <CampoSeleccion id={`coaccion${s}`} etiqueta="Coacción (fig. A19.5.7)" valor={e.coaccion} opciones={COACCIONES_PILAR} onChange={e.setCoaccion} />
                     {e.coaccion === COACCIONES_PILAR[4] && (
                       <CampoNumerico id={`beta${s}`} etiqueta="β" valor={e.beta} onChange={e.setBeta} />
                     )}
                     <CampoSeleccion id={`arriostrado${s}`} etiqueta="Desplazamiento lateral" valor={e.arriostrado} opciones={ARRIOSTRAMIENTO} onChange={e.setArriostrado} />
-                    <CampoNumerico id={`m01${s}`} etiqueta="M01" sufijo="kN·m" valor={e.m01} onChange={e.setM01} advertencia="Mismo signo que M02 si tracciona la misma cara" />
-                    <CampoNumerico id={`m02${s}`} etiqueta="M02" sufijo="kN·m" valor={e.m02} onChange={e.setM02} />
+                    <CampoNumerico id={`m01${s}`} etiqueta="M01" sufijo="kN·m" valor={e.m01} onChange={e.setM01} advertencia="El menor; mismo signo que M02 si tracciona la misma cara" />
+                    <CampoNumerico id={`m02${s}`} etiqueta="M02" sufijo="kN·m" valor={e.m02} onChange={e.setM02} advertencia="El mayor en valor absoluto" />
                     <CampoNumerico id={`vEd${s}`} etiqueta="VEd" sufijo="kN" valor={e.vEd} onChange={e.setVEd} />
                   </div>
                 </Subgrupo>
@@ -324,7 +338,7 @@ export default function PilaresPage() {
               "Esviada por la ec. (5.39), salvo que se cumplan (5.38a) y (5.38b).",
               "Cortante con k1·σcp (art. 6.2.2) y, si no alcanza, cercos por la ec. (6.8) con cot θ = 1.",
               "Armado según el art. 9.5, con el mínimo por cara 0,05·NEd/fyc,d y fyc,d ≤ 400 MPa.",
-              "Cercos automáticos: el menor Ø comercial que cumple el art. 9.5.3(1) y la menor separación entre la del art. 9.5.3(3) y la que pide el cortante; si ésa baja de 10 cm, se sube un Ø (hasta Ø12). Junto a vigas, losas y solapes, 0,6·s,máx (art. 9.5.3(4)). Todo redondeado hacia abajo a 2,5 cm.",
+              "Cercos automáticos: el menor Ø comercial que cumple el art. 9.5.3(1) y la menor separación entre la del art. 9.5.3(3) y la que pide el cortante; si ésa baja de 10 cm, se sube un Ø (hasta Ø12). Junto a vigas, losas y solapes, 0,6·s,máx (art. 9.5.3(4)). Todo redondeado hacia abajo a 5 cm.",
               "Sin φef se toma A = 0,7 y φef = 2,14, el mismo en λlim y en la curvatura.",
             ]}
             avisos={avisos}

@@ -136,7 +136,7 @@ const menosBarras = (nombre: "nCaraB" | "nCaraH") =>
   });
 
 const SEPARACION = palancaValor(campo("sepCercos"), {
-  paso: -0.025,
+  paso: -0.05,
   tope: () => 0.05,
   decimales: 3,
   rotulo: "Cercos c/",
@@ -144,7 +144,7 @@ const SEPARACION = palancaValor(campo("sepCercos"), {
 });
 
 const SEPARACION_NUDO = palancaValor(campo("sepCercosNudo"), {
-  paso: -0.025,
+  paso: -0.05,
   tope: () => 0.05,
   decimales: 3,
   rotulo: "Junto a nudos c/",

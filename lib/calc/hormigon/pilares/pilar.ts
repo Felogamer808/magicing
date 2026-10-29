@@ -455,12 +455,14 @@ export const separacionMaximaCercos = (diametroMm: number, bM: number, hM: numbe
   Math.min((15 * diametroMm) / 1000, 0.3, Math.min(bM, hM));
 
 /**
- * Separación llevada hacia abajo al múltiplo de 2,5 cm, criterio del usuario
- * del 2026-10-28. Nunca menos de 2,5 cm: si el cortante pide menos, se deja
- * ahí y la comprobación lo marca.
+ * Separación llevada hacia abajo al múltiplo de 5 cm, criterio del usuario
+ * del 2026-10-29: con 2,5 cm la del 9.5.3(3) quedaba casi siempre en el
+ * límite (Ø ≥ 20 da 30 cm justos) y cualquier corrimiento en obra lo pasaba.
+ * Nunca menos de 5 cm: si el cortante pide menos, se deja ahí y la
+ * comprobación lo marca.
  */
 export const redondearSeparacionCercos = (sM: number) =>
-  Math.max(1, Math.floor(sM / 0.025 + 1e-9)) * 25 / 1000;
+  Math.max(1, Math.floor(sM / 0.05 + 1e-9)) * 50 / 1000;
 
 /** Debajo de esta separación se prueba con el Ø de cerco siguiente. */
 const SEPARACION_MINIMA_RAZONABLE_M = 0.1;
@@ -483,7 +485,7 @@ export interface CercosAutomaticos {
  *   por la (6.8) si es menor. Si ésa baja de 10 cm, se sube un Ø (hasta 12).
  * - s junto a vigas, losas y solapes: 0,6·s,máx del art. 9.5.3(4), sin pasar
  *   la de la zona corriente.
- * Todas redondeadas hacia abajo a 2,5 cm. Las ramas siguen siendo un dato.
+ * Todas redondeadas hacia abajo a 5 cm. Las ramas siguen siendo un dato.
  */
 export function cercosAutomaticos(
   materiales: MaterialesDerivados,

@@ -219,23 +219,24 @@ describe("pilar — detalles de armado (art. 9.5)", () => {
     expect(nudo.armado.verificaSeparacionNudo).toBe(false);
   });
 
-  it("separación redondeada hacia abajo a 2,5 cm, nunca menos de 2,5 cm", () => {
-    expect(redondearSeparacionCercos(0.24)).toBeCloseTo(0.225, 12);
-    expect(redondearSeparacionCercos(0.225)).toBeCloseTo(0.225, 12);
-    expect(redondearSeparacionCercos(0.144)).toBeCloseTo(0.125, 12);
-    expect(redondearSeparacionCercos(0.01)).toBeCloseTo(0.025, 12);
+  it("separación redondeada hacia abajo a 5 cm, nunca menos de 5 cm", () => {
+    expect(redondearSeparacionCercos(0.24)).toBeCloseTo(0.2, 12);
+    expect(redondearSeparacionCercos(0.25)).toBeCloseTo(0.25, 12);
+    expect(redondearSeparacionCercos(0.3)).toBeCloseTo(0.3, 12);
+    expect(redondearSeparacionCercos(0.144)).toBeCloseTo(0.1, 12);
+    expect(redondearSeparacionCercos(0.01)).toBeCloseTo(0.05, 12);
   });
 
   it("cercos automáticos: Ø mínimo comercial y s,máx redondeada; 0,6·s,máx junto a los nudos", () => {
-    // Ø16: Ø ≥ máx(6; 4) → Ø6; s,máx = mín(240; 300; 300) mm → 22,5 cm; 0,6·0,24 = 0,144 → 12,5 cm.
+    // Ø16: Ø ≥ máx(6; 4) → Ø6; s,máx = mín(240; 300; 300) mm → 20 cm; 0,6·0,24 = 0,144 → 10 cm.
     expect(cercosAutomaticos(materiales, geometria, armadura, esfuerzos)).toEqual({
-      diametroCercoMm: 6, separacionCercosM: 0.225, separacionCercosNudoM: 0.125, gobiernaCortante: false,
+      diametroCercoMm: 6, separacionCercosM: 0.2, separacionCercosNudoM: 0.1, gobiernaCortante: false,
     });
-    // Ø25: Ø ≥ 6,25 → Ø8; s,máx = mín(375; 300; 300) mm → 30 cm; 0,18 → 17,5 cm.
+    // Ø25: Ø ≥ 6,25 → Ø8; s,máx = mín(375; 300; 300) mm → 30 cm; 0,18 → 15 cm.
     const gruesas = cercosAutomaticos(materiales, geometria, { ...armadura, diametroEsquinaMm: 25, diametroCaraBMm: 25, diametroCaraHMm: 25 }, esfuerzos);
     expect(gruesas.diametroCercoMm).toBe(8);
     expect(gruesas.separacionCercosM).toBeCloseTo(0.3, 12);
-    expect(gruesas.separacionCercosNudoM).toBeCloseTo(0.175, 12);
+    expect(gruesas.separacionCercosNudoM).toBeCloseTo(0.15, 12);
   });
 
   it("cercos automáticos: si el cortante pide menos de 10 cm, sube el Ø", () => {
@@ -248,7 +249,7 @@ describe("pilar — detalles de armado (art. 9.5)", () => {
     expect(s(8)).toBeLessThan(0.1);
     expect(s(10)).toBeCloseTo(0.1549, 3);
     expect(cercosAutomaticos(materiales, geometria, armadura, conCortante)).toEqual({
-      diametroCercoMm: 10, separacionCercosM: 0.15, separacionCercosNudoM: 0.125, gobiernaCortante: true,
+      diametroCercoMm: 10, separacionCercosM: 0.15, separacionCercosNudoM: 0.1, gobiernaCortante: true,
     });
     const r = calcularPilar(materiales, geometria, { ...armadura, diametroCercoMm: 10, separacionCercosM: 0.15 }, conCortante);
     expect(r.cortante.h.verifica).toBe(true);

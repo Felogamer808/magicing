@@ -22,6 +22,10 @@ interface DiagramaMacizoTransicionProps {
     traccionEsperasKN: number;
     traccionTiranteKN: number;
     compresionCKN: number;
+    /** Esperas comprimidas en el nudo C: posición y fuerza Fs' */
+    yEsperasComprimidasM: number;
+    compresionEsperasKN: number;
+    compresionHormigonCKN: number;
   };
 }
 
@@ -32,6 +36,17 @@ interface DiagramaMacizoTransicionProps {
  * escala real en las dos direcciones, porque el reparto se lee en las
  * proporciones. No calcula nada.
  */
+function RotuloNudo({ cx, cy, letra }: { cx: number; cy: number; letra: string }) {
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r="8" fill="var(--background, white)" stroke="currentColor" strokeWidth="1.4" />
+      <text x={cx} y={cy + 4} textAnchor="middle" className="fill-current font-mono" fontSize="11" fontWeight={700}>
+        {letra}
+      </text>
+    </g>
+  );
+}
+
 export function DiagramaMacizoTransicion({
   hM,
   anchoM,
@@ -50,7 +65,7 @@ export function DiagramaMacizoTransicion({
   // Origen en el eje del pilar inferior.
   const yIni = -infPlanoM / 2 - bordeM;
   const x = (y: number) => x0 + (y - yIni) * escala;
-  const alto = yBase + 110;
+  const alto = yBase + (modelo ? 150 : 110);
 
   const xCarga = x(excentricidadM);
   const conTraccion = modelo && !modelo.sinTraccion;
@@ -99,13 +114,26 @@ export function DiagramaMacizoTransicion({
               <text x={x(modelo.yEsperasM) - 6} y={yTop + hPx / 2} textAnchor="end" className="font-mono" fontSize="10" fill="var(--color-destructive)">
                 Ts = {fmt(modelo.traccionEsperasKN, 0)}
               </text>
+              <RotuloNudo cx={x(modelo.yEsperasM) - 12} cy={yTir - 12} letra="A" />
               <circle cx={x(modelo.yEsperasM)} cy={yTir} r="3.5" fill="currentColor" />
             </>
           )}
           <circle cx={xCarga} cy={conTraccion ? yTir : yTop} r="3.5" fill="currentColor" />
+          <RotuloNudo cx={xCarga + 12} cy={(conTraccion ? yTir : yTop) + 14} letra="B" />
           <circle cx={x(modelo.yNudoCM)} cy={yBase} r="3.5" fill="currentColor" />
+          <RotuloNudo cx={x(modelo.yNudoCM) - 14} cy={yBase - 14} letra="C" />
+          {modelo.compresionEsperasKN > 0 && (
+            <>
+              {/* Fs': las esperas comprimidas empujan dentro del nudo C */}
+              <path d={`M${x(modelo.yEsperasComprimidasM)} ${yBase + 40} L${x(modelo.yEsperasComprimidasM)} ${yBase - 22}`}
+                    stroke="currentColor" strokeWidth="3" markerEnd="url(#macizo-flecha)" />
+              <text x={x(modelo.yEsperasComprimidasM) - 6} y={yBase + 44} textAnchor="end" className="fill-current font-mono" fontSize="9.5">
+                Fs&apos; = {fmt(modelo.compresionEsperasKN, 0)}
+              </text>
+            </>
+          )}
           <text x={x(infPlanoM / 2) + 6} y={yBase + 22} className="fill-current font-mono" fontSize="10">
-            C = {fmt(modelo.compresionCKN, 0)} kN
+            C = {fmt(modelo.compresionCKN, 0)} kN{modelo.compresionEsperasKN > 0 ? ` (Cc ${fmt(modelo.compresionHormigonCKN, 0)})` : ""}
           </text>
         </>
       )}
@@ -121,6 +149,13 @@ export function DiagramaMacizoTransicion({
       <text x={x0} y={alto - 8} className="fill-current font-mono" fontSize="9.5" opacity="0.7">
         macizo {fmt(anchoM, 2)} × {fmt(hM, 2)} m{modelo ? ` · z = ${fmt(modelo.zM, 3)} m` : ""}
       </text>
+      {modelo && (
+        <g className="fill-current font-mono" fontSize="9.5" opacity="0.85">
+          <text x={x0} y={alto - 52}>B: bajo el pilar superior (k2 con tirante, k1 sin él)</text>
+          <text x={x0} y={alto - 38}>C: cabeza del pilar inferior, comprimido (k1)</text>
+          {conTraccion && <text x={x0} y={alto - 24}>A: tirante y esperas (k3)</text>}
+        </g>
+      )}
     </svg>
   );
 }

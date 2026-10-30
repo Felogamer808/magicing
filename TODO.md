@@ -307,6 +307,10 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   sección (T: el vano; T invertida: el apoyo que gobierna). La sección (rectangular
   o T) y el fck se definen en la viga libre: dan EI con Ecm e inercia bruta y
   viajan a Vigas con los esfuerzos.
+- **Macizo de transición: norma EHE-08 aparte** (pedido del usuario, 2026-10-30):
+  como segunda norma del selector, con su propio motor, para contrastar el
+  Anejo 19 sin mezclar. Falta la fuente: no hay skill de la EHE-08 y no se
+  sacan coeficientes de memoria. Necesita el PDF (art. 40, 42 y 69).
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación** (hecho, 2026-10-28): cada caso

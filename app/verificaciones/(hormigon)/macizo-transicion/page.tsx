@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
@@ -14,6 +14,13 @@ import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaMacizoTransicion } from "@/components/verificaciones/hormigon/DiagramaMacizoTransicion";
+import { DobladoMacizo } from "@/components/verificaciones/hormigon/DobladoMacizo";
+import {
+  CroquisArmadoMacizo,
+  CroquisGeometriaMacizo,
+  type ElementoMacizo,
+  type MedidasMacizo,
+} from "@/components/verificaciones/hormigon/CroquisMacizo";
 import type { ComprobacionTension } from "@/lib/calc/hormigon/macizo-transicion";
 import { resolverMacizoTransicion } from "@/lib/calc/hormigon/resolver-macizo-transicion";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
@@ -29,7 +36,18 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const FORMAS = { gancho: "Patilla bajando por la cara", recta: "Recta" } as const;
+/** Qué parte de los dibujos corresponde a cada campo, para resaltarla con el foco. */
+const ELEMENTO_DE_CAMPO: Record<string, ElementoMacizo> = {
+  h: "h", ancho: "ancho", profundidad: "profundidad", recubrimiento: "recubrimiento",
+  supPlano: "supPlano", supTransversal: "supTransversal", infPlano: "infPlano", infTransversal: "infTransversal",
+  e: "e", bordeTraccionado: "borde",
+  numeroU: "u", diametroU: "u", mandrilU: "u", patillaInferior: "u",
+  numeroEsperasComp: "comprimidas", diametroEsperasComp: "comprimidas",
+  diametroCerco: "cercos", ramasX: "cercos", ramasY: "cercos", separacionCercos: "cercos",
+  numeroInferior: "inferior", diametroInferior: "inferior",
+};
+
+const PATILLA = { no: "Rama recta hasta abajo", si: "Rama con patilla inferior" } as const;
 
 function CheckNudo({ etiqueta, c, detalle }: { etiqueta: string; c: ComprobacionTension; detalle: string }) {
   return (
@@ -65,24 +83,40 @@ export default function MacizoTransicionPage() {
   const [e, setE] = useCampo("e", "0.125");
   const [bordeTraccionado, setBordeTraccionado] = useCampo("bordeTraccionado", "");
 
-  const [numeroTirante, setNumeroTirante] = useCampo("numeroTirante", "3");
-  const [diametroTirante, setDiametroTirante] = useCampo("diametroTirante", "12");
-  const [formaTirante, setFormaTirante] = useCampo("formaTirante", "gancho");
-  const [numeroEsperas, setNumeroEsperas] = useCampo("numeroEsperas", "3");
-  const [diametroEsperas, setDiametroEsperas] = useCampo("diametroEsperas", "16");
-  const [diametroEstribo, setDiametroEstribo] = useCampo("diametroEstribo", "8");
+  const [numeroU, setNumeroU] = useCampo("numeroU", "4");
+  const [diametroU, setDiametroU] = useCampo("diametroU", "16");
+  const [mandrilU, setMandrilU] = useCampo("mandrilU", "");
+  const [numeroEsperasComp, setNumeroEsperasComp] = useCampo("numeroEsperasComp", "");
+  const [diametroEsperasComp, setDiametroEsperasComp] = useCampo("diametroEsperasComp", "");
+  const [patillaInferior, setPatillaInferior] = useCampo("patillaInferior", "no");
+  const [diametroCerco, setDiametroCerco] = useCampo("diametroCerco", "8");
+  const [ramasX, setRamasX] = useCampo("ramasX", "2");
+  const [ramasY, setRamasY] = useCampo("ramasY", "2");
+  const [separacionCercos, setSeparacionCercos] = useCampo("separacionCercos", "0.15");
+  const [numeroInferior, setNumeroInferior] = useCampo("numeroInferior", "4");
+  const [diametroInferior, setDiametroInferior] = useCampo("diametroInferior", "12");
 
   const campos = useMemo(
     () => ({
       fck, fyk, nEd, mEd, h, ancho, profundidad, recubrimiento, supPlano, supTransversal, infPlano, infTransversal,
-      e, bordeTraccionado, numeroTirante, diametroTirante, formaTirante, numeroEsperas, diametroEsperas, diametroEstribo,
+      e, bordeTraccionado, numeroU, diametroU, mandrilU, patillaInferior, diametroCerco, ramasX, ramasY, separacionCercos,
+      numeroInferior, diametroInferior, numeroEsperasComp, diametroEsperasComp,
     }),
     [fck, fyk, nEd, mEd, h, ancho, profundidad, recubrimiento, supPlano, supTransversal, infPlano, infTransversal,
-     e, bordeTraccionado, numeroTirante, diametroTirante, formaTirante, numeroEsperas, diametroEsperas, diametroEstribo]
+     e, bordeTraccionado, numeroU, diametroU, mandrilU, patillaInferior, diametroCerco, ramasX, ramasY, separacionCercos,
+     numeroInferior, diametroInferior, numeroEsperasComp, diametroEsperasComp]
   );
   const resuelto = useMemo(() => resolverMacizoTransicion(campos), [campos]);
   const res = resuelto.ok ? resuelto : null;
   const r = res?.r;
+
+  const [foco, setFoco] = useState<string | null>(null);
+  const resaltar = foco ? (ELEMENTO_DE_CAMPO[foco] ?? null) : null;
+  // El foco se sigue en un contenedor: los eventos de foco de React burbujean.
+  const seguirFoco = {
+    onFocus: (ev: FocusEvent<HTMLElement>) => setFoco(ev.target.id || null),
+    onBlur: () => setFoco(null),
+  };
 
   const avisos: AvisoRevision[] = [];
   if (!resuelto.ok) avisos.push({ tipo: "error", texto: resuelto.motivo });
@@ -100,6 +134,19 @@ export default function MacizoTransicionPage() {
     return Number.isFinite(x) && x > 0 ? x : porDefecto;
   };
 
+  const medidas: MedidasMacizo = {
+    hM: n(h, 0.8),
+    anchoM: n(ancho, 0.5),
+    profundidadM: n(profundidad, 0.6),
+    recubrimientoM: n(recubrimiento, 0.03),
+    supPlanoM: n(supPlano, 0.5),
+    supTransversalM: n(supTransversal, 0.2),
+    infPlanoM: n(infPlano, 0.25),
+    infTransversalM: n(infTransversal, 0.6),
+    excentricidadM: aNumero(e) || 0,
+    bordeM: aNumero(bordeTraccionado) || 0,
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <ProveedorComprobaciones>
@@ -115,7 +162,7 @@ export default function MacizoTransicionPage() {
 
       <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-12" {...seguirFoco}>
         <Etapa id="cargas" numero={1} titulo="Materiales y cargas" descripcion="Lo que baja del pilar superior, mayorado.">
           <div className="grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
             <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
@@ -161,63 +208,82 @@ export default function MacizoTransicionPage() {
                 </p>
               </>
             }
-            dibujo={
-              <DiagramaMacizoTransicion
-                hM={n(h, 0.8)}
-                anchoM={n(ancho, 0.5)}
-                supPlanoM={n(supPlano, 0.5)}
-                infPlanoM={n(infPlano, 0.25)}
-                bordeM={aNumero(bordeTraccionado) || 0}
-                excentricidadM={r ? r.excentricidadTotalM : aNumero(e) || 0}
-                modelo={
-                  r && res
-                    ? {
-                        zM: r.zM,
-                        yEsperasM: r.yEsperasM,
-                        yNudoCM: r.yNudoCM,
-                        anchoNudoCM: r.anchoNudoCM,
-                        sinTraccion: r.sinTraccion,
-                        nKN: res.v.nEd,
-                        traccionEsperasKN: r.traccionEsperasKN,
-                        traccionTiranteKN: r.traccionTiranteKN,
-                        compresionCKN: r.compresionCKN,
-                      }
-                    : undefined
-                }
-              />
-            }
+            dibujo={<CroquisGeometriaMacizo m={medidas} resaltar={resaltar} />}
           />
         </Etapa>
 
-        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Tirante superior y esperas del pilar inferior del lado opuesto a la carga.">
-          <div className="max-w-2xl space-y-4">
-            <Subgrupo titulo="Tirante superior">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <CampoNumerico id="numeroTirante" etiqueta="Barras" valor={numeroTirante} onChange={setNumeroTirante} />
-                <CampoNumerico id="diametroTirante" etiqueta="Ø" sufijo="mm" valor={diametroTirante} onChange={setDiametroTirante} />
-                <div className="col-span-2">
-                  <CampoSeleccion
-                    id="formaTirante"
-                    etiqueta="Del lado de la carga"
-                    valor={FORMAS[formaTirante === "recta" ? "recta" : "gancho"]}
-                    opciones={Object.values(FORMAS)}
-                    onChange={(x) => setFormaTirante(x === FORMAS.recta ? "recta" : "gancho")}
-                  />
-                </div>
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Por planos, como un cabezal: la U en el plano de la excentricidad, cercos horizontales y la cara inferior.">
+          <DatosConDibujo
+            datos={
+              <div className="space-y-4">
+                <Subgrupo titulo="U invertida (plano XZ)">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroU" etiqueta="Barras" valor={numeroU} onChange={setNumeroU} />
+                    <CampoNumerico id="diametroU" etiqueta="Ø" sufijo="mm" valor={diametroU} onChange={setDiametroU} />
+                    <CampoNumerico id="mandrilU" etiqueta="Mandril" sufijo="mm" valor={mandrilU} onChange={setMandrilU} />
+                    <CampoSeleccion
+                      id="patillaInferior"
+                      etiqueta="Del lado de la carga"
+                      valor={PATILLA[patillaInferior === "si" ? "si" : "no"]}
+                      opciones={Object.values(PATILLA)}
+                      onChange={(x) => setPatillaInferior(x === PATILLA.si ? "si" : "no")}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Una sola armadura: sube del pilar como esperas, gira arriba, cruza como tirante y baja por la cara
+                    del lado de la carga, que es su anclaje. Viene del pilar (sus barras o esperas solapadas en el
+                    pilar, no en el macizo). Mandril en blanco: el mínimo de la tabla A19.8.1.
+                  </p>
+                </Subgrupo>
+                <Subgrupo titulo="Esperas comprimidas (lado de la carga)">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroEsperasComp" etiqueta="Barras" valor={numeroEsperasComp} onChange={setNumeroEsperasComp} />
+                    <CampoNumerico id="diametroEsperasComp" etiqueta="Ø" sufijo="mm" valor={diametroEsperasComp} onChange={setDiametroEsperasComp} />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Las barras del pilar inferior del lado de la carga, que siguen rectas dentro del macizo y ayudan
+                    al hormigón en el nudo C con σs&apos; = Es·εc2 (400 MPa hasta fck 50). En blanco, las mismas que la U.
+                  </p>
+                </Subgrupo>
+                <Subgrupo titulo="Cercos horizontales (planos XY e YZ)">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="diametroCerco" etiqueta="Ø" sufijo="mm" valor={diametroCerco} onChange={setDiametroCerco} />
+                    <CampoNumerico id="separacionCercos" etiqueta="Separación" sufijo="m" valor={separacionCercos} onChange={setSeparacionCercos} />
+                    <CampoNumerico id="ramasX" etiqueta="Ramas en X" valor={ramasX} onChange={setRamasX} />
+                    <CampoNumerico id="ramasY" etiqueta="Ramas en Y" valor={ramasY} onChange={setRamasY} />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    En toda la altura del macizo. Las ramas en Y cosen la tracción de la carga que se abre en Y; las
+                    ramas en X, la de la otra dirección si la hay.
+                  </p>
+                </Subgrupo>
+                <Subgrupo titulo="Cara inferior">
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="numeroInferior" etiqueta="Barras" valor={numeroInferior} onChange={setNumeroInferior} />
+                    <CampoNumerico id="diametroInferior" etiqueta="Ø" sufijo="mm" valor={diametroInferior} onChange={setDiametroInferior} />
+                  </div>
+                </Subgrupo>
               </div>
-            </Subgrupo>
-            <Subgrupo titulo="Esperas y estribo">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <CampoNumerico id="numeroEsperas" etiqueta="Esperas" valor={numeroEsperas} onChange={setNumeroEsperas} />
-                <CampoNumerico id="diametroEsperas" etiqueta="Ø" sufijo="mm" valor={diametroEsperas} onChange={setDiametroEsperas} />
-                <CampoNumerico id="diametroEstribo" etiqueta="Ø estribo" sufijo="mm" valor={diametroEstribo} onChange={setDiametroEstribo} />
-              </div>
-            </Subgrupo>
-            <p className="text-xs text-muted-foreground">
-              Las esperas son las barras del pilar inferior en la cara opuesta a la carga. Suben hasta el tirante y se
-              doblan en patilla sobre él hasta la cara opuesta del macizo.
-            </p>
-          </div>
+            }
+            dibujo={
+              <CroquisArmadoMacizo
+                m={medidas}
+                resaltar={resaltar}
+                armado={{
+                  numeroU: n(numeroU, 0),
+                  diametroUMm: n(diametroU, 16),
+                  mandrilUMm: res ? (res.v.mandrilU ?? res.r.dobladoA?.mandrilNecMm ?? res.r.mandrilMinimoTablaMm) : n(mandrilU, 64),
+                  patillaInferior: patillaInferior === "si",
+                  diametroCercoMm: n(diametroCerco, 8),
+                  separacionCercosM: n(separacionCercos, 0.15),
+                  numeroInferior: n(numeroInferior, 0),
+                  numeroComprimidas: res ? res.v.numeroComp : n(numeroEsperasComp, n(numeroU, 0)),
+                  diametroComprimidasMm: res ? res.v.diametroComp : n(diametroEsperasComp, n(diametroU, 16)),
+                  diametroInferiorMm: n(diametroInferior, 12),
+                }}
+              />
+            }
+          />
         </Etapa>
 
         <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -234,11 +300,13 @@ export default function MacizoTransicionPage() {
             ]}
             hipotesis={[
               "Región D por bielas y tirantes, Anejo 19, art. 6.5, en el plano de la excentricidad.",
-              "Nudo C, en la cabeza del pilar inferior: sólo compresión, σRd,max = k1·ν'·fcd con k1 = 1,0 (ec. 6.60, pág. 98). Su ancho y la tracción de las esperas Ts salen del equilibrio. Si la resultante entra en el pilar con ese ancho, no hay Ts ni tirante.",
+              "Nudo C, en la cabeza del pilar inferior: el hormigón a σRd,max = k1·ν'·fcd con k1 = 1,0 (ec. 6.60, pág. 98) en un ancho c, más las esperas comprimidas a σs' = Es·εc2 (tabla A19.3.1; deformación media de una zona comprimida uniforme, art. 6.1 (5), pág. 74, por analogía). c y Ts salen del equilibrio; el nudo verifica si existe c dentro del pilar. Si la resultante entra en el pilar sólo con hormigón, no hay Ts ni tirante.",
               "Nudo B, bajo el pilar superior: k2 = 0,85 con tirante (ec. 6.61) o k1 sin él. Con Md, la carga ocupa un ancho c − 2·Md/Nd.",
               "Nudo A, tirante y esperas: k3 = 0,75 (ec. 6.62, pág. 99). ν' = 1 − fck/250 (ec. 6.57, pág. 97).",
               "Brazo z: del eje del tirante a la cara inferior del macizo, que es la cabeza del pilar inferior.",
-              "Anclajes desde la cara interior del nudo (art. 6.5.4 (7), pág. 100), por el eje de la barra si está doblada (art. 8.4.3 (3)). Las esperas, con patilla sobre el tirante hasta la cara opuesta.",
+              "Esperas y tirante son una U invertida continua que viene del pilar: en A la fuerza pasa por el doblado, cuyo mandril se verifica con la ec. (8.1) del art. 8.3 (3), pág. 122. La U lleva la mayor de Ts y T.",
+              "T se ancla en la rama del lado de la carga, desde la cara interior del nudo B (art. 6.5.4 (7), pág. 100), por el eje de la barra (art. 8.4.3 (3)).",
+              "Cercos horizontales en toda la altura: sus ramas cosen la tracción transversal del art. 6.5.3 (3). Separación máxima y cuantía mínima de la cara inferior por analogía con las vigas de gran canto, art. 9.7 (1) y (2), con el espesor igual al lado en Y.",
               "Carga concentrada del pilar superior sobre el macizo por el art. 6.7 (ec. 6.63, pág. 101), con las tracciones transversales del art. 6.5.3 (3).",
               "El pilar inferior queda con N = Nd y M = Nd·e total en su cabeza: se verifica en Pilares, con el reparto del momento entre la losa y la base.",
             ]}
@@ -259,12 +327,39 @@ export default function MacizoTransicionPage() {
               <PanelMetricas
                 horizontal
                 metricas={[
-                  { etiqueta: "Ts esperas", valor: `${fmt(r.traccionEsperasKN, 0)} kN`, nota: r.sinTraccion ? "la resultante entra en el pilar" : `As ${fmt(r.asNecEsperasCm2)} cm²` },
-                  { etiqueta: "T tirante", valor: `${fmt(r.traccionTiranteKN, 0)} kN`, nota: `As ${fmt(r.asNecTiranteCm2)} cm²` },
-                  { etiqueta: "C pilar inferior", valor: `${fmt(r.compresionCKN, 0)} kN`, nota: `ancho ${fmt(r.anchoNudoCM, 3)} m` },
+                  { etiqueta: "Ts esperas", valor: `${fmt(r.traccionEsperasKN, 0)} kN`, nota: r.sinTraccion ? "la resultante entra en el pilar" : "rama de la U" },
+                  { etiqueta: "T tirante", valor: `${fmt(r.traccionTiranteKN, 0)} kN`, nota: `U: As ${fmt(r.asNecUCm2)} cm²` },
+                  { etiqueta: "C pilar inferior", valor: `${fmt(r.compresionCKN, 0)} kN`, nota: `Cc ${fmt(r.compresionHormigonCKN, 0)} (c = ${fmt(r.anchoNudoCM * 1000, 0)} mm) + Fs' ${fmt(r.compresionEsperasKN, 0)}` },
                   { etiqueta: "Para Pilares", valor: `M = ${fmt(r.mPilarInferiorKNm, 1)} kN·m`, nota: `N = ${fmt(r.nPilarInferiorKN, 0)} kN` },
                 ]}
               />
+
+              <Subgrupo titulo="Modelo de bielas y tirantes" detalle="bielas a trazos, tirantes llenos">
+                <div className="mx-auto w-full max-w-md">
+                  <DiagramaMacizoTransicion
+                    hM={res.v.h}
+                    anchoM={res.v.ancho}
+                    supPlanoM={res.v.supPlano}
+                    infPlanoM={res.v.infPlano}
+                    bordeM={res.v.borde}
+                    excentricidadM={r.excentricidadTotalM}
+                    modelo={{
+                      zM: r.zM,
+                      yEsperasM: r.yEsperasM,
+                      yNudoCM: r.yNudoCM,
+                      anchoNudoCM: r.anchoNudoCM,
+                      sinTraccion: r.sinTraccion,
+                      nKN: res.v.nEd,
+                      traccionEsperasKN: r.traccionEsperasKN,
+                      traccionTiranteKN: r.traccionTiranteKN,
+                      compresionCKN: r.compresionCKN,
+                      yEsperasComprimidasM: r.yEsperasComprimidasM,
+                      compresionEsperasKN: r.compresionEsperasKN,
+                      compresionHormigonCKN: r.compresionHormigonCKN,
+                    }}
+                  />
+                </div>
+              </Subgrupo>
 
               <Subgrupo titulo="Nudos" detalle="art. 6.5.4">
                 <div className="space-y-3">
@@ -288,26 +383,64 @@ export default function MacizoTransicionPage() {
                 </div>
               </Subgrupo>
 
-              <Subgrupo titulo="Tirantes" detalle="As = T/fyd">
+              <Subgrupo titulo="U invertida" detalle="As = máx(Ts, T)/fyd; doblados, art. 8.3">
                 <div className="space-y-3">
                   <ResultadoCheck
-                    etiqueta="Esperas del pilar inferior"
-                    verifica={r.verificaEsperas}
+                    etiqueta="Armadura de la U"
+                    verifica={r.verificaU}
+                    detalle={r.traccionEsperasKN >= r.traccionTiranteKN ? "manda la rama de las esperas" : "manda el tramo superior"}
                     comparacion={{
-                      real: { etiqueta: "As nec", valor: r.asNecEsperasCm2 },
-                      limite: { etiqueta: `${numeroEsperas}Ø${diametroEsperas}`, valor: r.asRealEsperasCm2 },
+                      real: { etiqueta: "As nec", valor: r.asNecUCm2 },
+                      limite: { etiqueta: `${numeroU}Ø${diametroU}`, valor: r.asRealUCm2 },
                       unidad: "cm²", exige: "≤", decimales: 2,
                     }}
                   />
-                  <ResultadoCheck
-                    etiqueta="Tirante superior"
-                    verifica={r.verificaTirante}
-                    comparacion={{
-                      real: { etiqueta: "As nec", valor: r.asNecTiranteCm2 },
-                      limite: { etiqueta: `${numeroTirante}Ø${diametroTirante}`, valor: r.asRealTiranteCm2 },
-                      unidad: "cm²", exige: "≤", decimales: 2,
-                    }}
-                  />
+                  {r.dobladoA && (
+                    <DobladoMacizo
+                      etiqueta="Doblado en A, de las esperas al tirante"
+                      fuerza="Ts"
+                      d={r.dobladoA}
+                      diametroMm={res.v.diametroU}
+                      fcdTopeMPa={r.fcdDobladoMPa}
+                      mandrilTablaMm={r.mandrilMinimoTablaMm}
+                      mandrilMm={res.v.mandrilU}
+                    />
+                  )}
+                  {r.dobladoB && (
+                    <DobladoMacizo
+                      etiqueta="Doblado en B, del tirante a la rama"
+                      fuerza="T"
+                      d={r.dobladoB}
+                      diametroMm={res.v.diametroU}
+                      fcdTopeMPa={r.fcdDobladoMPa}
+                      mandrilTablaMm={r.mandrilMinimoTablaMm}
+                      mandrilMm={res.v.mandrilU}
+                    />
+                  )}
+                  {r.anclajeEsperasComprimidas && (
+                    <ResultadoCheck
+                      etiqueta="Anclaje a compresión de las esperas comprimidas"
+                      verifica={r.anclajeEsperasComprimidas.verifica}
+                      detalle={`recto, art. 8.4; σs' = ${fmt(r.sigmaEsperasComprimidasMPa, 0)} MPa; desde la cara inferior del macizo`}
+                      comparacion={{
+                        real: { etiqueta: "lbd", valor: r.anclajeEsperasComprimidas.lbdMm },
+                        limite: { etiqueta: "disponible", valor: r.anclajeEsperasComprimidas.disponibleMm },
+                        unidad: "mm", exige: "≤", decimales: 0,
+                      }}
+                    />
+                  )}
+                  {r.anclajeTirante && (
+                    <ResultadoCheck
+                      etiqueta="Anclaje de T en la rama del lado de la carga"
+                      verifica={r.anclajeTirante.verifica}
+                      detalle={`σsd = ${fmt(r.anclajeTirante.sigmaSdMPa, 0)} MPa; ${res.v.patillaInferior ? "con patilla inferior" : "rama recta hasta abajo"}`}
+                      comparacion={{
+                        real: { etiqueta: "lbd", valor: r.anclajeTirante.lbdMm },
+                        limite: { etiqueta: "disponible", valor: r.anclajeTirante.disponibleMm },
+                        unidad: "mm", exige: "≤", decimales: 0,
+                      }}
+                    />
+                  )}
                   <PanelFormulas
                     titulo="Ver desarrollo del equilibrio"
                     filas={[
@@ -315,43 +448,60 @@ export default function MacizoTransicionPage() {
                       { etiqueta: "yT esperas", valor: `${fmt(r.yEsperasM, 3)} m` },
                       { etiqueta: "yC nudo C", valor: `${fmt(r.yNudoCM, 3)} m` },
                       { etiqueta: "z", valor: `${fmt(r.zM, 3)} m` },
-                      { etiqueta: "Ts = C − Nd", valor: `${fmt(r.traccionEsperasKN, 1)} kN` },
+                      { etiqueta: "Fs' = As'·σs'", sustitucion: `${res.v.numeroComp}Ø${res.v.diametroComp} · ${fmt(r.sigmaEsperasComprimidasMPa, 0)} MPa`, valor: `${fmt(r.compresionEsperasKN, 1)} kN` },
+                      { etiqueta: "c (hormigón a k1·ν'·fcd)", valor: `${fmt(r.anchoNudoCM * 1000, 1)} mm` },
+                      { etiqueta: "Cc = σRd,max·b·c", valor: `${fmt(r.compresionHormigonCKN, 1)} kN` },
+                      { etiqueta: "Ts = Cc + Fs' − Nd", valor: `${fmt(r.traccionEsperasKN, 1)} kN` },
                       { etiqueta: "T = Nd·(yN − yC)/z", sustitucion: `${fmt(res.v.nEd, 0)}·(${fmt(r.yCargaM, 3)} − ${fmt(r.yNudoCM, 3)})/${fmt(r.zM, 3)}`, valor: `${fmt(r.traccionTiranteKN, 1)} kN` },
                     ]}
                   />
                 </div>
               </Subgrupo>
 
-              {(r.anclajeEsperas || r.anclajeTirante) && (
-                <Subgrupo titulo="Anclajes" detalle="art. 6.5.4 (7) y 8.4">
-                  <div className="space-y-3">
-                    {r.anclajeEsperas && (
-                      <ResultadoCheck
-                        etiqueta="Esperas, con patilla sobre el tirante"
-                        verifica={r.anclajeEsperas.verifica}
-                        detalle={`σsd = ${fmt(r.anclajeEsperas.sigmaSdMPa, 0)} MPa; mandril ${r.mandrilEsperasMm} mm`}
-                        comparacion={{
-                          real: { etiqueta: "lbd", valor: r.anclajeEsperas.lbdMm },
-                          limite: { etiqueta: "disponible", valor: r.anclajeEsperas.disponibleMm },
-                          unidad: "mm", exige: "≤", decimales: 0,
-                        }}
-                      />
-                    )}
-                    {r.anclajeTirante && (
-                      <ResultadoCheck
-                        etiqueta="Tirante, del lado de la carga"
-                        verifica={r.anclajeTirante.verifica}
-                        detalle={`σsd = ${fmt(r.anclajeTirante.sigmaSdMPa, 0)} MPa; mandril ${r.mandrilTiranteMm} mm`}
-                        comparacion={{
-                          real: { etiqueta: "lbd", valor: r.anclajeTirante.lbdMm },
-                          limite: { etiqueta: "disponible", valor: r.anclajeTirante.disponibleMm },
-                          unidad: "mm", exige: "≤", decimales: 0,
-                        }}
-                      />
-                    )}
-                  </div>
-                </Subgrupo>
-              )}
+              <Subgrupo titulo="Cercos horizontales y cara inferior" detalle="art. 6.5.3 (3) y 9.7">
+                <div className="space-y-3">
+                  <ResultadoCheck
+                    etiqueta={`Cercos, ramas en Y (${r.numeroCercos} cercos en la altura)`}
+                    verifica={r.asCercosYCm2 >= r.asNecCercosYCm2}
+                    detalle={r.asNecCercosYCm2 > 0 ? "tracción transversal de la carga que se abre en Y" : "en Y el pilar ocupa todo el ancho: no hay tracción"}
+                    comparacion={{
+                      real: { etiqueta: "As nec", valor: r.asNecCercosYCm2 },
+                      limite: { etiqueta: "dispuesta", valor: r.asCercosYCm2 },
+                      unidad: "cm²", exige: "≤", decimales: 2,
+                    }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Cercos, ramas en X"
+                    verifica={r.asCercosXCm2 >= r.asNecCercosXCm2}
+                    detalle={r.asNecCercosXCm2 > 0 ? "tracción transversal de la carga que se abre en X" : "en X el pilar ocupa todo el ancho: no hay tracción"}
+                    comparacion={{
+                      real: { etiqueta: "As nec", valor: r.asNecCercosXCm2 },
+                      limite: { etiqueta: "dispuesta", valor: r.asCercosXCm2 },
+                      unidad: "cm²", exige: "≤", decimales: 2,
+                    }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Separación de los cercos"
+                    verifica={r.verificaSeparacionCercos}
+                    detalle="art. 9.7 (2): mín(300 mm; 2·espesor)"
+                    comparacion={{
+                      real: { etiqueta: "s", valor: res.v.separacionCercos * 1000 },
+                      limite: { etiqueta: "s máx", valor: r.separacionMaxCercosM * 1000 },
+                      unidad: "mm", exige: "≤", decimales: 0,
+                    }}
+                  />
+                  <ResultadoCheck
+                    etiqueta="Cara inferior"
+                    verifica={r.verificaInferior}
+                    detalle="art. 9.7 (1) por analogía: 0,001·Ac por m, no menos de 1,5 cm²/m"
+                    comparacion={{
+                      real: { etiqueta: "As mín", valor: r.asMinInferiorCm2PorM },
+                      limite: { etiqueta: `${numeroInferior}Ø${diametroInferior}`, valor: r.asInferiorCm2PorM },
+                      unidad: "cm²/m", exige: "≤", decimales: 2,
+                    }}
+                  />
+                </div>
+              </Subgrupo>
 
               <Subgrupo titulo="Carga concentrada del pilar superior" detalle="art. 6.7, ec. (6.63)">
                 <div className="space-y-3">

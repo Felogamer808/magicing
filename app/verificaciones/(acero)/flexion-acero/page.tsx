@@ -154,7 +154,7 @@ export default function FlexionAceroPage() {
   if (ala && Math.abs(ala.torsionKNmM) > 1e-9) {
     avisos.push({
       tipo: "aviso",
-      texto: `Las dos alas no cargan igual: la viga recibe una torsión de ${fmt(Math.abs(ala.torsionKNmM), 2)} kN·m/m que el art. F9 no cubre. Verificarla aparte.`,
+      texto: `Las dos alas no cargan igual: la viga recibe una torsión de ${fmt(Math.abs(ala.torsionKNmM), 2)} kN·m/m que el art. F9 no cubre. Se verifica en Torsión en T armada, desde Corte.`,
     });
   }
 
@@ -416,8 +416,8 @@ export default function FlexionAceroPage() {
                     {
                       titulo: "Corte en el alma, y de ahí a la soldadura alma–ala",
                       ruta: "/verificaciones/corte-acero",
-                      lleva: "la T, el acero y las reacciones de la losa sobre el ala",
-                      falta: "el corte V de la viga; desde ahí se sigue a la soldadura con todo junto",
+                      lleva: "la T, el acero, las reacciones de la losa sobre el ala y Lb como luz",
+                      falta: "el corte V de la viga; desde ahí se sigue a la soldadura y, si hay, a la torsión",
                       campos: {
                         familia: "te-armada",
                         params: seccion.crudo,
@@ -425,6 +425,7 @@ export default function FlexionAceroPage() {
                         eCorte: e,
                         reaccionIzq,
                         reaccionDer,
+                        luz: lb,
                       },
                       blanquear: ["vRequerido"],
                     },

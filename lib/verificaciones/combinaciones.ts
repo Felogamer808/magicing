@@ -280,6 +280,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "secciones-mixtas": SERVICIO_ASD,
   soldaduras: SERVICIO_ASD,
   "soldadura-te": SERVICIO_ASD,
+  "torsion-te": SERVICIO_ASD,
   "tornillos-acero": SERVICIO_ASD,
   "compresion-acero": SERVICIO_ASD,
   "traccion-acero": SERVICIO_ASD,

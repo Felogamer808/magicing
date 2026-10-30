@@ -92,7 +92,10 @@ export default function CorteAceroPage() {
   // En la T no entran al corte: se guardan para llevarlas a la soldadura alma–ala.
   const [reaccionIzq, setReaccionIzq] = useCampo("reaccionIzq", "0");
   const [reaccionDer, setReaccionDer] = useCampo("reaccionDer", "0");
+  const [luz, setLuz] = useCampo("luz", "1");
   const esTe = seccion.familia === "te-armada";
+  // Hay torsión cuando las dos alas no cargan igual (criterio de flexión).
+  const hayTorsion = esTe && Math.abs(aNumero(reaccionIzq) - aNumero(reaccionDer)) > 1e-9;
 
   const campos = useMemo(
     () => ({ familia: seccion.familia, params: seccion.crudo, conRigidizadores, aRigidizadores, lv, fyCorte: fy, eCorte: e, vRequerido }),
@@ -163,11 +166,12 @@ export default function CorteAceroPage() {
           {esTe && (
             <div className="mt-4 max-w-xl space-y-2">
               <p className="text-xs text-muted-foreground">
-                Reacciones de la losa sobre el ala. No entran al corte del alma: son para la soldadura alma–ala.
+                Reacciones de la losa sobre el ala y luz de la viga. No entran al corte del alma: son para la soldadura alma–ala y, si las reacciones difieren, para la torsión.
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <CampoNumerico id="reaccionIzq" etiqueta="Reacción izquierda" sufijo="kN/m" valor={reaccionIzq} onChange={setReaccionIzq} />
                 <CampoNumerico id="reaccionDer" etiqueta="Reacción derecha" sufijo="kN/m" valor={reaccionDer} onChange={setReaccionDer} />
+                <CampoNumerico id="luz" etiqueta="Luz L" sufijo="m" valor={luz} onChange={setLuz} />
               </div>
             </div>
           )}
@@ -257,6 +261,16 @@ export default function CorteAceroPage() {
                       falta: "el lado del filete y el electrodo",
                       campos: { familia: "te-armada", params: seccion.crudo, vRequerido, reaccionIzq, reaccionDer },
                     },
+                    ...(hayTorsion
+                      ? [
+                          {
+                            titulo: "Torsión en T armada",
+                            ruta: "/verificaciones/torsion-te",
+                            lleva: "la T, Fy, la luz, el corte V y las reacciones de la losa, que no son iguales y tuercen la viga",
+                            campos: { familia: "te-armada", params: seccion.crudo, fy, luz, vRequerido, reaccionIzq, reaccionDer },
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               )}

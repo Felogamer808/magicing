@@ -89,6 +89,7 @@ export type IdVerificacion =
   | "flexo-compresion"
   | "soldaduras"
   | "soldadura-te"
+  | "torsion-te"
   | "tornillos-acero"
   | "propiedades-geometricas"
   | "formulario-vigas"
@@ -644,6 +645,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Los dos filetes corridos que unen el alma al ala de una T armada: cuelgue de la losa, momento desbalanceado y rasante de la flexión.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/soldadura-te",
+    disponible: true,
+  },
+  {
+    id: "torsion-te",
+    nombre: "Torsión en T armada",
+    seccion: "estructuras-metalicas",
+    categoria: "Vigas",
+    descripcion:
+      "Torsión de la T por el desbalance de la losa sobre el ala: Saint-Venant, sumada al corte de flexión en el alma, y el giro.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/torsion-te",
     disponible: true,
   },
   {

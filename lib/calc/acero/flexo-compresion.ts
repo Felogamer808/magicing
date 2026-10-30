@@ -77,6 +77,8 @@ export function calcularFlexoCompresion(
     lcyM: datos.lcyM,
   });
   const flexionX = calcularFlexionSegunSeccion({ ...comun, lbM: datos.lbM, cb: datos.cb });
+  // Inalcanzable hoy (la compresión ya rechaza la T), pero deja el tipo cerrado.
+  if (flexionX.articulo === "F9") throw new Error("La flexocompresión de una T no está implementada.");
   const mcyKNm = momentoAdmisibleEjeDebil({ ...comun, lbM: datos.lbM, cb: datos.cb });
 
   const pcKN = compresion.admisibleKN;

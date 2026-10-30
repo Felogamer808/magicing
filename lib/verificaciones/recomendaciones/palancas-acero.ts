@@ -18,6 +18,7 @@ const NOMBRE_CORTO: Record<Familia, string> = {
   HEB: "HEB",
   "tubo-redondo": "Tubo",
   "tubo-rectangular": "Tubo",
+  "te-armada": "T",
 };
 
 function conParametro(e: Campos, clave: ClaveParametro, valor: number): Campos {

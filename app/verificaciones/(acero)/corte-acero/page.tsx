@@ -14,6 +14,7 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { PanelLlevarDatos } from "@/components/verificaciones/comun/PanelLlevarDatos";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import {
   type ResultadoCorteCualquiera,
@@ -42,6 +43,17 @@ function filasDe(r: ResultadoCorteCualquiera) {
       { etiqueta: "Tope 0,6·Fy", valor: `${fmt(r.topeFluencia / 1e6, 1)} MPa` },
       { etiqueta: "Fcr adoptada", valor: `${fmt(r.fcrPa / 1e6, 1)} MPa — ${r.gobierna}` },
       { etiqueta: "Vn = Fcr·Ag/2  (G5-1)", valor: `${fmt(r.vnKN, 1)} kN` },
+      { etiqueta: `Vn/Ωv con Ωv = ${r.omegaV}`, valor: `${fmt(r.admisibleKN, 1)} kN` },
+    ];
+  }
+
+  if (r.articulo === "G3") {
+    return [
+      { etiqueta: "b·t = d·tw", valor: `${fmt(r.awM2 * 1e4, 2)} cm²` },
+      { etiqueta: "Esbeltez del alma d/tw", valor: fmt(r.esbeltezAlma, 2) },
+      { etiqueta: "kv (fijo en G3)", valor: fmt(r.kv, 2) },
+      { etiqueta: "Cv2  (G2-9 a G2-11)", valor: fmt(r.cv2, 3) },
+      { etiqueta: "Vn = 0,6·Fy·b·t·Cv2  (G3-1)", valor: `${fmt(r.vnKN, 1)} kN` },
       { etiqueta: `Vn/Ωv con Ωv = ${r.omegaV}`, valor: `${fmt(r.admisibleKN, 1)} kN` },
     ];
   }
@@ -77,6 +89,13 @@ export default function CorteAceroPage() {
   const [fy, setFy] = useCampo("fyCorte", "250");
   const [e, setE] = useCampo("eCorte", "200000");
   const [vRequerido, setVRequerido] = useCampo("vRequerido", "80");
+  // En la T no entran al corte: se guardan para llevarlas a la soldadura alma–ala.
+  const [reaccionIzq, setReaccionIzq] = useCampo("reaccionIzq", "0");
+  const [reaccionDer, setReaccionDer] = useCampo("reaccionDer", "0");
+  const [luz, setLuz] = useCampo("luz", "1");
+  const esTe = seccion.familia === "te-armada";
+  // Hay torsión cuando las dos alas no cargan igual (criterio de flexión).
+  const hayTorsion = esTe && Math.abs(aNumero(reaccionIzq) - aNumero(reaccionDer)) > 1e-9;
 
   const campos = useMemo(
     () => ({ familia: seccion.familia, params: seccion.crudo, conRigidizadores, aRigidizadores, lv, fyCorte: fy, eCorte: e, vRequerido }),
@@ -112,12 +131,13 @@ export default function CorteAceroPage() {
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
+            conTe
           >
             <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fyCorte" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eCorte" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
-              {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5 y G5 no los usa. */}
-              {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && (
+              {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5, G3 kv = 1,2 y G5 no los usa. */}
+              {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && seccion.familia !== "te-armada" && (
                 <>
                   <CampoSeleccion
                     id="conRigidizadores"
@@ -143,6 +163,18 @@ export default function CorteAceroPage() {
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <CampoNumerico id="vRequerido" etiqueta="Corte requerido" sufijo="kN" valor={vRequerido} onChange={setVRequerido} />
           </div>
+          {esTe && (
+            <div className="mt-4 max-w-xl space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Reacciones de la losa sobre el ala y luz de la viga. No entran al corte del alma: son para la soldadura alma–ala y, si las reacciones difieren, para la torsión.
+              </p>
+              <div className="grid grid-cols-3 gap-4">
+                <CampoNumerico id="reaccionIzq" etiqueta="Reacción izquierda" sufijo="kN/m" valor={reaccionIzq} onChange={setReaccionIzq} />
+                <CampoNumerico id="reaccionDer" etiqueta="Reacción derecha" sufijo="kN/m" valor={reaccionDer} onChange={setReaccionDer} />
+                <CampoNumerico id="luz" etiqueta="Luz L" sufijo="m" valor={luz} onChange={setLuz} />
+              </div>
+            </div>
+          )}
         </Etapa>
 
         <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -153,7 +185,7 @@ export default function CorteAceroPage() {
               { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
               ...(seccion.familia === "tubo-redondo"
                 ? [{ etiqueta: "Lv", valor: `${lv} m` }]
-                : seccion.familia !== "tubo-rectangular"
+                : seccion.familia !== "tubo-rectangular" && seccion.familia !== "te-armada"
                   ? [{ etiqueta: "Rigidizadores", valor: conRigidizadores === "Sí" ? `a = ${aRigidizadores} m` : "sin rigidizadores" }]
                   : []),
               { etiqueta: "V requerido", valor: `${vRequerido} kN` },
@@ -164,6 +196,7 @@ export default function CorteAceroPage() {
               "G2 en perfiles I y canales, sin acción de campo tensional.",
               "G4 en tubos rectangulares y cajones: resisten las dos caras, con kv = 5.",
               "G5 en tubos redondos: trabaja media sección y entra la distancia Lv del corte máximo al nulo.",
+              "G3 en tes: trabaja el alma entera, b·t = d·tw, con kv = 1,2. Pendiente de contrastar contra el texto de AISC 360-16.",
               "Ωv = 1,50 sólo en almas robustas de perfiles I laminados (h/tw ≤ 2,24·√(E/Fy), art. G1(a)); canales y tubos van siempre con 1,67.",
             ]}
             avisos={avisos}
@@ -188,7 +221,7 @@ export default function CorteAceroPage() {
                   { etiqueta: "Ωv", valor: fmt(resultado.omegaV, 2) },
                   resultado.articulo === "G5"
                     ? { etiqueta: "D/t", valor: fmt(resultado.relacionDt, 1) }
-                    : { etiqueta: resultado.articulo === "G4" ? "h/t" : "h/tw", valor: fmt(resultado.esbeltezAlma, 1) },
+                    : { etiqueta: resultado.articulo === "G4" ? "h/t" : resultado.articulo === "G3" ? "d/tw" : "h/tw", valor: fmt(resultado.esbeltezAlma, 1) },
                 ]}
               />
 
@@ -210,11 +243,37 @@ export default function CorteAceroPage() {
                         ? "Alma robusta: entra por la excepción del art. G2.1(a)."
                         : "Fuera de la excepción del art. G2.1(a).")}
                     {resultado.articulo === "G4" && "Dos almas resisten el corte."}
+                    {resultado.articulo === "G3" && "Resiste el alma de la T en todo su alto."}
                     {resultado.articulo === "G5" && `Gobierna por ${resultado.gobierna}.`}
                   </p>
                   <PanelFormulas titulo="Ver desarrollo del corte" filas={filasDe(resultado)} />
                 </div>
               </Subgrupo>
+
+              {esTe && (
+                <PanelLlevarDatos
+                  titulo="Seguir con esta misma T"
+                  destinos={[
+                    {
+                      titulo: "Soldadura alma–ala de T armada",
+                      ruta: "/verificaciones/soldadura-te",
+                      lleva: "la T, el corte V y las reacciones de la losa sobre el ala",
+                      falta: "el lado del filete y el electrodo",
+                      campos: { familia: "te-armada", params: seccion.crudo, vRequerido, reaccionIzq, reaccionDer },
+                    },
+                    ...(hayTorsion
+                      ? [
+                          {
+                            titulo: "Torsión en T armada",
+                            ruta: "/verificaciones/torsion-te",
+                            lleva: "la T, Fy, la luz, el corte V y las reacciones de la losa, que no son iguales y tuercen la viga",
+                            campos: { familia: "te-armada", params: seccion.crudo, fy, luz, vRequerido, reaccionIzq, reaccionDer },
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              )}
             </div>
           )}
         </Etapa>

@@ -29,7 +29,8 @@ export type Familia =
   | "2PNC-cajon"
   | "HEB"
   | "tubo-redondo"
-  | "tubo-rectangular";
+  | "tubo-rectangular"
+  | "te-armada";
 
 export const familias: Familia[] = [
   "PNI",
@@ -39,6 +40,7 @@ export const familias: Familia[] = [
   "HEB",
   "tubo-redondo",
   "tubo-rectangular",
+  "te-armada",
 ];
 
 export const nombreFamilia: Record<Familia, string> = {
@@ -49,6 +51,7 @@ export const nombreFamilia: Record<Familia, string> = {
   HEB: "HEB — ala ancha",
   "tubo-redondo": "Tubo redondo",
   "tubo-rectangular": "Tubo rectangular",
+  "te-armada": "T armada con chapas",
 };
 
 export type ClaveParametro =
@@ -57,7 +60,10 @@ export type ClaveParametro =
   | "diametro"
   | "espesor"
   | "alto"
-  | "ancho";
+  | "ancho"
+  | "anchoAla"
+  | "espesorAla"
+  | "espesorAlma";
 
 export interface ParametroFamilia {
   clave: ClaveParametro;
@@ -103,6 +109,25 @@ export interface PropiedadesSeccion {
   esCerrada: boolean;
   /** Cantidad de almas que resisten corte, para el área de corte. */
   almas: number;
+  /** Sólo en las tes: lo que la sección simple no alcanza a describir. */
+  te?: PropiedadesTe;
+}
+
+/**
+ * Una T tiene un solo eje de simetría y el baricentro lejos de la mitad: el
+ * módulo elástico hacia el ala y hacia la punta del alma son muy distintos, y
+ * el art. F9 usa uno u otro según qué lado quede comprimido. `sxM3` guarda el
+ * menor de los dos, como lo tabula AISC.
+ */
+export interface PropiedadesTe {
+  /** Del borde exterior del ala al baricentro. */
+  yGM: number;
+  /** Módulo elástico referido a la cara exterior del ala. */
+  sxAlaM3: number;
+  /** Módulo elástico referido a la punta del alma. */
+  sxPuntaM3: number;
+  /** Del borde exterior del ala al eje neutro plástico. */
+  yPlasticoM: number;
 }
 
 /**
@@ -212,6 +237,13 @@ export function parametrosDe(familia: Familia): ParametroFamilia[] {
         { clave: "alto", etiqueta: "Alto exterior", tipo: "numero", sufijo: "mm", porDefecto: 200 },
         { clave: "ancho", etiqueta: "Ancho exterior", tipo: "numero", sufijo: "mm", porDefecto: 100 },
         { clave: "espesor", etiqueta: "Espesor", tipo: "numero", sufijo: "mm", porDefecto: 6 },
+      ];
+    case "te-armada":
+      return [
+        { clave: "anchoAla", etiqueta: "Ancho del ala bf", tipo: "numero", sufijo: "mm", porDefecto: 150 },
+        { clave: "espesorAla", etiqueta: "Espesor del ala tf", tipo: "numero", sufijo: "mm", porDefecto: 10 },
+        { clave: "alto", etiqueta: "Alto total d", tipo: "numero", sufijo: "mm", porDefecto: 150 },
+        { clave: "espesorAlma", etiqueta: "Espesor del alma tw", tipo: "numero", sufijo: "mm", porDefecto: 15 },
       ];
     case "2PNC-almas":
       return [
@@ -447,6 +479,70 @@ export function tuboRectangular(hM: number, bM: number, tM: number): Propiedades
   };
 }
 
+/** Integral de |y − yp| sobre un rectángulo de ancho `w` entre `y1` y `y2`. */
+function momentoEstaticoAbsoluto(w: number, y1: number, y2: number, yp: number): number {
+  const primitiva = (y: number) => ((y - yp) * Math.abs(y - yp)) / 2;
+  return w * (primitiva(y2) - primitiva(y1));
+}
+
+/**
+ * T armada con dos chapas soldadas: ala de `bf × tf` y alma que completa el
+ * alto total `d`, en metros. Se mide desde la cara exterior del ala.
+ *
+ * Las chapas se toman como rectángulos sin acuerdos ni cordones. La constante
+ * de torsión es la de rectángulos delgados, con el alma medida hasta la mitad
+ * del ala; el alabeo de una T es despreciable y el art. F9 no lo usa.
+ */
+export function teArmada(bfM: number, tfM: number, dM: number, twM: number): PropiedadesSeccion {
+  if (!(bfM > 0) || !(tfM > 0) || !(twM > 0) || !(dM > tfM) || !(bfM >= twM)) {
+    throw new Error("La T necesita espesores positivos, alto mayor que el espesor del ala y ala más ancha que el alma.");
+  }
+  const hw = dM - tfM;
+  const aAla = bfM * tfM;
+  const aAlma = hw * twM;
+  const areaM2 = aAla + aAlma;
+  const yG = (aAla * (tfM / 2) + aAlma * (tfM + hw / 2)) / areaM2;
+
+  const ixM4 =
+    (bfM * tfM ** 3) / 12 + aAla * (yG - tfM / 2) ** 2 + (twM * hw ** 3) / 12 + aAlma * (tfM + hw / 2 - yG) ** 2;
+  const sxAlaM3 = ixM4 / yG;
+  const sxPuntaM3 = ixM4 / (dM - yG);
+
+  // Eje neutro plástico: parte el área en dos mitades iguales.
+  const yp = aAla >= areaM2 / 2 ? areaM2 / 2 / bfM : tfM + (areaM2 / 2 - aAla) / twM;
+  const zxM3 = momentoEstaticoAbsoluto(bfM, 0, tfM, yp) + momentoEstaticoAbsoluto(twM, tfM, dM, yp);
+
+  const iyM4 = (tfM * bfM ** 3) / 12 + (hw * twM ** 3) / 12;
+  const syM3 = iyM4 / (bfM / 2);
+  const zyM3 = (tfM * bfM ** 2) / 4 + (hw * twM ** 2) / 4;
+  const jM4 = (bfM * tfM ** 3 + (dM - tfM / 2) * twM ** 3) / 3;
+
+  return {
+    hM: dM,
+    bM: bfM,
+    twM,
+    tfM,
+    hiM: hw,
+    // En la T el art. F9 y el G3 miden el alma entera: d/tw.
+    hAlmaM: dM,
+    areaM2,
+    ixM4,
+    sxM3: Math.min(sxAlaM3, sxPuntaM3),
+    zxM3,
+    rxM: Math.sqrt(ixM4 / areaM2),
+    iyM4,
+    syM3,
+    zyM3,
+    ryM: Math.sqrt(iyM4 / areaM2),
+    jM4,
+    cwM6: 0,
+    doblementeSimetrica: false,
+    esCerrada: false,
+    almas: 1,
+    te: { yGM: yG, sxAlaM3, sxPuntaM3, yPlasticoM: yp },
+  };
+}
+
 /**
  * Radio de giro mínimo de un componente individual —una sola PNC, antes de
  * componerla— para el art. E6.2 de columnas armadas.
@@ -476,6 +572,13 @@ export function propiedades(familia: Familia, params: ParametrosPerfil): Propied
         requerir(params, "ancho", familia) / 1000,
         requerir(params, "espesor", familia) / 1000
       );
+    case "te-armada":
+      return teArmada(
+        requerir(params, "anchoAla", familia) / 1000,
+        requerir(params, "espesorAla", familia) / 1000,
+        requerir(params, "alto", familia) / 1000,
+        requerir(params, "espesorAlma", familia) / 1000
+      );
     case "2PNC-almas":
       return componerDoblePNCAlmas(
         requerir(params, "altura", familia),
@@ -504,6 +607,8 @@ export function designacion(familia: Familia, params: ParametrosPerfil): string 
       return `Ø${n(params.diametro)}×${n(params.espesor)}`;
     case "tubo-rectangular":
       return `□${n(params.alto)}×${n(params.ancho)}×${n(params.espesor)}`;
+    case "te-armada":
+      return `T${n(params.alto)} (ala ${n(params.anchoAla)}×${n(params.espesorAla)}, alma ${n(params.espesorAlma)})`;
     case "2PNC-almas":
       return params.separacion ? `2PNC${n(params.altura)} (sep. ${n(params.separacion)})` : `2PNC${n(params.altura)}`;
     case "2PNC-cajon":

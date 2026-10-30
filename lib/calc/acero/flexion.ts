@@ -126,6 +126,10 @@ export function calcularFlexion(datos: DatosFlexion): ResultadoFlexion {
   const p = propiedades(datos.familia, datos.params);
   const { fyPa, ePa, lbM, cb } = datos;
 
+  if (p.te) {
+    throw new SeccionFueraDeAlcance("F9", "El artículo F2 cubre perfiles I y canales. Una T se verifica por el artículo F9.");
+  }
+
   // F2 es para perfiles I y canales. Una sección cerrada tiene alabeo nulo, así
   // que las ecs. F2-6 y F2-7 ni siquiera están definidas para ella: se va a otro
   // artículo en lugar de forzar el cálculo.

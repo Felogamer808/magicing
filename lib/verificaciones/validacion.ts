@@ -170,6 +170,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   "corte-acero": { nivel: "probada" },
   "flexo-compresion": { nivel: "probada" },
   soldaduras: { nivel: "probada" },
+  "soldadura-te": {
+    nivel: "probada",
+    nota: "El reparto de fuerzas es criterio propio, acordado con el usuario; falta contrastar J2 contra el texto de AISC 360-16.",
+  },
   "tornillos-acero": { nivel: "probada" },
 
   "madera-flexion": { nivel: "probada" },

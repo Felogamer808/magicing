@@ -311,6 +311,11 @@ envuelto en `<div className="col-span-full">` cuando la tarjeta usa grid.
   como segunda norma del selector, con su propio motor, para contrastar el
   Anejo 19 sin mezclar. Falta la fuente: no hay skill de la EHE-08 y no se
   sacan coeficientes de memoria. Necesita el PDF (art. 40, 42 y 69).
+- **T armada de acero: contrastar contra AISC 360-16** (2026-10-30): F9, G3,
+  F11-1 y J4.2(a) del ala en ménsula, y J2 de la soldadura alma–ala se
+  escribieron sin el texto de la norma en el proyecto. Revisar ecuaciones y
+  coeficientes con el PDF. Falta también la compresión de la T (art. E4,
+  flexo-torsión): hoy la T no se ofrece en compresión ni en flexocompresión.
 - **Memoria de cálculo de vigas**: todavía no muestra los estribos por zonas
   ni el cerco del ala (2026-10-27).
 - **Varios casos guardados por verificación** (hecho, 2026-10-28): cada caso

@@ -88,6 +88,7 @@ export type IdVerificacion =
   | "corte-acero"
   | "flexo-compresion"
   | "soldaduras"
+  | "soldadura-te"
   | "tornillos-acero"
   | "propiedades-geometricas"
   | "formulario-vigas"
@@ -632,6 +633,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
     descripcion: "Cordón de soldadura en perfil H y chapa de base con pernos de anclaje.",
     normasDisponibles: ["AISC 360"],
     ruta: "/verificaciones/uniones",
+    disponible: true,
+  },
+  {
+    id: "soldadura-te",
+    nombre: "Soldadura alma–ala de T armada",
+    seccion: "estructuras-metalicas",
+    categoria: "Uniones",
+    descripcion:
+      "Los dos filetes corridos que unen el alma al ala de una T armada: cuelgue de la losa, momento desbalanceado y rasante de la flexión.",
+    normasDisponibles: ["AISC 360"],
+    ruta: "/verificaciones/soldadura-te",
     disponible: true,
   },
   {

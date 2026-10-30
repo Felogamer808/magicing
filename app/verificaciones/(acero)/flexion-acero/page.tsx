@@ -14,6 +14,7 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { PanelLlevarDatos } from "@/components/verificaciones/comun/PanelLlevarDatos";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import { CurvaFlexion } from "@/components/verificaciones/acero/CurvaFlexion";
 import { DiagramaPandeoLateral } from "@/components/verificaciones/acero/DiagramaPandeoLateral";
@@ -406,6 +407,29 @@ export default function FlexionAceroPage() {
                     />
                   </div>
                 </Subgrupo>
+              )}
+
+              {esTe && (
+                <PanelLlevarDatos
+                  titulo="Seguir con esta misma T"
+                  destinos={[
+                    {
+                      titulo: "Corte en el alma, y de ahí a la soldadura alma–ala",
+                      ruta: "/verificaciones/corte-acero",
+                      lleva: "la T, el acero y las reacciones de la losa sobre el ala",
+                      falta: "el corte V de la viga; desde ahí se sigue a la soldadura con todo junto",
+                      campos: {
+                        familia: "te-armada",
+                        params: seccion.crudo,
+                        fyCorte: fy,
+                        eCorte: e,
+                        reaccionIzq,
+                        reaccionDer,
+                      },
+                      blanquear: ["vRequerido"],
+                    },
+                  ]}
+                />
               )}
             </div>
           )}

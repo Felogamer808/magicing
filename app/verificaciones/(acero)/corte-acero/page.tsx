@@ -14,6 +14,7 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
+import { PanelLlevarDatos } from "@/components/verificaciones/comun/PanelLlevarDatos";
 import { SelectorSeccionAcero } from "@/components/verificaciones/acero/SelectorSeccionAcero";
 import {
   type ResultadoCorteCualquiera,
@@ -88,6 +89,10 @@ export default function CorteAceroPage() {
   const [fy, setFy] = useCampo("fyCorte", "250");
   const [e, setE] = useCampo("eCorte", "200000");
   const [vRequerido, setVRequerido] = useCampo("vRequerido", "80");
+  // En la T no entran al corte: se guardan para llevarlas a la soldadura alma–ala.
+  const [reaccionIzq, setReaccionIzq] = useCampo("reaccionIzq", "0");
+  const [reaccionDer, setReaccionDer] = useCampo("reaccionDer", "0");
+  const esTe = seccion.familia === "te-armada";
 
   const campos = useMemo(
     () => ({ familia: seccion.familia, params: seccion.crudo, conRigidizadores, aRigidizadores, lv, fyCorte: fy, eCorte: e, vRequerido }),
@@ -155,6 +160,17 @@ export default function CorteAceroPage() {
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <CampoNumerico id="vRequerido" etiqueta="Corte requerido" sufijo="kN" valor={vRequerido} onChange={setVRequerido} />
           </div>
+          {esTe && (
+            <div className="mt-4 max-w-xl space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Reacciones de la losa sobre el ala. No entran al corte del alma: son para la soldadura alma–ala.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <CampoNumerico id="reaccionIzq" etiqueta="Reacción izquierda" sufijo="kN/m" valor={reaccionIzq} onChange={setReaccionIzq} />
+                <CampoNumerico id="reaccionDer" etiqueta="Reacción derecha" sufijo="kN/m" valor={reaccionDer} onChange={setReaccionDer} />
+              </div>
+            </div>
+          )}
         </Etapa>
 
         <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -229,6 +245,21 @@ export default function CorteAceroPage() {
                   <PanelFormulas titulo="Ver desarrollo del corte" filas={filasDe(resultado)} />
                 </div>
               </Subgrupo>
+
+              {esTe && (
+                <PanelLlevarDatos
+                  titulo="Seguir con esta misma T"
+                  destinos={[
+                    {
+                      titulo: "Soldadura alma–ala de T armada",
+                      ruta: "/verificaciones/soldadura-te",
+                      lleva: "la T, el corte V y las reacciones de la losa sobre el ala",
+                      falta: "el lado del filete y el electrodo",
+                      campos: { familia: "te-armada", params: seccion.crudo, vRequerido, reaccionIzq, reaccionDer },
+                    },
+                  ]}
+                />
+              )}
             </div>
           )}
         </Etapa>

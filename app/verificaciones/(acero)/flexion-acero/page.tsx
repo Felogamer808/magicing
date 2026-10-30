@@ -10,6 +10,7 @@ import { PanelMetricas } from "@/components/verificaciones/comun/PanelMetricas";
 import { EstadoVerificacionChip } from "@/components/verificaciones/comun/EstadoVerificacion";
 import { RevisionDatos, type AvisoRevision } from "@/components/verificaciones/comun/RevisionDatos";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
+import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion";
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
@@ -22,7 +23,7 @@ import {
 } from "@/lib/calc/acero/seleccion-articulo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
-import { resolverFlexionAcero } from "@/lib/calc/acero/resolver-flexion";
+import { resolverAlaMensula, resolverFlexionAcero } from "@/lib/calc/acero/resolver-flexion";
 import { recomendarFlexionAcero } from "@/lib/verificaciones/recomendaciones/acero";
 
 const meta = registroVerificaciones.find((v) => v.id === "flexion-acero")!;
@@ -30,6 +31,7 @@ const meta = registroVerificaciones.find((v) => v.id === "flexion-acero")!;
 const ETAPAS = [
   { id: "seccion", titulo: "Sección" },
   { id: "arriostramiento", titulo: "Arriostramiento" },
+  { id: "ala", titulo: "Apoyo en el ala" },
   { id: "solicitacion", titulo: "Solicitación" },
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
@@ -37,6 +39,27 @@ const ETAPAS = [
 
 /** Filas del panel "Ver cálculo", propias de cada artículo. */
 function filasDe(r: ResultadoFlexionCualquiera) {
+  if (r.articulo === "F9") {
+    return [
+      { etiqueta: "Punta del alma", valor: r.puntaAlma },
+      { etiqueta: "My = Fy·Sx  (F9-3)", valor: `${fmt(r.myKNm, 2)} kN·m` },
+      ...r.estados.map((e) => ({
+        etiqueta: `${e.nombre} · ${e.ecuacion}`,
+        valor: (e.mnKNm === Infinity ? "no aplica" : `${fmt(e.mnKNm, 2)} kN·m`) + ` — ${e.detalle}`,
+      })),
+      { etiqueta: "B  (F9-11 / F9-12)", valor: fmt(r.coeficienteB, 3) },
+      { etiqueta: "Mcr  (F9-10)", valor: `${fmt(r.mcrKNm, 1)} kN·m` },
+      ...(r.lpM !== null && r.lrM !== null
+        ? [
+            { etiqueta: "Lp  (F9-8)", valor: `${fmt(r.lpM, 3)} m` },
+            { etiqueta: "Lr  (F9-9)", valor: `${fmt(r.lrM, 3)} m` },
+          ]
+        : []),
+      { etiqueta: "Mn (el menor)", valor: `${fmt(r.mnKNm, 2)} kN·m` },
+      { etiqueta: `Mn/Ωb con Ωb = ${OMEGA_B}`, valor: `${fmt(r.admisibleKNm, 2)} kN·m` },
+    ];
+  }
+
   if (r.articulo === "F8") {
     return [
       { etiqueta: "Mp = Fy·Z  (F8-1)", valor: `${fmt(r.mpKNm, 1)} kN·m` },
@@ -98,12 +121,23 @@ export default function FlexionAceroPage() {
   const [fy, setFy] = useCampo("fyFlexion", "250");
   const [e, setE] = useCampo("eFlexion", "200000");
   const [mRequerido, setMRequerido] = useCampo("mRequerido", "40");
+  // Sólo en la T: qué lado comprime y qué carga la losa sobre cada ala.
+  const [puntaAlma, setPuntaAlma] = useCampo("puntaAlma", "Comprimida");
+  const [reaccionIzq, setReaccionIzq] = useCampo("reaccionIzq", "0");
+  const [reaccionDer, setReaccionDer] = useCampo("reaccionDer", "0");
+  const esTe = seccion.familia === "te-armada";
+  const etapas = esTe ? ETAPAS : ETAPAS.filter((x) => x.id !== "ala");
+  const numero = (id: string) => etapas.findIndex((x) => x.id === id) + 1;
 
   const campos = useMemo(
-    () => ({ familia: seccion.familia, params: seccion.crudo, lb, cb, fyFlexion: fy, eFlexion: e, mRequerido }),
-    [seccion.familia, seccion.crudo, lb, cb, fy, e, mRequerido]
+    () => ({
+      familia: seccion.familia, params: seccion.crudo, lb, cb, fyFlexion: fy, eFlexion: e, mRequerido,
+      puntaAlma, reaccionIzq, reaccionDer,
+    }),
+    [seccion.familia, seccion.crudo, lb, cb, fy, e, mRequerido, puntaAlma, reaccionIzq, reaccionDer]
   );
   const resultado = useMemo(() => resolverFlexionAcero(campos), [campos]);
+  const ala = useMemo(() => resolverAlaMensula(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
   const rec = useMemo(() => recomendarFlexionAcero(campos), [campos]);
 
@@ -115,6 +149,13 @@ export default function FlexionAceroPage() {
   if (!resultado) avisos.push({ tipo: "error", texto: "Completá la sección, Lb, Cb, el material y el momento con valores positivos." });
   if (noCompacta) avisos.push({ tipo: "error", texto: "La sección no es compacta con este Fy: F2 no la cubre. Correspondería F3 (ala no compacta) o F5 (alma esbelta), no implementados." });
   if (advertencia) avisos.push({ tipo: "aviso", texto: advertencia });
+  if (esTe && !ala) avisos.push({ tipo: "error", texto: "Cargá las reacciones de la losa sobre cada lado del ala (0 si no apoya nada)." });
+  if (ala && Math.abs(ala.torsionKNmM) > 1e-9) {
+    avisos.push({
+      tipo: "aviso",
+      texto: `Las dos alas no cargan igual: la viga recibe una torsión de ${fmt(Math.abs(ala.torsionKNmM), 2)} kN·m/m que el art. F9 no cubre. Verificarla aparte.`,
+    });
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -129,7 +170,7 @@ export default function FlexionAceroPage() {
 
       <AvisoCombinacion idVerificacion={meta.id} />
 
-      <IndiceEtapas etapas={ETAPAS} />
+      <IndiceEtapas etapas={etapas} />
 
       <div className="flex flex-col gap-12">
         <Etapa id="seccion" numero={1} titulo="Sección y material" descripcion="El perfil y el acero. La forma de la sección elige el artículo.">
@@ -139,6 +180,7 @@ export default function FlexionAceroPage() {
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
+            conTe
           >
             <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fyFlexion" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
@@ -147,26 +189,68 @@ export default function FlexionAceroPage() {
           </SelectorSeccionAcero>
         </Etapa>
 
-        <Etapa id="arriostramiento" numero={2} titulo="Arriostramiento" descripcion="Longitud sin arriostrar del ala comprimida y forma del diagrama de momentos.">
+        <Etapa
+          id="arriostramiento"
+          numero={numero("arriostramiento")}
+          titulo="Arriostramiento"
+          descripcion={
+            esTe
+              ? "Longitud sin arriostrar y qué lado de la T queda comprimido."
+              : "Longitud sin arriostrar del ala comprimida y forma del diagrama de momentos."
+          }
+        >
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <CampoNumerico id="lb" etiqueta="Lb sin arriostrar" sufijo="m" valor={lb} onChange={setLb} />
-            <CampoNumerico id="cb" etiqueta="Cb" valor={cb} onChange={setCb} />
+            {esTe ? (
+              <CampoSeleccion
+                id="puntaAlma"
+                etiqueta="Punta del alma"
+                valor={puntaAlma}
+                opciones={["Comprimida", "Traccionada"]}
+                onChange={setPuntaAlma}
+              />
+            ) : (
+              <CampoNumerico id="cb" etiqueta="Cb" valor={cb} onChange={setCb} />
+            )}
           </div>
+          {esTe && (
+            <p className="mt-3 max-w-xl text-xs text-muted-foreground">
+              Biapoyada con el ala abajo, la punta del alma queda comprimida; en ménsula o con el ala
+              arriba, traccionada. En la T el art. F9 no usa Cb: el diagrama de momentos no entra.
+            </p>
+          )}
         </Etapa>
 
-        <Etapa id="solicitacion" numero={3} titulo="Solicitación" descripcion="Momento requerido de la combinación ASD.">
+        {esTe && (
+          <Etapa
+            id="ala"
+            numero={numero("ala")}
+            titulo="Apoyo de losa en el ala"
+            descripcion="Reacción de la losa sobre cada lado del ala, por metro de viga y en combinación ASD. Se carga en la punta del ala, que es lo conservador."
+          >
+            <div className="grid max-w-xl grid-cols-2 gap-4">
+              <CampoNumerico id="reaccionIzq" etiqueta="Reacción lado izquierdo" sufijo="kN/m" valor={reaccionIzq} onChange={setReaccionIzq} />
+              <CampoNumerico id="reaccionDer" etiqueta="Reacción lado derecho" sufijo="kN/m" valor={reaccionDer} onChange={setReaccionDer} />
+            </div>
+          </Etapa>
+        )}
+
+        <Etapa id="solicitacion" numero={numero("solicitacion")} titulo="Solicitación" descripcion="Momento requerido de la combinación ASD.">
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <CampoNumerico id="mRequerido" etiqueta="Momento requerido" sufijo="kN·m" valor={mRequerido} onChange={setMRequerido} />
           </div>
         </Etapa>
 
-        <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
+        <Etapa id="revision" numero={numero("revision")} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
           <RevisionDatos
             norma={norma}
             datos={[
               { etiqueta: "Sección", valor: resultado ? resultado.designacion : "—" },
               { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
-              { etiqueta: "Lb · Cb", valor: `${lb} m · ${cb}` },
+              esTe
+                ? { etiqueta: "Lb · punta del alma", valor: `${lb} m · ${puntaAlma.toLowerCase()}` }
+                : { etiqueta: "Lb · Cb", valor: `${lb} m · ${cb}` },
+              ...(esTe ? [{ etiqueta: "Reacciones en el ala", valor: `${reaccionIzq} / ${reaccionDer} kN/m` }] : []),
               { etiqueta: "M requerido", valor: `${mRequerido} kN·m` },
               ...(resultado ? [{ etiqueta: "Artículo", valor: resultado.articulo, derivado: true }] : []),
             ]}
@@ -175,12 +259,19 @@ export default function FlexionAceroPage() {
               "F2 en perfiles I y canales: manda el menor entre plastificación y pandeo lateral-torsional. Sólo cubre secciones compactas.",
               "F7 en tubos rectangulares y cajones, con los cuatro estados límite.",
               "F8 en tubos redondos: no hay pandeo lateral y decide la esbeltez de la pared.",
+              "F9 en tes: plastificación, pandeo lateral-torsional y pandeo local del ala o del alma, según qué lado comprima. Sin Cb.",
+              ...(esTe
+                ? [
+                    "Ala en ménsula: faja de 1 m empotrada en la cara del alma, con la reacción en la punta. Flexión por F11-1 (Ωb = 1,67) y corte por J4.2(a) (Ω = 1,50).",
+                    "Pendiente: contrastar los coeficientes del F9, F11 y J4.2 contra el texto de AISC 360-16.",
+                  ]
+                : []),
             ]}
             avisos={avisos}
           />
         </Etapa>
 
-        <Etapa id="resultados" numero={5} titulo="Resultados">
+        <Etapa id="resultados" numero={numero("resultados")} titulo="Resultados">
           {!resultado ? (
             <div className="flex flex-wrap items-center gap-3 rounded-md bg-muted/50 p-4 text-sm">
               <EstadoVerificacionChip estado="datos-insuficientes" />
@@ -198,7 +289,9 @@ export default function FlexionAceroPage() {
                   { etiqueta: "Mn/Ωb", valor: `${fmt(resultado.admisibleKNm, 1)} kN·m` },
                   resultado.articulo === "F8"
                     ? { etiqueta: "Pared", valor: resultado.clase, nota: `D/t = ${fmt(resultado.relacionDt, 1)}` }
-                    : { etiqueta: "Lb", valor: `${fmt(aNumero(lb), 2)} m`, nota: `Lp ${fmt(resultado.lpM, 2)} · Lr ${fmt(resultado.lrM, 2)} m` },
+                    : resultado.lpM === null || resultado.lrM === null
+                      ? { etiqueta: "Lb", valor: `${fmt(aNumero(lb), 2)} m`, nota: "punta del alma comprimida" }
+                      : { etiqueta: "Lb", valor: `${fmt(aNumero(lb), 2)} m`, nota: `Lp ${fmt(resultado.lpM, 2)} · Lr ${fmt(resultado.lrM, 2)} m` },
                 ]}
               />
 
@@ -207,7 +300,7 @@ export default function FlexionAceroPage() {
                 detalle={
                   resultado.articulo === "F2"
                     ? `${resultado.designacion} · zona: ${resultado.zona}`
-                    : resultado.articulo === "F7"
+                    : resultado.articulo === "F7" || resultado.articulo === "F9"
                       ? `${resultado.designacion} · gobierna ${resultado.gobierna}`
                       : `${resultado.designacion} · pared ${resultado.clase}`
                 }
@@ -255,6 +348,7 @@ export default function FlexionAceroPage() {
                         lbM={aNumero(lb)}
                         lpM={resultado.lpM}
                         lrM={resultado.lrM}
+                        puntaAlma={resultado.articulo === "F9" ? resultado.puntaAlma : undefined}
                         mpKNm={resultado.mpKNm}
                         mnKNm={resultado.mnKNm}
                       />
@@ -268,6 +362,51 @@ export default function FlexionAceroPage() {
                   <PanelFormulas titulo="Ver desarrollo de la flexión" filas={filasDe(resultado)} />
                 </div>
               </Subgrupo>
+
+              {ala && (
+                <Subgrupo
+                  titulo="Ala en ménsula"
+                  detalle={`vuelo ${fmt(ala.vueloM * 1000, 1)} mm desde la cara del alma · admite hasta ${fmt(ala.reaccionAdmisibleKNm, 1)} kN/m por lado`}
+                >
+                  <div className="space-y-3">
+                    {([["izquierdo", ala.izquierdo], ["derecho", ala.derecho]] as const).map(([nombre, lado]) => (
+                      <div key={nombre} className="space-y-2">
+                        <ResultadoCheck
+                          etiqueta={`Flexión del ala, lado ${nombre} (F11-1)`}
+                          verifica={lado.verificaFlexion}
+                          detalle={`q = ${fmt(lado.reaccionKNm, 1)} kN/m en la punta`}
+                          comparacion={{
+                            real: { etiqueta: "m = q·vuelo", valor: lado.momentoKNmM },
+                            limite: { etiqueta: "Mn/Ωb", valor: ala.mAdmisibleKNmM },
+                            unidad: "kN·m/m", exige: "≤", decimales: 2,
+                          }}
+                        />
+                        <ResultadoCheck
+                          etiqueta={`Corte del ala, lado ${nombre} (J4.2a)`}
+                          verifica={lado.verificaCorte}
+                          comparacion={{
+                            real: { etiqueta: "q", valor: lado.reaccionKNm },
+                            limite: { etiqueta: "Vn/Ω", valor: ala.vAdmisibleKNM },
+                            unidad: "kN/m", exige: "≤", decimales: 1,
+                          }}
+                        />
+                      </div>
+                    ))}
+                    <PanelFormulas
+                      titulo="Ver desarrollo del ala"
+                      filas={[
+                        { etiqueta: "Vuelo = (bf − tw)/2", valor: `${fmt(ala.vueloM * 1000, 1)} mm` },
+                        { etiqueta: "Mn = Fy·tf²/4 ≤ 1,6·Fy·tf²/6, faja de 1 m  (F11-1)", valor: `${fmt(ala.mnKNmM, 2)} kN·m/m` },
+                        { etiqueta: `Mn/Ωb con Ωb = ${OMEGA_B}`, valor: `${fmt(ala.mAdmisibleKNmM, 2)} kN·m/m` },
+                        { etiqueta: "Vn = 0,6·Fy·tf, faja de 1 m  (J4-3)", valor: `${fmt(ala.vnKNM, 0)} kN/m` },
+                        { etiqueta: "Vn/Ω con Ω = 1,50", valor: `${fmt(ala.vAdmisibleKNM, 0)} kN/m` },
+                        { etiqueta: "Reacción admisible por lado", valor: `${fmt(ala.reaccionAdmisibleKNm, 1)} kN/m` },
+                        { etiqueta: "Torsión por cargas distintas = (qi − qd)·bf/2", valor: `${fmt(ala.torsionKNmM, 2)} kN·m/m` },
+                      ]}
+                    />
+                  </div>
+                </Subgrupo>
+              )}
             </div>
           )}
         </Etapa>

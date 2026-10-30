@@ -46,6 +46,17 @@ function filasDe(r: ResultadoCorteCualquiera) {
     ];
   }
 
+  if (r.articulo === "G3") {
+    return [
+      { etiqueta: "b·t = d·tw", valor: `${fmt(r.awM2 * 1e4, 2)} cm²` },
+      { etiqueta: "Esbeltez del alma d/tw", valor: fmt(r.esbeltezAlma, 2) },
+      { etiqueta: "kv (fijo en G3)", valor: fmt(r.kv, 2) },
+      { etiqueta: "Cv2  (G2-9 a G2-11)", valor: fmt(r.cv2, 3) },
+      { etiqueta: "Vn = 0,6·Fy·b·t·Cv2  (G3-1)", valor: `${fmt(r.vnKN, 1)} kN` },
+      { etiqueta: `Vn/Ωv con Ωv = ${r.omegaV}`, valor: `${fmt(r.admisibleKN, 1)} kN` },
+    ];
+  }
+
   if (r.articulo === "G4") {
     return [
       { etiqueta: "Aw = 2·h·t", valor: `${fmt(r.awM2 * 1e4, 2)} cm²` },
@@ -112,12 +123,13 @@ export default function CorteAceroPage() {
             params={seccion.params}
             onFamiliaChange={seccion.cambiarFamilia}
             onParamChange={seccion.cambiarParam}
+            conTe
           >
             <div className="grid grid-cols-2 gap-4">
               <CampoNumerico id="fyCorte" etiqueta="Fy" sufijo="MPa" valor={fy} onChange={setFy} />
               <CampoNumerico id="eCorte" etiqueta="E" sufijo="MPa" valor={e} onChange={setE} />
-              {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5 y G5 no los usa. */}
-              {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && (
+              {/* Los rigidizadores solo intervienen en G2: G4 fija kv = 5, G3 kv = 1,2 y G5 no los usa. */}
+              {seccion.familia !== "tubo-redondo" && seccion.familia !== "tubo-rectangular" && seccion.familia !== "te-armada" && (
                 <>
                   <CampoSeleccion
                     id="conRigidizadores"
@@ -153,7 +165,7 @@ export default function CorteAceroPage() {
               { etiqueta: "Fy / E", valor: `${fy} / ${e} MPa` },
               ...(seccion.familia === "tubo-redondo"
                 ? [{ etiqueta: "Lv", valor: `${lv} m` }]
-                : seccion.familia !== "tubo-rectangular"
+                : seccion.familia !== "tubo-rectangular" && seccion.familia !== "te-armada"
                   ? [{ etiqueta: "Rigidizadores", valor: conRigidizadores === "Sí" ? `a = ${aRigidizadores} m` : "sin rigidizadores" }]
                   : []),
               { etiqueta: "V requerido", valor: `${vRequerido} kN` },
@@ -164,6 +176,7 @@ export default function CorteAceroPage() {
               "G2 en perfiles I y canales, sin acción de campo tensional.",
               "G4 en tubos rectangulares y cajones: resisten las dos caras, con kv = 5.",
               "G5 en tubos redondos: trabaja media sección y entra la distancia Lv del corte máximo al nulo.",
+              "G3 en tes: trabaja el alma entera, b·t = d·tw, con kv = 1,2. Pendiente de contrastar contra el texto de AISC 360-16.",
               "Ωv = 1,50 sólo en almas robustas de perfiles I laminados (h/tw ≤ 2,24·√(E/Fy), art. G1(a)); canales y tubos van siempre con 1,67.",
             ]}
             avisos={avisos}
@@ -188,7 +201,7 @@ export default function CorteAceroPage() {
                   { etiqueta: "Ωv", valor: fmt(resultado.omegaV, 2) },
                   resultado.articulo === "G5"
                     ? { etiqueta: "D/t", valor: fmt(resultado.relacionDt, 1) }
-                    : { etiqueta: resultado.articulo === "G4" ? "h/t" : "h/tw", valor: fmt(resultado.esbeltezAlma, 1) },
+                    : { etiqueta: resultado.articulo === "G4" ? "h/t" : resultado.articulo === "G3" ? "d/tw" : "h/tw", valor: fmt(resultado.esbeltezAlma, 1) },
                 ]}
               />
 
@@ -210,6 +223,7 @@ export default function CorteAceroPage() {
                         ? "Alma robusta: entra por la excepción del art. G2.1(a)."
                         : "Fuera de la excepción del art. G2.1(a).")}
                     {resultado.articulo === "G4" && "Dos almas resisten el corte."}
+                    {resultado.articulo === "G3" && "Resiste el alma de la T en todo su alto."}
                     {resultado.articulo === "G5" && `Gobierna por ${resultado.gobierna}.`}
                   </p>
                   <PanelFormulas titulo="Ver desarrollo del corte" filas={filasDe(resultado)} />

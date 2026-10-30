@@ -20,11 +20,15 @@ interface Props {
   params: ParametrosPerfil;
   onFamiliaChange: (familia: Familia) => void;
   onParamChange: (clave: ClaveParametro, valor: string) => void;
+  /**
+   * Ofrecer la T armada. Sólo donde hay artículo para ella (F9, G3): en
+   * compresión una T pandea por flexo-torsión, que no está implementado.
+   */
+  conTe?: boolean;
   /** Campos que van debajo de los de la sección, del mismo lado del croquis. */
   children?: ReactNode;
 }
 
-const etiquetas = familias.map((f) => nombreFamilia[f]);
 
 /**
  * Elección de la sección, con el croquis al lado.
@@ -40,9 +44,12 @@ export function SelectorSeccionAcero({
   params,
   onFamiliaChange,
   onParamChange,
+  conTe = false,
   children,
 }: Props) {
   const parametros = parametrosDe(familia);
+  const ofrecidas = conTe ? familias : familias.filter((f) => f !== "te-armada");
+  const etiquetas = ofrecidas.map((f) => nombreFamilia[f]);
 
   return (
     <DatosConDibujo
@@ -57,7 +64,7 @@ export function SelectorSeccionAcero({
               valor={nombreFamilia[familia]}
               opciones={etiquetas}
               onChange={(etiqueta) => {
-                const elegida = familias.find((f) => nombreFamilia[f] === etiqueta);
+                const elegida = ofrecidas.find((f) => nombreFamilia[f] === etiqueta);
                 if (elegida) onFamiliaChange(elegida);
               }}
             />

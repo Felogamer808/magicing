@@ -297,6 +297,9 @@ export function esbeltezModificadaE6(
 
 export function calcularCompresion(datos: DatosCompresion): ResultadoCompresion {
   const p = propiedades(datos.familia, datos.params);
+  // Una T comprimida pandea por flexo-torsión (art. E4), que no está hecho:
+  // el pandeo por flexión solo daría un número del lado inseguro.
+  if (p.te) throw new Error("La compresión de una T va por el art. E4 (flexo-torsión), todavía no implementado.");
 
   const ejeFuerte = pandeoEnEje(datos.lcxM, p.rxM, p.areaM2, datos.fyPa, datos.ePa);
 

@@ -63,6 +63,8 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
 
   let figura: React.ReactNode;
   let cotas: string;
+  // El dibujo se centra en la pieza, no en el baricentro: en la T no coinciden.
+  let centroY = 0;
 
   switch (familia) {
     case "tubo-redondo": {
@@ -107,6 +109,27 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
         </>
       );
       cotas = `${fmtMm(h)} × ${fmtMm(b)} · e ${fmtMm(tw)}`;
+      break;
+    }
+
+    case "te-armada": {
+      // Ala abajo, como apoyo de losa. El origen sigue en el baricentro, que
+      // en la T queda cerca del ala: el eje x se ve donde está de verdad.
+      const yG = (p.te?.yGM ?? p.hM / 2) * 1000;
+      const x = b / 2;
+      const w = tw / 2;
+      figura = (
+        <path
+          d={`M${-x} ${yG} H${x} V${yG - tf} H${w} V${yG - h} H${-w} V${yG - tf} H${-x} Z`}
+          fill={RELLENO}
+          fillOpacity={OPACIDAD}
+          stroke={BORDE}
+          strokeWidth={Math.max(h / 140, 0.6)}
+          strokeLinejoin="round"
+        />
+      );
+      centroY = yG - h / 2;
+      cotas = `d ${fmtMm(h)} · bf ${fmtMm(b)} · tf ${fmtMm(tf)} · tw ${fmtMm(tw)}`;
       break;
     }
 
@@ -210,7 +233,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
   return (
     <figure className="flex flex-col items-center gap-1.5">
       <svg
-        viewBox={`${-ancho / 2} ${-alto / 2} ${ancho} ${alto}`}
+        viewBox={`${-ancho / 2} ${centroY - alto / 2} ${ancho} ${alto}`}
         className="h-40 w-full text-primary"
         role="img"
         aria-label={`Sección ${cotas}`}
@@ -223,7 +246,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
           opacity={0.8}
         >
           <line x1={-ancho / 2 + 2} y1={0} x2={ancho / 2 - 2} y2={0} />
-          <line x1={0} y1={-alto / 2 + 2} x2={0} y2={alto / 2 - 2} />
+          <line x1={0} y1={centroY - alto / 2 + 2} x2={0} y2={centroY + alto / 2 - 2} />
         </g>
         {figura}
         {/*
@@ -233,7 +256,7 @@ export function CroquisSeccionAcero({ familia, params }: Props) {
         */}
         <g fill="var(--mat-cota)" fontSize={Math.max(h / 13, 7)} className="font-mono">
           <text x={ancho / 2 - 2} y={-h / 26} textAnchor="end">x</text>
-          <text x={h / 26} y={-alto / 2 + Math.max(h / 11, 8)}>y</text>
+          <text x={h / 26} y={centroY - alto / 2 + Math.max(h / 11, 8)}>y</text>
         </g>
         {/* Baricentro: el punto respecto del que se miden Ix e Iy. */}
         <circle cx={0} cy={0} r={Math.max(h / 70, 1.1)} fill="var(--mat-cota)" />

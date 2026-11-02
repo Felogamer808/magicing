@@ -14,7 +14,8 @@ import { ConclusionResultados } from "@/components/verificaciones/comun/Conclusi
 import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/verificaciones/comun/HojaTecnica";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezalUnPilote } from "@/components/verificaciones/hormigon/DiagramaCabezalUnPilote";
-import { fmt } from "@/lib/verificaciones/formato";
+import { PlantaCabezalUnPilote } from "@/components/verificaciones/hormigon/PlantaCabezalUnPilote";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
 import {
@@ -36,6 +37,15 @@ const LIMITA: Record<"triple" | "canto" | "cabezal", string> = {
   canto: "el canto (h ≥ b₂ − b₁)",
   cabezal: "el lado del cabezal",
 };
+
+/**
+ * Lo tipeado, para dibujar: el croquis muestra los datos aunque todavía no
+ * calculen. Sólo un campo vacío o no positivo cae en el valor de ejemplo.
+ */
+function medida(texto: string, porDefecto: number): number {
+  const v = aNumero(texto);
+  return Number.isFinite(v) && v > 0 ? v : porDefecto;
+}
 
 export default function CabezalUnPilotePage() {
   const [norma, setNorma] = useCampo("norma", "EC2");
@@ -112,14 +122,22 @@ export default function CabezalUnPilotePage() {
                     <CampoNumerico id="fyk" etiqueta="fyk" sufijo="MPa" valor={fyk} onChange={setFyk} />
                   </div>
                 </Subgrupo>
-                <Subgrupo titulo="Cabezal, pilar y pilote">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    <CampoNumerico id="ladoX" etiqueta="Lado x" sufijo="m" valor={ladoX} onChange={setLadoX} />
-                    <CampoNumerico id="ladoY" etiqueta="Lado y" sufijo="m" valor={ladoY} onChange={setLadoY} />
-                    <CampoNumerico id="hCab" etiqueta="H" sufijo="m" valor={hCab} onChange={setHCab} />
-                    <CampoNumerico id="pilarX" etiqueta="Pilar x" sufijo="m" valor={pilarX} onChange={setPilarX} />
-                    <CampoNumerico id="pilarY" etiqueta="Pilar y" sufijo="m" valor={pilarY} onChange={setPilarY} />
-                    <CampoNumerico id="dPilote" etiqueta="D pilote" sufijo="m" valor={dPilote} onChange={setDPilote} />
+                <Subgrupo titulo="Cabezal">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="ladoX" etiqueta="Ancho en x" sufijo="m" valor={ladoX} onChange={setLadoX} />
+                    <CampoNumerico id="ladoY" etiqueta="Ancho en y" sufijo="m" valor={ladoY} onChange={setLadoY} />
+                    <CampoNumerico id="hCab" etiqueta="Canto H" sufijo="m" valor={hCab} onChange={setHCab} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Pilar (centrado sobre el cabezal)">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="pilarX" etiqueta="Lado en x" sufijo="m" valor={pilarX} onChange={setPilarX} />
+                    <CampoNumerico id="pilarY" etiqueta="Lado en y" sufijo="m" valor={pilarY} onChange={setPilarY} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Pilote">
+                  <div className="grid grid-cols-3 gap-4">
+                    <CampoNumerico id="dPilote" etiqueta="Diámetro D" sufijo="m" valor={dPilote} onChange={setDPilote} />
                   </div>
                 </Subgrupo>
                 <Subgrupo titulo="Carga">
@@ -130,12 +148,27 @@ export default function CabezalUnPilotePage() {
               </>
             }
             dibujo={
-              <DiagramaCabezalUnPilote
-                ladoXM={resultado?.n.ladoX ?? 0.9}
-                hM={resultado?.n.hCab ?? 1}
-                pilarXM={resultado?.n.pilarX ?? 0.3}
-                diametroPiloteM={resultado?.n.dPilote ?? 0.5}
-              />
+              <div className="space-y-4">
+                <div>
+                  <p className="spec-label mb-1">Alzado (plano x)</p>
+                  <DiagramaCabezalUnPilote
+                    ladoXM={medida(ladoX, 0.9)}
+                    hM={medida(hCab, 1)}
+                    pilarXM={medida(pilarX, 0.3)}
+                    diametroPiloteM={medida(dPilote, 0.5)}
+                  />
+                </div>
+                <div>
+                  <p className="spec-label mb-1">Planta</p>
+                  <PlantaCabezalUnPilote
+                    ladoXM={medida(ladoX, 0.9)}
+                    ladoYM={medida(ladoY, 0.9)}
+                    pilarXM={medida(pilarX, 0.3)}
+                    pilarYM={medida(pilarY, 0.3)}
+                    diametroPiloteM={medida(dPilote, 0.5)}
+                  />
+                </div>
+              </div>
             }
           />
         </Etapa>

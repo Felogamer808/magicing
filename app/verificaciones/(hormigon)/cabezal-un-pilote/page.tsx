@@ -61,10 +61,8 @@ export default function CabezalUnPilotePage() {
   const [dPilote, setDPilote] = useCampo("dPilote", "0.5");
   const [ndPilar, setNdPilar] = useCampo("ndPilar", "690");
 
-  const [nCercosSup, setNCercosSup] = useCampo("nCercosSup", "3");
-  const [phiCercosSup, setPhiCercosSup] = useCampo("phiCercosSup", "10");
-  const [nCercosInf, setNCercosInf] = useCampo("nCercosInf", "3");
-  const [phiCercosInf, setPhiCercosInf] = useCampo("phiCercosInf", "12");
+  const [nCercos, setNCercos] = useCampo("nCercos", "6");
+  const [phiCercos, setPhiCercos] = useCampo("phiCercos", "12");
 
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
   const [phiEstribosX, setPhiEstribosX] = useCampo("phiEstribosX", "16");
@@ -74,11 +72,11 @@ export default function CabezalUnPilotePage() {
 
   const campos = useMemo(
     () => ({
-      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf,
+      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercos, phiCercos,
       recubrimiento, phiEstribosX, sEstribosX, phiEstribosY, sEstribosY,
     }),
     [
-      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf,
+      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercos, phiCercos,
       recubrimiento, phiEstribosX, sEstribosX, phiEstribosY, sEstribosY,
     ]
   );
@@ -168,6 +166,7 @@ export default function CabezalUnPilotePage() {
                     hM={medida(hCab, 1)}
                     pilarXM={medida(pilarX, 0.3)}
                     diametroPiloteM={medida(dPilote, 0.5)}
+                    cercos={Math.max(0, Math.floor(aNumero(nCercos)) || 0)}
                   />
                 </div>
                 <div>
@@ -187,12 +186,13 @@ export default function CabezalUnPilotePage() {
 
         <Etapa id="armadura" numero={2} titulo="Armadura" descripcion="Cercos horizontales para el ensanche del campo de compresiones, y estribos verticales para el tirante de bielas y tirantes.">
           <Subgrupo titulo="Cercos horizontales">
-          <p className="mb-3 text-xs text-muted-foreground">Cercos cerrados en cada mitad del canto: cada uno pone dos ramas en cada dirección.</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Cercos cerrados, todos iguales, repartidos en todo el canto: cada uno pone dos ramas en cada dirección.
+            Cada mitad cuenta la mitad de los cercos; con una cantidad impar, el del medio no se cuenta.
+          </p>
           <div className="grid max-w-xl grid-cols-2 gap-4">
-            <CampoNumerico id="nCercosSup" etiqueta="Mitad superior · cercos" valor={nCercosSup} onChange={setNCercosSup} />
-            <CampoDiametro id="phiCercosSup" etiqueta="Mitad superior · Ø" valor={phiCercosSup} onChange={setPhiCercosSup} />
-            <CampoNumerico id="nCercosInf" etiqueta="Mitad inferior · cercos" valor={nCercosInf} onChange={setNCercosInf} />
-            <CampoDiametro id="phiCercosInf" etiqueta="Mitad inferior · Ø" valor={phiCercosInf} onChange={setPhiCercosInf} />
+            <CampoNumerico id="nCercos" etiqueta="Cantidad en todo el canto" valor={nCercos} onChange={setNCercos} />
+            <CampoDiametro id="phiCercos" etiqueta="Ø" valor={phiCercos} onChange={setPhiCercos} />
           </div>
           </Subgrupo>
           <Subgrupo titulo="Estribos verticales">

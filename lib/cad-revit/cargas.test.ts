@@ -121,7 +121,7 @@ describe("derivarCargas", () => {
   it("con cargas, cercos y estribos, el cabezal de 1 pilote se evalúa", () => {
     const c = {
       ...campos(cargado, "CT2"),
-      nCercosSup: "3", phiCercosSup: "10", nCercosInf: "3", phiCercosInf: "12",
+      nCercos: "6", phiCercos: "12",
       phiEstribosX: "16", sEstribosX: "0.15", phiEstribosY: "16", sEstribosY: "0.15",
     };
     expect(calcularCimentacion("cabezal-un-pilote", c).ok).toBe(true);

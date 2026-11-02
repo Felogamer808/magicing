@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calcularCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/cabezal-un-pilote";
+import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 // No hay planilla de cabezal de un pilote: los casos se comprueban contra las
@@ -199,5 +200,23 @@ describe("cabezal de un pilote: estribos verticales", () => {
     expect(r.estribosX.tKN).toBe(0);
     expect(r.estribosX.verificaTirante).toBe(true);
     expect(r.estribosX.verificaMinimo).toBe(true);
+  });
+});
+
+describe("cabezal de un pilote: cercos cargados en todo el canto", () => {
+  const campos = {
+    fck: "25", fyk: "500", pilarX: "0.3", pilarY: "0.3", ladoX: "0.9", ladoY: "0.9", hCab: "0.8",
+    dPilote: "0.6", ndPilar: "690", phiCercos: "12", recubrimiento: "0.05",
+    phiEstribosX: "16", sEstribosX: "0.15", phiEstribosY: "16", sEstribosY: "0.15",
+  };
+
+  it("cada mitad cuenta la mitad; con cantidad impar, el del medio no cuenta", () => {
+    const par = resolverCabezalUnPilote({ ...campos, nCercos: "6" })!;
+    const impar = resolverCabezalUnPilote({ ...campos, nCercos: "7" })!;
+    const dosRamas = (n: number) => 2 * n * (Math.PI * 1.2 ** 2) / 4;
+    expect(par.r.superior.x.asRealCm2).toBeCloseTo(dosRamas(3), 9);
+    expect(par.r.inferior.x.asRealCm2).toBeCloseTo(dosRamas(3), 9);
+    expect(impar.r.superior.x.asRealCm2).toBeCloseTo(dosRamas(3), 9);
+    expect(impar.r.inferior.y.asRealCm2).toBeCloseTo(dosRamas(3), 9);
   });
 });

@@ -106,9 +106,8 @@ function palancasPorClave(clave: ClaveCabezalUnPilote): readonly Palanca<Campos>
     case "pilote":
       return [FCK, lado("ladoX", "lado x = "), lado("ladoY", "lado y = ")];
     case "cercosSup":
-      return barras("nCercosSup", "phiCercosSup", "Mitad superior: ");
     case "cercosInf":
-      return barras("nCercosInf", "phiCercosInf", "Mitad inferior: ");
+      return barras("nCercos", "phiCercos", "Cercos en todo el canto: ");
     case "estribosX":
       return palancasEstribos("X");
     case "estribosY":

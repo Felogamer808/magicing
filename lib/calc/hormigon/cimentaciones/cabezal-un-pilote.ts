@@ -22,6 +22,16 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  * Si a > H/2 la (6.59) queda fuera de su rango y se usa la (6.58) con b = lado
  * del cabezal.
  *
+ * Estribos verticales (criterio del usuario, 2026-11-02): en cada dirección,
+ * un modelo de bielas y tirantes plano. La carga del pilar entra en dos
+ * mitades a a/4 de su eje y sale por el pilote en dos mitades a b/4 (b =
+ * 0,886·D, el cuadrado de igual área). Si el pilar es más ancho, las bielas se
+ * cierran hacia abajo y el tirante queda arriba, con Nd; si es más angosto, se
+ * abren y el tirante queda abajo, con la reacción del pilote. T = (F/2)·|a − b|/4
+ * / z, con z = H − 2·d' y d' = recubrimiento + Ø/2. Lo toma la rama horizontal
+ * de los estribos verticales que caen dentro del ancho de la biela. Como
+ * mínimo, la malla de vigas de gran canto del art. 9.7 por analogía (pág. 152).
+ *
  * Supone el pilar centrado sobre el pilote y el cabezal: la excentricidad
  * accidental la toman las vigas de atado, que se verifican aparte.
  */
@@ -47,9 +57,22 @@ export interface CercosHorizontales {
   diametroMm: number;
 }
 
+/** Estribos verticales cerrados de una dirección: en planos paralelos a ella. */
+export interface EstribosVerticales {
+  diametroMm: number;
+  /** Separación entre estribos, medida en la dirección perpendicular (m) */
+  separacionM: number;
+}
+
 export interface DatosCabezalUnPilote {
   /** Carga de cálculo del pilar (kN) */
   ndPilarKN: number;
+  /** Recubrimiento de los estribos verticales (m) */
+  recubrimientoM: number;
+  /** Estribos en planos xz (su rama horizontal va en x) */
+  estribosX: EstribosVerticales;
+  /** Estribos en planos yz (su rama horizontal va en y) */
+  estribosY: EstribosVerticales;
   /** Cercos en la mitad superior del canto */
   cercosSuperiores: CercosHorizontales;
   /** Cercos en la mitad inferior del canto */
@@ -96,6 +119,39 @@ export interface ResultadoTraccionTransversal {
   verifica: boolean;
 }
 
+/** Tirante del modelo de bielas y tirantes en una dirección, y sus estribos. */
+export interface ResultadoEstribosVerticales {
+  /** Ancho del pilar a y del pilote b en esta dirección (m) */
+  anchoPilarM: number;
+  anchoPiloteM: number;
+  /** Dónde queda el tirante; "ninguno" con a = b */
+  tirante: "arriba" | "abajo" | "ninguno";
+  /** Fuerza que baja por el modelo: Nd arriba, reacción del pilote abajo (kN) */
+  fKN: number;
+  /** Desvío horizontal de cada biela inclinada, |a − b|/4 (m) */
+  desvioM: number;
+  dPrimaM: number;
+  zM: number;
+  tKN: number;
+  asNecCm2: number;
+  /** Ancho de la biela en la dirección perpendicular, donde cuentan los estribos (m) */
+  anchoBielaM: number;
+  /** Estribos dentro del ancho de la biela, y en todo el cabezal con la misma separación */
+  estribosEnBiela: number;
+  estribosTotales: number;
+  /** Una rama horizontal por estribo dentro de la biela (cm²) */
+  asRealCm2: number;
+  verificaTirante: boolean;
+  /** Mínimo del art. 9.7 (1) por analogía: máx(0,001·espesor; 1,5 cm²/m) por cara (cm²/m) */
+  asMinCm2PorM: number;
+  asCm2PorM: number;
+  separacionM: number;
+  /** Separación máxima, art. 9.7 (2): mín(300 mm; 2·espesor) (m) */
+  separacionMaxM: number;
+  verificaMinimo: boolean;
+  verifica: boolean;
+}
+
 export interface ResultadoZonaCabezalUnPilote {
   x: ResultadoTraccionTransversal;
   y: ResultadoTraccionTransversal;
@@ -114,6 +170,9 @@ export interface ResultadoCabezalUnPilote {
   superior: ResultadoZonaCabezalUnPilote;
   /** Mitad inferior, con el pilote */
   inferior: ResultadoZonaCabezalUnPilote;
+  /** Estribos verticales en cada dirección */
+  estribosX: ResultadoEstribosVerticales;
+  estribosY: ResultadoEstribosVerticales;
   verifica: boolean;
 }
 
@@ -196,13 +255,82 @@ function traccionTransversal(
   };
 }
 
+/**
+ * Una dirección del modelo de bielas y tirantes. `ladoM` es el lado del cabezal
+ * en esta dirección (el espesor de la viga de gran canto que forman las ramas
+ * verticales sobre esas caras) y `ladoPerpM` el perpendicular, donde se
+ * reparten los estribos.
+ */
+function estribosVerticales(
+  anchoPilarM: number,
+  anchoPilarPerpM: number,
+  anchoPiloteM: number,
+  ladoM: number,
+  ladoPerpM: number,
+  hM: number,
+  ndPilarKN: number,
+  ndPiloteKN: number,
+  recubrimientoM: number,
+  estribos: EstribosVerticales,
+  fyd: number
+): ResultadoEstribosVerticales {
+  const { diametroMm, separacionM } = estribos;
+  const diferencia = anchoPilarM - anchoPiloteM;
+  const tirante = Math.abs(diferencia) < 1e-9 ? "ninguno" : diferencia > 0 ? "arriba" : "abajo";
+  const fKN = tirante === "abajo" ? ndPiloteKN : ndPilarKN;
+  const desvioM = Math.abs(diferencia) / 4;
+  const dPrimaM = recubrimientoM + diametroMm / 2000;
+  const zM = hM - 2 * dPrimaM;
+  // Cada mitad de la carga baja por una biela que se desvía |a − b|/4 en z.
+  const tKN = tirante === "ninguno" ? 0 : (fKN / 2) * (desvioM / zM);
+  const asNecCm2 = (tKN * 10) / fyd;
+
+  // La biela entra con el ancho del pilar (tirante arriba) o del pilote (abajo).
+  const anchoBielaM = tirante === "abajo" ? anchoPiloteM : anchoPilarPerpM;
+  const disponibleM = Math.max(ladoPerpM - 2 * dPrimaM, 0);
+  const estribosTotales = Math.floor(disponibleM / separacionM + 1e-9) + 1;
+  const estribosEnBiela = Math.min(Math.floor(anchoBielaM / separacionM + 1e-9) + 1, estribosTotales);
+  const asRealCm2 = areaCm2(estribosEnBiela, diametroMm);
+
+  // Art. 9.7 (1) y (2), por analogía: las ramas verticales son la malla de las
+  // caras de una viga de gran canto de espesor igual al lado del cabezal.
+  const asMinCm2PorM = Math.max(0.001 * ladoM * 1e4, 1.5);
+  const asCm2PorM = areaCm2(1, diametroMm) / separacionM;
+  const separacionMaxM = Math.min(0.3, 2 * ladoM);
+  const verificaMinimo = asCm2PorM >= asMinCm2PorM && separacionM <= separacionMaxM + 1e-9;
+  const verificaTirante = asRealCm2 >= asNecCm2;
+
+  return {
+    anchoPilarM,
+    anchoPiloteM,
+    tirante,
+    fKN,
+    desvioM,
+    dPrimaM,
+    zM,
+    tKN,
+    asNecCm2,
+    anchoBielaM,
+    estribosEnBiela,
+    estribosTotales,
+    asRealCm2,
+    verificaTirante,
+    asMinCm2PorM,
+    asCm2PorM,
+    separacionM,
+    separacionMaxM,
+    verificaMinimo,
+    verifica: verificaTirante && verificaMinimo,
+  };
+}
+
 export function calcularCabezalUnPilote(
   materiales: MaterialesDerivados,
   geometria: GeometriaCabezalUnPilote,
   datos: DatosCabezalUnPilote
 ): ResultadoCabezalUnPilote {
   const { pilarXM, pilarYM, ladoXM, ladoYM, hM, diametroPiloteM } = geometria;
-  const { ndPilarKN, cercosSuperiores, cercosInferiores } = datos;
+  const { ndPilarKN, cercosSuperiores, cercosInferiores, recubrimientoM } = datos;
   const { fcd, fyd } = materiales;
 
   const pesoPropioKN = ladoXM * ladoYM * hM * PESO_HORMIGON_KN_M3;
@@ -244,7 +372,16 @@ export function calcularCabezalUnPilote(
     y: traccionTransversal(ndPiloteKN, anchoPiloteM, ladoYM, hM, asInfCm2, fyd),
   };
 
+  const estribosX = estribosVerticales(
+    pilarXM, pilarYM, anchoPiloteM, ladoXM, ladoYM, hM, ndPilarKN, ndPiloteKN, recubrimientoM, datos.estribosX, fyd
+  );
+  const estribosY = estribosVerticales(
+    pilarYM, pilarXM, anchoPiloteM, ladoYM, ladoXM, hM, ndPilarKN, ndPiloteKN, recubrimientoM, datos.estribosY, fyd
+  );
+
   const verifica =
+    estribosX.verifica &&
+    estribosY.verifica &&
     compresionPilar.verifica &&
     compresionPilote.verifica &&
     superior.x.verifica &&
@@ -252,5 +389,5 @@ export function calcularCabezalUnPilote(
     inferior.x.verifica &&
     inferior.y.verifica;
 
-  return { pesoPropioKN, ndPiloteKN, compresionPilar, compresionPilote, superior, inferior, verifica };
+  return { pesoPropioKN, ndPiloteKN, compresionPilar, compresionPilote, superior, inferior, estribosX, estribosY, verifica };
 }

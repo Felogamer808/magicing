@@ -2,11 +2,14 @@ import {
   resolverCabezalUnPilote,
   type ResueltoCabezalUnPilote,
 } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
-import type { ResultadoZonaCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/cabezal-un-pilote";
+import type {
+  ResultadoEstribosVerticales,
+  ResultadoZonaCabezalUnPilote,
+} from "@/lib/calc/hormigon/cimentaciones/cabezal-un-pilote";
 import { evaluar, recomendarTodas, type Palanca, type Recomendacion } from "./motor";
 import { campo, m, palancaDiametro, palancaFck, palancaValor, EFECTO_PILAR, type Campos } from "./palancas";
 
-export type ClaveCabezalUnPilote = "pilar" | "pilote" | "cercosSup" | "cercosInf";
+export type ClaveCabezalUnPilote = "pilar" | "pilote" | "cercosSup" | "cercosInf" | "estribosX" | "estribosY";
 export type RecomendacionesCabezalUnPilote = Partial<Record<ClaveCabezalUnPilote, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveCabezalUnPilote, string> = {
@@ -14,9 +17,19 @@ const NOMBRES: Record<ClaveCabezalUnPilote, string> = {
   pilote: "compresión sobre el pilote",
   cercosSup: "cercos de la mitad superior",
   cercosInf: "cercos de la mitad inferior",
+  estribosX: "estribos verticales en x",
+  estribosY: "estribos verticales en y",
 };
 
 const cercos = (zona: ResultadoZonaCabezalUnPilote) => Math.max(zona.x.asNecCm2, zona.y.asNecCm2) / zona.x.asRealCm2;
+
+/** Lo que más pide de los estribos: el tirante, el mínimo del 9.7 o la separación. */
+const estribos = (e: ResultadoEstribosVerticales) =>
+  Math.max(
+    e.asNecCm2 / e.asRealCm2,
+    e.asMinCm2PorM / e.asCm2PorM,
+    e.separacionM / e.separacionMaxM
+  );
 
 function utilizaciones({ r }: ResueltoCabezalUnPilote): Partial<Record<ClaveCabezalUnPilote, number>> {
   const u: Partial<Record<ClaveCabezalUnPilote, number>> = {
@@ -25,6 +38,8 @@ function utilizaciones({ r }: ResueltoCabezalUnPilote): Partial<Record<ClaveCabe
   };
   u.cercosSup = cercos(r.superior);
   u.cercosInf = cercos(r.inferior);
+  u.estribosX = estribos(r.estribosX);
+  u.estribosY = estribos(r.estribosY);
   return u;
 }
 
@@ -68,6 +83,22 @@ const PILAR_X = palancaValor(campo("pilarX"), {
   efectoColateral: EFECTO_PILAR,
 });
 
+function palancasEstribos(eje: "X" | "Y"): Palanca<Campos>[] {
+  const phi = `phiEstribos${eje}`;
+  const sep = `sEstribos${eje}`;
+  const rotulo = `Estribos en ${eje.toLowerCase()}: `;
+  return [
+    palancaDiametro(campo(phi), "mayor", (e, d) => `Ø${d} cada ${campo(sep).leer(e)} m`, { rotulo }),
+    palancaValor(campo(sep), {
+      paso: -0.025,
+      tope: () => 0.075,
+      decimales: 3,
+      rotulo,
+      texto: (x, e) => `Ø${campo(phi).leer(e)} cada ${x} m`,
+    }),
+  ];
+}
+
 function palancasPorClave(clave: ClaveCabezalUnPilote): readonly Palanca<Campos>[] {
   switch (clave) {
     case "pilar":
@@ -75,9 +106,12 @@ function palancasPorClave(clave: ClaveCabezalUnPilote): readonly Palanca<Campos>
     case "pilote":
       return [FCK, lado("ladoX", "lado x = "), lado("ladoY", "lado y = ")];
     case "cercosSup":
-      return barras("nCercosSup", "phiCercosSup", "Mitad superior: ");
     case "cercosInf":
-      return barras("nCercosInf", "phiCercosInf", "Mitad inferior: ");
+      return barras("nCercos", "phiCercos", "Cercos en todo el canto: ");
+    case "estribosX":
+      return palancasEstribos("X");
+    case "estribosY":
+      return palancasEstribos("Y");
   }
 }
 

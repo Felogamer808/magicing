@@ -7,6 +7,8 @@ interface DiagramaCabezalUnPiloteProps {
   hM: number;
   pilarXM: number;
   diametroPiloteM: number;
+  /** Cercos horizontales en todo el canto, repartidos parejo */
+  cercos: number;
 }
 
 /**
@@ -14,7 +16,7 @@ interface DiagramaCabezalUnPiloteProps {
  * desde el pilar y se cierra sobre el pilote, partido en dos mitades del canto,
  * cada una con sus cercos horizontales (art. 6.5.3, fig. A19.6.25).
  */
-export function DiagramaCabezalUnPilote({ ladoXM, hM, pilarXM, diametroPiloteM }: DiagramaCabezalUnPiloteProps) {
+export function DiagramaCabezalUnPilote({ ladoXM, hM, pilarXM, diametroPiloteM, cercos }: DiagramaCabezalUnPiloteProps) {
   const W = 240;
   const escala = W / ladoXM;
   const x0 = 44;
@@ -28,8 +30,11 @@ export function DiagramaCabezalUnPilote({ ladoXM, hM, pilarXM, diametroPiloteM }
   // Ancho del campo de compresiones en la mitad del canto, sólo para dibujarlo.
   const campoW = Math.min(W * 0.9, Math.max(pilarW, piloteW) * 1.6);
 
-  const cercos = (desde: number, hasta: number) =>
-    [0.3, 0.6, 0.9].map((f) => desde + (hasta - desde) * f);
+  // Repartidos parejo en el canto, dejando un margen arriba y abajo.
+  const margen = Math.min(8, hPx / 10);
+  const alturasCercos = Array.from({ length: cercos }, (_, i) =>
+    cercos === 1 ? yMedio : y0 + margen + ((hPx - 2 * margen) * i) / (cercos - 1)
+  );
 
   return (
     <svg viewBox={`0 0 ${W + 88} ${yBase + 76}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
@@ -49,7 +54,7 @@ export function DiagramaCabezalUnPilote({ ladoXM, hM, pilarXM, diametroPiloteM }
       {/* mitad del canto */}
       <path d={`M${x0} ${yMedio} L${x0 + W} ${yMedio}`} stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 3" opacity="0.5" />
       {/* cercos de cada mitad */}
-      {[...cercos(y0, yMedio), ...cercos(yMedio, yBase)].map((y) => (
+      {alturasCercos.map((y) => (
         <path key={y} d={`M${x0 + 8} ${y} L${x0 + W - 8} ${y}`} stroke="currentColor" strokeWidth="2" />
       ))}
       <text x={x0 + W + 6} y={(y0 + yMedio) / 2 + 3} className="fill-current font-mono" fontSize="9.5">T sup</text>

@@ -161,17 +161,17 @@ describe("cabezal de un pilote: estribos verticales", () => {
     expect(e.verificaTirante).toBe(true);
   });
 
-  it("mínimo del art. 9.7: 0,001·lado por metro, con tope de separación", () => {
+  it("mínimo del art. 9.7: 0,001·lado en total, mitad por cara, con tope de separación", () => {
     const e = bajo.estribosX;
-    expect(e.asMinCm2PorM).toBeCloseTo(9, 9);
+    expect(e.asMinCm2PorM).toBeCloseTo(4.5, 9);
     expect(e.asCm2PorM).toBeCloseTo((Math.PI * 1.6 ** 2) / 4 / 0.15, 9);
     expect(e.verificaMinimo).toBe(true);
     const flojo = calcularCabezalUnPilote(
       materiales,
       { pilarXM: 0.3, pilarYM: 0.3, ladoXM: 0.9, ladoYM: 0.9, hM: 0.8, diametroPiloteM: 0.6 },
-      { ndPilarKN: 690, ...cercos, estribosX: { diametroMm: 12, separacionM: 0.15 } }
+      { ndPilarKN: 690, ...cercos, estribosX: { diametroMm: 10, separacionM: 0.2 } }
     );
-    // Ø12 cada 15 = 7,54 cm²/m < 9.
+    // Ø10 cada 20 = 3,93 cm²/m < 4,5.
     expect(flojo.estribosX.verificaMinimo).toBe(false);
     expect(flojo.verifica).toBe(false);
   });
@@ -218,5 +218,17 @@ describe("cabezal de un pilote: cercos cargados en todo el canto", () => {
     expect(par.r.inferior.x.asRealCm2).toBeCloseTo(dosRamas(3), 9);
     expect(impar.r.superior.x.asRealCm2).toBeCloseTo(dosRamas(3), 9);
     expect(impar.r.inferior.y.asRealCm2).toBeCloseTo(dosRamas(3), 9);
+  });
+});
+
+describe("cabezal de un pilote: piso absoluto del mínimo", () => {
+  it("en un cabezal chico manda 150 mm²/m por cara", () => {
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.3, pilarYM: 0.3, ladoXM: 0.25, ladoYM: 0.25, hM: 0.8, diametroPiloteM: 0.25 },
+      { ndPilarKN: 100, ...cercos }
+    );
+    // 0,001·0,25/2 = 1,25 cm²/m < 1,5.
+    expect(r.estribosX.asMinCm2PorM).toBeCloseTo(1.5, 9);
   });
 });

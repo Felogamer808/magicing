@@ -65,10 +65,10 @@ export default function CabezalUnPilotePage() {
   const [phiCercos, setPhiCercos] = useCampo("phiCercos", "12");
 
   const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
-  const [phiEstribosX, setPhiEstribosX] = useCampo("phiEstribosX", "16");
-  const [sEstribosX, setSEstribosX] = useCampo("sEstribosX", "0.15");
-  const [phiEstribosY, setPhiEstribosY] = useCampo("phiEstribosY", "16");
-  const [sEstribosY, setSEstribosY] = useCampo("sEstribosY", "0.15");
+  const [phiEstribosX, setPhiEstribosX] = useCampo("phiEstribosX", "12");
+  const [sEstribosX, setSEstribosX] = useCampo("sEstribosX", "0.2");
+  const [phiEstribosY, setPhiEstribosY] = useCampo("phiEstribosY", "12");
+  const [sEstribosY, setSEstribosY] = useCampo("sEstribosY", "0.2");
 
   const campos = useMemo(
     () => ({
@@ -233,7 +233,7 @@ export default function CabezalUnPilotePage() {
               "Pilar centrado: la excentricidad accidental la toman las vigas de atado, que se verifican aparte.",
               "Estribos verticales, por bielas y tirantes en cada dirección (criterio del usuario): la carga entra en dos mitades a a/4 del eje del pilar y sale a b/4 del eje del pilote (b = 0,886·D). Pilar más ancho: tirante arriba con Nd; más angosto: tirante abajo con Nd + 1,35·peso propio. T = (F/2)·|a − b|/4 / z, con z = H − 2·d' y d' = recubrimiento + Ø/2.",
               "El tirante lo toman los estribos dentro del ancho de la biela (el lado del pilar o el ancho del pilote, en la dirección perpendicular): n = ancho/s + 1.",
-              "Mínimo de los estribos, por analogía con la malla de vigas de gran canto (art. 9.7 (1) y (2), pág. 152): A/s ≥ máx(0,001·lado; 150 mm²/m) y s ≤ mín(300 mm; 2·lado).",
+              "Mínimo de los estribos, por analogía con la malla de vigas de gran canto (art. 9.7 (1) y (2), pág. 152): A/s ≥ máx(0,001·lado/2; 150 mm²/m) por cara —el 0,001·Ac es el total de la sección, mitad en cada cara— y s ≤ mín(300 mm; 2·lado).",
             ]}
             avisos={avisos}
           />

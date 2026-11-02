@@ -142,7 +142,7 @@ export interface ResultadoEstribosVerticales {
   /** Una rama horizontal por estribo dentro de la biela (cm²) */
   asRealCm2: number;
   verificaTirante: boolean;
-  /** Mínimo del art. 9.7 (1) por analogía: máx(0,001·espesor; 1,5 cm²/m) por cara (cm²/m) */
+  /** Mínimo del art. 9.7 (1) por analogía: máx(0,001·espesor/2; 1,5 cm²/m) por cara (cm²/m) */
   asMinCm2PorM: number;
   asCm2PorM: number;
   separacionM: number;
@@ -293,8 +293,10 @@ function estribosVerticales(
   const asRealCm2 = areaCm2(estribosEnBiela, diametroMm);
 
   // Art. 9.7 (1) y (2), por analogía: las ramas verticales son la malla de las
-  // caras de una viga de gran canto de espesor igual al lado del cabezal.
-  const asMinCm2PorM = Math.max(0.001 * ladoM * 1e4, 1.5);
+  // caras de una viga de gran canto de espesor igual al lado del cabezal. El
+  // 0,001·Ac se toma como el total de la sección, mitad en cada cara (criterio
+  // del usuario, 2026-11-02); los 150 mm²/m sí son por cara, como dice el texto.
+  const asMinCm2PorM = Math.max((0.001 * ladoM * 1e4) / 2, 1.5);
   const asCm2PorM = areaCm2(1, diametroMm) / separacionM;
   const separacionMaxM = Math.min(0.3, 2 * ladoM);
   const verificaMinimo = asCm2PorM >= asMinCm2PorM && separacionM <= separacionMaxM + 1e-9;

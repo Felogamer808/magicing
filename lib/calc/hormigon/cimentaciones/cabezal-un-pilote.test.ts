@@ -13,6 +13,9 @@ const fyd = 500 / 1.15;
 const cercos = {
   cercosSuperiores: { numero: 3, diametroMm: 10 },
   cercosInferiores: { numero: 3, diametroMm: 12 },
+  recubrimientoM: 0.05,
+  estribosX: { diametroMm: 16, separacionM: 0.15 },
+  estribosY: { diametroMm: 16, separacionM: 0.15 },
 };
 
 // CT9-1 del REV08: pilar 0,30 × 0,30, cabezal 0,90 × 0,90 × 0,80, pilote 0,60, Nd 690.
@@ -134,5 +137,67 @@ describe("cabezal de un pilote: tracción transversal (ec. 6.58 y 6.59)", () => 
     );
     expect(r.superior.x.tKN).toBeCloseTo(0.25 * (1 - (0.7 * 0.2) / 0.5) * 690, 9);
     expect(r.superior.y.tKN).toBeCloseTo(0.25 * (1 - (0.7 * 0.4) / 0.5) * 690, 9);
+  });
+});
+
+// Estribos verticales: bielas y tirantes en cada dirección (criterio del
+// usuario, 2026-11-02). d' = 0,05 + 0,016/2 = 0,058; z = 0,8 − 0,116 = 0,684.
+describe("cabezal de un pilote: estribos verticales", () => {
+  const b = Math.sqrt(Math.PI / 4) * 0.6; // 0,5317
+
+  it("pilar más angosto que el pilote: tirante abajo con la reacción del pilote", () => {
+    const e = bajo.estribosX;
+    expect(e.tirante).toBe("abajo");
+    expect(e.fKN).toBeCloseTo(690 + 1.35 * 16.2, 9);
+    expect(e.zM).toBeCloseTo(0.684, 9);
+    expect(e.tKN).toBeCloseTo(((690 + 1.35 * 16.2) / 2) * ((b - 0.3) / 4) / 0.684, 9);
+    expect(e.asNecCm2).toBeCloseTo((e.tKN * 10) / fyd, 9);
+    // Biela del ancho del pilote: 0,5317/0,15 → 3 + 1 = 4 estribos; en todo el
+    // cabezal, (0,9 − 0,116)/0,15 → 5 + 1 = 6.
+    expect(e.estribosEnBiela).toBe(4);
+    expect(e.estribosTotales).toBe(6);
+    expect(e.asRealCm2).toBeCloseTo(4 * Math.PI * 1.6 ** 2 / 4, 9);
+    expect(e.verificaTirante).toBe(true);
+  });
+
+  it("mínimo del art. 9.7: 0,001·lado por metro, con tope de separación", () => {
+    const e = bajo.estribosX;
+    expect(e.asMinCm2PorM).toBeCloseTo(9, 9);
+    expect(e.asCm2PorM).toBeCloseTo((Math.PI * 1.6 ** 2) / 4 / 0.15, 9);
+    expect(e.verificaMinimo).toBe(true);
+    const flojo = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.3, pilarYM: 0.3, ladoXM: 0.9, ladoYM: 0.9, hM: 0.8, diametroPiloteM: 0.6 },
+      { ndPilarKN: 690, ...cercos, estribosX: { diametroMm: 12, separacionM: 0.15 } }
+    );
+    // Ø12 cada 15 = 7,54 cm²/m < 9.
+    expect(flojo.estribosX.verificaMinimo).toBe(false);
+    expect(flojo.verifica).toBe(false);
+  });
+
+  it("pilar más ancho que el pilote: tirante arriba con Nd y biela del ancho del pilar", () => {
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.6, pilarYM: 0.6, ladoXM: 0.9, ladoYM: 0.9, hM: 0.8, diametroPiloteM: 0.4 },
+      { ndPilarKN: 690, ...cercos }
+    );
+    const bChico = Math.sqrt(Math.PI / 4) * 0.4;
+    expect(r.estribosX.tirante).toBe("arriba");
+    expect(r.estribosX.fKN).toBe(690);
+    expect(r.estribosX.tKN).toBeCloseTo(345 * ((0.6 - bChico) / 4) / 0.684, 9);
+    expect(r.estribosX.anchoBielaM).toBe(0.6);
+    expect(r.estribosX.estribosEnBiela).toBe(5);
+  });
+
+  it("mismo ancho: no hay tirante y queda el mínimo", () => {
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: b, pilarYM: b, ladoXM: 0.9, ladoYM: 0.9, hM: 0.8, diametroPiloteM: 0.6 },
+      { ndPilarKN: 690, ...cercos }
+    );
+    expect(r.estribosX.tirante).toBe("ninguno");
+    expect(r.estribosX.tKN).toBe(0);
+    expect(r.estribosX.verificaTirante).toBe(true);
+    expect(r.estribosX.verificaMinimo).toBe(true);
   });
 });

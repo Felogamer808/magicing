@@ -27,7 +27,7 @@ const meta = registroVerificaciones.find((v) => v.id === "cabezal-un-pilote")!;
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
-  { id: "armadura", titulo: "Cercos" },
+  { id: "armadura", titulo: "Armadura" },
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
@@ -66,9 +66,21 @@ export default function CabezalUnPilotePage() {
   const [nCercosInf, setNCercosInf] = useCampo("nCercosInf", "3");
   const [phiCercosInf, setPhiCercosInf] = useCampo("phiCercosInf", "12");
 
+  const [recubrimiento, setRecubrimiento] = useCampo("recubrimiento", "0.05");
+  const [phiEstribosX, setPhiEstribosX] = useCampo("phiEstribosX", "16");
+  const [sEstribosX, setSEstribosX] = useCampo("sEstribosX", "0.15");
+  const [phiEstribosY, setPhiEstribosY] = useCampo("phiEstribosY", "16");
+  const [sEstribosY, setSEstribosY] = useCampo("sEstribosY", "0.15");
+
   const campos = useMemo(
-    () => ({ fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf }),
-    [fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf]
+    () => ({
+      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf,
+      recubrimiento, phiEstribosX, sEstribosX, phiEstribosY, sEstribosY,
+    }),
+    [
+      fck, fyk, pilarX, pilarY, ladoX, ladoY, hCab, dPilote, ndPilar, nCercosSup, phiCercosSup, nCercosInf, phiCercosInf,
+      recubrimiento, phiEstribosX, sEstribosX, phiEstribosY, sEstribosY,
+    ]
   );
   const resultado = useMemo(() => resolverCabezalUnPilote(campos), [campos]);
   const comprobaciones = useMemo(() => comprobarCabezalUnPilote(campos) ?? [], [campos]);
@@ -173,13 +185,29 @@ export default function CabezalUnPilotePage() {
           />
         </Etapa>
 
-        <Etapa id="armadura" numero={2} titulo="Cercos horizontales" descripcion="Cercos cerrados en cada mitad del canto: cada uno pone dos ramas en cada dirección.">
+        <Etapa id="armadura" numero={2} titulo="Armadura" descripcion="Cercos horizontales para el ensanche del campo de compresiones, y estribos verticales para el tirante de bielas y tirantes.">
+          <Subgrupo titulo="Cercos horizontales">
+          <p className="mb-3 text-xs text-muted-foreground">Cercos cerrados en cada mitad del canto: cada uno pone dos ramas en cada dirección.</p>
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <CampoNumerico id="nCercosSup" etiqueta="Mitad superior · cercos" valor={nCercosSup} onChange={setNCercosSup} />
             <CampoDiametro id="phiCercosSup" etiqueta="Mitad superior · Ø" valor={phiCercosSup} onChange={setPhiCercosSup} />
             <CampoNumerico id="nCercosInf" etiqueta="Mitad inferior · cercos" valor={nCercosInf} onChange={setNCercosInf} />
             <CampoDiametro id="phiCercosInf" etiqueta="Mitad inferior · Ø" valor={phiCercosInf} onChange={setPhiCercosInf} />
           </div>
+          </Subgrupo>
+          <Subgrupo titulo="Estribos verticales">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Cerrados, en planos verticales de cada dirección. Su rama horizontal toma el tirante; la separación se
+              mide en la dirección perpendicular y sigue igual hasta las caras del cabezal.
+            </p>
+            <div className="grid max-w-xl grid-cols-2 gap-4">
+              <CampoDiametro id="phiEstribosX" etiqueta="En x · Ø" valor={phiEstribosX} onChange={setPhiEstribosX} />
+              <CampoNumerico id="sEstribosX" etiqueta="En x · separación" sufijo="m" valor={sEstribosX} onChange={setSEstribosX} />
+              <CampoDiametro id="phiEstribosY" etiqueta="En y · Ø" valor={phiEstribosY} onChange={setPhiEstribosY} />
+              <CampoNumerico id="sEstribosY" etiqueta="En y · separación" sufijo="m" valor={sEstribosY} onChange={setSEstribosY} />
+              <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+            </div>
+          </Subgrupo>
         </Etapa>
 
         <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -190,6 +218,7 @@ export default function CabezalUnPilotePage() {
               { etiqueta: "x × y × H", valor: `${ladoX} × ${ladoY} × ${hCab} m` },
               { etiqueta: "Pilar / pilote", valor: `${pilarX} × ${pilarY} m / Ø ${dPilote} m` },
               { etiqueta: "Nd pilar", valor: `${ndPilar} kN` },
+              { etiqueta: "Estribos verticales", valor: `x: Ø${phiEstribosX} c/${sEstribosX} m · y: Ø${phiEstribosY} c/${sEstribosY} m · rec. ${recubrimiento} m` },
               ...(resultado
                 ? [{ etiqueta: "Nd al pilote", valor: `${fmt(resultado.r.ndPiloteKN)} kN`, derivado: true }]
                 : []),
@@ -202,6 +231,9 @@ export default function CabezalUnPilotePage() {
               "El pilote entra en la ec. (6.58/6.59) como el cuadrado de igual área: a = 0,886·D.",
               "fyd = fyk/γs (art. 6.5.3 (1) remite al 3.2).",
               "Pilar centrado: la excentricidad accidental la toman las vigas de atado, que se verifican aparte.",
+              "Estribos verticales, por bielas y tirantes en cada dirección (criterio del usuario): la carga entra en dos mitades a a/4 del eje del pilar y sale a b/4 del eje del pilote (b = 0,886·D). Pilar más ancho: tirante arriba con Nd; más angosto: tirante abajo con Nd + 1,35·peso propio. T = (F/2)·|a − b|/4 / z, con z = H − 2·d' y d' = recubrimiento + Ø/2.",
+              "El tirante lo toman los estribos dentro del ancho de la biela (el lado del pilar o el ancho del pilote, en la dirección perpendicular): n = ancho/s + 1.",
+              "Mínimo de los estribos, por analogía con la malla de vigas de gran canto (art. 9.7 (1) y (2), pág. 152): A/s ≥ máx(0,001·lado; 150 mm²/m) y s ≤ mín(300 mm; 2·lado).",
             ]}
             avisos={avisos}
           />
@@ -304,6 +336,57 @@ export default function CabezalUnPilotePage() {
                   </div>
                 </Subgrupo>
               ))}
+
+              <Subgrupo titulo="Estribos verticales" detalle="bielas y tirantes en cada dirección · mínimo del art. 9.7">
+                <div>
+                  {(["x", "y"] as const).map((dir) => {
+                    const e = dir === "x" ? resultado.r.estribosX : resultado.r.estribosY;
+                    const clave = dir === "x" ? rec.estribosX : rec.estribosY;
+                    return (
+                      <div key={dir}>
+                        <ResultadoCheck
+                          etiqueta={`Tirante en ${dir}${e.tirante === "ninguno" ? " · no hay" : ` · ${e.tirante}`}`}
+                          verifica={e.verificaTirante}
+                          detalle={
+                            e.tirante === "ninguno"
+                              ? "Pilar y pilote del mismo ancho: las bielas bajan rectas y queda sólo el mínimo."
+                              : `T = ${fmt(e.tKN)} kN · ${e.estribosEnBiela} estribos dentro de la biela de ${fmt(e.anchoBielaM, 2)} m`
+                          }
+                          comparacion={{
+                            real: { etiqueta: "As en biela", valor: e.asRealCm2 },
+                            limite: { etiqueta: "As nec", valor: e.asNecCm2 },
+                            unidad: "cm²", exige: "≥",
+                          }}
+                          recomendaciones={clave}
+                        />
+                        <ResultadoCheck
+                          etiqueta={`Mínimo en ${dir} (art. 9.7)`}
+                          verifica={e.verificaMinimo}
+                          detalle={`s = ${fmt(e.separacionM, 3)} m, máx. ${fmt(e.separacionMaxM, 2)} m · ${e.estribosTotales} estribos en todo el cabezal`}
+                          comparacion={{
+                            real: { etiqueta: "A/s", valor: e.asCm2PorM },
+                            limite: { etiqueta: "mínimo", valor: e.asMinCm2PorM },
+                            unidad: "cm²/m", exige: "≥",
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                  <PanelFormulas
+                    titulo="Ver desarrollo"
+                    filas={(["x", "y"] as const).flatMap((dir) => {
+                      const e = dir === "x" ? resultado.r.estribosX : resultado.r.estribosY;
+                      return [
+                        { etiqueta: `${dir}: a pilar / b pilote`, valor: `${fmt(e.anchoPilarM, 3)} / ${fmt(e.anchoPiloteM, 3)} m` },
+                        { etiqueta: `${dir}: desvío |a − b|/4`, valor: `${fmt(e.desvioM, 3)} m` },
+                        { etiqueta: `${dir}: z = H − 2·d'`, valor: `${fmt(e.zM, 3)} m (d' = ${fmt(e.dPrimaM, 3)} m)` },
+                        { etiqueta: `${dir}: T = (F/2)·desvío/z`, valor: `${fmt(e.tKN)} kN con F = ${fmt(e.fKN)} kN` },
+                        { etiqueta: `${dir}: estribos en biela / en total`, valor: `${e.estribosEnBiela} / ${e.estribosTotales}` },
+                      ];
+                    })}
+                  />
+                </div>
+              </Subgrupo>
             </div>
           )}
         </Etapa>

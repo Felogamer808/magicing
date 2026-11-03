@@ -21,6 +21,8 @@ export interface GeometriaCabezal {
   diametroPiloteM: number;
   /** Recubrimiento de la armadura de fundación (m) */
   recubrimientoM: number;
+  /** Separación entre ejes de pilotes (m). Por defecto, 2,5·D. */
+  separacionPilotesM?: number;
 }
 
 export interface ArmaduraCabezal {
@@ -46,7 +48,7 @@ export interface DatosCabezal {
 }
 
 export interface ResultadoArmaduraPrincipalCabezal {
-  /** Separación entre ejes de pilotes, 2,5 veces el diámetro (m) */
+  /** Separación entre ejes de pilotes: 2D, 2,5D, 3D o la que se cargue (m) */
   separacionPilotesM: number;
   /** Brazo desde el eje del pilote a la cara del pilar (m) */
   vM: number;
@@ -173,7 +175,7 @@ export function calcularCabezalDosPilotes(
   const phiT = estribosVerticales.diametroMm;
   const phiL = estribosHorizontales.diametroMm;
 
-  const separacionPilotesM = 2.5 * diametroPiloteM;
+  const separacionPilotesM = geometria.separacionPilotesM ?? 2.5 * diametroPiloteM;
   const vM = separacionPilotesM / 2 - anchoPilarM / 2;
   const dM = hM - recubrimientoM - phiT / 1000 - phiPrinc / 2000;
 

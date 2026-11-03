@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calcularCabezalDosPilotes } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
+import { resolverCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 // Caso real de la hoja "Cabezal 2 pilotes (pilar circ)":
@@ -218,5 +219,37 @@ describe("cabezal de 2 pilotes: caso con pilar rectangular", () => {
 
   it("con 7φ25 la armadura principal sí verifica", () => {
     expect(rect.principal.verificaAs).toBe(true);
+  });
+});
+
+// Separación entre pilotes 2D, 2,5D, 3D o libre (criterio del usuario, 2026-11-03).
+describe("cabezal de 2 pilotes: separación entre pilotes", () => {
+  const datos = {
+    ndPilarKN: 1040,
+    armaduraPrincipal: { numero: 7, diametroMm: 16 },
+    armaduraSecundaria: { numero: 7, diametroMm: 10 },
+    estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+    estribosHorizontales: { diametroMm: 10, separacionM: 0.1 },
+  };
+
+  it("con 3·D el brazo crece: s = 1,5, v = 0,75 − 0,15 = 0,6", () => {
+    const r = calcularCabezalDosPilotes(materiales, { ...geometria, separacionPilotesM: 1.5 }, datos);
+    expect(r.principal.separacionPilotesM).toBeCloseTo(1.5, 9);
+    expect(r.principal.vM).toBeCloseTo(0.6, 9);
+  });
+
+  const campos = {
+    fck: "30", fyk: "500", rg: "0.05", anchoPilar: "0.3", ladoX: "1.6", ladoY: "0.6", hCab: "0.6", dPilote: "0.5", ndPilar: "1040",
+    nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", phiEstV: "8", sEstV: "0.15", phiEstH: "10", sEstH: "0.1",
+  };
+
+  it("el resolver toma la opción: sin elegir 2,5·D, con 2 → 2·D, libre → sPilotes", () => {
+    expect(resolverCabezal(campos)!.r.principal.separacionPilotesM).toBeCloseTo(1.25, 9);
+    expect(resolverCabezal({ ...campos, separacionPilotes: "2" })!.r.principal.separacionPilotesM).toBeCloseTo(1, 9);
+    expect(resolverCabezal({ ...campos, separacionPilotes: "libre", sPilotes: "1.1" })!.r.principal.separacionPilotesM).toBeCloseTo(1.1, 9);
+  });
+
+  it("con los pilotes a menos de un diámetro no calcula", () => {
+    expect(resolverCabezal({ ...campos, separacionPilotes: "libre", sPilotes: "0.4" })).toBeNull();
   });
 });

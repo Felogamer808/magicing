@@ -26,10 +26,19 @@ export function resolverCabezal(campos: Record<string, string>) {
   if ([n.nPrinc, n.phiPrinc, n.nSec, n.phiSec, n.phiEstV, n.sEstV, n.phiEstH, n.sEstH].some((x) => x <= 0)) return null;
   if (n.nPrinc < 2 || n.nSec < 2) return null;
 
+  // Separación entre ejes de pilotes: 2D, 2,5D o 3D, o libre (criterio del
+  // usuario, 2026-11-03). Sin elegir, 2,5D como antes.
+  const factor = Number(campos.separacionPilotes);
+  const separacionPilotesM =
+    campos.separacionPilotes === "libre"
+      ? num("sPilotes")
+      : (Number.isFinite(factor) && factor > 0 ? factor : 2.5) * n.dPilote;
+  if (!Number.isFinite(separacionPilotesM) || separacionPilotesM <= n.dPilote) return null;
+
   const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
   const r = calcularCabezalDosPilotes(
     materiales,
-    { anchoPilarM: n.anchoPilar, ladoXM: n.ladoX, ladoYM: n.ladoY, hM: n.hCab, diametroPiloteM: n.dPilote, recubrimientoM: n.rg },
+    { anchoPilarM: n.anchoPilar, ladoXM: n.ladoX, ladoYM: n.ladoY, hM: n.hCab, diametroPiloteM: n.dPilote, recubrimientoM: n.rg, separacionPilotesM },
     {
       ndPilarKN: n.ndPilar,
       armaduraPrincipal: { numero: n.nPrinc, diametroMm: n.phiPrinc },

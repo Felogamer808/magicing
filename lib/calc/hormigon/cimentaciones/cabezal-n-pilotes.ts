@@ -29,7 +29,7 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  *   como el de 2 (criterio del usuario, 2026-11-03). Malla de caras del
  *   art. 9.7 por analogía, como el de 2, con el canto H como espesor: el
  *   bloque trabaja como placa (con el lado menor, un cabezal de 1,9 m pedía
- *   19 cm²/m por cara).
+ *   19 cm²/m por cara). El 0,001·Ac es el total, mitad por cara (2026-11-03).
  * - Criterio de oficina, no del Anejo 19 (que no trae reglas de encepados):
  *   parrilla entre bandas ≥ 1/4 de la armadura de las bandas y armadura
  *   superior ≥ 1/10 de la inferior, en cada dirección. Son las de la
@@ -272,9 +272,11 @@ export function calcularCabezalNPilotes(
   });
 
   // Malla de caras, art. 9.7 (1) y (2), pág. 152, por analogía, con el canto
-  // como espesor (criterio del usuario, 2026-10-23).
+  // como espesor (criterio del usuario, 2026-10-23). El 0,001·Ac es el total
+  // de la sección, mitad en cada cara; los 150 mm²/m sí son por cara
+  // (criterio del usuario, 2026-11-03, como el de uno y el de dos pilotes).
   const espesor = g.hM;
-  const asNecCm2 = Math.max(0.001 * espesor * 1e4, 1.5);
+  const asNecCm2 = Math.max((0.001 * espesor * 1e4) / 2, 1.5);
   const separacionMaxM = Math.min(0.3, 2 * espesor);
   const separacionHorizontalM = (g.hM - 0.15) / Math.max(datos.estribosHorizontales.numero - 1, 1);
   const asVerticalCm2 = areaCm2(1, phiV) / datos.separacionVerticalM;

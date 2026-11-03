@@ -323,7 +323,7 @@ export default function CabezalPilotesPage() {
               "Ramas de los estribos verticales: se dibujan, pero la malla de cara (art. 9.7) cuenta una sola por cara, la exterior.",
               "El nudo bajo el pilar no se comprueba: el pilar ya está dimensionado para ese axil.",
               "Estribos con Ø y separación: la cantidad sale de repartirlos en el lado x − 0,2 m (verticales) y en H − 0,15 m (horizontales), los márgenes de la planilla.",
-              "Malla de las caras por el art. 9.7 (vigas de gran canto), por analogía: los encepados están fuera del Anejo 19 (art. 9.8.1). Por cara y dirección, máx(0,1 %·lado y; 1,5 cm²/m), separación ≤ mín(30 cm; 2·lado y). Cuenta la rama exterior de cada cerco.",
+              "Malla de las caras por el art. 9.7 (vigas de gran canto), por analogía: los encepados están fuera del Anejo 19 (art. 9.8.1). Por cara y dirección, máx(0,1 %·lado y/2; 1,5 cm²/m) —el 0,1 % es el total de la sección, mitad en cada cara—, separación ≤ mín(30 cm; 2·lado y). Cuenta la rama exterior de cada cerco.",
               "Anclaje del tirante por el art. 8.4, desde el eje del pilote (más conservador que la cara interior que admite el art. 6.5.4 (7)) hasta el extremo de la barra, sobre su eje. Con patilla a 90°: recta + doblez + pata, con mandril D mínimo de la tabla A19.8.1 y la pata hasta H − rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}

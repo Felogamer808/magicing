@@ -29,10 +29,9 @@ export interface ArmaduraCabezal {
 }
 
 export interface EstribosCabezal {
-  numero: number;
   diametroMm: number;
-  /** Número de cercos por posición (sólo estribos verticales) */
-  numeroCercos?: number;
+  /** Separación entre estribos (m) */
+  separacionM: number;
 }
 
 export interface DatosCabezal {
@@ -119,6 +118,12 @@ export interface ResultadoEstribosCabezal {
   verificaAs: boolean;
   /** Separación entre estribos (m) */
   separacionM: number;
+  /**
+   * Cuántos entran con esa separación: los verticales en el lado x menos
+   * 0,2 m, los horizontales en el canto menos 0,15 m (los márgenes de la
+   * planilla original)
+   */
+  numero: number;
   /** mín(300 mm; 2·espesor), art. 9.7 (2) (m) */
   separacionMaxM: number;
   verificaSeparacion: boolean;
@@ -270,8 +275,12 @@ export function calcularCabezalDosPilotes(
   // 0,4 % de min(B, h/2) de la planilla original, que no tenía artículo.
   // El espesor de la "viga" es el lado transversal: las caras son las dos
   // paralelas a la línea de pilotes.
-  const separacionVM = (ladoXM - 0.2) / Math.max(estribosVerticales.numero - 1, 1);
-  const separacionHM = (hM - 0.15) / Math.max(estribosHorizontales.numero - 1, 1);
+  // Se cargan Ø y separación (criterio del usuario, 2026-11-03); la cantidad
+  // sale de repartirlos con los márgenes de la planilla original.
+  const separacionVM = estribosVerticales.separacionM;
+  const separacionHM = estribosHorizontales.separacionM;
+  const numeroV = Math.floor(Math.max(ladoXM - 0.2, 0) / separacionVM + 1e-9) + 1;
+  const numeroH = Math.floor(Math.max(hM - 0.15, 0) / separacionHM + 1e-9) + 1;
   const asCaraNecCm2 = Math.max(0.001 * ladoYM * 1e4, 1.5);
   const separacionMaxM = Math.min(0.3, 2 * ladoYM);
   const asTRealCm2 = areaCm2(1, phiT) / separacionVM;
@@ -308,6 +317,7 @@ export function calcularCabezalDosPilotes(
       asRealCm2: asTRealCm2,
       verificaAs: asTRealCm2 >= asCaraNecCm2,
       separacionM: separacionVM,
+      numero: numeroV,
       separacionMaxM,
       verificaSeparacion: separacionVM <= separacionMaxM,
     },
@@ -316,6 +326,7 @@ export function calcularCabezalDosPilotes(
       asRealCm2: asLRealCm2,
       verificaAs: asLRealCm2 >= asCaraNecCm2,
       separacionM: separacionHM,
+      numero: numeroH,
       separacionMaxM,
       verificaSeparacion: separacionHM <= separacionMaxM,
     },

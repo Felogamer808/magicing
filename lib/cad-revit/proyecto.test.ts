@@ -211,7 +211,7 @@ describe("incorporarPlanta", () => {
                   campos: {
                     ...e.calculos[0].campos,
                     ...{ anchoPilar: "0.3", ndPilar: "690", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10" },
-                    ...{ nEstV: "10", phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10" },
+                    ...{ phiEstV: "8", sEstV: "0.15", phiEstH: "10", sEstH: "0.1" },
                   },
                 },
               ],

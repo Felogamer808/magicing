@@ -45,8 +45,8 @@ describe("estadoDeCalculo", () => {
   it("un cálculo guardado desde la página, con la norma elegida, se evalúa", () => {
     const desdeLaPagina = crearCalculo("cabezales", {
       ...{ norma: "EC2", fck: "30", fyk: "500", rg: "0.03", anchoPilar: "0.3", ladoX: "1.8", ladoY: "0.8", hCab: "0.75" },
-      ...{ dPilote: "0.5", ndPilar: "480", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", nEstV: "10" },
-      ...{ phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10", formaAnclaje: "recta" },
+      ...{ dPilote: "0.5", ndPilar: "480", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", sEstV: "0.15" },
+      ...{ phiEstV: "8", phiEstH: "10", sEstH: "0.1", formaAnclaje: "recta" },
     });
     expect(estadoDeCalculo(desdeLaPagina)).toBe("no-verifica");
   });

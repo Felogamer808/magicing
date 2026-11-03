@@ -31,8 +31,8 @@ describe("cabezal de n pilotes: la generalización del de 2", () => {
       ndPilarKN: 1040,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
       armaduraSecundaria: { numero: 7, diametroMm: 10 },
-      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
     }
   );
   const n = calcularCabezalNPilotes(

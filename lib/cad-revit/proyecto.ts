@@ -33,7 +33,7 @@ import { numerarMarcas } from "./exportar";
 
 /** Campos de cada verificación que se cargan a mano: entran vacíos. */
 export const A_MANO = {
-  cabezales: ["anchoPilar", "ndPilar", "nPrinc", "phiPrinc", "nSec", "phiSec", "nEstV", "phiEstV", "nCercos", "nEstH", "phiEstH"],
+  cabezales: ["anchoPilar", "ndPilar", "nPrinc", "phiPrinc", "nSec", "phiSec", "phiEstV", "sEstV", "phiEstH", "sEstH"],
   "cabezal-un-pilote": ["pilarX", "pilarY", "ndPilar", "nCercos", "phiCercos", "phiEstribosX", "sEstribosX", "phiEstribosY", "sEstribosY"],
   "cabezal-n-pilotes": [
     "pilarA", "pilarB", "ndPilar", "nA", "phiA", "nB", "phiB", "phiPar", "sPar", "phiSup", "sSup", "phiEstV", "sEstV", "nEstH", "phiEstH",

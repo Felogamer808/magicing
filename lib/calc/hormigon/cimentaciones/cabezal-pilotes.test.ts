@@ -21,8 +21,8 @@ const r = calcularCabezalDosPilotes(materiales, geometria, {
   ndPilarKN: 1040,
   armaduraPrincipal: { numero: 7, diametroMm: 16 },
   armaduraSecundaria: { numero: 7, diametroMm: 10 },
-  estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-  estribosHorizontales: { numero: 5, diametroMm: 10 },
+  estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+  estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
 });
 
 describe("cabezal de 2 pilotes: geometría y carga", () => {
@@ -66,8 +66,8 @@ describe("cabezal de 2 pilotes: bielas y nudos", () => {
       ndPilarKN: 9000,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
       armaduraSecundaria: { numero: 7, diametroMm: 10 },
-      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
     });
     expect(sobrecargado.bielas.verificaBiela).toBe(false);
     expect(sobrecargado.bielas.sigmaBielaMPa).toBeGreaterThan(sobrecargado.bielas.sigmaNudoMPa);
@@ -117,8 +117,8 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
       ndPilarKN: 1040,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
       armaduraSecundaria: { numero: 7, diametroMm: 10 },
-      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
       formaAnclaje: "gancho",
     });
     const lbRqd = (16 / 4) * ((500 / 1.15) / (2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5)));
@@ -165,13 +165,30 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.estribosHorizontales.verificaSeparacion).toBe(true);
   });
 
+  // Se cargan Ø y separación (2026-11-03): la cantidad sale de repartirlos.
+  it("con Ø y separación, la cantidad sale de los márgenes de la planilla", () => {
+    expect(r.estribosVerticales.numero).toBe(10);
+    expect(r.estribosHorizontales.numero).toBe(5);
+    const s15 = calcularCabezalDosPilotes(materiales, geometria, {
+      ndPilarKN: 1040,
+      armaduraPrincipal: { numero: 7, diametroMm: 16 },
+      armaduraSecundaria: { numero: 7, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1 },
+    });
+    // floor(1,4/0,15) + 1 = 10; floor(0,45/0,10) + 1 = 5.
+    expect(s15.estribosVerticales.numero).toBe(10);
+    expect(s15.estribosHorizontales.numero).toBe(5);
+    expect(s15.estribosVerticales.asRealCm2).toBeCloseTo((Math.PI * 0.64) / 4 / 0.15, 9);
+  });
+
   it("cabezal delgado: el mínimo de 150 mm²/m y la separación de 2·espesor", () => {
     const delgado = calcularCabezalDosPilotes(materiales, { ...geometria, ladoYM: 0.1 }, {
       ndPilarKN: 100,
       armaduraPrincipal: { numero: 2, diametroMm: 12 },
       armaduraSecundaria: { numero: 2, diametroMm: 8 },
-      estribosVerticales: { numero: 5, diametroMm: 8, numeroCercos: 1 },
-      estribosHorizontales: { numero: 3, diametroMm: 8 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.35 },
+      estribosHorizontales: { diametroMm: 8, separacionM: 0.225 },
     });
     expect(delgado.estribosVerticales.asNecCm2).toBeCloseTo(1.5, 9);
     expect(delgado.estribosVerticales.separacionMaxM).toBeCloseTo(0.2, 9);
@@ -189,8 +206,8 @@ describe("cabezal de 2 pilotes: caso con pilar rectangular", () => {
       ndPilarKN: 1645,
       armaduraPrincipal: { numero: 7, diametroMm: 25 },
       armaduraSecundaria: { numero: 7, diametroMm: 12 },
-      estribosVerticales: { numero: 15, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
     }
   );
 

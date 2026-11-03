@@ -84,15 +84,42 @@ describe("cabezal de un pilote: tracción transversal (ec. 6.58 y 6.59)", () => 
     expect(t.verifica).toBe(true);
   });
 
-  it("con el pilote más ancho que H/2, T sale de la ec. 6.58 con b = lado del cabezal", () => {
-    // a = 0,886·0,60 = 0,53 > h = 0,40 → T = ¼·(0,90 − 0,53)/0,90·F
+  it("con el pilote más ancho que H/2, la ec. 6.59 se toma con a topado en h", () => {
+    // a = 0,886·0,60 = 0,53 > h = 0,40 → T = ¼·(1 − 0,7)·F = 0,075·F, menor
+    // que la 6.58: ¼·(0,90 − 0,53)/0,90·F = 0,102·F.
     const a = Math.sqrt(Math.PI / 4) * 0.6;
     const t = bajo.inferior.x;
     expect(t.aM).toBeCloseTo(a, 9);
     expect(t.aSuperaMitad).toBe(true);
-    expect(t.ecuacion).toBe("6.58");
-    expect(t.tKN).toBeCloseTo(0.25 * ((0.9 - a) / 0.9) * bajo.ndPiloteKN, 9);
+    expect(t.ecuacion).toBe("6.59");
+    expect(t.tKN).toBeCloseTo(0.25 * 0.3 * bajo.ndPiloteKN, 9);
     expect(t.verifica).toBe(t.asRealCm2 >= t.asNecCm2);
+  });
+
+  it("caso del usuario (2026-11-03): pilar 0,2 × 0,4, pilote Ø0,6, H = 0,9", () => {
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.2, pilarYM: 0.4, ladoXM: 0.9, ladoYM: 0.9, hM: 0.9, diametroPiloteM: 0.6 },
+      { ndPilarKN: 690, ...cercos }
+    );
+    const f = 690 + 1.35 * 0.9 * 0.9 * 0.9 * 25;
+    // Arriba, en rango: ¼·(1 − 0,7·a/0,45)·690
+    expect(r.superior.x.tKN).toBeCloseTo(0.25 * (1 - (0.7 * 0.2) / 0.45) * 690, 9);
+    expect(r.superior.y.tKN).toBeCloseTo(0.25 * (1 - (0.7 * 0.4) / 0.45) * 690, 9);
+    // Abajo, a = 0,53 > 0,45: topada, 0,075·F ≈ 54 kN (la 6.58 daría 73).
+    expect(r.inferior.x.ecuacion).toBe("6.59");
+    expect(r.inferior.x.tKN).toBeCloseTo(0.075 * f, 9);
+  });
+
+  it("con a cerca del lado del cabezal manda la 6.58, que lleva T a cero", () => {
+    // a = 0,8 > h = 0,3: topada 0,075·F, 6.58 = ¼·(0,9 − 0,8)/0,9·F = 0,028·F.
+    const r = calcularCabezalUnPilote(
+      materiales,
+      { pilarXM: 0.8, pilarYM: 0.3, ladoXM: 0.9, ladoYM: 0.9, hM: 0.6, diametroPiloteM: 0.6 },
+      { ndPilarKN: 690, ...cercos }
+    );
+    expect(r.superior.x.ecuacion).toBe("6.58");
+    expect(r.superior.x.tKN).toBeCloseTo(0.25 * (0.1 / 0.9) * 690, 9);
   });
 
   it("si a supera el lado del cabezal, T no baja de cero", () => {

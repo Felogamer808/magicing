@@ -119,7 +119,7 @@ export default function CabezalUnPilotePage() {
     if (zona.x.aSuperaMitad || zona.y.aSuperaMitad) {
       avisos.push({
         tipo: "aviso",
-        texto: `Mitad ${nombre}: el ancho cargado supera H/2, fuera del rango de la ec. (6.59) (fig. A19.6.25b). T sale de la ec. (6.58) con b = lado del cabezal.`,
+        texto: `Mitad ${nombre}: el ancho cargado supera H/2, fuera del rango de la ec. (6.59) (a ≤ h, fig. A19.6.25b). Se toma con a = H/2, sin pasar de la (6.58) con b = lado del cabezal.`,
       });
     }
   }
@@ -279,7 +279,7 @@ export default function CabezalUnPilotePage() {
               "El Anejo 19 deja los encepados fuera de su alcance (art. 9.8.1, pág. 152): se usa el articulado general, sin cuantía mínima propia.",
               "Compresión localizada del pilar sobre el cabezal y del cabezal sobre el pilote: art. 6.7, ec. (6.63), con A_c1 semejante a A_c0.",
               "Tracción transversal por mitad del canto, con z = h/2: la superior con el pilar y Nd, la inferior con el pilote y Nd + 1,35·peso propio (art. 6.5.3, ec. 6.58/6.59).",
-              "Si el ancho cargado supera H/2, la ec. (6.59) queda fuera de su rango (a ≤ h): se usa la (6.58), T = ¼·(b − a)/b·F, con b = lado del cabezal.",
+              "Si el ancho cargado supera H/2, la ec. (6.59) queda fuera de su rango (a ≤ h, fig. A19.6.25b): no se extrapola, se toma con a = h. T no pasa de la (6.58), ¼·(b − a)/b·F con b = lado del cabezal, que la lleva a cero cuando a llega a b.",
               "El pilote entra en la ec. (6.58/6.59) como el cuadrado de igual área: a = 0,886·D.",
               "fyd = fyk/γs (art. 6.5.3 (1) remite al 3.2).",
               "Pilar centrado: la excentricidad accidental la toman las vigas de atado, que se verifican aparte.",
@@ -365,7 +365,7 @@ export default function CabezalUnPilotePage() {
                           verifica={t.verifica}
                           detalle={
                             t.aSuperaMitad
-                              ? `T = ${fmt(t.tKN)} kN · a = ${fmt(t.aM)} m > H/2`
+                              ? `T = ${fmt(t.tKN)} kN · a = ${fmt(t.aM)} m > H/2${t.ecuacion === "6.59" ? ", topado en H/2" : ""}`
                               : `T = ${fmt(t.tKN)} kN`
                           }
                           comparacion={{

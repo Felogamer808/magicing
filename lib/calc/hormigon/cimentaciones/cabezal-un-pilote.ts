@@ -19,8 +19,9 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  * arriba carga el pilar y abajo el pilote. Criterio del usuario (2026-10-19):
  * cada mitad del canto se resuelve por separado, con z = h/2, la superior con
  * el pilar y la inferior con el pilote, y los cercos de cada mitad cubren su T.
- * Si a > H/2 la (6.59) queda fuera de su rango y se usa la (6.58) con b = lado
- * del cabezal.
+ * Si a > H/2 la (6.59) queda fuera de su rango (a ≤ h): se toma con a topado
+ * en h, y como el campo ya casi no se abre cuando a se acerca a b, T no pasa
+ * de la (6.58) con b = lado del cabezal (criterio del usuario, 2026-11-03).
  *
  * Estribos verticales (criterio del usuario, 2026-11-02): en cada dirección,
  * un modelo de bielas y tirantes plano. La carga del pilar entra en dos
@@ -106,11 +107,11 @@ export interface ResultadoTraccionTransversal {
   discontinuidad: "parcial" | "total";
   /**
    * La ecuación con que salió T. Con discontinuidad total y a > H/2 la (6.59)
-   * queda fuera de su rango (a ≤ h, fig. A19.6.25b) y se usa la (6.58) con
-   * b = lado del cabezal (criterio del usuario, 2026-10-19).
+   * se toma con a topado en h (fig. A19.6.25b, a ≤ h), y si la (6.58) con
+   * b = lado del cabezal da menos, manda ésa (criterio del usuario, 2026-11-03).
    */
   ecuacion: "6.58" | "6.59";
-  /** a > H/2: la (6.59) no aplica y T sale de la (6.58) */
+  /** a > H/2: la (6.59) se toma con a = h */
   aSuperaMitad: boolean;
   tKN: number;
   asNecCm2: number;
@@ -225,17 +226,16 @@ function traccionTransversal(
   const mitad = cantoM / 2;
   const discontinuidad: "parcial" | "total" = bM <= mitad ? "parcial" : "total";
   const aSuperaMitad = aM > mitad;
-  // La (6.59) sólo con discontinuidad total y a ≤ h = H/2 (fig. A19.6.25b).
-  const ecuacion: "6.58" | "6.59" = discontinuidad === "total" && !aSuperaMitad ? "6.59" : "6.58";
-
-  const tKN =
-    ecuacion === "6.59"
-      ? // Anejo 19, art. 6.5.3 (3) b), ec. (6.59): T = ¼·(1 − 0,7·a/h)·F, con h = H/2.
-        Math.max(0, 0.25 * (1 - (0.7 * aM) / mitad) * fKN)
-      : // Anejo 19, art. 6.5.3 (3) a), ec. (6.58): T = ¼·(b − a)/b·F. Con a > H/2
-        // el campo se abre de a hasta el lado del cabezal b en ese tramo
-        // (criterio del usuario, 2026-10-19).
-        Math.max(0, 0.25 * ((bM - aM) / bM) * fKN);
+  // Anejo 19, art. 6.5.3 (3) a), ec. (6.58): T = ¼·(b − a)/b·F.
+  const t658 = Math.max(0, 0.25 * ((bM - aM) / bM) * fKN);
+  // Anejo 19, art. 6.5.3 (3) b), ec. (6.59): T = ¼·(1 − 0,7·a/h)·F, con h = H/2
+  // y a ≤ h (fig. A19.6.25b). Fuera de rango no se extrapola, que daría cada vez
+  // menos T: a se topa en h. Y como con a cerca de b el campo casi no se abre,
+  // T no pasa de la (6.58) (criterio del usuario, 2026-11-03).
+  const t659 = 0.25 * (1 - (0.7 * Math.min(aM, mitad)) / mitad) * fKN;
+  const ecuacion: "6.58" | "6.59" =
+    discontinuidad === "parcial" || (aSuperaMitad && t658 < t659) ? "6.58" : "6.59";
+  const tKN = ecuacion === "6.58" ? t658 : t659;
 
   // Art. 6.5.3 (1) remite al 3.2: fyd = fyk/γs, sin el tope de 0,8·fyk de los
   // estribos de cortante.

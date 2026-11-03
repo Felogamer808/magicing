@@ -67,6 +67,10 @@ export function calcularCorte(datos: DatosCorte): ResultadoCorte {
     );
   }
 
+  if (p.te) {
+    throw new SeccionFueraDeAlcance("G3", "El artículo G2 cubre perfiles I y canales. Una T se verifica por el artículo G3.");
+  }
+
   // Aw = altura total por espesor de alma. Las composiciones aportan dos almas.
   const awM2 = p.almas * p.hM * p.twM;
 

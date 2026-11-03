@@ -5,8 +5,8 @@
  * cuál aplica lo decide la forma de la sección, no quien la usa. Concentrar esa
  * decisión acá evita que cada página la repita —y que alguna la repita mal—.
  *
- *   Flexión   abierta → F2      rectangular o cajón → F7      redonda → F8
- *   Corte     abierta → G2      rectangular o cajón → G4      redonda → G5
+ *   Flexión   abierta → F2      rectangular o cajón → F7      redonda → F8      T → F9
+ *   Corte     abierta → G2      rectangular o cajón → G4      redonda → G5      T → G3
  */
 
 import {
@@ -30,15 +30,20 @@ import {
   type ResultadoG4,
   type ResultadoG5,
 } from "@/lib/calc/acero/corte-cerradas";
+import { calcularF9, type PuntaAlma, type ResultadoF9 } from "@/lib/calc/acero/flexion-te";
+import { calcularG3, type ResultadoG3 } from "@/lib/calc/acero/corte-te";
+import { SeccionFueraDeAlcance } from "@/lib/calc/acero/flexion";
 import { propiedades } from "@/lib/calc/acero/perfiles";
 
-export type ResultadoFlexionCualquiera = ResultadoFlexion | ResultadoF7 | ResultadoF8;
-export type ResultadoCorteCualquiera = ResultadoCorte | ResultadoG4 | ResultadoG5;
+export type ResultadoFlexionCualquiera = ResultadoFlexion | ResultadoF7 | ResultadoF8 | ResultadoF9;
+export type ResultadoCorteCualquiera = ResultadoCorte | ResultadoG4 | ResultadoG5 | ResultadoG3;
 
 export function calcularFlexionSegunSeccion(
-  datos: DatosFlexion & DatosFlexionCerrada
+  datos: DatosFlexion & DatosFlexionCerrada & { puntaAlma?: PuntaAlma }
 ): ResultadoFlexionCualquiera {
   const p = propiedades(datos.familia, datos.params);
+  // Sin dato de orientación se toma la punta comprimida, que es lo desfavorable.
+  if (p.te) return calcularF9({ ...datos, puntaAlma: datos.puntaAlma ?? "comprimida" });
   if (!p.esCerrada) return calcularFlexion(datos);
   return datos.familia === "tubo-redondo" ? calcularF8(datos) : calcularF7(datos);
 }
@@ -52,6 +57,9 @@ export function momentoAdmisibleEjeDebil(
   datos: DatosFlexion & DatosFlexionCerrada
 ): number {
   const p = propiedades(datos.familia, datos.params);
+  if (p.te) {
+    throw new SeccionFueraDeAlcance("F9", "La flexión de una T fuera de su plano de simetría no está implementada.");
+  }
   if (!p.esCerrada) return calcularFlexionEjeDebil(datos).admisibleKNm;
   if (datos.familia === "tubo-redondo") return calcularF8(datos).admisibleKNm;
   return calcularF7({ ...datos, eje: "débil" }).admisibleKNm;
@@ -61,6 +69,7 @@ export function calcularCorteSegunSeccion(
   datos: DatosCorte & DatosCorteCerrada
 ): ResultadoCorteCualquiera {
   const p = propiedades(datos.familia, datos.params);
+  if (p.te) return calcularG3(datos);
   if (!p.esCerrada) return calcularCorte(datos);
   return datos.familia === "tubo-redondo" ? calcularG5(datos) : calcularG4(datos);
 }

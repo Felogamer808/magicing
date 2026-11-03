@@ -1,4 +1,4 @@
-import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularAnclaje, mandrilMinimoMm, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_G } from "@/lib/calc/hormigon/comun/coeficientes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
@@ -71,12 +71,31 @@ export interface ResultadoArmaduraPrincipalCabezal {
   /** Longitud de anclaje necesaria, art. 8.4.4 ec. (8.4) (mm) */
   lbdMm: number;
   /**
-   * Largo disponible desde la cara interior del pilote, donde empieza el nudo
-   * (art. 6.5.4 (7)), hasta el borde del cabezal menos el recubrimiento; con
-   * patilla suma la pata hasta H − 2·rec (mm)
+   * Largo disponible sobre el eje de la barra desde el eje del pilote (criterio
+   * del usuario, 2026-11-03) hasta el extremo de la barra; con patilla, recta +
+   * doblez + la pata que entra en el canto (mm)
    */
   disponibleAnclajeMm: number;
   verificaAnclaje: boolean;
+  /** Geometría de la patilla, sólo si el extremo es patilla a 90° */
+  patilla: PatillaCabezal | null;
+}
+
+/**
+ * Patilla a 90° del tirante, medida sobre el eje de la barra desde el eje del
+ * pilote: recta hasta el doblez, el arco de radio (D + Ø)/2 y la pata vertical.
+ */
+export interface PatillaCabezal {
+  /** Diámetro de mandril D, mínimo de la tabla A19.8.1 (mm) */
+  mandrilMm: number;
+  /** Del eje del pilote al inicio del doblez (mm) */
+  rectaMm: number;
+  /** Arco del doblez sobre el eje, ¼·π·(D + Ø)/2·2 (mm) */
+  arcoMm: number;
+  /** Pata vertical recta que hace falta para completar lbd (mm) */
+  patillaNecMm: number;
+  /** Pata vertical que entra en el canto, hasta H − rec (mm) */
+  patillaDispMm: number;
 }
 
 export interface ResultadoArmaduraSecundariaCabezal {
@@ -214,12 +233,24 @@ export function calcularCabezalDosPilotes(
     { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
     { diametroMm: phiPrinc, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa: sigmaSdAnclajeMPa }
   );
-  // Empieza en la cara interior del pilote (art. 6.5.4 (7), pág. 100) y se mide
-  // sobre el eje de la barra (art. 8.4.3 (3)): con patilla suma la pata hasta
-  // H − 2·rec, sin contar el doblez.
-  const rectaM = ladoXM / 2 - separacionPilotesM / 2 + diametroPiloteM / 2 - recubrimientoM;
-  const pataM = formaAnclaje === "gancho" ? Math.max(hM - 2 * recubrimientoM, 0) : 0;
-  const disponibleAnclajeMm = (rectaM + pataM) * 1000;
+  // Se mide desde el eje del pilote, donde el modelo cierra el tirante: más
+  // conservador que la cara interior que admite el art. 6.5.4 (7) (criterio
+  // del usuario, 2026-11-03). Sobre el eje de la barra y con el doblez incluido
+  // (fig. A19.8.1): con patilla a 90°, el mandril D es el mínimo de la tabla
+  // A19.8.1 y la pata sube hasta H − rec.
+  const voladoM = ladoXM / 2 - separacionPilotesM / 2 - recubrimientoM;
+  let patilla: PatillaCabezal | null = null;
+  let disponibleAnclajeMm = voladoM * 1000;
+  if (formaAnclaje === "gancho") {
+    const mandrilMm = mandrilMinimoMm(phiPrinc);
+    const radioEjeMm = (mandrilMm + phiPrinc) / 2;
+    const rectaMm = Math.max(voladoM * 1000 - phiPrinc / 2 - radioEjeMm, 0);
+    const arcoMm = (Math.PI / 2) * radioEjeMm;
+    const patillaDispMm = Math.max((hM - 2 * recubrimientoM) * 1000 - phiPrinc / 2 - radioEjeMm, 0);
+    const patillaNecMm = Math.max(lbdMm - rectaMm - arcoMm, 0);
+    patilla = { mandrilMm, rectaMm, arcoMm, patillaNecMm, patillaDispMm };
+    disponibleAnclajeMm = rectaMm + arcoMm + patillaDispMm;
+  }
 
   // Secundaria: el 10% de la armadura principal realmente colocada.
   const phiSec = armaduraSecundaria.diametroMm;
@@ -264,6 +295,7 @@ export function calcularCabezalDosPilotes(
       lbdMm,
       disponibleAnclajeMm,
       verificaAnclaje: disponibleAnclajeMm >= lbdMm,
+      patilla,
     },
     secundaria: {
       asNecCm2: asSecNecCm2,

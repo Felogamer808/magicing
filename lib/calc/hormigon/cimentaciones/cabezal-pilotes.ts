@@ -113,7 +113,7 @@ export interface ResultadoArmaduraSecundariaCabezal {
  * de la cara.
  */
 export interface ResultadoEstribosCabezal {
-  /** máx(0,1 %·espesor; 150 mm²/m) por cara y dirección (cm²/m) */
+  /** máx(0,1 %·espesor/2; 150 mm²/m) por cara y dirección (cm²/m) */
   asNecCm2: number;
   /** Rama exterior por metro, en una cara (cm²/m) */
   asRealCm2: number;
@@ -287,9 +287,12 @@ export function calcularCabezalDosPilotes(
   // 9.8.1); con la luz entre pilotes menor que 3 veces el canto el cabezal es
   // una viga de gran canto (art. 5.3.1 (3)) y se le aplica por analogía el
   // art. 9.7 (pág. 152): malla ortogonal cerca de cada cara con
-  // A_s,dbmin = 0,001·A_c por cara y dirección, ≥ 150 mm²/m, y separación
+  // A_s,dbmin = 0,001·A_c, ≥ 150 mm²/m por cara y dirección, y separación
   // ≤ mín(300 mm; 2·espesor). Criterio del usuario, 2026-10-19: reemplaza el
-  // 0,4 % de min(B, h/2) de la planilla original, que no tenía artículo.
+  // 0,4 % de min(B, h/2) de la planilla original, que no tenía artículo. El
+  // 0,001·A_c es el total de la sección, mitad en cada cara; los 150 mm²/m sí
+  // son por cara, como dice el texto (criterio del usuario, 2026-11-03, el
+  // mismo del cabezal de un pilote).
   // El espesor de la "viga" es el lado transversal: las caras son las dos
   // paralelas a la línea de pilotes.
   // Se cargan Ø y separación (criterio del usuario, 2026-11-03); la cantidad
@@ -298,7 +301,7 @@ export function calcularCabezalDosPilotes(
   const separacionHM = estribosHorizontales.separacionM;
   const numeroV = Math.floor(Math.max(ladoXM - 0.2, 0) / separacionVM + 1e-9) + 1;
   const numeroH = Math.floor(Math.max(hM - 0.15, 0) / separacionHM + 1e-9) + 1;
-  const asCaraNecCm2 = Math.max(0.001 * ladoYM * 1e4, 1.5);
+  const asCaraNecCm2 = Math.max((0.001 * ladoYM * 1e4) / 2, 1.5);
   const separacionMaxM = Math.min(0.3, 2 * ladoYM);
   const asTRealCm2 = areaCm2(1, phiT) / separacionVM;
   const asLRealCm2 = areaCm2(1, phiL) / separacionHM;

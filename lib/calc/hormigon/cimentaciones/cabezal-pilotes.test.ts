@@ -144,18 +144,19 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.secundaria.separacionMm).toBeCloseTo(239.666666666667, 6);
   });
 
-  // Art. 9.7 por analogía: espesor 0,60 m → máx(0,001·0,60 m²/m; 1,5 cm²/m) = 6 cm²/m por cara.
-  it("las caras piden la malla del art. 9.7: 0,1 % del espesor por cara y dirección", () => {
-    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(6, 9);
-    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(6, 9);
+  // Art. 9.7 por analogía: espesor 0,60 m → 0,001·0,60 m²/m = 6 cm²/m en total,
+  // mitad por cara: máx(3; 1,5) = 3 cm²/m (criterio del usuario, 2026-11-03).
+  it("las caras piden la malla del art. 9.7: 0,1 % del espesor en total, mitad por cara", () => {
+    expect(r.estribosVerticales.asNecCm2).toBeCloseTo(3, 9);
+    expect(r.estribosHorizontales.asNecCm2).toBeCloseTo(3, 9);
     expect(r.estribosVerticales.separacionMaxM).toBeCloseTo(0.3, 9);
   });
 
-  // Verticales: 10φ8 en 1,6 − 0,2 m → s = 0,156 m; una rama por cara: 0,503/0,156 = 3,23 cm²/m.
-  it("los verticales cuentan la rama exterior por metro y no alcanzan", () => {
+  // Verticales: 10φ8 en 1,6 − 0,2 m → s = 0,156 m; una rama por cara: 0,503/0,156 = 3,23 cm²/m ≥ 3.
+  it("los verticales cuentan la rama exterior por metro y alcanzan", () => {
     expect(r.estribosVerticales.separacionM).toBeCloseTo(1.4 / 9, 9);
     expect(r.estribosVerticales.asRealCm2).toBeCloseTo((Math.PI * 0.64) / 4 / (1.4 / 9), 9);
-    expect(r.estribosVerticales.verificaAs).toBe(false);
+    expect(r.estribosVerticales.verificaAs).toBe(true);
     expect(r.estribosVerticales.verificaSeparacion).toBe(true);
   });
 

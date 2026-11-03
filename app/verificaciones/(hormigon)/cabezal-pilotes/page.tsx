@@ -246,7 +246,7 @@ export default function CabezalPilotesPage() {
                       diametro: { id: "phiPrinc", valor: phiPrinc, onChange: setPhiPrinc },
                     },
                     {
-                      posicion: "Secundaria",
+                      posicion: "Secundaria (superior, en x)",
                       numero: { id: "nSec", valor: nSec, onChange: setNSec },
                       diametro: { id: "phiSec", valor: phiSec, onChange: setPhiSec },
                     },
@@ -508,7 +508,7 @@ export default function CabezalPilotesPage() {
               <Subgrupo titulo="Armaduras complementarias">
                 <div>
                   <ResultadoCheck
-                    etiqueta="Armadura secundaria (10 % de la principal)"
+                    etiqueta="Armadura secundaria superior (10 % de la principal)"
                     verifica={resultado.r.secundaria.verificaAs}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.r.secundaria.asRealCm2 },

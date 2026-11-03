@@ -10,8 +10,12 @@ export interface MedidasCabezalDos {
   ladoYM: number;
   hM: number;
   anchoPilarM: number;
+  /** Lado del pilar en y; sólo para dibujar */
+  anchoPilarYM: number;
   diametroPiloteM: number;
   recubrimientoM: number;
+  /** Separación entre ejes de pilotes (m) */
+  separacionPilotesM: number;
 }
 
 export interface ArmadoCabezalDos {
@@ -24,27 +28,36 @@ export interface ArmadoCabezalDos {
   patillaNecMm: number | null;
   nSec: number;
   phiSecMm: number;
-  nEstV: number;
   phiEstVMm: number;
-  nCercos: number;
-  nEstH: number;
+  /** Separación de los estribos verticales, a lo largo de x (m) */
+  sEstVM: number;
+  /** Ramas verticales de cada estribo vertical, repartidas en y */
+  ramasEstV: number;
   phiEstHMm: number;
+  /** Separación de los estribos horizontales, en el canto (m) */
+  sEstHM: number;
 }
 
 const RESALTE = "var(--mat-cota)";
 /** Tope de barras a dibujar, por si se tipea una cantidad enorme. */
 const MAX_BARRAS = 60;
 
-/** n posiciones repartidas parejo entre a y b, como el n − 1 del cálculo. */
+/** Desde a, cada s, hasta b: la misma cuenta que el cálculo, floor((b − a)/s) + 1. */
+function cadaS(a: number, b: number, sM: number): number[] {
+  if (!(sM > 0) || b < a) return [];
+  const n = Math.min(Math.floor((b - a) / sM + 1e-9) + 1, MAX_BARRAS);
+  return Array.from({ length: n }, (_, i) => a + i * sM);
+}
+
+/** n posiciones repartidas parejo entre a y b. */
 function repartir(n: number, a: number, b: number): number[] {
   const m = Math.min(Math.max(Math.floor(n), 0), MAX_BARRAS);
   return Array.from({ length: m }, (_, i) => (m === 1 ? (a + b) / 2 : a + ((b - a) * i) / (m - 1)));
 }
 
 /**
- * Planta del cabezal de dos pilotes: los pilotes a 2,5·D entre ejes, a trazos
- * porque están debajo, y el pilar centrado. El pilar se dibuja cuadrado: el
- * cálculo sólo usa su ancho en la dirección de los pilotes.
+ * Planta del cabezal de dos pilotes: los pilotes a la separación elegida, a
+ * trazos porque están debajo, y el pilar centrado.
  */
 export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
   const escala = 240 / m.ladoXM;
@@ -54,8 +67,9 @@ export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
   const h = m.ladoYM * escala;
   const cx = x0 + w / 2;
   const cy = y0 + h / 2;
-  const s = 2.5 * m.diametroPiloteM;
+  const s = m.separacionPilotesM;
   const a = m.anchoPilarM * escala;
+  const b = m.anchoPilarYM * escala;
   return (
     <svg viewBox={`0 0 ${x0 + w + 64} ${y0 + h + 62}`} className="h-auto w-full text-primary" fill="none" aria-hidden="true">
       <rect x={x0} y={y0} width={w} height={h} stroke="var(--mat-hormigon-borde)" strokeWidth="2" fill="var(--mat-hormigon)" />
@@ -67,7 +81,7 @@ export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
                 stroke="currentColor" strokeWidth="0.6" strokeDasharray="6 3" opacity="0.5" />
         </g>
       ))}
-      <rect x={cx - a / 2} y={cy - a / 2} width={a} height={a} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6"
+      <rect x={cx - a / 2} y={cy - b / 2} width={a} height={b} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6"
             fill="var(--mat-hormigon-borde)" fillOpacity="0.35" />
       {/* cotas */}
       <g stroke="currentColor" strokeWidth="0.9" opacity="0.7">
@@ -78,10 +92,10 @@ export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
       <text x={cx} y={y0 - 19} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">x = {fmt(m.ladoXM)} m</text>
       <text x={x0 + w + 16} y={cy + 3} className="fill-current font-mono" fontSize="9.5">y = {fmt(m.ladoYM)}</text>
       <text x={cx} y={y0 + h + 30} textAnchor="middle" className="fill-current font-mono" fontSize="9.5">
-        s = 2,5·D = {fmt(s)} m
+        s = {fmt(s)} m ({fmt(s / m.diametroPiloteM, 2)}·D)
       </text>
       <text x={cx} y={y0 + h + 44} textAnchor="middle" className="fill-current font-mono" fontSize="9" opacity="0.8">
-        pilar {fmt(m.anchoPilarM)} · pilotes Ø {fmt(m.diametroPiloteM)} (a trazos, debajo)
+        pilar {fmt(m.anchoPilarM)} × {fmt(m.anchoPilarYM)} · pilotes Ø {fmt(m.diametroPiloteM)} (a trazos, debajo)
       </text>
     </svg>
   );
@@ -91,8 +105,10 @@ export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
  * Armado del cabezal de dos pilotes, en alzado y en planta. El tirante corre en
  * x por abajo y, con patilla, sube por los extremos con el doblez de mandril D;
  * la secundaria lo cruza en y. Los estribos verticales se reparten a lo largo
- * de x y los horizontales en el canto. La pieza del campo en edición se
- * resalta y el resto se atenúa.
+ * de x y los horizontales en el canto. Cada familia tiene su color —tirante
+ * rojo, secundaria azul, estribos gris—, porque en planta la secundaria y los
+ * estribos verticales caen sobre las mismas líneas. La pieza del campo en
+ * edición se resalta y el resto se atenúa.
  */
 export function CroquisArmadoCabezalDosPilotes({
   m, armado, resaltar,
@@ -105,11 +121,13 @@ export function CroquisArmadoCabezalDosPilotes({
   const grosor = (phiMm: number, e: ElementoCabezalDos) => Math.max(phiMm / 7, 1.1) + (es(e) ? 1 : 0);
   const peso = (e: ElementoCabezalDos) => (es(e) ? 700 : 400);
   const rojo = "var(--color-destructive)";
+  const azul = "var(--mat-armadura)";
+  const gris = "var(--mat-acero-borde)";
 
   const w = m.ladoXM * escala;
   const px = (xm: number) => x0 + xm * escala;
   const rec = m.recubrimientoM;
-  const s = 2.5 * m.diametroPiloteM;
+  const s = m.separacionPilotesM;
 
   // Alzado
   const yTop = 40;
@@ -124,8 +142,8 @@ export function CroquisArmadoCabezalDosPilotes({
     ? `M${px(xIzq)} ${pz(m.hM - rec)} L${px(xIzq)} ${pz(zTirante) - r} Q${px(xIzq)} ${pz(zTirante)} ${px(xIzq) + r} ${pz(zTirante)}` +
       ` L${px(xDer) - r} ${pz(zTirante)} Q${px(xDer)} ${pz(zTirante)} ${px(xDer)} ${pz(zTirante) - r} L${px(xDer)} ${pz(m.hM - rec)}`
     : `M${px(rec)} ${pz(zTirante)} L${px(m.ladoXM - rec)} ${pz(zTirante)}`;
-  const xsEstV = repartir(armado.nEstV, 0.1, m.ladoXM - 0.1);
-  const zsEstH = repartir(armado.nEstH, 0.075, m.hM - 0.075);
+  const xsEstV = cadaS(0.1, m.ladoXM - 0.1, armado.sEstVM);
+  const zsEstH = cadaS(0.075, m.hM - 0.075, armado.sEstHM);
   const xsSec = repartir(armado.nSec, rec + 0.03, m.ladoXM - rec - 0.03);
 
   // Planta, debajo
@@ -149,22 +167,22 @@ export function CroquisArmadoCabezalDosPilotes({
       ))}
 
       {/* estribos horizontales: líneas en el canto */}
-      <g stroke={color("estribosH")} strokeWidth={grosor(armado.phiEstHMm, "estribosH")} opacity={opacidad("estribosH")}>
+      <g stroke={color("estribosH", gris)} strokeWidth={grosor(armado.phiEstHMm, "estribosH")} opacity={opacidad("estribosH")}>
         {zsEstH.map((z) => (
           <path key={z} d={`M${px(rec)} ${pz(z)} L${px(m.ladoXM - rec)} ${pz(z)}`} />
         ))}
       </g>
       {/* estribos verticales: a lo largo de x */}
-      <g stroke={color("estribosV")} strokeWidth={grosor(armado.phiEstVMm, "estribosV")} opacity={opacidad("estribosV")}>
+      <g stroke={color("estribosV", gris)} strokeWidth={grosor(armado.phiEstVMm, "estribosV")} opacity={opacidad("estribosV")}>
         {xsEstV.map((x) => (
           <path key={x} d={`M${px(x)} ${pz(rec)} L${px(x)} ${pz(m.hM - rec)}`} />
         ))}
       </g>
       {/* secundaria: de punta, sobre el tirante */}
-      <g fill={color("secundaria")} opacity={opacidad("secundaria")}>
+      <g fill={color("secundaria", azul)} opacity={opacidad("secundaria")}>
         {xsSec.map((x) => (
-          <circle key={x} cx={px(x)} cy={pz(zTirante) - Math.max(armado.phiPrincMm / 7, 1.1) - 2.4}
-                  r={Math.max(armado.phiSecMm / 8, 1.6) + (es("secundaria") ? 0.6 : 0)} />
+          <circle key={x} cx={px(x)} cy={pz(zTirante) - Math.max(armado.phiPrincMm / 7, 1.1) - 3}
+                  r={Math.max(armado.phiSecMm / 6, 2.2) + (es("secundaria") ? 0.8 : 0)} />
         ))}
       </g>
       {/* tirante */}
@@ -183,16 +201,24 @@ export function CroquisArmadoCabezalDosPilotes({
         </text>
       )}
       <text x={x0 + w + 6} y={yTop + 10} className="font-mono" fontSize="9"
-            fill={color("estribosV")} opacity={opacidad("estribosV")} fontWeight={peso("estribosV")}>
-        {xsEstV.length}Ø{armado.phiEstVMm}
+            fill={color("estribosV", gris)} opacity={opacidad("estribosV")} fontWeight={peso("estribosV")}>
+        v Ø{armado.phiEstVMm}
       </text>
       <text x={x0 + w + 6} y={yTop + 21} className="font-mono" fontSize="9"
-            fill={color("estribosV")} opacity={opacidad("estribosV")} fontWeight={peso("estribosV")}>
-        ×{armado.nCercos} cercos
+            fill={color("estribosV", gris)} opacity={opacidad("estribosV")} fontWeight={peso("estribosV")}>
+        c/{fmt(armado.sEstVM * 100, 0)} ({xsEstV.length})
+      </text>
+      <text x={x0 + w + 6} y={yTop + 32} className="font-mono" fontSize="9"
+            fill={color("estribosV", gris)} opacity={opacidad("estribosV")} fontWeight={peso("estribosV")}>
+        {armado.ramasEstV} ramas
       </text>
       <text x={x0 + w + 6} y={yTop + hPx / 2 + 8} className="font-mono" fontSize="9"
-            fill={color("estribosH")} opacity={opacidad("estribosH")} fontWeight={peso("estribosH")}>
-        {zsEstH.length}Ø{armado.phiEstHMm} h
+            fill={color("estribosH", gris)} opacity={opacidad("estribosH")} fontWeight={peso("estribosH")}>
+        h Ø{armado.phiEstHMm}
+      </text>
+      <text x={x0 + w + 6} y={yTop + hPx / 2 + 19} className="font-mono" fontSize="9"
+            fill={color("estribosH", gris)} opacity={opacidad("estribosH")} fontWeight={peso("estribosH")}>
+        c/{fmt(armado.sEstHM * 100, 0)} ({zsEstH.length})
       </text>
 
       {/* planta */}
@@ -204,15 +230,23 @@ export function CroquisArmadoCabezalDosPilotes({
       ))}
       {/* estribos horizontales: anillo */}
       <rect x={px(rec)} y={py(rec)} width={Math.max(w - 2 * rec * escala, 0)} height={Math.max(wY - 2 * rec * escala, 0)} rx="3"
-            stroke={color("estribosH")} strokeWidth={grosor(armado.phiEstHMm, "estribosH")} opacity={opacidad("estribosH")} />
+            stroke={color("estribosH", gris)} strokeWidth={grosor(armado.phiEstHMm, "estribosH")} opacity={opacidad("estribosH")} />
       {/* estribos verticales: cortan la planta en y */}
-      <g stroke={color("estribosV")} strokeWidth={grosor(armado.phiEstVMm, "estribosV")} opacity={opacidad("estribosV")}>
+      <g stroke={color("estribosV", gris)} strokeWidth={es("estribosV") ? 2 : 0.9} opacity={opacidad("estribosV")} strokeDasharray="3 2">
         {xsEstV.map((x) => (
           <path key={x} d={`M${px(x)} ${py(rec)} L${px(x)} ${py(m.ladoYM - rec)}`} />
         ))}
       </g>
+      {/* ramas de los estribos verticales: puntos repartidos en y */}
+      <g fill={color("estribosV", gris)} opacity={opacidad("estribosV")}>
+        {xsEstV.flatMap((x) =>
+          repartir(armado.ramasEstV, rec, m.ladoYM - rec).map((y) => (
+            <circle key={`${x}-${y}`} cx={px(x)} cy={py(y)} r={Math.max(armado.phiEstVMm / 7, 1.4) + (es("estribosV") ? 0.6 : 0)} />
+          ))
+        )}
+      </g>
       {/* secundaria: en y */}
-      <g stroke={color("secundaria")} strokeWidth={grosor(armado.phiSecMm, "secundaria")} opacity={opacidad("secundaria")} strokeDasharray="5 2">
+      <g stroke={color("secundaria", azul)} strokeWidth={grosor(armado.phiSecMm, "secundaria")} opacity={opacidad("secundaria")}>
         {xsSec.map((x) => (
           <path key={x} d={`M${px(x)} ${py(rec)} L${px(x)} ${py(m.ladoYM - rec)}`} />
         ))}
@@ -224,11 +258,11 @@ export function CroquisArmadoCabezalDosPilotes({
         ))}
       </g>
       <text x={x0 + w + 6} y={yP + wY / 2 + 3} className="font-mono" fontSize="9"
-            fill={color("secundaria")} opacity={opacidad("secundaria")} fontWeight={peso("secundaria")}>
+            fill={color("secundaria", azul)} opacity={opacidad("secundaria")} fontWeight={peso("secundaria")}>
         sec. {xsSec.length}Ø{armado.phiSecMm}
       </text>
       <text x={x0} y={yP + wY + 16} className="fill-current font-mono" fontSize="9" opacity="0.7">
-        tirante en x · secundaria a trazos en y
+        tirante rojo en x · secundaria azul en y · estribos gris
       </text>
     </svg>
   );

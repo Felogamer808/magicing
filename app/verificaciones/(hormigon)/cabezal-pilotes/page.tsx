@@ -40,8 +40,8 @@ const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.ganc
 const ELEMENTO_DE_CAMPO: Record<string, ElementoCabezalDos> = {
   nPrinc: "principal", phiPrinc: "principal", formaAnclaje: "principal",
   nSec: "secundaria", phiSec: "secundaria",
-  nEstV: "estribosV", phiEstV: "estribosV", nCercos: "estribosV",
-  nEstH: "estribosH", phiEstH: "estribosH",
+  phiEstV: "estribosV", sEstV: "estribosV", ramasEstV: "estribosV",
+  phiEstH: "estribosH", sEstH: "estribosH",
 };
 
 /**
@@ -52,6 +52,12 @@ function medida(texto: string, porDefecto: number): number {
   const v = aNumero(texto);
   return Number.isFinite(v) && v > 0 ? v : porDefecto;
 }
+
+/** Separación entre ejes de pilotes, en diámetros, o libre (criterio del usuario, 2026-11-03). */
+// Una lista y no un objeto: las claves "2" y "3" parecen enteros y JavaScript
+// las pondría antes de "2.5".
+const OPCIONES_SEPARACION = [["2", "2·D"], ["2.5", "2,5·D"], ["3", "3·D"], ["libre", "Libre"]] as const;
+const SEPARACIONES: Record<string, string> = Object.fromEntries(OPCIONES_SEPARACION);
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
@@ -68,6 +74,10 @@ export default function CabezalPilotesPage() {
   const [rg, setRg] = useCampo("rg", "0.05");
 
   const [anchoPilar, setAnchoPilar] = useCampo("anchoPilar", "0.3");
+  const [anchoPilarY, setAnchoPilarY] = useCampo("anchoPilarY", "0.3");
+  const [separacionPilotes, setSeparacionPilotes] = useCampo("separacionPilotes", "2.5");
+  const [sPilotes, setSPilotes] = useCampo("sPilotes", "1.25");
+  const [ramasEstV, setRamasEstV] = useCampo("ramasEstV", "2");
   const [ladoX, setLadoX] = useCampo("ladoX", "1.6");
   const [ladoY, setLadoY] = useCampo("ladoY", "0.6");
   const [hCab, setHCab] = useCampo("hCab", "0.6");
@@ -78,16 +88,15 @@ export default function CabezalPilotesPage() {
   const [phiPrinc, setPhiPrinc] = useCampo("phiPrinc", "16");
   const [nSec, setNSec] = useCampo("nSec", "7");
   const [phiSec, setPhiSec] = useCampo("phiSec", "10");
-  const [nEstV, setNEstV] = useCampo("nEstV", "10");
   const [phiEstV, setPhiEstV] = useCampo("phiEstV", "8");
-  const [nCercos, setNCercos] = useCampo("nCercos", "2");
-  const [nEstH, setNEstH] = useCampo("nEstH", "5");
+  const [sEstV, setSEstV] = useCampo("sEstV", "0.15");
   const [phiEstH, setPhiEstH] = useCampo("phiEstH", "10");
+  const [sEstH, setSEstH] = useCampo("sEstH", "0.1");
   const [formaAnclaje, setFormaAnclaje] = useCampo<FormaAnclaje>("formaAnclaje", "recta");
 
   const campos = useMemo(
-    () => ({ fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH, formaAnclaje }),
-    [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, ndPilar, nPrinc, phiPrinc, nSec, phiSec, nEstV, phiEstV, nCercos, nEstH, phiEstH, formaAnclaje]
+    () => ({ fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, separacionPilotes, sPilotes, ndPilar, nPrinc, phiPrinc, nSec, phiSec, phiEstV, sEstV, phiEstH, sEstH, formaAnclaje }),
+    [fck, fyk, rg, anchoPilar, ladoX, ladoY, hCab, dPilote, separacionPilotes, sPilotes, ndPilar, nPrinc, phiPrinc, nSec, phiSec, phiEstV, sEstV, phiEstH, sEstH, formaAnclaje]
   );
   const resultado = useMemo(() => resolverCabezal(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -113,14 +122,25 @@ export default function CabezalPilotesPage() {
     ladoYM: medida(ladoY, 0.6),
     hM: medida(hCab, 0.6),
     anchoPilarM: medida(anchoPilar, 0.3),
+    anchoPilarYM: medida(anchoPilarY, 0.3),
     diametroPiloteM: medida(dPilote, 0.5),
     recubrimientoM: medida(rg, 0.05),
+    separacionPilotesM:
+      separacionPilotes === "libre"
+        ? medida(sPilotes, 1.25)
+        : medida(separacionPilotes, 2.5) * medida(dPilote, 0.5),
   };
   const phiPrincMm = medida(phiPrinc, 16);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
-    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular. Hacen falta al menos 2 barras en la principal y en la secundaria." });
+    avisos.push({ tipo: "error", texto: "Hay datos vacíos o no válidos: no se puede calcular. Hacen falta al menos 2 barras en la principal y en la secundaria, y los pilotes separados más que su diámetro." });
+  }
+  if (medidas.separacionPilotesM + medidas.diametroPiloteM > medidas.ladoXM + 1e-9) {
+    avisos.push({ tipo: "aviso", texto: `Los pilotes no entran en el lado x: s + D = ${fmt(medidas.separacionPilotesM + medidas.diametroPiloteM)} m > ${fmt(medidas.ladoXM)} m.` });
+  }
+  if (medidas.anchoPilarYM > medidas.ladoYM + 1e-9 || medidas.anchoPilarM > medidas.ladoXM + 1e-9) {
+    avisos.push({ tipo: "aviso", texto: "El pilar no entra en el cabezal." });
   }
 
   const modelo = resultado ? (
@@ -167,8 +187,27 @@ export default function CabezalPilotesPage() {
                     <CampoNumerico id="ladoY" etiqueta="Lado y" sufijo="m" valor={ladoY} onChange={setLadoY} />
                     <CampoNumerico id="hCab" etiqueta="H" sufijo="m" valor={hCab} onChange={setHCab} />
                     <CampoNumerico id="dPilote" etiqueta="D pilote" sufijo="m" valor={dPilote} onChange={setDPilote} />
-                    <CampoNumerico id="anchoPilar" etiqueta="Ancho pilar" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                    <CampoSeleccion
+                      id="separacionPilotes"
+                      etiqueta="Separación de pilotes"
+                      valor={SEPARACIONES[separacionPilotes] ?? SEPARACIONES["2.5"]}
+                      opciones={OPCIONES_SEPARACION.map(([, rotulo]) => rotulo)}
+                      onChange={(v) => setSeparacionPilotes(OPCIONES_SEPARACION.find(([, rotulo]) => rotulo === v)?.[0] ?? "2.5")}
+                    />
+                    {separacionPilotes === "libre" && (
+                      <CampoNumerico id="sPilotes" etiqueta="s entre ejes" sufijo="m" valor={sPilotes} onChange={setSPilotes} />
+                    )}
                   </div>
+                </Subgrupo>
+                <Subgrupo titulo="Pilar (centrado)">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    <CampoNumerico id="anchoPilar" etiqueta="Lado en x" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                    <CampoNumerico id="anchoPilarY" etiqueta="Lado en y" sufijo="m" valor={anchoPilarY} onChange={setAnchoPilarY} />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    x es la dirección que une los pilotes. El modelo de bielas usa el lado en x; el de y se dibuja y se
+                    controla que entre en el cabezal.
+                  </p>
                 </Subgrupo>
                 <Subgrupo titulo="Carga">
                   <div className="max-w-[12rem]">
@@ -226,13 +265,17 @@ export default function CabezalPilotesPage() {
             </Subgrupo>
             <Subgrupo titulo="Estribos">
               <div className="grid grid-cols-2 gap-4">
-                <CampoNumerico id="nEstV" etiqueta="Verticales · Nº" valor={nEstV} onChange={setNEstV} />
-                <CampoDiametro id="phiEstV" etiqueta="Verticales · Øt" valor={phiEstV} onChange={setPhiEstV} />
-                <CampoNumerico id="nCercos" etiqueta="Cercos" valor={nCercos} onChange={setNCercos} />
+                <CampoDiametro id="phiEstV" etiqueta="Verticales · Ø" valor={phiEstV} onChange={setPhiEstV} />
+                <CampoNumerico id="sEstV" etiqueta="Verticales · separación" sufijo="m" valor={sEstV} onChange={setSEstV} />
+                <CampoNumerico id="ramasEstV" etiqueta="Verticales · ramas" valor={ramasEstV} onChange={setRamasEstV} />
                 <div className="hidden sm:block" />
-                <CampoNumerico id="nEstH" etiqueta="Horizontales · Nº" valor={nEstH} onChange={setNEstH} />
-                <CampoDiametro id="phiEstH" etiqueta="Horizontales · Øl" valor={phiEstH} onChange={setPhiEstH} />
+                <CampoDiametro id="phiEstH" etiqueta="Horizontales · Ø" valor={phiEstH} onChange={setPhiEstH} />
+                <CampoNumerico id="sEstH" etiqueta="Horizontales · separación" sufijo="m" valor={sEstH} onChange={setSEstH} />
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Verticales repartidos a lo largo de x; horizontales en el canto. Cuentan como malla de las caras
+                (art. 9.7): una rama por cara.
+              </p>
             </Subgrupo>
           </div>
             }
@@ -248,11 +291,11 @@ export default function CabezalPilotesPage() {
                   patillaNecMm: resultado?.r.principal.patilla?.patillaNecMm ?? null,
                   nSec: Math.max(0, Math.floor(aNumero(nSec)) || 0),
                   phiSecMm: medida(phiSec, 10),
-                  nEstV: Math.max(0, Math.floor(aNumero(nEstV)) || 0),
                   phiEstVMm: medida(phiEstV, 8),
-                  nCercos: Math.max(0, Math.floor(aNumero(nCercos)) || 0),
-                  nEstH: Math.max(0, Math.floor(aNumero(nEstH)) || 0),
+                  sEstVM: medida(sEstV, 0.15),
+                  ramasEstV: Math.max(2, Math.floor(aNumero(ramasEstV)) || 2),
                   phiEstHMm: medida(phiEstH, 10),
+                  sEstHM: medida(sEstH, 0.1),
                 }}
               />
             }
@@ -276,9 +319,10 @@ export default function CabezalPilotesPage() {
             ]}
             hipotesis={[
               "Modelo de bielas y tirantes: la carga baja por dos bielas hasta los pilotes y el tirante inferior las cose.",
-              "Separación de pilotes s = 2,5·D.",
+              "Separación de pilotes elegida: 2·D, 2,5·D, 3·D o libre. Pilar centrado; el modelo usa su lado en x.",
+              "Ramas de los estribos verticales: se dibujan, pero la malla de cara (art. 9.7) cuenta una sola por cara, la exterior.",
               "El nudo bajo el pilar no se comprueba: el pilar ya está dimensionado para ese axil.",
-              "Separación de estribos verticales con n−1, igual que el resto de las separaciones de la planilla.",
+              "Estribos con Ø y separación: la cantidad sale de repartirlos en el lado x − 0,2 m (verticales) y en H − 0,15 m (horizontales), los márgenes de la planilla.",
               "Malla de las caras por el art. 9.7 (vigas de gran canto), por analogía: los encepados están fuera del Anejo 19 (art. 9.8.1). Por cara y dirección, máx(0,1 %·lado y; 1,5 cm²/m), separación ≤ mín(30 cm; 2·lado y). Cuenta la rama exterior de cada cerco.",
               "Anclaje del tirante por el art. 8.4, desde el eje del pilote (más conservador que la cara interior que admite el art. 6.5.4 (7)) hasta el extremo de la barra, sobre su eje. Con patilla a 90°: recta + doblez + pata, con mandril D mínimo de la tabla A19.8.1 y la pata hasta H − rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
             ]}
@@ -388,7 +432,7 @@ export default function CabezalPilotesPage() {
                   <PanelFormulas
                     titulo="Ver desarrollo del tirante"
                     filas={[
-                      { etiqueta: "Separación de pilotes s = 2,5·D", valor: `${fmt(resultado.r.principal.separacionPilotesM)} m` },
+                      { etiqueta: `Separación de pilotes s (${SEPARACIONES[separacionPilotes] ?? SEPARACIONES["2.5"]})`, valor: `${fmt(resultado.r.principal.separacionPilotesM)} m` },
                       { etiqueta: "Brazo v", valor: `${fmt(resultado.r.principal.vM, 3)} m` },
                       { etiqueta: "d", valor: `${fmt(resultado.r.principal.dM, 3)} m` },
                       { etiqueta: "Peso propio", valor: `${fmt(resultado.r.principal.pesoPropioKN)} kN` },
@@ -476,7 +520,7 @@ export default function CabezalPilotesPage() {
                   <ResultadoCheck
                     etiqueta="Estribos verticales · malla de cara (art. 9.7)"
                     verifica={resultado.r.estribosVerticales.verificaAs && resultado.r.estribosVerticales.verificaSeparacion}
-                    detalle={`cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosVerticales.separacionMaxM * 100, 0)} cm)`}
+                    detalle={`${resultado.r.estribosVerticales.numero} estribos, cada ${fmt(resultado.r.estribosVerticales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosVerticales.separacionMaxM * 100, 0)} cm)`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.r.estribosVerticales.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosVerticales.asNecCm2 },
@@ -487,7 +531,7 @@ export default function CabezalPilotesPage() {
                   <ResultadoCheck
                     etiqueta="Estribos horizontales · malla de cara (art. 9.7)"
                     verifica={resultado.r.estribosHorizontales.verificaAs && resultado.r.estribosHorizontales.verificaSeparacion}
-                    detalle={`cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosHorizontales.separacionMaxM * 100, 0)} cm)`}
+                    detalle={`${resultado.r.estribosHorizontales.numero} estribos, cada ${fmt(resultado.r.estribosHorizontales.separacionM * 100, 0)} cm (máx. ${fmt(resultado.r.estribosHorizontales.separacionMaxM * 100, 0)} cm)`}
                     comparacion={{
                       real: { etiqueta: "As real", valor: resultado.r.estribosHorizontales.asRealCm2 },
                       limite: { etiqueta: "As nec", valor: resultado.r.estribosHorizontales.asNecCm2 },

@@ -14,7 +14,7 @@ describe("recomendaciones de pilotes", () => {
 describe("recomendaciones del cabezal", () => {
   const BASE = {
     fck: "25", fyk: "500", rg: "0.05", anchoPilar: "0.4", ladoX: "2", ladoY: "0.6", hCab: "0.8", dPilote: "0.4", ndPilar: "1200",
-    nPrinc: "4", phiPrinc: "16", nSec: "4", phiSec: "10", nEstV: "6", phiEstV: "10", nCercos: "2", nEstH: "4", phiEstH: "10",
+    nPrinc: "4", phiPrinc: "16", nSec: "4", phiSec: "10", phiEstV: "10", sEstV: "0.3", phiEstH: "10", sEstH: "0.2",
   };
   it("tirante corto: más barras primero, y cumple", () => {
     const r = recomendarCabezal({ ...BASE, nPrinc: "2", phiPrinc: "10" }).tirante ?? [];

@@ -92,6 +92,12 @@ const MENOS_GRUESAS: Palanca<Campos> = {
   },
 };
 
+/** Achicar la separación de los estribos, hasta 5 cm, o subir el diámetro. */
+const estribos = (s: string, phi: string, rotulo: string) => [
+  palancaValor(campo(s), { paso: -0.025, tope: () => 0.05, decimales: 3, rotulo: `${rotulo} cada `, texto: m }),
+  palancaDiametro(campo(phi), "mayor", (_, d) => `${rotulo} Ø${d}`),
+];
+
 function palancasPorClave(clave: ClaveCabezal): readonly Palanca<Campos>[] {
   switch (clave) {
     case "tirante":
@@ -106,9 +112,9 @@ function palancasPorClave(clave: ClaveCabezal): readonly Palanca<Campos>[] {
     case "secundaria":
       return barras("nSec", "phiSec", "Secundaria: ");
     case "estribosV":
-      return barras("nEstV", "phiEstV", "Estribos verticales: ");
+      return estribos("sEstV", "phiEstV", "Estribos verticales");
     case "estribosH":
-      return barras("nEstH", "phiEstH", "Estribos horizontales: ");
+      return estribos("sEstH", "phiEstH", "Estribos horizontales");
     case "ancho":
       return [MENOS_GRUESAS, LADO_Y];
   }

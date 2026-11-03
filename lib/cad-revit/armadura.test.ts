@@ -13,7 +13,7 @@ const cabezalVacio = crearCalculo("cabezales", {
 describe("armadura en el panel", () => {
   it("muestra la armadura y no lo que deriva MagicIng de las cargas", () => {
     expect(camposDelPanel("cabezales").map((d) => d.clave)).toEqual([
-      "nPrinc", "phiPrinc", "nSec", "phiSec", "nEstV", "phiEstV", "nCercos", "nEstH", "phiEstH",
+      "nPrinc", "phiPrinc", "nSec", "phiSec", "phiEstV", "sEstV", "phiEstH", "sEstH",
     ]);
     expect(camposDelPanel("viga-centradora-pilotes").map((d) => d.clave)).toContain("excentricidad");
     expect(camposDelPanel("viga-centradora-pilotes").map((d) => d.clave)).not.toContain("n1d");
@@ -38,7 +38,7 @@ describe("armadura en el panel", () => {
   /** Ø16 / Ø10 / Ø8 / Ø10: los de la página. Las cantidades siguen vacías. */
   it("completa los diámetros vacíos con los típicos, sin inventar cantidades", () => {
     const c = completarDiametros("cabezales", cabezalVacio.campos);
-    expect(c).toMatchObject({ phiPrinc: "16", phiSec: "10", phiEstV: "8", phiEstH: "10", nPrinc: "", nEstV: "" });
+    expect(c).toMatchObject({ phiPrinc: "16", phiSec: "10", phiEstV: "8", phiEstH: "10", nPrinc: "", sEstV: "" });
     expect(completarDiametros("cabezales", { ...cabezalVacio.campos, phiPrinc: "20" }).phiPrinc).toBe("20");
   });
 
@@ -55,7 +55,7 @@ describe("armadura en el panel", () => {
     const armado = crearCalculo("cabezales", {
       ...cabezalVacio.campos,
       ...{ norma: "EC2", anchoPilar: "0.3", ndPilar: "480", nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10" },
-      ...{ nEstV: "10", phiEstV: "8", nCercos: "2", nEstH: "5", phiEstH: "10" },
+      ...{ phiEstV: "8", sEstV: "0.15", phiEstH: "10", sEstH: "0.1" },
     });
     const r = resultadoDelPanel(armado);
     expect(r.estado).toBe("no-verifica");

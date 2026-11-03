@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calcularCabezalDosPilotes } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
+import { resolverCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 // Caso real de la hoja "Cabezal 2 pilotes (pilar circ)":
@@ -21,8 +22,8 @@ const r = calcularCabezalDosPilotes(materiales, geometria, {
   ndPilarKN: 1040,
   armaduraPrincipal: { numero: 7, diametroMm: 16 },
   armaduraSecundaria: { numero: 7, diametroMm: 10 },
-  estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-  estribosHorizontales: { numero: 5, diametroMm: 10 },
+  estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+  estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
 });
 
 describe("cabezal de 2 pilotes: geometría y carga", () => {
@@ -66,8 +67,8 @@ describe("cabezal de 2 pilotes: bielas y nudos", () => {
       ndPilarKN: 9000,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
       armaduraSecundaria: { numero: 7, diametroMm: 10 },
-      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
     });
     expect(sobrecargado.bielas.verificaBiela).toBe(false);
     expect(sobrecargado.bielas.sigmaBielaMPa).toBeGreaterThan(sobrecargado.bielas.sigmaNudoMPa);
@@ -117,8 +118,8 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
       ndPilarKN: 1040,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
       armaduraSecundaria: { numero: 7, diametroMm: 10 },
-      estribosVerticales: { numero: 10, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 1.4 / 9 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
       formaAnclaje: "gancho",
     });
     const lbRqd = (16 / 4) * ((500 / 1.15) / (2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5)));
@@ -165,13 +166,30 @@ describe("cabezal de 2 pilotes: armaduras complementarias", () => {
     expect(r.estribosHorizontales.verificaSeparacion).toBe(true);
   });
 
+  // Se cargan Ø y separación (2026-11-03): la cantidad sale de repartirlos.
+  it("con Ø y separación, la cantidad sale de los márgenes de la planilla", () => {
+    expect(r.estribosVerticales.numero).toBe(10);
+    expect(r.estribosHorizontales.numero).toBe(5);
+    const s15 = calcularCabezalDosPilotes(materiales, geometria, {
+      ndPilarKN: 1040,
+      armaduraPrincipal: { numero: 7, diametroMm: 16 },
+      armaduraSecundaria: { numero: 7, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1 },
+    });
+    // floor(1,4/0,15) + 1 = 10; floor(0,45/0,10) + 1 = 5.
+    expect(s15.estribosVerticales.numero).toBe(10);
+    expect(s15.estribosHorizontales.numero).toBe(5);
+    expect(s15.estribosVerticales.asRealCm2).toBeCloseTo((Math.PI * 0.64) / 4 / 0.15, 9);
+  });
+
   it("cabezal delgado: el mínimo de 150 mm²/m y la separación de 2·espesor", () => {
     const delgado = calcularCabezalDosPilotes(materiales, { ...geometria, ladoYM: 0.1 }, {
       ndPilarKN: 100,
       armaduraPrincipal: { numero: 2, diametroMm: 12 },
       armaduraSecundaria: { numero: 2, diametroMm: 8 },
-      estribosVerticales: { numero: 5, diametroMm: 8, numeroCercos: 1 },
-      estribosHorizontales: { numero: 3, diametroMm: 8 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.35 },
+      estribosHorizontales: { diametroMm: 8, separacionM: 0.225 },
     });
     expect(delgado.estribosVerticales.asNecCm2).toBeCloseTo(1.5, 9);
     expect(delgado.estribosVerticales.separacionMaxM).toBeCloseTo(0.2, 9);
@@ -189,8 +207,8 @@ describe("cabezal de 2 pilotes: caso con pilar rectangular", () => {
       ndPilarKN: 1645,
       armaduraPrincipal: { numero: 7, diametroMm: 25 },
       armaduraSecundaria: { numero: 7, diametroMm: 12 },
-      estribosVerticales: { numero: 15, diametroMm: 8, numeroCercos: 2 },
-      estribosHorizontales: { numero: 5, diametroMm: 10 },
+      estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+      estribosHorizontales: { diametroMm: 10, separacionM: 0.1125 },
     }
   );
 
@@ -201,5 +219,37 @@ describe("cabezal de 2 pilotes: caso con pilar rectangular", () => {
 
   it("con 7φ25 la armadura principal sí verifica", () => {
     expect(rect.principal.verificaAs).toBe(true);
+  });
+});
+
+// Separación entre pilotes 2D, 2,5D, 3D o libre (criterio del usuario, 2026-11-03).
+describe("cabezal de 2 pilotes: separación entre pilotes", () => {
+  const datos = {
+    ndPilarKN: 1040,
+    armaduraPrincipal: { numero: 7, diametroMm: 16 },
+    armaduraSecundaria: { numero: 7, diametroMm: 10 },
+    estribosVerticales: { diametroMm: 8, separacionM: 0.15 },
+    estribosHorizontales: { diametroMm: 10, separacionM: 0.1 },
+  };
+
+  it("con 3·D el brazo crece: s = 1,5, v = 0,75 − 0,15 = 0,6", () => {
+    const r = calcularCabezalDosPilotes(materiales, { ...geometria, separacionPilotesM: 1.5 }, datos);
+    expect(r.principal.separacionPilotesM).toBeCloseTo(1.5, 9);
+    expect(r.principal.vM).toBeCloseTo(0.6, 9);
+  });
+
+  const campos = {
+    fck: "30", fyk: "500", rg: "0.05", anchoPilar: "0.3", ladoX: "1.6", ladoY: "0.6", hCab: "0.6", dPilote: "0.5", ndPilar: "1040",
+    nPrinc: "7", phiPrinc: "16", nSec: "7", phiSec: "10", phiEstV: "8", sEstV: "0.15", phiEstH: "10", sEstH: "0.1",
+  };
+
+  it("el resolver toma la opción: sin elegir 2,5·D, con 2 → 2·D, libre → sPilotes", () => {
+    expect(resolverCabezal(campos)!.r.principal.separacionPilotesM).toBeCloseTo(1.25, 9);
+    expect(resolverCabezal({ ...campos, separacionPilotes: "2" })!.r.principal.separacionPilotesM).toBeCloseTo(1, 9);
+    expect(resolverCabezal({ ...campos, separacionPilotes: "libre", sPilotes: "1.1" })!.r.principal.separacionPilotesM).toBeCloseTo(1.1, 9);
+  });
+
+  it("con los pilotes a menos de un diámetro no calcula", () => {
+    expect(resolverCabezal({ ...campos, separacionPilotes: "libre", sPilotes: "0.4" })).toBeNull();
   });
 });

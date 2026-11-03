@@ -1,5 +1,6 @@
 import { calcularAnclaje, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import { GAMMA_G } from "@/lib/calc/hormigon/comun/coeficientes";
+import { anclajeTirante, type PatillaCabezal } from "@/lib/calc/hormigon/cimentaciones/cabezal-pilotes";
 import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
 /**
@@ -24,7 +25,8 @@ import type { MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
  *   tirantes ancla: k1 = 1,0 (ninguno), k2 = 0,85 (uno), k3 = 0,75 (dos),
  *   ecs. (6.60) a (6.62), págs. 99-100.
  * - Armadura inferior en A y en B, cada una contra su T, anclada por el
- *   art. 8.4 desde la cara interior del pilote más externo. Malla de caras del
+ *   art. 8.4 desde el eje del pilote más externo, con la patilla y su doblez
+ *   como el de 2 (criterio del usuario, 2026-11-03). Malla de caras del
  *   art. 9.7 por analogía, como el de 2, con el canto H como espesor: el
  *   bloque trabaja como placa (con el lado menor, un cabezal de 1,9 m pedía
  *   19 cm²/m por cara).
@@ -103,9 +105,11 @@ export interface ResultadoDireccionCabezalN {
   separacionMm: number;
   sigmaSdAnclajeMPa: number;
   lbdMm: number;
-  /** De la cara interior del pilote más externo al borde menos el recubrimiento (+ patilla) (mm) */
+  /** Desde el eje del pilote más externo, sobre el eje de la barra (+ doblez y patilla) (mm) */
   disponibleAnclajeMm: number;
   verificaAnclaje: boolean;
+  /** Geometría de la patilla, sólo si el extremo es patilla a 90° */
+  patilla: PatillaCabezal | null;
 }
 
 export interface ResultadoPiloteCabezalN {
@@ -205,19 +209,18 @@ export function calcularCabezalNPilotes(
     const separacionMm = ((otroLado - 2 * rec - phi / 1000 - (2 * phiH) / 1000) / (barras.numero - 1)) * 1000;
 
     // Anclaje, Anejo 19 art. 8.4, como el de 2 pilotes: σsd = Td/As con tope
-    // fyd, buena adherencia; desde la cara interior del pilote más externo
-    // (art. 6.5.4 (7), pág. 100) hasta el borde, en el lado más corto.
+    // fyd, buena adherencia; desde el eje del pilote más externo hasta el
+    // borde, en el lado más corto, con la patilla y su doblez (anclajeTirante).
     const sigmaSdAnclajeMPa = Math.min((tdKN * 10) / asRealCm2, fyd);
     const cdMm = Math.min(rec * 1000, (separacionMm - phi) / 2);
     const { lbdMm } = calcularAnclaje(
       { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
       { diametroMm: phi, situacion: "buena", forma, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa: sigmaSdAnclajeMPa }
     );
-    const rectaM = Math.min(
-      ...[1, -1].map((s) => lado / 2 - Math.max(...pilotes.map((p) => s * p[eje])) + dp / 2 - rec)
+    const voladoM = Math.min(
+      ...[1, -1].map((s) => lado / 2 - Math.max(...pilotes.map((p) => s * p[eje])) - rec)
     );
-    const pataM = forma === "gancho" ? Math.max(g.hM - 2 * rec, 0) : 0;
-    const disponibleAnclajeMm = (rectaM + pataM) * 1000;
+    const { disponibleAnclajeMm, patilla } = anclajeTirante(voladoM, g.hM, rec, phi, lbdMm, forma);
 
     return {
       dM: d,
@@ -234,6 +237,7 @@ export function calcularCabezalNPilotes(
       disponibleAnclajeMm,
       // Sin tirante no hay nada que anclar.
       verificaAnclaje: tdKN <= 0 || disponibleAnclajeMm >= lbdMm,
+      patilla,
     };
   };
 

@@ -109,9 +109,15 @@ export default function CabezalNPilotesPage() {
   );
   const anclaje = (d: ResultadoDireccionCabezalN, nombre: string, recs?: Recomendacion[]) => (
     <ResultadoCheck
-      etiqueta={`Anclaje en ${nombre}, desde la cara interior del pilote más externo`}
+      etiqueta={`Anclaje en ${nombre}, desde el eje del pilote más externo`}
       verifica={d.verificaAnclaje}
-      detalle={d.tdKN > 0 ? FORMAS[formaAnclaje].toLowerCase() : "sin tirante en esta dirección"}
+      detalle={
+        d.tdKN <= 0
+          ? "sin tirante en esta dirección"
+          : d.patilla
+            ? `patilla, D = ${fmt(d.patilla.mandrilMm, 0)} mm: lbd ${fmt(d.lbdMm, 0)} = recta ${fmt(d.patilla.rectaMm, 0)} + doblez ${fmt(d.patilla.arcoMm, 0)} + patilla necesaria ${fmt(d.patilla.patillaNecMm, 0)} mm (entran ${fmt(d.patilla.patillaDispMm, 0)})`
+            : FORMAS[formaAnclaje].toLowerCase()
+      }
       comparacion={{
         real: { etiqueta: "disponible", valor: d.disponibleAnclajeMm },
         limite: { etiqueta: "lbd", valor: d.lbdMm },
@@ -239,7 +245,7 @@ export default function CabezalNPilotesPage() {
               "Tirante por dirección: T = Σ Ri·(|ui| − a/4)/(0,85·d) sobre los pilotes del lado más cargado, con la sección a a/4 del eje del pilar. Con 4 pilotes en cuadro son dos bandas de (N/4)·(s/2 − a/4)/(0,85·d). σ del tirante: mín(fyd; 0,8·fyk), como el de 2.",
               "La capa en A va abajo y la de B encima, con un canto útil menor en ØA.",
               "Nudo sobre cada pilote con k1 = 1,0, k2 = 0,85 o k3 = 0,75 según ancle 0, 1 o 2 tirantes (ecs. 6.60 a 6.62); biela con 0,6·ν′·fcd. El nudo bajo el pilar no se comprueba.",
-              "Anclaje por el art. 8.4 desde la cara interior del pilote más externo (art. 6.5.4 (7)), en el lado más corto; con patilla suma la pata hasta H − 2·rec.",
+              "Anclaje por el art. 8.4 desde el eje del pilote más externo (más conservador que la cara interior que admite el art. 6.5.4 (7)), en el lado más corto, sobre el eje de la barra. Con patilla a 90°: recta + doblez + pata, con mandril D mínimo de la tabla A19.8.1 y la pata hasta H − rec.",
               "Malla de las caras por el art. 9.7 por analogía, con el canto H como espesor: máx(0,1 %·H; 1,5 cm²/m) por cara y dirección, separación ≤ mín(30 cm; 2·H).",
               "Parrilla entre bandas ≥ 1/4 y armadura superior ≥ 1/10 de las bandas, en cada dirección: criterio de oficina tomado de la EHE-08 (art. 58.4.1.2.2), no del Anejo 19.",
             ]}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
@@ -18,6 +18,13 @@ import { CroquisGeometriaCabezal } from "@/components/verificaciones/croquis/Cro
 import { DiagramaBielasTirante } from "@/components/verificaciones/hormigon/DiagramaBielasTirante";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezal } from "@/components/verificaciones/hormigon/DiagramaCabezal";
+import {
+  CroquisArmadoCabezalDosPilotes,
+  PlantaCabezalDosPilotes,
+  type ElementoCabezalDos,
+  type MedidasCabezalDos,
+} from "@/components/verificaciones/hormigon/CroquisArmadoCabezalDosPilotes";
+import { mandrilMinimoMm } from "@/lib/calc/hormigon/comun/anclaje";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverCabezal } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal";
@@ -28,6 +35,23 @@ const meta = registroVerificaciones.find((v) => v.id === "cabezales")!;
 
 const FORMAS: Record<FormaAnclaje, string> = { recta: "Barra recta", gancho: "Patilla a 90°" };
 const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
+
+/** Qué parte del croquis de armado corresponde a cada campo, para resaltarla con el foco. */
+const ELEMENTO_DE_CAMPO: Record<string, ElementoCabezalDos> = {
+  nPrinc: "principal", phiPrinc: "principal", formaAnclaje: "principal",
+  nSec: "secundaria", phiSec: "secundaria",
+  nEstV: "estribosV", phiEstV: "estribosV", nCercos: "estribosV",
+  nEstH: "estribosH", phiEstH: "estribosH",
+};
+
+/**
+ * Lo tipeado, para dibujar: el croquis muestra los datos aunque todavía no
+ * calculen. Sólo un campo vacío o no positivo cae en el valor de ejemplo.
+ */
+function medida(texto: string, porDefecto: number): number {
+  const v = aNumero(texto);
+  return Number.isFinite(v) && v > 0 ? v : porDefecto;
+}
 
 const ETAPAS = [
   { id: "geometria", titulo: "Geometría y carga" },
@@ -68,6 +92,31 @@ export default function CabezalPilotesPage() {
   const resultado = useMemo(() => resolverCabezal(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
   const rec = useMemo(() => recomendarCabezal(campos), [campos]);
+
+  const [foco, setFoco] = useState<string | null>(null);
+  const resaltar = foco ? (ELEMENTO_DE_CAMPO[foco] ?? null) : null;
+  // El foco se sigue en un contenedor: los eventos de foco de React burbujean,
+  // también desde la lista de los selectores, que no tiene id y no lo apaga.
+  const seguirFoco = {
+    onFocus: (ev: FocusEvent<HTMLElement>) => {
+      const id = ev.target.id.replace(/-otro$/, "");
+      if (id) setFoco(id);
+    },
+    onBlur: (ev: FocusEvent<HTMLElement>) => {
+      const siguiente = ev.relatedTarget as HTMLElement | null;
+      if (!siguiente?.closest('[role="listbox"]')) setFoco(null);
+    },
+  };
+
+  const medidas: MedidasCabezalDos = {
+    ladoXM: medida(ladoX, 1.6),
+    ladoYM: medida(ladoY, 0.6),
+    hM: medida(hCab, 0.6),
+    anchoPilarM: medida(anchoPilar, 0.3),
+    diametroPiloteM: medida(dPilote, 0.5),
+    recubrimientoM: medida(rg, 0.05),
+  };
+  const phiPrincMm = medida(phiPrinc, 16);
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -128,11 +177,25 @@ export default function CabezalPilotesPage() {
                 </Subgrupo>
               </>
             }
-            dibujo={modelo}
+            dibujo={
+              <div className="space-y-4">
+                <div>
+                  <p className="spec-label mb-1">Alzado</p>
+                  {modelo}
+                </div>
+                <div>
+                  <p className="spec-label mb-1">Planta</p>
+                  <PlantaCabezalDosPilotes m={medidas} />
+                </div>
+              </div>
+            }
           />
         </Etapa>
 
         <Etapa id="armadura" numero={2} titulo="Armadura" descripcion="Tirante principal, secundaria y estribos.">
+          <div {...seguirFoco}>
+          <DatosConDibujo
+            datos={
           <div className="space-y-6">
             <Subgrupo titulo="Longitudinal">
               <div className="max-w-xl">
@@ -162,14 +225,38 @@ export default function CabezalPilotesPage() {
               </div>
             </Subgrupo>
             <Subgrupo titulo="Estribos">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nEstV" etiqueta="Verticales · Nº" valor={nEstV} onChange={setNEstV} />
                 <CampoDiametro id="phiEstV" etiqueta="Verticales · Øt" valor={phiEstV} onChange={setPhiEstV} />
                 <CampoNumerico id="nCercos" etiqueta="Cercos" valor={nCercos} onChange={setNCercos} />
+                <div className="hidden sm:block" />
                 <CampoNumerico id="nEstH" etiqueta="Horizontales · Nº" valor={nEstH} onChange={setNEstH} />
                 <CampoDiametro id="phiEstH" etiqueta="Horizontales · Øl" valor={phiEstH} onChange={setPhiEstH} />
               </div>
             </Subgrupo>
+          </div>
+            }
+            dibujo={
+              <CroquisArmadoCabezalDosPilotes
+                m={medidas}
+                resaltar={resaltar}
+                armado={{
+                  nPrinc: Math.max(0, Math.floor(aNumero(nPrinc)) || 0),
+                  phiPrincMm,
+                  conPatilla: formaAnclaje === "gancho",
+                  mandrilMm: resultado?.r.principal.patilla?.mandrilMm ?? mandrilMinimoMm(phiPrincMm),
+                  patillaNecMm: resultado?.r.principal.patilla?.patillaNecMm ?? null,
+                  nSec: Math.max(0, Math.floor(aNumero(nSec)) || 0),
+                  phiSecMm: medida(phiSec, 10),
+                  nEstV: Math.max(0, Math.floor(aNumero(nEstV)) || 0),
+                  phiEstVMm: medida(phiEstV, 8),
+                  nCercos: Math.max(0, Math.floor(aNumero(nCercos)) || 0),
+                  nEstH: Math.max(0, Math.floor(aNumero(nEstH)) || 0),
+                  phiEstHMm: medida(phiEstH, 10),
+                }}
+              />
+            }
+          />
           </div>
         </Etapa>
 
@@ -193,7 +280,7 @@ export default function CabezalPilotesPage() {
               "El nudo bajo el pilar no se comprueba: el pilar ya está dimensionado para ese axil.",
               "Separación de estribos verticales con n−1, igual que el resto de las separaciones de la planilla.",
               "Malla de las caras por el art. 9.7 (vigas de gran canto), por analogía: los encepados están fuera del Anejo 19 (art. 9.8.1). Por cara y dirección, máx(0,1 %·lado y; 1,5 cm²/m), separación ≤ mín(30 cm; 2·lado y). Cuenta la rama exterior de cada cerco.",
-              "Anclaje del tirante por el art. 8.4, desde la cara interior del pilote (art. 6.5.4 (7)) hasta el borde menos el recubrimiento, sobre el eje de la barra; con patilla suma la pata hasta H − 2·rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
+              "Anclaje del tirante por el art. 8.4, desde el eje del pilote (más conservador que la cara interior que admite el art. 6.5.4 (7)) hasta el extremo de la barra, sobre su eje. Con patilla a 90°: recta + doblez + pata, con mandril D mínimo de la tabla A19.8.1 y la pata hasta H − rec. σsd = Td/As real con tope fyd, buena adherencia, α3 = α5 = 1.",
             ]}
             avisos={avisos}
           />
@@ -313,10 +400,22 @@ export default function CabezalPilotesPage() {
                 </div>
               </Subgrupo>
 
-              <Subgrupo titulo="Anclaje del tirante" detalle="art. 8.4 y 6.5.4 (7)">
+              <Subgrupo titulo="Anclaje del tirante" detalle="art. 8.4, desde el eje del pilote">
                 <div>
+                  {resultado.r.principal.patilla && (
+                    <ResultadoCheck
+                      etiqueta={`Patilla necesaria · D = ${fmt(resultado.r.principal.patilla.mandrilMm, 0)} mm`}
+                      verifica={resultado.r.principal.verificaAnclaje}
+                      detalle={`lbd ${fmt(resultado.r.principal.lbdMm, 0)} = recta ${fmt(resultado.r.principal.patilla.rectaMm, 0)} + doblez ${fmt(resultado.r.principal.patilla.arcoMm, 0)} + patilla ${fmt(resultado.r.principal.patilla.patillaNecMm, 0)} mm`}
+                      comparacion={{
+                        real: { etiqueta: "entra", valor: resultado.r.principal.patilla.patillaDispMm },
+                        limite: { etiqueta: "patilla nec.", valor: resultado.r.principal.patilla.patillaNecMm },
+                        unidad: "mm", exige: "≥", decimales: 0,
+                      }}
+                    />
+                  )}
                   <ResultadoCheck
-                    etiqueta="Largo disponible desde la cara interior del pilote"
+                    etiqueta="Largo disponible desde el eje del pilote"
                     verifica={resultado.r.principal.verificaAnclaje}
                     detalle={FORMAS[formaAnclaje].toLowerCase()}
                     comparacion={{

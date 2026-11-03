@@ -101,14 +101,18 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
     expect(r.principal.lbdMm).toBeCloseTo((1 - (0.15 * (cd - 16)) / 16) * lbRqd, 4);
   });
 
-  // De la cara interior del pilote al borde: 0,8 − 0,625 + 0,25 − 0,05 = 0,375 m.
-  it("mide el anclaje desde la cara interior del pilote (art. 6.5.4 (7))", () => {
-    expect(r.principal.disponibleAnclajeMm).toBeCloseTo(375, 6);
+  // Del eje del pilote al borde menos el recubrimiento: 0,8 − 0,625 − 0,05 = 0,125 m.
+  it("mide el anclaje desde el eje del pilote (criterio del usuario, 2026-11-03)", () => {
+    expect(r.principal.disponibleAnclajeMm).toBeCloseTo(125, 6);
     expect(r.principal.verificaAnclaje).toBe(false);
+    expect(r.principal.patilla).toBeNull();
   });
 
-  // Con patilla: + H − 2·rec = 0,5 m; α1 = 1 (cd ≤ 3φ) y α2 = 1 → lbd = lb,rqd.
-  it("con patilla suma la pata y verifica", () => {
+  // Con patilla, sobre el eje de la barra: D = 4·16 = 64 (tabla A19.8.1),
+  // r = (64 + 16)/2 = 40; recta = 125 − 8 − 40 = 77; arco = π/2·40 = 62,83;
+  // pata que entra = 600 − 100 − 8 − 40 = 452. α1 = 1 (cd ≤ 3φ) y α2 = 1 →
+  // lbd = lb,rqd = 571,9 → patilla necesaria = 571,9 − 77 − 62,83 = 432,1.
+  it("con patilla calcula la pata necesaria con el doblez de mandril D", () => {
     const conPatilla = calcularCabezalDosPilotes(materiales, geometria, {
       ndPilarKN: 1040,
       armaduraPrincipal: { numero: 7, diametroMm: 16 },
@@ -118,8 +122,15 @@ describe("cabezal de 2 pilotes: armadura principal", () => {
       formaAnclaje: "gancho",
     });
     const lbRqd = (16 / 4) * ((500 / 1.15) / (2.25 * ((0.7 * 0.3 * 30 ** (2 / 3)) / 1.5)));
-    expect(conPatilla.principal.disponibleAnclajeMm).toBeCloseTo(875, 6);
+    const arco = (Math.PI / 2) * 40;
+    const p = conPatilla.principal.patilla!;
+    expect(p.mandrilMm).toBe(64);
+    expect(p.rectaMm).toBeCloseTo(77, 9);
+    expect(p.arcoMm).toBeCloseTo(arco, 9);
+    expect(p.patillaDispMm).toBeCloseTo(452, 9);
     expect(conPatilla.principal.lbdMm).toBeCloseTo(lbRqd, 4);
+    expect(p.patillaNecMm).toBeCloseTo(lbRqd - 77 - arco, 4);
+    expect(conPatilla.principal.disponibleAnclajeMm).toBeCloseTo(77 + arco + 452, 9);
     expect(conPatilla.principal.verificaAnclaje).toBe(true);
   });
 });

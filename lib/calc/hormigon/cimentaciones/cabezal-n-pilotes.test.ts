@@ -53,12 +53,15 @@ describe("cabezal de n pilotes: la generalización del de 2", () => {
     }
   );
 
-  it("con 2 pilotes da el mismo tirante, la misma biela y el mismo anclaje", () => {
+  it("con 2 pilotes da el mismo tirante y la misma biela", () => {
     expect(n.reaccionPiloteKN).toBeCloseTo(dos.principal.ndPorPiloteKN, 9);
     expect(n.direccionA.dM).toBeCloseTo(dos.principal.dM, 9);
     expect(n.direccionA.tdKN).toBeCloseTo(dos.principal.tdKN, 9);
     expect(n.direccionA.asNecCm2).toBeCloseTo(dos.principal.asNecCm2, 9);
-    expect(n.direccionA.disponibleAnclajeMm).toBeCloseTo(dos.principal.disponibleAnclajeMm, 9);
+    // El anclaje ya no coincide: el de 2 pilotes se mide desde el eje del
+    // pilote (criterio del usuario, 2026-11-03) y éste desde la cara interior,
+    // o sea D/2 más.
+    expect(n.direccionA.disponibleAnclajeMm).toBeCloseTo(dos.principal.disponibleAnclajeMm + 250, 9);
     expect(n.pilotes[0].anguloBielaGrados).toBeCloseTo(dos.bielas.anguloBielaGrados, 9);
     expect(n.pilotes[0].sigmaBielaMPa).toBeCloseTo(dos.bielas.sigmaBielaMPa, 9);
     // En la otra dirección no hay brazo: ningún tirante.

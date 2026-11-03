@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { CampoNumerico } from "@/components/verificaciones/comun/CampoNumerico";
@@ -15,6 +15,7 @@ import { DatosConDibujo, Etapa, IndiceEtapas, Subgrupo } from "@/components/veri
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { DiagramaCabezalUnPilote } from "@/components/verificaciones/hormigon/DiagramaCabezalUnPilote";
 import { PlantaCabezalUnPilote } from "@/components/verificaciones/hormigon/PlantaCabezalUnPilote";
+import { CroquisArmadoCabezal, type ElementoCabezal } from "@/components/verificaciones/hormigon/CroquisArmadoCabezal";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverCabezalUnPilote } from "@/lib/calc/hormigon/cimentaciones/resolver-cabezal-un-pilote";
@@ -31,6 +32,14 @@ const ETAPAS = [
   { id: "revision", titulo: "Revisión" },
   { id: "resultados", titulo: "Resultados" },
 ] as const;
+
+/** Qué parte del croquis de armado corresponde a cada campo, para resaltarla con el foco. */
+const ELEMENTO_DE_CAMPO: Record<string, ElementoCabezal> = {
+  nCercos: "cercos", phiCercos: "cercos",
+  phiEstribosX: "estribosX", sEstribosX: "estribosX",
+  phiEstribosY: "estribosY", sEstribosY: "estribosY",
+  recubrimiento: "recubrimiento",
+};
 
 const LIMITA: Record<"triple" | "canto" | "cabezal", string> = {
   triple: "el triple del lado cargado",
@@ -83,6 +92,21 @@ export default function CabezalUnPilotePage() {
   const resultado = useMemo(() => resolverCabezalUnPilote(campos), [campos]);
   const comprobaciones = useMemo(() => comprobarCabezalUnPilote(campos) ?? [], [campos]);
   const rec = useMemo(() => recomendarCabezalUnPilote(campos), [campos]);
+
+  const [foco, setFoco] = useState<string | null>(null);
+  const resaltar = foco ? (ELEMENTO_DE_CAMPO[foco] ?? null) : null;
+  // El foco se sigue en un contenedor: los eventos de foco de React burbujean,
+  // también desde la lista del selector de Ø, que no tiene id y no lo apaga.
+  const seguirFoco = {
+    onFocus: (ev: FocusEvent<HTMLElement>) => {
+      const id = ev.target.id.replace(/-otro$/, "");
+      if (id) setFoco(id);
+    },
+    onBlur: (ev: FocusEvent<HTMLElement>) => {
+      const siguiente = ev.relatedTarget as HTMLElement | null;
+      if (!siguiente?.closest('[role="listbox"]')) setFoco(null);
+    },
+  };
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -185,29 +209,57 @@ export default function CabezalUnPilotePage() {
         </Etapa>
 
         <Etapa id="armadura" numero={2} titulo="Armadura" descripcion="Cercos horizontales para el ensanche del campo de compresiones, y estribos verticales para el tirante de bielas y tirantes.">
-          <Subgrupo titulo="Cercos horizontales">
-          <p className="mb-3 text-xs text-muted-foreground">
-            Cercos cerrados, todos iguales, repartidos en todo el canto: cada uno pone dos ramas en cada dirección.
-            Cada mitad cuenta la mitad de los cercos; con una cantidad impar, el del medio no se cuenta.
-          </p>
-          <div className="grid max-w-xl grid-cols-2 gap-4">
-            <CampoNumerico id="nCercos" etiqueta="Cantidad en todo el canto" valor={nCercos} onChange={setNCercos} />
-            <CampoDiametro id="phiCercos" etiqueta="Ø" valor={phiCercos} onChange={setPhiCercos} />
+          <div {...seguirFoco}>
+          <DatosConDibujo
+            datos={
+              <div className="space-y-4">
+                <Subgrupo titulo="Cercos horizontales">
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Cercos cerrados, todos iguales, repartidos en todo el canto: cada uno pone dos ramas en cada dirección.
+                    Cada mitad cuenta la mitad de los cercos; con una cantidad impar, el del medio no se cuenta.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoNumerico id="nCercos" etiqueta="Cantidad en todo el canto" valor={nCercos} onChange={setNCercos} />
+                    <CampoDiametro id="phiCercos" etiqueta="Ø" valor={phiCercos} onChange={setPhiCercos} />
+                  </div>
+                </Subgrupo>
+                <Subgrupo titulo="Estribos verticales">
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Cerrados, en planos verticales de cada dirección. Su rama horizontal toma el tirante; la separación se
+                    mide en la dirección perpendicular y sigue igual hasta las caras del cabezal.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CampoDiametro id="phiEstribosX" etiqueta="En x · Ø" valor={phiEstribosX} onChange={setPhiEstribosX} />
+                    <CampoNumerico id="sEstribosX" etiqueta="En x · separación" sufijo="m" valor={sEstribosX} onChange={setSEstribosX} />
+                    <CampoDiametro id="phiEstribosY" etiqueta="En y · Ø" valor={phiEstribosY} onChange={setPhiEstribosY} />
+                    <CampoNumerico id="sEstribosY" etiqueta="En y · separación" sufijo="m" valor={sEstribosY} onChange={setSEstribosY} />
+                    <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
+                  </div>
+                </Subgrupo>
+              </div>
+            }
+            dibujo={
+              <CroquisArmadoCabezal
+                resaltar={resaltar}
+                a={{
+                  ladoXM: medida(ladoX, 0.9),
+                  ladoYM: medida(ladoY, 0.9),
+                  hM: medida(hCab, 1),
+                  pilarXM: medida(pilarX, 0.3),
+                  pilarYM: medida(pilarY, 0.3),
+                  diametroPiloteM: medida(dPilote, 0.5),
+                  recubrimientoM: medida(recubrimiento, 0.05),
+                  nCercos: Math.max(0, Math.floor(aNumero(nCercos)) || 0),
+                  phiCercosMm: medida(phiCercos, 12),
+                  phiEstribosXMm: medida(phiEstribosX, 12),
+                  sEstribosXM: medida(sEstribosX, 0.2),
+                  phiEstribosYMm: medida(phiEstribosY, 12),
+                  sEstribosYM: medida(sEstribosY, 0.2),
+                }}
+              />
+            }
+          />
           </div>
-          </Subgrupo>
-          <Subgrupo titulo="Estribos verticales">
-            <p className="mb-3 text-xs text-muted-foreground">
-              Cerrados, en planos verticales de cada dirección. Su rama horizontal toma el tirante; la separación se
-              mide en la dirección perpendicular y sigue igual hasta las caras del cabezal.
-            </p>
-            <div className="grid max-w-xl grid-cols-2 gap-4">
-              <CampoDiametro id="phiEstribosX" etiqueta="En x · Ø" valor={phiEstribosX} onChange={setPhiEstribosX} />
-              <CampoNumerico id="sEstribosX" etiqueta="En x · separación" sufijo="m" valor={sEstribosX} onChange={setSEstribosX} />
-              <CampoDiametro id="phiEstribosY" etiqueta="En y · Ø" valor={phiEstribosY} onChange={setPhiEstribosY} />
-              <CampoNumerico id="sEstribosY" etiqueta="En y · separación" sufijo="m" valor={sEstribosY} onChange={setSEstribosY} />
-              <CampoNumerico id="recubrimiento" etiqueta="Recubrimiento" sufijo="m" valor={recubrimiento} onChange={setRecubrimiento} />
-            </div>
-          </Subgrupo>
         </Etapa>
 
         <Etapa id="revision" numero={3} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">

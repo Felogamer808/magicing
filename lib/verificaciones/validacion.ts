@@ -95,7 +95,7 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
   },
   "cabezal-n-pilotes": {
     nivel: "probada",
-    nota: "Sin planilla: es la generalización del cabezal de 2 pilotes (con 2 da lo mismo, test) y se contrasta a mano con 4, 5 y 6 pilotes. El Anejo 19 deja los encepados fuera (art. 9.8.1): bielas y tirantes del art. 6.5 con el pilar en el centro del grupo y reparto N/n, sin momentos (los núcleos, que bajan muros con momento, no entran). El tirante se dimensiona con mín(fyd; 0,8·fyk), como el de 2. Malla de caras del art. 9.7 por analogía con el canto como espesor. Parrilla entre bandas ≥ 1/4 y superior ≥ 1/10: criterio de oficina tomado de la EHE-08, no del Anejo 19.",
+    nota: "Sin planilla: es la generalización del cabezal de 2 pilotes (con 2 da lo mismo, test) y se contrasta a mano con 4, 5 y 6 pilotes. El Anejo 19 deja los encepados fuera (art. 9.8.1): bielas y tirantes del art. 6.5 con el pilar en el centro del grupo y reparto N/n, sin momentos (los núcleos, que bajan muros con momento, no entran). El tirante se dimensiona con mín(fyd; 0,8·fyk), como el de 2. Anclaje desde el eje del pilote más externo, con la patilla y su doblez como el de 2 (2026-11-03). Malla de caras del art. 9.7 por analogía con el canto como espesor. Parrilla entre bandas ≥ 1/4 y superior ≥ 1/10: criterio de oficina tomado de la EHE-08, no del Anejo 19.",
   },
 
   "zapata-corrida": {

@@ -53,15 +53,12 @@ describe("cabezal de n pilotes: la generalización del de 2", () => {
     }
   );
 
-  it("con 2 pilotes da el mismo tirante y la misma biela", () => {
+  it("con 2 pilotes da el mismo tirante, la misma biela y el mismo anclaje", () => {
     expect(n.reaccionPiloteKN).toBeCloseTo(dos.principal.ndPorPiloteKN, 9);
     expect(n.direccionA.dM).toBeCloseTo(dos.principal.dM, 9);
     expect(n.direccionA.tdKN).toBeCloseTo(dos.principal.tdKN, 9);
     expect(n.direccionA.asNecCm2).toBeCloseTo(dos.principal.asNecCm2, 9);
-    // El anclaje ya no coincide: el de 2 pilotes se mide desde el eje del
-    // pilote (criterio del usuario, 2026-11-03) y éste desde la cara interior,
-    // o sea D/2 más.
-    expect(n.direccionA.disponibleAnclajeMm).toBeCloseTo(dos.principal.disponibleAnclajeMm + 250, 9);
+    expect(n.direccionA.disponibleAnclajeMm).toBeCloseTo(dos.principal.disponibleAnclajeMm, 9);
     expect(n.pilotes[0].anguloBielaGrados).toBeCloseTo(dos.bielas.anguloBielaGrados, 9);
     expect(n.pilotes[0].sigmaBielaMPa).toBeCloseTo(dos.bielas.sigmaBielaMPa, 9);
     // En la otra dirección no hay brazo: ningún tirante.
@@ -105,9 +102,10 @@ describe("cabezal de 4 pilotes en cuadro", () => {
     }
   });
 
-  /** 0,95 − 0,625 + 0,25 − 0,05 = 0,525 m hasta el borde. */
-  it("el anclaje arranca en la cara interior del pilote", () => {
-    expect(r.direccionA.disponibleAnclajeMm).toBeCloseTo(525, 6);
+  /** 0,95 − 0,625 − 0,05 = 0,275 m hasta el borde (criterio del usuario, 2026-11-03). */
+  it("el anclaje arranca en el eje del pilote", () => {
+    expect(r.direccionA.disponibleAnclajeMm).toBeCloseTo(275, 6);
+    expect(r.direccionA.patilla).toBeNull();
   });
 
   /** Art. 9.7 con el canto como espesor: 0,001·0,80 m = 8 cm²/m por cara. */

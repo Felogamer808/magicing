@@ -159,6 +159,37 @@ export interface ResultadoCabezal {
   bielas: ResultadoBielasCabezal;
 }
 
+/**
+ * Largo de anclaje disponible para el tirante de un cabezal, compartido con el
+ * de n pilotes. Se mide desde el eje del pilote, donde el modelo cierra el
+ * tirante: más conservador que la cara interior que admite el art. 6.5.4 (7)
+ * (criterio del usuario, 2026-11-03). Sobre el eje de la barra y con el doblez
+ * incluido (fig. A19.8.1): con patilla a 90°, el mandril D es el mínimo de la
+ * tabla A19.8.1 y la pata sube hasta H − rec.
+ *
+ * @param voladoM Del eje del pilote al borde menos el recubrimiento (m)
+ */
+export function anclajeTirante(
+  voladoM: number,
+  hM: number,
+  recubrimientoM: number,
+  diametroMm: number,
+  lbdMm: number,
+  forma: FormaAnclaje
+): { disponibleAnclajeMm: number; patilla: PatillaCabezal | null } {
+  if (forma !== "gancho") return { disponibleAnclajeMm: voladoM * 1000, patilla: null };
+  const mandrilMm = mandrilMinimoMm(diametroMm);
+  const radioEjeMm = (mandrilMm + diametroMm) / 2;
+  const rectaMm = Math.max(voladoM * 1000 - diametroMm / 2 - radioEjeMm, 0);
+  const arcoMm = (Math.PI / 2) * radioEjeMm;
+  const patillaDispMm = Math.max((hM - 2 * recubrimientoM) * 1000 - diametroMm / 2 - radioEjeMm, 0);
+  const patillaNecMm = Math.max(lbdMm - rectaMm - arcoMm, 0);
+  return {
+    disponibleAnclajeMm: rectaMm + arcoMm + patillaDispMm,
+    patilla: { mandrilMm, rectaMm, arcoMm, patillaNecMm, patillaDispMm },
+  };
+}
+
 const areaCm2 = (n: number, diametroMm: number) => (n * Math.PI * (diametroMm / 10) ** 2) / 4;
 
 export function calcularCabezalDosPilotes(
@@ -240,24 +271,8 @@ export function calcularCabezalDosPilotes(
     { fckMPa: fck, fykMPa: fyk, gammaC: materiales.gammaC, gammaS: materiales.gammaS },
     { diametroMm: phiPrinc, situacion: "buena", forma: formaAnclaje, esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa: sigmaSdAnclajeMPa }
   );
-  // Se mide desde el eje del pilote, donde el modelo cierra el tirante: más
-  // conservador que la cara interior que admite el art. 6.5.4 (7) (criterio
-  // del usuario, 2026-11-03). Sobre el eje de la barra y con el doblez incluido
-  // (fig. A19.8.1): con patilla a 90°, el mandril D es el mínimo de la tabla
-  // A19.8.1 y la pata sube hasta H − rec.
   const voladoM = ladoXM / 2 - separacionPilotesM / 2 - recubrimientoM;
-  let patilla: PatillaCabezal | null = null;
-  let disponibleAnclajeMm = voladoM * 1000;
-  if (formaAnclaje === "gancho") {
-    const mandrilMm = mandrilMinimoMm(phiPrinc);
-    const radioEjeMm = (mandrilMm + phiPrinc) / 2;
-    const rectaMm = Math.max(voladoM * 1000 - phiPrinc / 2 - radioEjeMm, 0);
-    const arcoMm = (Math.PI / 2) * radioEjeMm;
-    const patillaDispMm = Math.max((hM - 2 * recubrimientoM) * 1000 - phiPrinc / 2 - radioEjeMm, 0);
-    const patillaNecMm = Math.max(lbdMm - rectaMm - arcoMm, 0);
-    patilla = { mandrilMm, rectaMm, arcoMm, patillaNecMm, patillaDispMm };
-    disponibleAnclajeMm = rectaMm + arcoMm + patillaDispMm;
-  }
+  const { disponibleAnclajeMm, patilla } = anclajeTirante(voladoM, hM, recubrimientoM, phiPrinc, lbdMm, formaAnclaje);
 
   // Secundaria: el 10% de la armadura principal realmente colocada.
   const phiSec = armaduraSecundaria.diametroMm;

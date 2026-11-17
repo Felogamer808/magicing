@@ -108,9 +108,9 @@ describe("cabezal de 4 pilotes en cuadro", () => {
     expect(r.direccionA.patilla).toBeNull();
   });
 
-  /** Art. 9.7 con el canto como espesor: 0,001·0,80 m = 8 cm²/m por cara. */
-  it("la malla de caras se mide con el canto", () => {
-    expect(r.malla.asNecCm2).toBeCloseTo(8, 9);
+  /** Art. 9.7 con el canto como espesor: 0,001·0,80 m = 8 cm²/m en total, 4 por cara. */
+  it("la malla de caras se mide con el canto, mitad por cara", () => {
+    expect(r.malla.asNecCm2).toBeCloseTo(4, 9);
   });
 
   /**

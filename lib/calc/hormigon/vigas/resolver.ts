@@ -43,6 +43,7 @@ import {
   type TipoSeccion,
 } from "@/lib/calc/hormigon/vigas/seccion-t";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
+import { calcularArmaduraPiel, type ResultadoPiel } from "./armadura-piel";
 
 /** Vive en seccion-t: la usan también fisuración y deformaciones. */
 export { tipoSeccionDesdeCampo };
@@ -101,6 +102,8 @@ export interface ResueltoSeccionT {
 
 export interface ResueltoVigaFlexionCortante {
   v: EntradasVigaFlexionCortante;
+  /** Armadura de piel de las caras laterales (art. 7.3.3 (3) y Apéndice J.1) */
+  armaduraPiel: ResultadoPiel;
   /** null en la sección rectangular */
   seccionT: ResueltoSeccionT | null;
   materiales: MaterialesDerivados;
@@ -339,7 +342,22 @@ export function resolverVigaFlexionCortante(
     };
   }
 
+  // Armadura de piel de las caras, con la armadura del vano (momento positivo).
+  const alaVano = seccionTPara(true);
+  const armaduraPiel = calcularArmaduraPiel({
+    anchoAlmaM: v.b,
+    cantoM: v.h,
+    dM: d,
+    ala: alaVano ? { anchoM: alaVano.anchoEficazM, espesorM: alaVano.espesorAlaM, comprimida: alaVano.alaComprimida } : undefined,
+    recubrimientoM: v.recubrimiento,
+    fctmMPa: materiales.fctm,
+    fykMPa: v.fyk,
+    diametroMaximoMm: Math.max(...gruposPositiva.map((g) => g.diametroMm)),
+    xEluM: flexionPositiva.xM,
+  });
+
   return {
+    armaduraPiel,
     v, seccionT, materiales, gruposPositiva, gruposNegativa, d, dNegativo, flexionPositiva, flexionNegativa, cortante,
     vdBielasKN, cortanteZonas, momentoNegativoCalculo, gobiernaMinimoApoyo,
   };

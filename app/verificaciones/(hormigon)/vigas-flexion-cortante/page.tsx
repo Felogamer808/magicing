@@ -38,6 +38,7 @@ import {
   type TipoSeccion,
   type TramoL0,
 } from "@/lib/calc/hormigon/vigas/seccion-t";
+import { ResultadoArmaduraPiel } from "@/components/verificaciones/hormigon/ResultadoArmaduraPiel";
 import { CroquisL0, CroquisSeccionT } from "@/components/verificaciones/croquis/CroquisSeccionT";
 import { CroquisCercosT } from "@/components/verificaciones/croquis/CroquisCercosT";
 import { Button } from "@/components/ui/button";
@@ -1178,6 +1179,10 @@ export default function VigasFlexionCortantePage() {
                 />
               </Subgrupo>
               )}
+
+              <Subgrupo titulo="Armadura de piel" detalle="caras laterales, art. 7.3.3 (3)">
+                <ResultadoArmaduraPiel piel={resultado.armaduraPiel} />
+              </Subgrupo>
 
               {!resultado.flexionPositiva.sobrearmada && !conAla && (
               <Subgrupo titulo="Estado de rotura con el momento positivo">

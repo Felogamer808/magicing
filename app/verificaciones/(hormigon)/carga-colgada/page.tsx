@@ -14,7 +14,7 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { BarraAcciones } from "@/components/verificaciones/comun/BarraAcciones";
 import { CroquisCargaColgada, CroquisCuelguePilar } from "@/components/verificaciones/croquis/CroquisVarios";
-import { fmt } from "@/lib/verificaciones/formato";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import {
   MODOS_PORCENTAJE,
@@ -51,13 +51,15 @@ export default function CargaColgadaPage() {
   const [phiPilar, setPhiPilar] = useCampo("phiPilar", "16");
   const [modoPorcentaje, setModoPorcentaje] = useCampo("modoPorcentaje", MODOS_PORCENTAJE[0]);
   const [porcentaje, setPorcentaje] = useCampo("porcentaje", "50");
+  const [distanciaBorde, setDistanciaBorde] = useCampo("distanciaBorde", "");
+  const [rg, setRg] = useCampo("rg", "0.03");
 
   const esPilar = tipo === TIPOS_CARGA_COLGADA[1];
   const impuesto = modoPorcentaje === MODOS_PORCENTAJE[1];
 
   const campos = useMemo(
-    () => ({ tipo, reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a, nd, fck, ladoPilar, anchoPilar, nBarrasPilar, phiPilar, modoPorcentaje, porcentaje }),
-    [tipo, reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a, nd, fck, ladoPilar, anchoPilar, nBarrasPilar, phiPilar, modoPorcentaje, porcentaje]
+    () => ({ tipo, reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a, nd, fck, ladoPilar, anchoPilar, nBarrasPilar, phiPilar, modoPorcentaje, porcentaje, distanciaBorde, rg }),
+    [tipo, reaccion, fyk, diametroEstribo, numeroRamas, h, h2, a, nd, fck, ladoPilar, anchoPilar, nBarrasPilar, phiPilar, modoPorcentaje, porcentaje, distanciaBorde, rg]
   );
   const resultado = useMemo(() => resolverCargaColgada(campos), [campos]);
 
@@ -65,8 +67,8 @@ export default function CargaColgadaPage() {
   if (!resultado)
     avisos.push({
       tipo: "error",
-      texto: esPilar && impuesto
-        ? "Hay datos vacíos o no válidos: todos tienen que ser positivos, y el porcentaje entre 0 y 100."
+      texto: esPilar
+        ? "Hay datos vacíos o no válidos: todos tienen que ser positivos, el porcentaje impuesto entre 0 y 100 y, si se da e, el pilar entero sobre la viga (e ≥ a/2)."
         : "Hay datos vacíos o no válidos: todos tienen que ser positivos.",
     });
   else if (resultado.tipo === "viga") {
@@ -96,7 +98,8 @@ export default function CargaColgadaPage() {
   const datosRevision = esPilar
     ? [
         { etiqueta: "Nd del pilar", valor: `${nd} kN` },
-        { etiqueta: "Pilar", valor: `${ladoPilar} × ${anchoPilar} m, ${nBarrasPilar}Ø${phiPilar}` },
+        { etiqueta: "Pilar a × b", valor: `${ladoPilar} × ${anchoPilar} m, ${nBarrasPilar}Ø${phiPilar}` },
+        { etiqueta: "e al borde", valor: aNumero(distanciaBorde) > 0 ? `${distanciaBorde} m (rg ${rg} m)` : "sin borde cerca" },
         { etiqueta: "h de la viga", valor: `${h} m` },
         { etiqueta: "fck / fyk", valor: `${fck} / ${fyk} MPa` },
         { etiqueta: "% a colgar", valor: impuesto ? `${porcentaje} % impuesto` : "calculado" },
@@ -117,7 +120,8 @@ export default function CargaColgadaPage() {
         "Reparto en compresión centrada con la deformación limitada a εc2 (art. 6.1(5), pág. 74; tabla A19.3.1): hormigón a fcd = fck/γc (αcc = 1,00, art. 3.1.6(1)) y acero a σs = mín(fyd; Es·εc2).",
         "Colgar esa parte es criterio del proyectista, no un artículo: el Anejo 19 sólo pide colgar la reacción entera en el apoyo indirecto (art. 9.2.5(1)). Por eso el porcentaje se puede imponer.",
         "Los cercos son el tirante vertical: As·fyd ≥ Rd, con fyd = fyk/γs (art. 6.5.3(1)).",
-        "Zona de los cercos: máx(lado del pilar; h/2) a cada lado del eje, el mismo criterio que la viga de apeo. El Anejo no trae zona para este caso; se informa y no entra en el cumple.",
+        "Zona de los cercos: máx(a; h/2) a cada lado del eje, el mismo criterio que la viga de apeo; con el pilar cerca del extremo de la viga, de ese lado llega hasta e − rg − Ø/2. El Anejo no trae zona para este caso; se informa y no entra en el cumple.",
+        "Separación: los cercos se reparten uniformes en el largo de la zona, s = largo / n, redondeada hacia abajo al centímetro.",
         "La cantidad de estribos es un dimensionamiento, no una verificación.",
       ]
     : [
@@ -160,12 +164,18 @@ export default function CargaColgadaPage() {
                   <>
                     <CampoNumerico id="nd" etiqueta="Nd del pilar" sufijo="kN" valor={nd} onChange={setNd} />
                     <CampoNumerico id="h" etiqueta="h (viga que recibe)" sufijo="m" valor={h} onChange={setH} />
-                    <CampoNumerico id="ladoPilar" etiqueta="Lado del pilar (en el plano de la viga)" sufijo="m" valor={ladoPilar} onChange={setLadoPilar} />
-                    <CampoNumerico id="anchoPilar" etiqueta="Lado del pilar (transversal)" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
+                    <CampoNumerico id="ladoPilar" etiqueta="a — lado del pilar en el plano de la viga" sufijo="m" valor={ladoPilar} onChange={setLadoPilar} />
+                    <CampoNumerico id="anchoPilar" etiqueta="b — lado del pilar transversal" sufijo="m" valor={anchoPilar} onChange={setAnchoPilar} />
                     <CampoNumerico id="nBarrasPilar" etiqueta="Barras del pilar" valor={nBarrasPilar} onChange={setNBarrasPilar} />
                     <CampoDiametro id="phiPilar" etiqueta="Ø barras del pilar" valor={phiPilar} onChange={setPhiPilar} />
                     <CampoNumerico id="fck" etiqueta="fck" sufijo="MPa" valor={fck} onChange={setFck} />
                     <div />
+                    <CampoNumerico id="distanciaBorde" etiqueta="e — eje del pilar al extremo de la viga (vacío: lejos)" sufijo="m" valor={distanciaBorde} onChange={setDistanciaBorde} />
+                    {aNumero(distanciaBorde) > 0 ? (
+                      <CampoNumerico id="rg" etiqueta="rg — recubrimiento al cerco" sufijo="m" valor={rg} onChange={setRg} />
+                    ) : (
+                      <div />
+                    )}
                     <CampoSeleccion id="modoPorcentaje" etiqueta="% de Nd a colgar" valor={modoPorcentaje} opciones={MODOS_PORCENTAJE} onChange={setModoPorcentaje} />
                     {impuesto ? (
                       <CampoNumerico id="porcentaje" etiqueta="% impuesto" sufijo="%" valor={porcentaje} onChange={setPorcentaje} sugerencias={[50, 100]} />
@@ -216,7 +226,7 @@ export default function CargaColgadaPage() {
                   { etiqueta: "% colgado", valor: `${fmt(resultado.r.fraccionAdoptada * 100, 1)} %`, nota: resultado.v.impuesto ? "impuesto" : "parte de las barras" },
                   { etiqueta: "Carga colgada", valor: `${fmt(resultado.r.cargaColgadaKN, 0)} kN` },
                   { etiqueta: "As necesaria", valor: `${fmt(resultado.r.asNecesariaCm2)} cm²` },
-                  { etiqueta: "Estribos", valor: `${resultado.r.cantidadEstribos}`, nota: "dimensionado" },
+                  { etiqueta: "Estribos", valor: `${resultado.r.cantidadEstribos} c/ ${fmt(resultado.r.separacionM * 100, 0)} cm`, nota: `en ${fmt(resultado.r.largoZonaM, 2)} m` },
                 ]}
               />
 
@@ -237,6 +247,7 @@ export default function CargaColgadaPage() {
                 <div className="space-y-2">
                   <p className="font-mono text-base font-semibold tabular-nums">
                     {resultado.r.cantidadEstribos} estribos Ø{fmt(resultado.v.diametroEstribo, 0)} de {fmt(resultado.v.numeroRamas, 0)} ramas
+                    cada {fmt(resultado.r.separacionM * 100, 0)} cm
                   </p>
                   <PanelFormulas
                     titulo="Ver desarrollo de la armadura de cuelgue"
@@ -244,11 +255,15 @@ export default function CargaColgadaPage() {
                       { etiqueta: "Rd", formula: "% · Nd", sustitucion: `${fmt(resultado.r.fraccionAdoptada * 100, 1)} % · ${fmt(resultado.v.nd, 0)}`, valor: `${fmt(resultado.r.cargaColgadaKN, 0)} kN` },
                       { etiqueta: "As", formula: "Rd / fyd", sustitucion: `${fmt(resultado.r.cargaColgadaKN)} / ${fmt(resultado.r.fydMPa)}`, valor: `${fmt(resultado.r.asNecesariaCm2)} cm²` },
                       { etiqueta: "N° estribos", formula: "As / (ramas·área barra)", sustitucion: `${fmt(resultado.r.asNecesariaCm2)} / ${fmt(resultado.r.areaPorEstriboCm2)}`, valor: `${resultado.r.cantidadEstribos}` },
+                      { etiqueta: "Largo zona", formula: resultado.r.recortadaPorBorde ? "(e − rg − Ø/2) + máx(a; h/2)" : "2·máx(a; h/2)", sustitucion: `${fmt(resultado.r.zonaLadoBordeM, 3)} + ${fmt(resultado.r.zonaLadoOpuestoM, 3)}`, valor: `${fmt(resultado.r.largoZonaM, 3)} m` },
+                      { etiqueta: "s", formula: "largo / n, hacia abajo al cm", sustitucion: `${fmt(resultado.r.largoZonaM, 3)} / ${resultado.r.cantidadEstribos}`, valor: `${fmt(resultado.r.separacionM * 100, 0)} cm` },
                     ]}
                   />
                   <p className="text-sm">
-                    Repartidos en {fmt(resultado.r.anchoZonaM, 2)} m a cada lado del eje del pilar: máx(lado del pilar; h/2), criterio de la
-                    viga de apeo e informativo.
+                    {resultado.r.recortadaPorBorde
+                      ? `Repartidos en ${fmt(resultado.r.zonaLadoBordeM, 2)} m hacia el extremo de la viga (recortado por el borde) y ${fmt(resultado.r.zonaLadoOpuestoM, 2)} m del otro lado del eje.`
+                      : `Repartidos en ${fmt(resultado.r.anchoZonaM, 2)} m a cada lado del eje del pilar: máx(a; h/2).`}{" "}
+                    Criterio de la viga de apeo, informativo.
                   </p>
                 </div>
               </Subgrupo>

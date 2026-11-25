@@ -37,6 +37,13 @@ export function resolverCargaColgada(campos: Record<string, string>) {
     const impuesto = campos.modoPorcentaje === MODOS_PORCENTAJE[1];
     const porcentaje = num("porcentaje");
     if (impuesto && !(Number.isFinite(porcentaje) && porcentaje > 0 && porcentaje <= 100)) return null;
+    // Borde opcional: vacío o 0 = sin borde cerca. Si se da, el pilar entero
+    // tiene que caer sobre la viga.
+    const distanciaBorde = num("distanciaBorde");
+    const rg = num("rg");
+    const hayBorde = distanciaBorde > 0;
+    if (!Number.isFinite(distanciaBorde) || distanciaBorde < 0) return null;
+    if (hayBorde && (!Number.isFinite(rg) || rg < 0 || distanciaBorde < v.ladoPilar / 2)) return null;
 
     const asPilarCm2 = v.nBarrasPilar * areaBarraCm2(v.phiPilar);
     const r = calcularCuelguePilar({
@@ -50,8 +57,10 @@ export function resolverCargaColgada(campos: Record<string, string>) {
       fraccionImpuesta: impuesto ? porcentaje / 100 : undefined,
       diametroEstriboMm: v.diametroEstribo,
       numeroRamas: v.numeroRamas,
+      distanciaBordeM: hayBorde ? distanciaBorde : undefined,
+      recubrimientoM: hayBorde ? rg : undefined,
     });
-    return { tipo: "pilar" as const, v: { ...v, asPilarCm2, impuesto }, r };
+    return { tipo: "pilar" as const, v: { ...v, asPilarCm2, impuesto, distanciaBorde, rg, hayBorde }, r };
   }
 
   const v = {

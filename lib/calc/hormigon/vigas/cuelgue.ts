@@ -131,6 +131,13 @@ export interface DatosCuelguePilar {
   fraccionImpuesta?: number;
   diametroEstriboMm: number;
   numeroRamas: number;
+  /**
+   * Distancia del eje del pilar al borde (extremo) de la viga (m). De ese lado
+   * la zona de cercos no pasa del borde. Si se omite o es 0, no hay borde cerca.
+   */
+  distanciaBordeM?: number;
+  /** Recubrimiento al cerco (m): con el borde, el eje del último cerco queda a rg + Ø/2. */
+  recubrimientoM?: number;
 }
 
 export interface ResultadoCuelguePilar {
@@ -151,6 +158,20 @@ export interface ResultadoCuelguePilar {
    * que se informa y no entra en el cumple.
    */
   anchoZonaM: number;
+  /** Lado hacia el borde de la viga: el ancho, recortado por el borde si lo hay (m). */
+  zonaLadoBordeM: number;
+  /** Lado opuesto: el ancho entero (m). */
+  zonaLadoOpuestoM: number;
+  /** El borde recorta la zona de ese lado. */
+  recortadaPorBorde: boolean;
+  /** Largo total en que se reparten los cercos (m). */
+  largoZonaM: number;
+  /**
+   * Separación entre cercos (m): largo / n, redondeada hacia abajo al
+   * centímetro, el mismo reparto uniforme que la viga de apeo (As real =
+   * ramas·área·largo/s). Dimensionamiento, no verificación.
+   */
+  separacionM: number;
 }
 
 export function calcularCuelguePilar(d: DatosCuelguePilar): ResultadoCuelguePilar {
@@ -166,6 +187,16 @@ export function calcularCuelguePilar(d: DatosCuelguePilar): ResultadoCuelguePila
   const cargaColgadaKN = fraccionAdoptada * d.ndPilarKN;
   const cercos = dimensionarCercos(d.fykMPa, cargaColgadaKN, d.diametroEstriboMm, d.numeroRamas);
 
+  const anchoZonaM = Math.max(d.ladoPilarM, d.hVigaM / 2);
+  const hayBorde = (d.distanciaBordeM ?? 0) > 0;
+  const hastaBordeM = hayBorde
+    ? (d.distanciaBordeM ?? 0) - (d.recubrimientoM ?? 0) - d.diametroEstriboMm / 2000
+    : Infinity;
+  const zonaLadoBordeM = Math.max(Math.min(anchoZonaM, hastaBordeM), 0);
+  const largoZonaM = zonaLadoBordeM + anchoZonaM;
+  const separacionM =
+    cercos.cantidadEstribos > 0 ? Math.floor((largoZonaM / cercos.cantidadEstribos) * 100 + 1e-9) / 100 : 0;
+
   return {
     reparto,
     fraccionCalculada,
@@ -173,6 +204,11 @@ export function calcularCuelguePilar(d: DatosCuelguePilar): ResultadoCuelguePila
     fraccionMenorQueCalculada: fraccionAdoptada < fraccionCalculada - 1e-9,
     cargaColgadaKN,
     ...cercos,
-    anchoZonaM: Math.max(d.ladoPilarM, d.hVigaM / 2),
+    anchoZonaM,
+    zonaLadoBordeM,
+    zonaLadoOpuestoM: anchoZonaM,
+    recortadaPorBorde: hastaBordeM < anchoZonaM,
+    largoZonaM,
+    separacionM,
   };
 }

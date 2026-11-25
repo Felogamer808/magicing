@@ -76,6 +76,31 @@ describe("calcularCuelguePilar", () => {
     expect(calcularCuelguePilar({ ...base, fraccionImpuesta: 0.1 }).fraccionMenorQueCalculada).toBe(true);
   });
 
+  it("separación: 3 cercos en 0,60 m de zona, cada 20 cm", () => {
+    const r = calcularCuelguePilar(base);
+    expect(r.largoZonaM).toBeCloseTo(0.6, 9);
+    expect(r.separacionM).toBeCloseTo(0.2, 9);
+    expect(r.recortadaPorBorde).toBe(false);
+  });
+
+  it("pilar cerca del borde: ese lado llega hasta rg + Ø/2 del borde", () => {
+    // 0,20 − 0,03 − 0,005 = 0,165 m hacia el borde, 0,30 m del otro lado
+    const r = calcularCuelguePilar({ ...base, distanciaBordeM: 0.2, recubrimientoM: 0.03 });
+    expect(r.recortadaPorBorde).toBe(true);
+    expect(r.zonaLadoBordeM).toBeCloseTo(0.165, 9);
+    expect(r.zonaLadoOpuestoM).toBeCloseTo(0.3, 9);
+    expect(r.largoZonaM).toBeCloseTo(0.465, 9);
+    // misma armadura, menos largo: 0,465/3 = 0,155 → 15 cm
+    expect(r.cantidadEstribos).toBe(3);
+    expect(r.separacionM).toBeCloseTo(0.15, 9);
+  });
+
+  it("borde lejos: no recorta", () => {
+    const r = calcularCuelguePilar({ ...base, distanciaBordeM: 2, recubrimientoM: 0.03 });
+    expect(r.recortadaPorBorde).toBe(false);
+    expect(r.largoZonaM).toBeCloseTo(0.6, 9);
+  });
+
   it("zona: máx(lado del pilar; h/2) a cada lado", () => {
     expect(calcularCuelguePilar(base).anchoZonaM).toBeCloseTo(0.3, 9);
     expect(calcularCuelguePilar({ ...base, hVigaM: 1 }).anchoZonaM).toBeCloseTo(0.5, 9);

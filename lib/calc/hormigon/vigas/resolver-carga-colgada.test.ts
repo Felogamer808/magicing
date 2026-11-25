@@ -29,4 +29,13 @@ describe("resolverCargaColgada", () => {
   it("porcentaje impuesto fuera de 0–100: datos no válidos", () => {
     expect(resolverCargaColgada({ ...PILAR, modoPorcentaje: MODOS_PORCENTAJE[1], porcentaje: "120" })).toBeNull();
   });
+
+  it("borde: recorta la zona; pilar fuera de la viga es dato no válido", () => {
+    const r = resolverCargaColgada({ ...PILAR, distanciaBorde: "0.2", rg: "0.03" });
+    if (r?.tipo !== "pilar") throw new Error("tipo");
+    expect(r.r.recortadaPorBorde).toBe(true);
+    expect(r.r.separacionM).toBeCloseTo(0.15, 9);
+    expect(resolverCargaColgada({ ...PILAR, distanciaBorde: "0.1", rg: "0.03" })).toBeNull();
+    expect(resolverCargaColgada({ ...PILAR, distanciaBorde: "", rg: "" })?.tipo).toBe("pilar");
+  });
 });

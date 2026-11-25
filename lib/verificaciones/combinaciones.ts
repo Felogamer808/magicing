@@ -254,6 +254,7 @@ export const COMBINACION_POR_VERIFICACION: Record<IdVerificacion, Combinacion> =
   "vigas-apeo-bielas": ELU_MAYORADAS,
   "vigas-apeo-voladizo": APEO_VOLADIZO,
   "carga-colgada": ELU_MAYORADAS,
+  "union-viga-viga": ELU_MAYORADAS,
   "mensula-corta": ELU_MAYORADAS,
   pilares: ELU_MAYORADAS,
   "zona-parcialmente-cargada": ELU_MAYORADAS,

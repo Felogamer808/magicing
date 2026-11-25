@@ -246,7 +246,7 @@ export default function CabezalNPilotesPage() {
               "La capa en A va abajo y la de B encima, con un canto útil menor en ØA.",
               "Nudo sobre cada pilote con k1 = 1,0, k2 = 0,85 o k3 = 0,75 según ancle 0, 1 o 2 tirantes (ecs. 6.60 a 6.62); biela con 0,6·ν′·fcd. El nudo bajo el pilar no se comprueba.",
               "Anclaje por el art. 8.4 desde el eje del pilote más externo (más conservador que la cara interior que admite el art. 6.5.4 (7)), en el lado más corto, sobre el eje de la barra. Con patilla a 90°: recta + doblez + pata, con mandril D mínimo de la tabla A19.8.1 y la pata hasta H − rec.",
-              "Malla de las caras por el art. 9.7 por analogía, con el canto H como espesor: máx(0,1 %·H; 1,5 cm²/m) por cara y dirección, separación ≤ mín(30 cm; 2·H).",
+              "Malla de las caras por el art. 9.7 por analogía, con el canto H como espesor: máx(0,1 %·H/2; 1,5 cm²/m) por cara y dirección —el 0,1 % es el total, mitad en cada cara—, separación ≤ mín(30 cm; 2·H).",
               "Parrilla entre bandas ≥ 1/4 y armadura superior ≥ 1/10 de las bandas, en cada dirección: criterio de oficina tomado de la EHE-08 (art. 58.4.1.2.2), no del Anejo 19.",
             ]}
             avisos={avisos}

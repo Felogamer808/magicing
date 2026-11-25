@@ -103,12 +103,13 @@ export function PlantaCabezalDosPilotes({ m }: { m: MedidasCabezalDos }) {
 
 /**
  * Armado del cabezal de dos pilotes, en alzado y en planta. El tirante corre en
- * x por abajo y, con patilla, sube por los extremos con el doblez de mandril D;
- * la secundaria lo cruza en y. Los estribos verticales se reparten a lo largo
- * de x y los horizontales en el canto. Cada familia tiene su color —tirante
- * rojo, secundaria azul, estribos gris—, porque en planta la secundaria y los
- * estribos verticales caen sobre las mismas líneas. La pieza del campo en
- * edición se resalta y el resto se atenúa.
+ * x por abajo y, con patilla, sube por los extremos con el doblez de mandril D.
+ * La secundaria es la armadura longitudinal superior: también en x, por la
+ * cara de arriba, con patillas hacia abajo; en planta va a trazos porque queda
+ * encima del tirante. Los estribos verticales se reparten a lo largo de x y
+ * los horizontales en el canto. Cada familia tiene su color —tirante rojo,
+ * secundaria azul, estribos gris—. La pieza del campo en edición se resalta y
+ * el resto se atenúa.
  */
 export function CroquisArmadoCabezalDosPilotes({
   m, armado, resaltar,
@@ -144,13 +145,20 @@ export function CroquisArmadoCabezalDosPilotes({
     : `M${px(rec)} ${pz(zTirante)} L${px(m.ladoXM - rec)} ${pz(zTirante)}`;
   const xsEstV = cadaS(0.1, m.ladoXM - 0.1, armado.sEstVM);
   const zsEstH = cadaS(0.075, m.hM - 0.075, armado.sEstHM);
-  const xsSec = repartir(armado.nSec, rec + 0.03, m.ladoXM - rec - 0.03);
+  // Secundaria superior: en x por la cara de arriba, con patillas hacia abajo.
+  const zSec = m.hM - rec - armado.phiSecMm / 2000;
+  const xSecIzq = rec + armado.phiSecMm / 2000;
+  const pataSec = Math.min(0.2, m.hM / 3);
+  const pathSecundaria =
+    `M${px(xSecIzq)} ${pz(zSec - pataSec)} L${px(xSecIzq)} ${pz(zSec)}` +
+    ` L${px(m.ladoXM - xSecIzq)} ${pz(zSec)} L${px(m.ladoXM - xSecIzq)} ${pz(zSec - pataSec)}`;
 
   // Planta, debajo
   const yP = yBase + 74;
   const wY = m.ladoYM * escala;
   const py = (ym: number) => yP + ym * escala;
   const ysPrinc = repartir(armado.nPrinc, rec + 0.03, m.ladoYM - rec - 0.03);
+  const ysSec = repartir(armado.nSec, rec + 0.03, m.ladoYM - rec - 0.03);
   const alto = yP + wY + 40;
 
   return (
@@ -178,13 +186,13 @@ export function CroquisArmadoCabezalDosPilotes({
           <path key={x} d={`M${px(x)} ${pz(rec)} L${px(x)} ${pz(m.hM - rec)}`} />
         ))}
       </g>
-      {/* secundaria: de punta, sobre el tirante */}
-      <g fill={color("secundaria", azul)} opacity={opacidad("secundaria")}>
-        {xsSec.map((x) => (
-          <circle key={x} cx={px(x)} cy={pz(zTirante) - Math.max(armado.phiPrincMm / 7, 1.1) - 3}
-                  r={Math.max(armado.phiSecMm / 6, 2.2) + (es("secundaria") ? 0.8 : 0)} />
-        ))}
-      </g>
+      {/* secundaria: longitudinal superior */}
+      <path d={pathSecundaria} stroke={color("secundaria", azul)} strokeWidth={grosor(armado.phiSecMm, "secundaria")}
+            strokeLinecap="round" strokeLinejoin="round" opacity={opacidad("secundaria")} />
+      <text x={x0} y={yTop - 6} className="font-mono" fontSize="9"
+            fill={color("secundaria", azul)} opacity={opacidad("secundaria")} fontWeight={peso("secundaria")}>
+        sec. sup. {armado.nSec}Ø{armado.phiSecMm}
+      </text>
       {/* tirante */}
       <path d={pathTirante} stroke={color("principal", rojo)} strokeWidth={grosor(armado.phiPrincMm, "principal")}
             strokeLinecap="round" opacity={opacidad("principal")} />
@@ -245,24 +253,24 @@ export function CroquisArmadoCabezalDosPilotes({
           ))
         )}
       </g>
-      {/* secundaria: en y */}
-      <g stroke={color("secundaria", azul)} strokeWidth={grosor(armado.phiSecMm, "secundaria")} opacity={opacidad("secundaria")}>
-        {xsSec.map((x) => (
-          <path key={x} d={`M${px(x)} ${py(rec)} L${px(x)} ${py(m.ladoYM - rec)}`} />
-        ))}
-      </g>
-      {/* tirante: en x */}
+      {/* tirante: en x, abajo */}
       <g stroke={color("principal", rojo)} strokeWidth={grosor(armado.phiPrincMm, "principal")} opacity={opacidad("principal")}>
         {ysPrinc.map((y) => (
           <path key={y} d={`M${px(rec)} ${py(y)} L${px(m.ladoXM - rec)} ${py(y)}`} />
         ))}
       </g>
+      {/* secundaria: en x, arriba, a trazos */}
+      <g stroke={color("secundaria", azul)} strokeWidth={grosor(armado.phiSecMm, "secundaria")} opacity={opacidad("secundaria")} strokeDasharray="6 3">
+        {ysSec.map((y) => (
+          <path key={y} d={`M${px(rec)} ${py(y)} L${px(m.ladoXM - rec)} ${py(y)}`} />
+        ))}
+      </g>
       <text x={x0 + w + 6} y={yP + wY / 2 + 3} className="font-mono" fontSize="9"
             fill={color("secundaria", azul)} opacity={opacidad("secundaria")} fontWeight={peso("secundaria")}>
-        sec. {xsSec.length}Ø{armado.phiSecMm}
+        sec. {ysSec.length}Ø{armado.phiSecMm}
       </text>
       <text x={x0} y={yP + wY + 16} className="fill-current font-mono" fontSize="9" opacity="0.7">
-        tirante rojo en x · secundaria azul en y · estribos gris
+        tirante rojo · secundaria azul (arriba) · estribos gris
       </text>
     </svg>
   );

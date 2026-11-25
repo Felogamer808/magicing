@@ -274,7 +274,8 @@ export function calcularCabezalDosPilotes(
   const voladoM = ladoXM / 2 - separacionPilotesM / 2 - recubrimientoM;
   const { disponibleAnclajeMm, patilla } = anclajeTirante(voladoM, hM, recubrimientoM, phiPrinc, lbdMm, formaAnclaje);
 
-  // Secundaria: el 10% de la armadura principal realmente colocada.
+  // Secundaria: la armadura longitudinal superior, en x por la cara de arriba,
+  // con el 10% de la principal realmente colocada (criterio de la planilla).
   const phiSec = armaduraSecundaria.diametroMm;
   const asSecNecCm2 = 0.1 * asRealCm2;
   const asSecRealCm2 = areaCm2(armaduraSecundaria.numero, phiSec);

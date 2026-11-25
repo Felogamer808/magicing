@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type FocusEvent } from "react";
 import { useCampo } from "@/lib/hooks/useCampo";
 import { AvisoCombinacion } from "@/components/verificaciones/comun/AvisoCombinacion";
 import { ConclusionAutomatica, ProveedorComprobaciones } from "@/components/verificaciones/comun/RegistroComprobaciones";
@@ -15,9 +15,15 @@ import { CampoSeleccion } from "@/components/verificaciones/comun/CampoSeleccion
 import { PanelFormulas } from "@/components/verificaciones/comun/PanelFormulas";
 import { ResultadoCheck } from "@/components/verificaciones/comun/ResultadoCheck";
 import { DiagramaApeoVoladizo } from "@/components/verificaciones/hormigon/DiagramaApeoVoladizo";
+import {
+  CAMPOS_GEOMETRIA_APEO,
+  CroquisApeoVoladizo,
+  esCampoGeometriaApeo,
+  type MedidasApeoVoladizo,
+} from "@/components/verificaciones/hormigon/CroquisApeoVoladizo";
 import { type AnclajeExtremo } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
 import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { fmt } from "@/lib/verificaciones/formato";
+import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverApeoVoladizo } from "@/lib/calc/hormigon/vigas/resolver-apeo-voladizo";
 import { recomendarApeoVoladizo } from "@/lib/verificaciones/recomendaciones/vigas-apeo-voladizo";
@@ -36,6 +42,19 @@ const FORMAS: Record<FormaAnclaje, string> = {
   recta: "Recta",
   gancho: "Doblada hacia abajo por la cara del extremo",
 };
+/**
+ * Las medidas del croquis, leídas sólo de los campos de geometría: el dibujo
+ * tiene que aparecer aunque todavía falten las cargas o la armadura. Los dos
+ * extremos pueden valer 0; el resto, no.
+ */
+function medidasCroquis(campos: Record<string, string>): MedidasApeoVoladizo | null {
+  const m = Object.fromEntries(CAMPOS_GEOMETRIA_APEO.map((c) => [c, aNumero(campos[c] ?? "")])) as MedidasApeoVoladizo;
+  const valida = CAMPOS_GEOMETRIA_APEO.every((c) =>
+    Number.isFinite(m[c]) && (c === "extremoLibre" || c === "extremoLejano" ? m[c] >= 0 : m[c] > 0)
+  );
+  return valida ? m : null;
+}
+
 const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
 
 /** Las tres filas de anclaje comparan lo mismo; sólo cambian el título y el extremo. */
@@ -88,6 +107,15 @@ export default function VigaApeoVoladizoPage() {
   const resultado = useMemo(() => resolverApeoVoladizo(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
   const propuestas = useMemo(() => recomendarApeoVoladizo(campos), [campos]);
+  const medidas = useMemo(() => medidasCroquis(campos), [campos]);
+
+  const [foco, setFoco] = useState<string | null>(null);
+  const resaltar = esCampoGeometriaApeo(foco) ? foco : null;
+  // El foco se sigue en un contenedor: los eventos de foco de React burbujean.
+  const seguirFoco = {
+    onFocus: (ev: FocusEvent<HTMLElement>) => setFoco(ev.target.id || null),
+    onBlur: () => setFoco(null),
+  };
 
   const avisos: AvisoRevision[] = [];
   if (!resultado) {
@@ -99,7 +127,13 @@ export default function VigaApeoVoladizoPage() {
       avisos.push({ tipo: "aviso", texto: `El apoyo lejano se levanta: el pilar trabaja a ${fmt(resultado.r.traccionPilarLejanoKN, 0)} kN de tracción y sus barras tienen que quedar ancladas en la viga.` });
   }
 
-  const dibujo = resultado ? (
+  const croquis = medidas ? (
+    <CroquisApeoVoladizo m={medidas} resaltar={resaltar} />
+  ) : (
+    <p className="py-10 text-center text-sm text-muted-foreground">La geometría se dibuja con medidas válidas.</p>
+  );
+
+  const modelo = resultado && (
     <DiagramaApeoVoladizo
       hM={resultado.n.h}
       luzM={resultado.n.luz}
@@ -116,8 +150,6 @@ export default function VigaApeoVoladizoPage() {
       reaccionLejanaMinKN={resultado.r.reaccionLejanaMinKN}
       traccionTiranteKN={resultado.r.traccionTiranteKN}
     />
-  ) : (
-    <p className="py-10 text-center text-sm text-muted-foreground">El modelo se dibuja con datos válidos.</p>
   );
 
   return (
@@ -135,7 +167,7 @@ export default function VigaApeoVoladizoPage() {
 
       <IndiceEtapas etapas={ETAPAS} />
 
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-12" {...seguirFoco}>
         <Etapa id="geometria" numero={1} titulo="Geometría y materiales" descripcion="La viga, sus dos apoyos y lo que baja sobre ella. Las cotas en el plano de la viga se miden entre ejes.">
           <DatosConDibujo
             datos={
@@ -151,13 +183,13 @@ export default function VigaApeoVoladizoPage() {
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     <CampoNumerico id="h" etiqueta="Canto h" sufijo="m" valor={h} onChange={setH} />
                     <CampoNumerico id="b" etiqueta="Espesor b" sufijo="m" valor={b} onChange={setB} />
-                    <CampoNumerico id="luz" etiqueta="Luz entre apoyos L" sufijo="m" valor={luz} onChange={setLuz} />
-                    <CampoNumerico id="voladizo" etiqueta="Apoyo cercano → carga, a" sufijo="m" valor={voladizo} onChange={setVoladizo} />
-                    <CampoNumerico id="extremoLibre" etiqueta="Carga → extremo libre" sufijo="m" valor={extremoLibre} onChange={setExtremoLibre} />
-                    <CampoNumerico id="extremoLejano" etiqueta="Apoyo lejano → extremo" sufijo="m" valor={extremoLejano} onChange={setExtremoLejano} />
+                    <CampoNumerico id="luz" etiqueta="Luz L, entre ejes de apoyos" sufijo="m" valor={luz} onChange={setLuz} />
+                    <CampoNumerico id="voladizo" etiqueta="Vuelo a, del apoyo cercano al pilar apeado" sufijo="m" valor={voladizo} onChange={setVoladizo} />
+                    <CampoNumerico id="extremoLibre" etiqueta="Del pilar apeado a la punta de la viga" sufijo="m" valor={extremoLibre} onChange={setExtremoLibre} />
+                    <CampoNumerico id="extremoLejano" etiqueta="Del apoyo lejano al otro extremo" sufijo="m" valor={extremoLejano} onChange={setExtremoLejano} />
                   </div>
                 </Subgrupo>
-                <Subgrupo titulo="Contactos (en el plano × a través)">
+                <Subgrupo titulo="Pilares (en el plano × a través)">
                   <div className="grid grid-cols-2 gap-4">
                     <CampoNumerico id="cargaAncho" etiqueta="Pilar apeado, en el plano" sufijo="m" valor={cargaAncho} onChange={setCargaAncho} />
                     <CampoNumerico id="cargaProf" etiqueta="Pilar apeado, a través" sufijo="m" valor={cargaProf} onChange={setCargaProf} />
@@ -165,13 +197,13 @@ export default function VigaApeoVoladizoPage() {
                     <CampoNumerico id="apoyoCProf" etiqueta="Apoyo cercano, a través" sufijo="m" valor={apoyoCProf} onChange={setApoyoCProf} />
                     <CampoNumerico id="apoyoLAncho" etiqueta="Apoyo lejano, en el plano" sufijo="m" valor={apoyoLAncho} onChange={setApoyoLAncho} />
                     <CampoNumerico id="apoyoLProf" etiqueta="Apoyo lejano, a través" sufijo="m" valor={apoyoLProf} onChange={setApoyoLProf} />
-                    <CampoNumerico id="elemLAncho" etiqueta="Sobre el apoyo lejano, en el plano" sufijo="m" valor={elemLAncho} onChange={setElemLAncho} />
-                    <CampoNumerico id="elemLProf" etiqueta="Sobre el apoyo lejano, a través" sufijo="m" valor={elemLProf} onChange={setElemLProf} />
+                    <CampoNumerico id="elemLAncho" etiqueta="Pilar sobre el apoyo lejano, en el plano" sufijo="m" valor={elemLAncho} onChange={setElemLAncho} />
+                    <CampoNumerico id="elemLProf" etiqueta="Pilar sobre el apoyo lejano, a través" sufijo="m" valor={elemLProf} onChange={setElemLProf} />
                   </div>
                 </Subgrupo>
               </>
             }
-            dibujo={dibujo}
+            dibujo={croquis}
           />
         </Etapa>
 
@@ -264,6 +296,10 @@ export default function VigaApeoVoladizoPage() {
                   { etiqueta: "θ cerca / lejos", valor: `${fmt(resultado.r.anguloBielaCercaGrados, 0)}° / ${fmt(resultado.r.anguloBielaLejosGrados, 0)}°` },
                 ]}
               />
+
+              <Subgrupo titulo="Modelo de bielas y tirantes">
+                <div className="mx-auto w-full max-w-xl">{modelo}</div>
+              </Subgrupo>
 
               <Subgrupo titulo="¿Corresponde bielas y tirantes?">
                 <PanelFormulas

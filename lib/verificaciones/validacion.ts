@@ -137,6 +137,10 @@ export const VALIDACION_POR_VERIFICACION: Record<IdVerificacion, ValidacionVerif
     nota: "Sólo Anejo 19, sin planilla de referencia: tests contra la estática del modelo y las ecuaciones del articulado. No comprueba la tracción transversal de las bielas.",
   },
   "carga-colgada": { nivel: "probada" },
+  "union-viga-viga": {
+    nivel: "probada",
+    nota: "EHE-08 art. 47, sin el texto de la norma en el proyecto: la fuente es la especificación del usuario (2026-11-25), y los tests fijan su caso. No se pudo contrastar contra el articulado.",
+  },
   "mensula-corta": { nivel: "probada" },
   pilares: {
     nivel: "probada",
@@ -260,6 +264,12 @@ export const EDICIONES_NORMAS: Record<string, EdicionNorma> = {
     edicion: "ACI 318-19",
     observacion:
       "Sólo la usa pretensado. No se cruza con el Anejo 19: cada módulo se resuelve entero con la norma que declara.",
+  },
+  "EHE-08": {
+    titulo: "Instrucción de Hormigón Estructural",
+    edicion: "EHE-08 (RD 1247/2008), derogada por el Código Estructural",
+    observacion:
+      "Sólo la usa la unión viga-viga, a pedido del usuario. No hay copia de la norma en el proyecto: las fórmulas salen de la especificación del usuario. No se cruza con el Anejo 19.",
   },
   "UNIT 50-84": {
     titulo: "Acción del viento sobre las construcciones (Uruguay)",

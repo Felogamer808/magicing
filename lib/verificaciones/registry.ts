@@ -56,6 +56,7 @@ export type IdVerificacion =
   | "vigas-apeo-bielas"
   | "vigas-apeo-voladizo"
   | "carga-colgada"
+  | "union-viga-viga"
   | "mensula-corta"
   | "zona-parcialmente-cargada"
   | "macizo-transicion"
@@ -273,6 +274,17 @@ export const registroVerificaciones: VerificacionMeta[] = [
       "Estribos de suspensión para una carga colgada: viga invertida u otro caso donde la reacción se aplica por debajo de la zona comprimida.",
     normasDisponibles: ["EC2"],
     ruta: "/verificaciones/carga-colgada",
+    disponible: true,
+  },
+  {
+    id: "union-viga-viga",
+    nombre: "Unión viga-viga con esperas",
+    seccion: "hormigon-armado",
+    categoria: "Regiones D",
+    descripcion:
+      "Cortante-fricción en la junta vertical entre la viga apoyada y la soporte, cosida por esperas a 90°: cohesión, rozamiento y axil, límite de bielas, cuantía mínima y el cuelgue que queda en la viga soporte.",
+    normasDisponibles: ["EHE-08"],
+    ruta: "/verificaciones/union-viga-viga",
     disponible: true,
   },
   {

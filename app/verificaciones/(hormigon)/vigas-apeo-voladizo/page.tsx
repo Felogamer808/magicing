@@ -21,8 +21,8 @@ import {
   esCampoGeometriaApeo,
   type MedidasApeoVoladizo,
 } from "@/components/verificaciones/hormigon/CroquisApeoVoladizo";
-import { type AnclajeExtremo } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
-import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { ARMADURA_DE_CAMPO, CroquisArmadoVoladizo } from "@/components/verificaciones/hormigon/CroquisArmadoVoladizo";
+import { type AnclajeExtremo, type FormaExtremoTirante } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
 import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import { resolverApeoVoladizo } from "@/lib/calc/hormigon/vigas/resolver-apeo-voladizo";
@@ -38,9 +38,10 @@ const ETAPAS = [
   { id: "resultados", titulo: "Resultados" },
 ] as const;
 
-const FORMAS: Record<FormaAnclaje, string> = {
+const FORMAS: Record<FormaExtremoTirante, string> = {
   recta: "Recta",
   gancho: "Doblada hacia abajo por la cara del extremo",
+  horquilla: "Recta, anclada con horquillas en U",
 };
 /**
  * Las medidas del croquis, leídas sólo de los campos de geometría: el dibujo
@@ -55,7 +56,8 @@ function medidasCroquis(campos: Record<string, string>): MedidasApeoVoladizo | n
   return valida ? m : null;
 }
 
-const formaPorNombre = (nombre: string): FormaAnclaje => (nombre === FORMAS.gancho ? "gancho" : "recta");
+const formaPorNombre = (nombre: string): FormaExtremoTirante =>
+  (Object.keys(FORMAS) as FormaExtremoTirante[]).find((f) => FORMAS[f] === nombre) ?? "recta";
 
 /** Las tres filas de anclaje comparan lo mismo; sólo cambian el título y el extremo. */
 const comparacionAnclaje = (a: AnclajeExtremo) => ({
@@ -96,13 +98,17 @@ export default function VigaApeoVoladizoPage() {
   const [nTirante, setNTirante] = useCampo("nTirante", "6");
   const [phiTirante, setPhiTirante] = useCampo("phiTirante", "20");
   const [phiEstribo, setPhiEstribo] = useCampo("phiEstribo", "12");
-  const [forma, setForma] = useCampo<FormaAnclaje>("forma", "recta");
+  const [forma, setForma] = useCampo<FormaExtremoTirante>("forma", "recta");
+  const [phiHorquilla, setPhiHorquilla] = useCampo("phiHorquilla", "20");
   const [nPilar, setNPilar] = useCampo("nPilar", "4");
   const [phiPilar, setPhiPilar] = useCampo("phiPilar", "12");
+  const [sepEstribo, setSepEstribo] = useCampo("sepEstribo", "0.125");
+  const [phiPiel, setPhiPiel] = useCampo("phiPiel", "12");
+  const [sepPiel, setSepPiel] = useCampo("sepPiel", "0.125");
 
   const campos = useMemo(
-    () => ({ fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, nPilar, phiPilar }),
-    [fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, nPilar, phiPilar]
+    () => ({ fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, phiHorquilla, nPilar, phiPilar, sepEstribo, phiPiel, sepPiel }),
+    [fck, fyk, rec, h, b, luz, voladizo, extremoLibre, extremoLejano, cargaAncho, cargaProf, apoyoCAncho, apoyoCProf, apoyoLAncho, apoyoLProf, elemLAncho, elemLProf, p, nMax, nMin, nTirante, phiTirante, phiEstribo, forma, phiHorquilla, nPilar, phiPilar, sepEstribo, phiPiel, sepPiel]
   );
   const resultado = useMemo(() => resolverApeoVoladizo(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -111,6 +117,7 @@ export default function VigaApeoVoladizoPage() {
 
   const [foco, setFoco] = useState<string | null>(null);
   const resaltar = esCampoGeometriaApeo(foco) ? foco : null;
+  const resaltarArmado = foco ? (ARMADURA_DE_CAMPO[foco] ?? null) : null;
   // El foco se sigue en un contenedor: los eventos de foco de React burbujean.
   const seguirFoco = {
     onFocus: (ev: FocusEvent<HTMLElement>) => setFoco(ev.target.id || null),
@@ -123,6 +130,8 @@ export default function VigaApeoVoladizoPage() {
   } else {
     if (!resultado.r.esGranCanto && !resultado.r.esMensulaCorta)
       avisos.push({ tipo: "aviso", texto: "Ni viga de gran canto ni ménsula corta: con esta esbeltez probablemente corresponda verificarla a flexión y cortante, no con bielas y tirantes." });
+    if (resultado.r.horquillas && !resultado.r.horquillas.numeroParValido)
+      avisos.push({ tipo: "aviso", texto: "Con horquillas anidadas el tirante va con un número par de barras: con uno impar, la del medio queda sin rama al lado para solaparse." });
     if (resultado.r.traccionPilarLejanoKN > 0)
       avisos.push({ tipo: "aviso", texto: `El apoyo lejano se levanta: el pilar trabaja a ${fmt(resultado.r.traccionPilarLejanoKN, 0)} kN de tracción y sus barras tienen que quedar ancladas en la viga.` });
   }
@@ -220,13 +229,14 @@ export default function VigaApeoVoladizoPage() {
           </p>
         </Etapa>
 
-        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Tirante superior y barras del pilar lejano.">
+        <Etapa id="armadura" numero={3} titulo="Armadura" descripcion="Tirante superior y cómo se ancla, estribos, barras horizontales de las caras y barras del pilar lejano.">
+          <DatosConDibujo
+            datos={
           <div className="space-y-6">
             <Subgrupo titulo="Tirante superior">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4">
                 <CampoNumerico id="nTirante" etiqueta="Nº de barras" valor={nTirante} onChange={setNTirante} />
                 <CampoDiametro id="phiTirante" etiqueta="Ø" valor={phiTirante} onChange={setPhiTirante} />
-                <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
               </div>
               <div className="max-w-md pt-4">
                 <CampoSeleccion
@@ -237,6 +247,28 @@ export default function VigaApeoVoladizoPage() {
                   onChange={(v) => setForma(formaPorNombre(v))}
                 />
               </div>
+              {forma === "horquilla" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <CampoDiametro id="phiHorquilla" etiqueta="Ø horquillas" valor={phiHorquilla} onChange={setPhiHorquilla} />
+                  </div>
+                  <p className="pt-2 text-xs text-muted-foreground">
+                    Una U horizontal por cada par de barras simétricas, en la capa del tirante y con cada rama al
+                    lado de su barra. Se solapan con el tirante desde la cara interior del nudo.
+                  </p>
+                </>
+              )}
+            </Subgrupo>
+            <Subgrupo titulo="Estribos y barras horizontales de las caras">
+              <div className="grid grid-cols-2 gap-4">
+                <CampoDiametro id="phiEstribo" etiqueta="Ø estribo" valor={phiEstribo} onChange={setPhiEstribo} />
+                <CampoNumerico id="sepEstribo" etiqueta="Separación de estribos" sufijo="m" valor={sepEstribo} onChange={setSepEstribo} />
+                <CampoDiametro id="phiPiel" etiqueta="Ø horizontales" valor={phiPiel} onChange={setPhiPiel} />
+                <CampoNumerico id="sepPiel" etiqueta="Separación de horizontales" sufijo="m" valor={sepPiel} onChange={setSepPiel} />
+              </div>
+              <p className="pt-2 text-xs text-muted-foreground">
+                Son la malla de las dos caras del art. 9.7: cada estribo pone una barra vertical en cada cara.
+              </p>
             </Subgrupo>
             <Subgrupo titulo="Pilar lejano">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -245,6 +277,15 @@ export default function VigaApeoVoladizoPage() {
               </div>
             </Subgrupo>
           </div>
+            }
+            dibujo={
+              resultado ? (
+                <CroquisArmadoVoladizo resuelto={resultado} forma={forma} resaltar={resaltarArmado} />
+              ) : (
+                <p className="py-10 text-center text-sm text-muted-foreground">Las armaduras se dibujan con datos válidos.</p>
+              )
+            }
+          />
         </Etapa>
 
         <Etapa id="revision" numero={4} titulo="Revisión" descripcion="Con qué datos y bajo qué hipótesis se calcula. Se actualiza mientras se editan los datos.">
@@ -267,7 +308,9 @@ export default function VigaApeoVoladizoPage() {
               "Brazo z: del tirante a la cara de apoyo, z = h − d′.",
               "Nudos: bajo la carga, compresión con tirante (k2 = 0,85, ec. 6.61) en la cara cargada y en la de la biela; sobre el apoyo cercano, tres compresiones (k1 = 1,0, ec. 6.60) con tensiones iguales en sus caras (art. 6.5.4 (8)); sobre el apoyo lejano, k2 o k3 según el pilar esté comprimido o traccionado.",
               "Anclaje desde la cara interior del nudo (art. 6.5.4 (7)), con α3 = α4 = α5 = 1. Doblado, se mide por el eje de la barra (art. 8.4.3 (3)) con el mandril mínimo de la tabla A19.8.1.",
-              "No comprueba la tracción transversal de las bielas (art. 6.5.3) ni el cortante: la malla del art. 9.7 se informa como mínimo a disponer.",
+              "Horquillas: una U horizontal por par de barras, anidadas en la capa del tirante. Solape del art. 8.7.3 con α6 = 1,5 (todas en la misma sección), más la distancia libre si pasa de 4Ø (art. 8.7.2 (3)); doblado de la U interior con la ec. (8.1); distancia libre de la capa ≥ máx(Ø; 20 mm), sin el árido (art. 8.2 (2)).",
+              "Estribos y barras horizontales: la malla de cada cara del art. 9.7 (1)-(2), cuantía y separación.",
+              "No comprueba la tracción transversal de las bielas (art. 6.5.3) ni el cortante.",
             ]}
             avisos={avisos}
           />
@@ -350,19 +393,69 @@ export default function VigaApeoVoladizoPage() {
                     comparacion={{ real: { etiqueta: "σ", valor: resultado.r.nudoApoyoLejano.sigmaMPa }, limite: { etiqueta: "σRd,max", valor: resultado.r.nudoApoyoLejano.sigmaMaxMPa }, unidad: "MPa", exige: "≤" }}
                     recomendaciones={propuestas.nudoApoyoLejano}
                   />
+                  {resultado.r.anclajeTiranteCarga && (
+                    <ResultadoCheck
+                      etiqueta="Anclaje del tirante en el voladizo"
+                      verifica={resultado.r.anclajeTiranteCarga.verifica}
+                      detalle={detalleAnclaje(resultado.r.anclajeTiranteCarga)}
+                      comparacion={comparacionAnclaje(resultado.r.anclajeTiranteCarga)}
+                      recomendaciones={propuestas.anclajeCarga}
+                    />
+                  )}
+                  {resultado.r.anclajeTiranteLejano && (
+                    <ResultadoCheck
+                      etiqueta="Anclaje del tirante sobre el apoyo lejano"
+                      verifica={resultado.r.anclajeTiranteLejano.verifica}
+                      detalle={detalleAnclaje(resultado.r.anclajeTiranteLejano)}
+                      comparacion={comparacionAnclaje(resultado.r.anclajeTiranteLejano)}
+                      recomendaciones={propuestas.anclajeLejano}
+                    />
+                  )}
+                  {resultado.r.horquillas && (
+                    <>
+                      <ResultadoCheck
+                        etiqueta={`Horquillas · armadura suficiente (${resultado.r.horquillas.numero} U, dos ramas cada una)`}
+                        verifica={resultado.r.horquillas.verificaArea}
+                        detalle="Las ramas llevan toda la tracción del tirante al nudo. Anejo 19, art. 9.7 (3)."
+                        comparacion={{ real: { etiqueta: "As ramas", valor: resultado.r.horquillas.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.horquillas.asNecCm2 }, unidad: "cm²", exige: "≥" }}
+                        recomendaciones={propuestas.horquillasArea}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Horquillas · entran en la capa del tirante"
+                        verifica={resultado.r.horquillas.verificaSeparacion}
+                        detalle="Distancia libre entre barras y ramas alternadas. Anejo 19, art. 8.2 (2), sin el tamaño del árido."
+                        comparacion={{ real: { etiqueta: "libre", valor: resultado.r.horquillas.separacionLibreMm }, limite: { etiqueta: "mín", valor: resultado.r.horquillas.separacionLibreMinMm }, unidad: "mm", exige: "≥" }}
+                        recomendaciones={propuestas.horquillasSeparacion}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Horquillas · solape con el tirante"
+                        verifica={resultado.r.horquillas.verificaSolape}
+                        detalle={`l0 con α6 = 1,5${resultado.r.horquillas.incrementoSeparacionMm > 0 ? `, más ${fmt(resultado.r.horquillas.incrementoSeparacionMm, 0)} mm de distancia libre` : ""}. Rama: ${fmt(resultado.r.horquillas.largoRamaCargaMm, 0)} mm en el voladizo, ${fmt(resultado.r.horquillas.largoRamaLejanoMm, 0)} mm sobre el apoyo lejano. Anejo 19, art. 8.7.2 (3) y 8.7.3.`}
+                        comparacion={{ real: { etiqueta: "l0", valor: resultado.r.horquillas.l0Mm }, limite: { etiqueta: "entre nudos", valor: resultado.r.horquillas.disponibleSolapeMm }, unidad: "mm", exige: "≤" }}
+                        recomendaciones={propuestas.horquillasSolape}
+                      />
+                      <ResultadoCheck
+                        etiqueta="Horquillas · doblado de la U interior"
+                        verifica={resultado.r.horquillas.verificaMandril}
+                        detalle={`Fbt = ${fmt(resultado.r.horquillas.fuerzaRamaKN, 1)} kN por rama, ab = ${fmt(resultado.r.horquillas.abMm, 0)} mm. La U interior es la más cerrada: su mandril es la distancia libre entre sus ramas. Anejo 19, art. 8.3 (3), ec. (8.1).`}
+                        comparacion={{ real: { etiqueta: "mandril", valor: resultado.r.horquillas.mandrilDisponibleMm }, limite: { etiqueta: "φm,min", valor: resultado.r.horquillas.mandrilNecMm }, unidad: "mm", exige: "≥" }}
+                        recomendaciones={propuestas.horquillasMandril}
+                      />
+                    </>
+                  )}
                   <ResultadoCheck
-                    etiqueta="Anclaje del tirante en el voladizo"
-                    verifica={resultado.r.anclajeTiranteCarga.verifica}
-                    detalle={detalleAnclaje(resultado.r.anclajeTiranteCarga)}
-                    comparacion={comparacionAnclaje(resultado.r.anclajeTiranteCarga)}
-                    recomendaciones={propuestas.anclajeCarga}
+                    etiqueta={`Estribos · malla vertical de cada cara (${resultado.r.numeroEstribos} estribos)`}
+                    verifica={resultado.r.mallaVertical.verificaCuantia && resultado.r.mallaVertical.verificaSeparacion}
+                    detalle={`Separación ${fmt(resultado.r.mallaVertical.separacionM, 3)} m, máx. ${fmt(resultado.r.separacionMaximaMallaM, 2)} m. Anejo 19, art. 9.7 (1)-(2).`}
+                    comparacion={{ real: { etiqueta: "As", valor: resultado.r.mallaVertical.asCm2PorM }, limite: { etiqueta: "mín", valor: resultado.r.mallaMinimaCm2PorM }, unidad: "cm²/m", exige: "≥" }}
+                    recomendaciones={propuestas.mallaVertical}
                   />
                   <ResultadoCheck
-                    etiqueta="Anclaje del tirante sobre el apoyo lejano"
-                    verifica={resultado.r.anclajeTiranteLejano.verifica}
-                    detalle={detalleAnclaje(resultado.r.anclajeTiranteLejano)}
-                    comparacion={comparacionAnclaje(resultado.r.anclajeTiranteLejano)}
-                    recomendaciones={propuestas.anclajeLejano}
+                    etiqueta={`Barras horizontales de cada cara (${resultado.r.filasPiel} filas)`}
+                    verifica={resultado.r.mallaHorizontal.verificaCuantia && resultado.r.mallaHorizontal.verificaSeparacion}
+                    detalle={`Separación ${fmt(resultado.r.mallaHorizontal.separacionM, 3)} m, máx. ${fmt(resultado.r.separacionMaximaMallaM, 2)} m. Anejo 19, art. 9.7 (1)-(2).`}
+                    comparacion={{ real: { etiqueta: "As", valor: resultado.r.mallaHorizontal.asCm2PorM }, limite: { etiqueta: "mín", valor: resultado.r.mallaMinimaCm2PorM }, unidad: "cm²/m", exige: "≥" }}
+                    recomendaciones={propuestas.mallaHorizontal}
                   />
                   {resultado.r.traccionPilarLejanoKN > 0 && (
                     <>
@@ -392,7 +485,7 @@ export default function VigaApeoVoladizoPage() {
                       { etiqueta: "Biela cercana / lejana", valor: `${fmt(resultado.r.compresionBielaCercaKN, 0)} / ${fmt(resultado.r.compresionBielaLejosKN, 0)} kN` },
                       { etiqueta: "ν′ = 1 − fck/250", valor: fmt(resultado.r.nuPrima, 3) },
                       { etiqueta: "Mandril mínimo del tirante (tabla A19.8.1)", valor: `${fmt(resultado.r.mandrilMinimoMm, 0)} mm` },
-                      { etiqueta: "Malla mínima por cara y dirección (art. 9.7 (1))", valor: `${fmt(resultado.r.mallaMinimaCm2PorM)} cm²/m` },
+                      { etiqueta: "Malla mínima por cara y dirección (art. 9.7 (1))", valor: `${fmt(resultado.r.mallaMinimaCm2PorM)} cm²/m, cada ${fmt(resultado.r.separacionMaximaMallaM, 2)} m como máximo` },
                     ]}
                   />
                 </div>

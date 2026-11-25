@@ -22,7 +22,13 @@ export type ClaveApeoVoladizo =
   | "anclajeCarga"
   | "anclajeLejano"
   | "pilarLejano"
-  | "anclajePilar";
+  | "anclajePilar"
+  | "horquillasArea"
+  | "horquillasSeparacion"
+  | "horquillasSolape"
+  | "horquillasMandril"
+  | "mallaVertical"
+  | "mallaHorizontal";
 export type RecomendacionesApeoVoladizo = Partial<Record<ClaveApeoVoladizo, Recomendacion[]>>;
 
 const NOMBRES: Record<ClaveApeoVoladizo, string> = {
@@ -36,12 +42,33 @@ const NOMBRES: Record<ClaveApeoVoladizo, string> = {
   anclajeLejano: "anclaje del tirante sobre el apoyo lejano",
   pilarLejano: "pilar lejano a tracción",
   anclajePilar: "anclaje del pilar lejano",
+  horquillasArea: "horquillas, armadura suficiente",
+  horquillasSeparacion: "horquillas, separación en la capa",
+  horquillasSolape: "horquillas, solape con el tirante",
+  horquillasMandril: "horquillas, doblado de la U interior",
+  mallaVertical: "estribos, malla vertical",
+  mallaHorizontal: "barras horizontales de las caras",
 };
 
 const nudo = (x: { sigmaMPa: number; sigmaMaxMPa: number }) => x.sigmaMPa / x.sigmaMaxMPa;
 const anclaje = (x: { lbdMm: number; disponibleMm: number }) => x.lbdMm / x.disponibleMm;
+/** Cuantía y separación juntas: manda la más exigida de las dos. */
+const malla = (x: { asCm2PorM: number; separacionM: number }, minimaCm2PorM: number, separacionMaxM: number) =>
+  Math.max(minimaCm2PorM / x.asCm2PorM, x.separacionM / separacionMaxM);
 
 function utilizaciones({ r }: ResueltoApeoVoladizo): Partial<Record<ClaveApeoVoladizo, number>> {
+  const h = r.horquillas;
+  const usoHorquillas = h
+    ? {
+        horquillasArea: h.asNecCm2 / h.asRealCm2,
+        horquillasSeparacion: h.separacionLibreMinMm / h.separacionLibreMm,
+        horquillasSolape: h.l0Mm / h.disponibleSolapeMm,
+        horquillasMandril: h.mandrilNecMm / h.mandrilDisponibleMm,
+      }
+    : null;
+  // Con horquillas, el anclaje de cada extremo es lo que ellas den: así la
+  // propuesta de pasar a horquillas se mide contra el mismo problema.
+  const anclajeConHorquillas = usoHorquillas ? Math.max(...Object.values(usoHorquillas)) : null;
   return {
     tirante: r.asNecTiranteCm2 / r.asRealTiranteCm2,
     nudoCargaApoyo: nudo(r.nudoCargaApoyo),
@@ -49,8 +76,11 @@ function utilizaciones({ r }: ResueltoApeoVoladizo): Partial<Record<ClaveApeoVol
     nudoApoyoCercano: nudo(r.nudoApoyoCercano),
     nudoElementoLejano: nudo(r.nudoElementoLejano),
     nudoApoyoLejano: nudo(r.nudoApoyoLejano),
-    anclajeCarga: anclaje(r.anclajeTiranteCarga),
-    anclajeLejano: anclaje(r.anclajeTiranteLejano),
+    anclajeCarga: r.anclajeTiranteCarga ? anclaje(r.anclajeTiranteCarga) : anclajeConHorquillas!,
+    anclajeLejano: r.anclajeTiranteLejano ? anclaje(r.anclajeTiranteLejano) : anclajeConHorquillas!,
+    ...(usoHorquillas ?? {}),
+    mallaVertical: malla(r.mallaVertical, r.mallaMinimaCm2PorM, r.separacionMaximaMallaM),
+    mallaHorizontal: malla(r.mallaHorizontal, r.mallaMinimaCm2PorM, r.separacionMaximaMallaM),
     ...(r.traccionPilarLejanoKN > 0
       ? {
           pilarLejano: r.asNecPilarLejanoCm2 / r.asRealPilarLejanoCm2,
@@ -107,6 +137,24 @@ const PATILLA = palancaOpcion<Campos>(
   { cita: CITA_PATILLA }
 );
 
+const HORQUILLAS = palancaOpcion<Campos>(
+  (e) => e.forma !== "horquilla",
+  (e) => ({ ...e, forma: "horquilla" }),
+  "Anclar el tirante con horquillas en U",
+  { cita: "Anejo 19, art. 9.7 (3), pág. 152" }
+);
+
+const diametroHorquilla = (sentido: "mayor" | "menor") =>
+  palancaDiametro(campo("phiHorquilla"), sentido, (_e, d) => `Ø${d}`, { rotulo: "Horquillas: " });
+
+/** Achicar la separación de una dirección de la malla, o engrosar su barra. */
+const mallaCara = (separacion: string, diametro: string, rotulo: string): Palanca<Campos>[] => [
+  palancaValor(campo(separacion), { paso: -0.025, tope: () => 0.05, decimales: 3, rotulo: `${rotulo} cada `, texto: m }),
+  palancaDiametro(campo(diametro), "mayor", (e, d) => `Ø${d} cada ${m(campo(separacion).leer(e))}`, { rotulo }),
+];
+
+const ESPESOR = metros("b", "b = ", 0.5, "Viga más ancha: más hormigón y más malla mínima.");
+
 function palancasPorClave(clave: ClaveApeoVoladizo): readonly Palanca<Campos>[] {
   switch (clave) {
     case "tirante":
@@ -121,13 +169,25 @@ function palancasPorClave(clave: ClaveApeoVoladizo): readonly Palanca<Campos>[] 
     case "nudoApoyoLejano":
       return [...apoyo("apoyoL", "Apoyo lejano"), FCK];
     case "anclajeCarga":
-      return [PATILLA, masFinas("nTirante", "phiTirante", "Tirante: "), metros("extremoLibre", "Extremo libre = ", 1)];
+      return [PATILLA, HORQUILLAS, masFinas("nTirante", "phiTirante", "Tirante: "), metros("extremoLibre", "Extremo libre = ", 1)];
     case "anclajeLejano":
-      return [PATILLA, masFinas("nTirante", "phiTirante", "Tirante: "), metros("extremoLejano", "Extremo lejano = ", 1)];
+      return [PATILLA, HORQUILLAS, masFinas("nTirante", "phiTirante", "Tirante: "), metros("extremoLejano", "Extremo lejano = ", 1)];
     case "pilarLejano":
       return barras("nPilar", "phiPilar", "Pilar lejano: ");
     case "anclajePilar":
       return [masFinas("nPilar", "phiPilar", "Pilar lejano: "), CANTO];
+    case "horquillasArea":
+      return [diametroHorquilla("mayor")];
+    case "horquillasSeparacion":
+      return [diametroHorquilla("menor"), ESPESOR];
+    case "horquillasSolape":
+      return [masFinas("nTirante", "phiTirante", "Tirante: "), diametroHorquilla("menor")];
+    case "horquillasMandril":
+      return [diametroHorquilla("mayor"), diametroHorquilla("menor"), ESPESOR, PATILLA];
+    case "mallaVertical":
+      return mallaCara("sepEstribo", "phiEstribo", "Estribos: ");
+    case "mallaHorizontal":
+      return mallaCara("sepPiel", "phiPiel", "Barras horizontales: ");
   }
 }
 

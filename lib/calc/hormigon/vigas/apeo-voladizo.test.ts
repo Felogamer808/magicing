@@ -31,7 +31,10 @@ const datos = {
   tirante: { numero: 6, diametroMm: 20 },
   diametroEstriboMm: 12,
   formaAnclajeTirante: "recta" as const,
+  diametroHorquillaMm: 20,
   armaduraPilarLejano: { numero: 4, diametroMm: 12 },
+  separacionEstribosM: 0.125,
+  piel: { diametroMm: 12, separacionM: 0.125 },
 };
 
 describe("viga de apeo con carga en voladizo — el caso real", () => {
@@ -87,13 +90,13 @@ describe("viga de apeo con carga en voladizo — el caso real", () => {
   it("recto, el tirante no se ancla en el voladizo: hay 108 mm", () => {
     // De la cara interior del pilar apeado al extremo: 0,07 + 0,07 = 0,14 m,
     // menos recubrimiento y estribo (32 mm).
-    expect(r.anclajeTiranteCarga.disponibleMm).toBeCloseTo(108, 6);
+    expect(r.anclajeTiranteCarga!.disponibleMm).toBeCloseTo(108, 6);
     // lb,rqd = φ/4·σsd/fbd con σsd = T/As y fbd = 2,25·0,7·fctm/1,5.
     const sigmaSd = (((1485 * 0.33) / z) * 10) / ((6 * Math.PI * 2 ** 2) / 4);
     const fbd = (2.25 * 0.7 * 0.3 * 30 ** (2 / 3)) / 1.5;
     const lbRqd = (20 / 4) * (sigmaSd / fbd);
-    expect(r.anclajeTiranteCarga.lbdMm).toBeCloseTo(0.91 * lbRqd, 4); // α2 = 1 − 0,15·(32 − 20)/20
-    expect(r.anclajeTiranteCarga.verifica).toBe(false);
+    expect(r.anclajeTiranteCarga!.lbdMm).toBeCloseTo(0.91 * lbRqd, 4); // α2 = 1 − 0,15·(32 − 20)/20
+    expect(r.anclajeTiranteCarga!.verifica).toBe(false);
   });
 
   it("doblado hacia abajo por la cara del extremo, sí entra (lbd por el eje, art. 8.4.3 (3))", () => {
@@ -101,9 +104,9 @@ describe("viga de apeo con carga en voladizo — el caso real", () => {
     // Horizontal 108 mm, arco de 90° con radio por el eje 70 + 10 mm, y rama
     // vertical hasta el recubrimiento inferior: 890 − 42 − 32 = 816 mm.
     const r0 = 80;
-    expect(rDoblado.anclajeTiranteCarga.disponibleMm).toBeCloseTo(108 - r0 + (Math.PI / 2) * r0 + (816 - r0), 6);
-    expect(rDoblado.anclajeTiranteCarga.verifica).toBe(true);
-    expect(rDoblado.anclajeTiranteLejano.verifica).toBe(true);
+    expect(rDoblado.anclajeTiranteCarga!.disponibleMm).toBeCloseTo(108 - r0 + (Math.PI / 2) * r0 + (816 - r0), 6);
+    expect(rDoblado.anclajeTiranteCarga!.verifica).toBe(true);
+    expect(rDoblado.anclajeTiranteLejano!.verifica).toBe(true);
   });
 
   it("el pilar lejano a tracción: As y anclaje dentro de la viga", () => {
@@ -116,6 +119,96 @@ describe("viga de apeo con carga en voladizo — el caso real", () => {
 
   it("malla mínima de viga de gran canto, art. 9.7 (1)", () => {
     expect(r.mallaMinimaCm2PorM).toBeCloseTo(7.7, 9); // 0,001·0,77 m·1 m
+  });
+
+  it("estribos Ø12 c/ 0,125 y piel Ø12 c/ 0,125: cumplen la malla del art. 9.7 (1)-(2)", () => {
+    const porMetro = (Math.PI * 1.2 ** 2) / 4 / 0.125; // 9,05 cm²/m por cara
+    expect(r.mallaVertical.asCm2PorM).toBeCloseTo(porMetro, 9);
+    expect(r.mallaVertical.verificaCuantia).toBe(true);
+    expect(r.separacionMaximaMallaM).toBeCloseTo(0.3, 9); // mín(300 mm; 2·0,77 m)
+    expect(r.mallaVertical.verificaSeparacion).toBe(true);
+    expect(r.mallaHorizontal.asCm2PorM).toBeCloseTo(porMetro, 9);
+    // (1,74 − 2·0,02)/0,125 = 13,6 → 14 espacios, 15 estribos.
+    expect(r.numeroEstribos).toBe(15);
+    // Del eje de la fila inferior (32 + 6 mm) al tirante (d′ = 42 mm):
+    // 0,89 − 0,042 − 0,038 = 0,810 m; /0,125 = 6,5 → 7 filas.
+    expect(r.filasPiel).toBe(7);
+  });
+
+  it("Ø12 c/ 0,15 no llega a la cuantía mínima: 7,54 < 7,7 cm²/m", () => {
+    const r2 = calcularApeoVoladizo(materiales, geometria, { ...datos, separacionEstribosM: 0.15 });
+    expect(r2.mallaVertical.verificaCuantia).toBe(false);
+  });
+
+  it("separación de más de 300 mm no cumple el art. 9.7 (2)", () => {
+    const r2 = calcularApeoVoladizo(materiales, geometria, { ...datos, piel: { diametroMm: 20, separacionM: 0.35 } });
+    expect(r2.mallaHorizontal.verificaCuantia).toBe(true); // 3,14/0,35 = 8,98
+    expect(r2.mallaHorizontal.verificaSeparacion).toBe(false);
+  });
+
+  it("sin horquillas no hay resultado de horquillas", () => {
+    expect(r.horquillas).toBeNull();
+  });
+});
+
+describe("viga de apeo con carga en voladizo — horquillas anidadas", () => {
+  const r = calcularApeoVoladizo(materiales, geometria, { ...datos, formaAnclajeTirante: "horquilla" });
+  const h = r.horquillas!;
+  const z = 0.89 - 0.042;
+  const t = (1485 * 0.33) / z;
+  // Capa de 12 barras (6 del tirante y 6 ramas) entre 32 + 10 mm de cada cara.
+  const s = (770 - 2 * 42) / 11; // 62,36 mm
+
+  it("con horquillas el tirante no se ancla solo", () => {
+    expect(r.anclajeTiranteCarga).toBeNull();
+    expect(r.anclajeTiranteLejano).toBeNull();
+  });
+
+  it("tres horquillas de dos ramas: 6Ø20 alcanzan para T", () => {
+    expect(h.numero).toBe(3);
+    expect(h.numeroParValido).toBe(true);
+    expect(h.asRealCm2).toBeCloseTo(6 * Math.PI, 9);
+    expect(h.verificaArea).toBe(true);
+  });
+
+  it("la capa entra: 42,4 mm libres ≥ máx(Ø; 20), art. 8.2 (2)", () => {
+    expect(h.separacionLibreMm).toBeCloseTo(s - 20, 9);
+    expect(h.separacionLibreMinMm).toBe(20);
+    expect(h.verificaSeparacion).toBe(true);
+  });
+
+  it("solape l0 = α1·α2·α6·lb,rqd con α6 = 1,5, y entra entre los nudos", () => {
+    const sigma = (t * 10) / (6 * Math.PI); // misma área en barras y ramas
+    const fbd = (2.25 * 0.7 * 0.3 * 30 ** (2 / 3)) / 1.5;
+    const lbRqd = (20 / 4) * (sigma / fbd);
+    const cd = (s - 20) / 2; // 21,2 < 32: manda la mitad de la distancia libre
+    const alfa2 = 1 - (0.15 * (cd - 20)) / 20;
+    const l0 = alfa2 * 1.5 * lbRqd; // ≈ 749 mm
+    expect(h.incrementoSeparacionMm).toBe(0); // 42,4 < 4·20
+    expect(h.l0Mm).toBeCloseTo(l0, 6);
+    expect(h.disponibleSolapeMm).toBeCloseTo((0.33 + 1.24 - 0.07 - 0.07) * 1000, 6);
+    expect(h.verificaSolape).toBe(true);
+    // Rama del voladizo: de la cara interior del nudo al extremo, menos el
+    // recubrimiento, más l0.
+    expect(h.largoRamaCargaMm).toBeCloseTo(140 - 32 + l0, 6);
+  });
+
+  it("el doblado de la U interior no alcanza, ec. (8.1)", () => {
+    const fbt = t / 6; // 96,3 kN por rama, debajo de fyd·A = 136,6
+    const ab = 32 + 10;
+    const mandrilNec = (fbt * 1000 * (1 / ab + 1 / 40)) / 20; // ≈ 235 mm
+    expect(h.fuerzaRamaKN).toBeCloseTo(fbt, 9);
+    expect(h.mandrilNecMm).toBeCloseTo(mandrilNec, 6);
+    expect(h.mandrilDisponibleMm).toBeCloseTo(3 * s - 20, 9); // ≈ 167 mm
+    expect(h.verificaMandril).toBe(false);
+  });
+
+  it("con un número impar de barras la del medio queda sin rama", () => {
+    const r5 = calcularApeoVoladizo(materiales, geometria, {
+      ...datos, formaAnclajeTirante: "horquilla", tirante: { numero: 5, diametroMm: 20 },
+    });
+    expect(r5.horquillas!.numero).toBe(2);
+    expect(r5.horquillas!.numeroParValido).toBe(false);
   });
 });
 

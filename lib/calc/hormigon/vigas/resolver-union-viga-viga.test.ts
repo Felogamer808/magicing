@@ -3,15 +3,36 @@ import { resolverUnionVigaViga } from "./resolver-union-viga-viga";
 
 /** Los campos de la página con el caso del usuario, como texto. */
 const campos: Record<string, string> = {
-  fck: "25", gammaC: "1,5", fyk: "500", gammaS: "1,15",
+  fck: "25", fyk: "500",
   b: "200", h: "500", d: "450", vd: "80", nd: "",
   rugosidad: "baja", union: "articulada", md: "", z: "", dinamica: "no",
-  numero1: "2", diametro1: "12", posicion1: "superior",
-  numero2: "2", diametro2: "12", posicion2: "inferior",
-  numero3: "", diametro3: "", posicion3: "superior",
+  grupos: JSON.stringify([
+    { numero: "2", diametro: "12", posicion: "superior" },
+    { numero: "2", diametro: "12", posicion: "inferior" },
+    { numero: "", diametro: "16", posicion: "superior" },
+  ]),
 };
 
 describe("resolver de la unión viga-viga", () => {
+  it("suma tantos grupos como se carguen", () => {
+    const grupos = JSON.stringify([
+      { numero: "2", diametro: "12", posicion: "superior" },
+      { numero: "2", diametro: "12", posicion: "inferior" },
+      { numero: "1", diametro: "16", posicion: "inferior" },
+      { numero: "1", diametro: "16", posicion: "inferior" },
+    ]);
+    const res = resolverUnionVigaViga({ ...campos, grupos });
+    if (!res.ok) throw new Error(res.motivo);
+    expect(res.v.grupos).toHaveLength(4);
+    expect(res.r.asInferiorMm2).toBeCloseTo((2 * Math.PI * 144) / 4 + (2 * Math.PI * 256) / 4, 9);
+  });
+
+  it("un JSON que no se lee vuelve a los grupos por defecto", () => {
+    const res = resolverUnionVigaViga({ ...campos, grupos: "{roto" });
+    if (!res.ok) throw new Error(res.motivo);
+    expect(res.v.grupos).toHaveLength(2);
+  });
+
   it("pasa kN a N y da el mismo V_Rd que el motor", () => {
     const res = resolverUnionVigaViga(campos);
     if (!res.ok) throw new Error(res.motivo);
@@ -38,6 +59,6 @@ describe("resolver de la unión viga-viga", () => {
     expect(resolverUnionVigaViga({ ...campos, d: "" }).ok).toBe(false);
     expect(resolverUnionVigaViga({ ...campos, d: "600" }).ok).toBe(false);
     expect(resolverUnionVigaViga({ ...campos, fck: "60" }).ok).toBe(false);
-    expect(resolverUnionVigaViga({ ...campos, numero1: "", numero2: "" }).ok).toBe(false);
+    expect(resolverUnionVigaViga({ ...campos, grupos: "[]" }).ok).toBe(false);
   });
 });

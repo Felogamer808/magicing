@@ -14,6 +14,7 @@
  * Unidades internas, por pedido del usuario: mm, N, MPa (N/mm²) y N·mm.
  *
  * Cálculo (especificación del usuario):
+ * - γc = 1,5 y γs = 1,15, siempre (criterio del usuario): no son datos.
  * - fcd = fck/γc; fyd = mín(fyk/γs; 400); fct,d = 0,21·fck^(2/3)/γc (fck ≤ 50).
  * - As = suma de las barras que cosen la junta. Con momento, la armadura de
  *   flexión As,flex = Md/(z·fyd) se descuenta de las superiores (mínimo 0).
@@ -49,11 +50,7 @@ export interface GrupoBarras {
 
 export interface MaterialesUnion {
   fckMPa: number;
-  /** Por defecto 1,5 */
-  gammaC: number;
   fykMPa: number;
-  /** Por defecto 1,15 */
-  gammaS: number;
 }
 
 export interface DatosUnion {
@@ -122,6 +119,14 @@ export interface ResultadoUnion {
   ashNecesariaMm2: number;
 }
 
+/**
+ * Coeficientes de los materiales, fijos por criterio del usuario. Son propios
+ * de este módulo y no los de `comun/coeficientes`, que son los del Anejo 19:
+ * coinciden en valor, pero cada norma trae los suyos.
+ */
+export const GAMMA_C_UNION = 1.5;
+export const GAMMA_S_UNION = 1.15;
+
 /** fyd tope de la especificación: 400 MPa. */
 export const FYD_MAXIMO_MPA = 400;
 
@@ -139,9 +144,9 @@ export function calcularUnionVigaViga(m: MaterialesUnion, d: DatosUnion): Result
     // La expresión de fct,d de la especificación vale para fck ≤ 50.
     throw new RangeError("fct,d = 0,21·fck^(2/3)/γc vale sólo para fck ≤ 50 MPa.");
   }
-  const fcdMPa = m.fckMPa / m.gammaC;
-  const fydMPa = Math.min(m.fykMPa / m.gammaS, FYD_MAXIMO_MPA);
-  const fctdMPa = (0.21 * m.fckMPa ** (2 / 3)) / m.gammaC;
+  const fcdMPa = m.fckMPa / GAMMA_C_UNION;
+  const fydMPa = Math.min(m.fykMPa / GAMMA_S_UNION, FYD_MAXIMO_MPA);
+  const fctdMPa = (0.21 * m.fckMPa ** (2 / 3)) / GAMMA_C_UNION;
   const acMm2 = d.bMm * d.hMm;
 
   const { beta, muA, muB } = COEFICIENTES[d.rugosidad];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { areaBarraMm2, calcularUnionVigaViga, type DatosUnion, type MaterialesUnion } from "./union-viga-viga";
 
-const materiales: MaterialesUnion = { fckMPa: 25, gammaC: 1.5, fykMPa: 500, gammaS: 1.15 };
+const materiales: MaterialesUnion = { fckMPa: 25, fykMPa: 500 };
 
 /**
  * El caso de la especificación del usuario (2026-11-25): viga de 200 × 500,

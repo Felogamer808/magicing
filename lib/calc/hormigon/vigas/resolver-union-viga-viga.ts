@@ -6,8 +6,35 @@ import {
   type Rugosidad,
 } from "@/lib/calc/hormigon/vigas/union-viga-viga";
 
-/** Cuántos grupos de barras ofrece la página. */
-export const GRUPOS_UNION = 3;
+/** Un grupo de esperas como lo carga la página: texto, igual que cualquier campo. */
+export interface GrupoTexto {
+  numero: string;
+  diametro: string;
+  posicion: PosicionBarras;
+}
+
+export const GRUPOS_POR_DEFECTO: GrupoTexto[] = [
+  { numero: "2", diametro: "12", posicion: "superior" },
+  { numero: "2", diametro: "12", posicion: "inferior" },
+];
+
+/**
+ * Los grupos se guardan en un solo campo, como JSON, porque son tantos como
+ * haga falta. Si el texto no se puede leer, se vuelve a los de por defecto.
+ */
+export function leerGruposUnion(crudo: string | undefined): GrupoTexto[] {
+  try {
+    const o: unknown = JSON.parse(crudo ?? "");
+    if (!Array.isArray(o)) return GRUPOS_POR_DEFECTO;
+    return o.map((g: Record<string, unknown>) => ({
+      numero: typeof g?.numero === "string" ? g.numero : "",
+      diametro: typeof g?.diametro === "string" ? g.diametro : "",
+      posicion: g?.posicion === "inferior" ? "inferior" : "superior",
+    }));
+  } catch {
+    return GRUPOS_POR_DEFECTO;
+  }
+}
 
 /**
  * Cálculo de la página a partir de sus campos, tal como se cargaron. Vive acá
@@ -20,12 +47,9 @@ export function resolverUnionVigaViga(campos: Record<string, string>) {
   const num = (clave: string) => aNumero(campos[clave] ?? "");
   const falla = (motivo: string) => ({ ok: false as const, motivo });
 
-  const v = {
-    fck: num("fck"), gammaC: num("gammaC"), fyk: num("fyk"), gammaS: num("gammaS"),
-    b: num("b"), h: num("h"), d: num("d"), vd: num("vd"),
-  };
+  const v = { fck: num("fck"), fyk: num("fyk"), b: num("b"), h: num("h"), d: num("d"), vd: num("vd") };
   if (!Object.values(v).every((n) => Number.isFinite(n) && n > 0)) {
-    return falla("Hay datos vacíos o no válidos: fck, fyk, γc, γs, b, h, d y Vd tienen que ser positivos.");
+    return falla("Hay datos vacíos o no válidos: fck, fyk, b, h, d y Vd tienen que ser positivos.");
   }
   if (v.fck > 50) return falla("fct,d = 0,21·fck^(2/3)/γc vale sólo para fck ≤ 50 MPa.");
   if (v.d >= v.h) return falla("El canto útil d tiene que ser menor que h.");
@@ -51,20 +75,20 @@ export function resolverUnionVigaViga(campos: Record<string, string>) {
   }
 
   const grupos: GrupoBarras[] = [];
-  for (let i = 1; i <= GRUPOS_UNION; i++) {
-    const numero = aNumero(campos[`numero${i}`] ?? "");
+  const textos = leerGruposUnion(campos.grupos);
+  for (const [i, g] of textos.entries()) {
+    const numero = aNumero(g.numero);
     if (!Number.isFinite(numero) || numero === 0) continue; // grupo vacío
-    const diametro = aNumero(campos[`diametro${i}`] ?? "");
+    const diametro = aNumero(g.diametro);
     if (numero < 0 || !Number.isInteger(numero) || !(Number.isFinite(diametro) && diametro > 0)) {
-      return falla(`Grupo ${i}: la cantidad tiene que ser un entero positivo y el Ø mayor que 0.`);
+      return falla(`Grupo ${i + 1}: la cantidad tiene que ser un entero positivo y el Ø mayor que 0.`);
     }
-    const posicion: PosicionBarras = campos[`posicion${i}`] === "inferior" ? "inferior" : "superior";
-    grupos.push({ numero, diametroMm: diametro, posicion });
+    grupos.push({ numero, diametroMm: diametro, posicion: g.posicion });
   }
   if (grupos.length === 0) return falla("Falta al menos un grupo de barras que cosa la junta.");
 
   const r = calcularUnionVigaViga(
-    { fckMPa: v.fck, gammaC: v.gammaC, fykMPa: v.fyk, gammaS: v.gammaS },
+    { fckMPa: v.fck, fykMPa: v.fyk },
     {
       bMm: v.b,
       hMm: v.h,

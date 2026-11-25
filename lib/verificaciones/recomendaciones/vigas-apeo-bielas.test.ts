@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADHERENCIAS, TRANSMISIONES, resolverApeoBielas } from "@/lib/calc/hormigon/vigas/resolver-apeo-bielas";
+import { ADHERENCIAS, BARRAS_PILAR, TRANSMISIONES, resolverApeoBielas } from "@/lib/calc/hormigon/vigas/resolver-apeo-bielas";
 import { recomendarApeoBielas } from "./vigas-apeo-bielas";
 
 const BASE = {
@@ -15,6 +15,19 @@ describe("recomendaciones de la viga de apeo por bielas", () => {
   it("la transmisión llega al resolver desde su rótulo", () => {
     expect(resolverApeoBielas(BASE)!.r.cuelgue).toBeFalsy();
     expect(resolverApeoBielas({ ...BASE, transmision: TRANSMISIONES[2] })!.r.cuelgue).toBeTruthy();
+  });
+
+  it("directa con barras ancladas abajo: calcula la parte del acero o usa la impuesta", () => {
+    const pilar = { bPilar: "0.4", nBarrasPilar: "8", phiPilar: "20", porcentaje: "50" };
+    // As = 25,13 cm² · 400 MPa = 1005 kN; (0,16 − 0,0025)·20 MPa = 3150 kN → 24,2 %
+    const calc = resolverApeoBielas({ ...BASE, ...pilar, barrasPilar: BARRAS_PILAR[1] })!;
+    expect(calc.barrasPilar?.reparto.fraccionArmadura).toBeCloseTo(0.242, 3);
+    expect(calc.r.cuelgue?.cargaColgadaKN).toBeCloseTo(2000 * calc.barrasPilar!.reparto.fraccionArmadura, 9);
+
+    const imp = resolverApeoBielas({ ...BASE, ...pilar, barrasPilar: BARRAS_PILAR[2] })!;
+    expect(imp.r.cuelgue?.cargaColgadaKN).toBeCloseTo(1000, 9);
+
+    expect(resolverApeoBielas({ ...BASE, ...pilar, barrasPilar: BARRAS_PILAR[0] })!.r.cuelgue).toBeNull();
   });
 
   it("tirante corto: más barras primero, y cumple", () => {

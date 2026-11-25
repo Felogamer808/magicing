@@ -429,6 +429,29 @@ describe("cuelgue", () => {
     expect(indirecta.cuelgue?.cargaColgadaKN).toBeCloseTo(2000, 9);
   });
 
+  it("directa con las barras del pilar ancladas abajo: cuelga esa fracción", () => {
+    const directa = calcularVigaApeoBielas(materiales, geometria, {
+      ...datos,
+      transmision: "directa",
+      fraccionBarrasPilar: 0.25,
+      cuelgue: { diametroMm: 12, separacionM: 0.1, numeroRamas: 4, cantoElementoColgadoM: 0 },
+    });
+    expect(directa.cuelgue?.fraccionColgada).toBeCloseTo(0.25, 12);
+    expect(directa.cuelgue?.cargaColgadaKN).toBeCloseTo(500, 9);
+    // 500 kN / 400 MPa = 12,5 cm²
+    expect(directa.cuelgue?.asNecCm2).toBeCloseTo(12.5, 9);
+  });
+
+  it("la fracción de las barras no cambia la indirecta: sigue el 100 %", () => {
+    const indirecta = calcularVigaApeoBielas(materiales, geometria, {
+      ...datos,
+      transmision: "indirecta",
+      fraccionBarrasPilar: 0.25,
+      cuelgue: { diametroMm: 12, separacionM: 0.1, numeroRamas: 4, cantoElementoColgadoM: 0 },
+    });
+    expect(indirecta.cuelgue?.fraccionColgada).toBe(1);
+  });
+
   it("aviso de Montoya h ≥ 1,2·a: si el elemento colgado es muy alto, avisa", () => {
     const alta = calcularVigaApeoBielas(materiales, geometria, {
       ...datos,

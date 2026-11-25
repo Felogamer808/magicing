@@ -227,6 +227,77 @@ export function CroquisCargaColgada() {
   );
 }
 
+/**
+ * Pilar que apoya sobre la viga con las barras ancladas hasta la cara inferior:
+ * el hormigón entrega arriba y las barras abajo, por adherencia; esa parte se
+ * sube con cercos. Alzado con la zona de cercos y el borde, y planta con los
+ * dos lados del pilar.
+ */
+export function CroquisCuelguePilar() {
+  // alzado
+  const xBorde = 30;
+  const xFin = 262;
+  const yVigaSup = 60;
+  const yVigaInf = 118;
+  const xP0 = 116;
+  const xP1 = 152;
+  const xEje = (xP0 + xP1) / 2;
+  const z = 60;
+  // planta
+  const yPlSup = 182;
+  const yPlInf = 214;
+  const yPilSup = 186;
+  const yPilInf = 210;
+
+  return (
+    <Croquis
+      viewBox="0 0 290 238"
+      ancho="max-w-[19rem]"
+      nota="a: lado del pilar en el plano de la viga; b: lado transversal. Con a y b sale el área de hormigón, y de ahí el % que llevan las barras. La zona de cercos es máx(a; h/2) a cada lado del eje; e, si el pilar está cerca del extremo de la viga, la recorta de ese lado."
+    >
+      <text x={xBorde} y={12} className="fill-current font-mono" fontSize="9.5" opacity="0.7">alzado</text>
+      <rect x={xBorde} y={yVigaSup} width={xFin - xBorde} height={yVigaInf - yVigaSup} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={xP0} y={22} width={xP1 - xP0} height={yVigaSup - 22} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+
+      {/* barras del pilar, bajando hasta el fondo */}
+      {[xP0 + 6, xP1 - 6].map((x) => (
+        <path key={x} d={`M${x} 24 L${x} ${yVigaInf - 6}`} stroke="var(--mat-armadura)" strokeWidth="2" />
+      ))}
+
+      {/* cercos de cuelgue, en ± z del eje */}
+      {[xEje - z + 6, xEje - z + 24, xEje + z - 24, xEje + z - 6].map((x) => (
+        <path key={x} d={`M${x} ${yVigaInf - 5} L${x} ${yVigaSup + 5}`} stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" opacity="0.85" />
+      ))}
+
+      {/* eje del pilar */}
+      <path d={`M${xEje} 18 L${xEje} 226`} stroke="currentColor" strokeWidth="0.6" strokeDasharray="8 2 2 2" opacity="0.5" />
+
+      <CotaH x0={xP0} x1={xP1} y={14} texto="a" />
+      <CotaV x={18} y0={yVigaSup} y1={yVigaInf} texto="h" />
+      <CotaH x0={xEje - z} x1={xEje + z} y={134} texto="zona" />
+      <CotaH x0={xBorde} x1={xEje} y={154} texto="e (opcional)" />
+      <Referencia x={196} y={36} hacia={[xP1 - 6, 42]} texto="barras" />
+      <Referencia x={214} y={92} hacia={[xEje + z - 6, 92]} texto="cuelgue" />
+      <Referencia x={52} y={48} hacia={[xBorde + 1, yVigaSup]} texto="borde" />
+
+      {/* planta */}
+      <text x={xBorde} y={176} className="fill-current font-mono" fontSize="9.5" opacity="0.7">planta</text>
+      <rect x={xBorde} y={yPlSup} width={xFin - xBorde} height={yPlInf - yPlSup} stroke="var(--mat-hormigon-borde)" strokeWidth="1.2" fill="var(--mat-hormigon)" opacity="0.8" />
+      <rect x={xP0} y={yPilSup} width={xP1 - xP0} height={yPilInf - yPilSup} stroke="var(--mat-hormigon-borde)" strokeWidth="1.8" fill="var(--mat-hormigon)" />
+      {[
+        [xP0 + 6, yPilSup + 5],
+        [xP1 - 6, yPilSup + 5],
+        [xP0 + 6, yPilInf - 5],
+        [xP1 - 6, yPilInf - 5],
+      ].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="2.6" fill="var(--mat-armadura)" />
+      ))}
+      <CotaV x={104} y0={yPilSup} y1={yPilInf} texto="b" />
+      <CotaH x0={xP0} x1={xP1} y={232} texto="a" />
+    </Croquis>
+  );
+}
+
 /** Sección mixta: tubo circular relleno, con el acero por fuera y las barras dentro. */
 export function CroquisSeccionMixta() {
   const cx = 74;

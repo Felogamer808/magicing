@@ -22,6 +22,7 @@ import { aNumero, fmt } from "@/lib/verificaciones/formato";
 import { registroVerificaciones } from "@/lib/verificaciones/registry";
 import {
   ADHERENCIAS,
+  BARRAS_PILAR,
   TIPO_POR_ETIQUETA,
   TRANSMISIONES,
   resolverApeoBielas,
@@ -78,11 +79,20 @@ export default function VigaApeoBielasPage() {
   const [ramasCuelgue, setRamasCuelgue] = useCampo("ramasCuelgue", "4");
   const [cantoColgado, setCantoColgado] = useCampo("cantoColgado", "0.6");
 
+  // Directa con las barras del pilar ancladas abajo: se cuelga lo que llevan.
+  const [barrasPilar, setBarrasPilar] = useCampo("barrasPilar", BARRAS_PILAR[0]);
+  const [bPilar, setBPilar] = useCampo("bPilar", "0.4");
+  const [nBarrasPilar, setNBarrasPilar] = useCampo("nBarrasPilar", "8");
+  const [phiPilar, setPhiPilar] = useCampo("phiPilar", "20");
+  const [porcentaje, setPorcentaje] = useCampo("porcentaje", "50");
+
   const tipo = TIPO_POR_ETIQUETA[transmision] ?? "directa";
+  const colgarBarras = tipo === "directa" && barrasPilar !== BARRAS_PILAR[0];
+  const hayCuelgue = tipo !== "directa" || colgarBarras;
 
   const campos = useMemo(
-    () => ({ fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia }),
-    [fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia]
+    () => ({ fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia, barrasPilar, bPilar, nBarrasPilar, phiPilar, porcentaje }),
+    [fck, fyk, rg, luz, h, b, posCarga, anchoPilar, anchoApoyoIzq, anchoApoyoDer, voladizoIzq, voladizoDer, nd, qd, nTirante, phiTirante, phiEstribo, nTirante2, phiTirante2, dg, phiMallaH, sepMallaH, phiMallaV, sepMallaV, phiCuelgue, sepCuelgue, ramasCuelgue, cantoColgado, transmision, adherencia, barrasPilar, bPilar, nBarrasPilar, phiPilar, porcentaje]
   );
   const resultado = useMemo(() => resolverApeoBielas(campos), [campos]);
   // Cambios recalculados para lo que no cumple o queda justo.
@@ -100,6 +110,16 @@ export default function VigaApeoBielasPage() {
       avisos.push({
         tipo: "aviso",
         texto: `Criterio de Montoya (§24.7.3.e), no del Anejo 19: las capas del tirante ocupan ${fmt(resultado.r.tirante.capas.alturaOcupadaM, 3)} m, más que la franja de 0,12·l = ${fmt(resultado.r.tirante.alturaRepartoM, 3)} m. No entra en el cumple.`,
+      });
+    if (resultado.barrasPilar && resultado.barrasPilar.impuesto && resultado.barrasPilar.porcentaje / 100 < resultado.barrasPilar.reparto.fraccionArmadura - 1e-9)
+      avisos.push({
+        tipo: "aviso",
+        texto: `El ${fmt(resultado.barrasPilar.porcentaje, 1)} % impuesto es menos que lo que llevan las barras del pilar (${fmt(resultado.barrasPilar.reparto.fraccionArmadura * 100, 1)} %): parte de la carga que entra abajo queda sin colgar.`,
+      });
+    if (resultado.barrasPilar && !resultado.barrasPilar.reparto.cumpleCuantiaMaxima)
+      avisos.push({
+        tipo: "aviso",
+        texto: `La armadura del pilar es el ${fmt(resultado.barrasPilar.reparto.cuantiaGeometrica * 100, 2)} % de Ac, más que el 4 % del art. 9.5.2(3) fuera de solapes.`,
       });
     if (resultado.r.cuelgue && resultado.r.cuelgue.cantoMinimoM > 0 && !resultado.r.cuelgue.cumpleAvisoCantoMinimo)
       avisos.push({
@@ -192,6 +212,32 @@ export default function VigaApeoBielasPage() {
             <div className="col-span-2">
               <CampoSeleccion id="transmision" etiqueta="Cómo llega la carga a la viga" valor={transmision} opciones={TRANSMISIONES} onChange={setTransmision} />
             </div>
+            {tipo === "directa" && (
+              <>
+                <div className="col-span-2">
+                  <CampoSeleccion id="barrasPilar" etiqueta="Barras del pilar" valor={barrasPilar} opciones={BARRAS_PILAR} onChange={setBarrasPilar} />
+                </div>
+                {colgarBarras && (
+                  <>
+                    <CampoNumerico id="bPilar" etiqueta="Lado del pilar (transversal)" sufijo="m" valor={bPilar} onChange={setBPilar} />
+                    <div />
+                    <CampoNumerico id="nBarrasPilar" etiqueta="Barras del pilar" valor={nBarrasPilar} onChange={setNBarrasPilar} />
+                    <CampoDiametro id="phiPilar" etiqueta="Ø barras del pilar" valor={phiPilar} onChange={setPhiPilar} />
+                    {barrasPilar === BARRAS_PILAR[2] ? (
+                      <CampoNumerico id="porcentaje" etiqueta="% de Nd a colgar" sufijo="%" valor={porcentaje} onChange={setPorcentaje} sugerencias={[50, 100]} />
+                    ) : (
+                      <div className="self-end pb-2 font-mono text-sm tabular-nums text-muted-foreground">
+                        {resultado?.barrasPilar ? `${fmt(resultado.barrasPilar.reparto.fraccionArmadura * 100, 1)} % calculado` : "—"}
+                      </div>
+                    )}
+                    <p className="col-span-2 text-xs text-muted-foreground">
+                      El lado en el plano de la viga es el ancho del pilar apeado. La parte del hormigón entra arriba y no se cuelga; la de las
+                      barras, As·σs / (Ac·fcd + As·σs) con σs = mín(fyd; Es·εc2), entra abajo. Colgarla es criterio, no artículo.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </Etapa>
 
@@ -228,7 +274,7 @@ export default function VigaApeoBielasPage() {
                     <CampoNumerico id="sepMallaV" etiqueta="Separación vert." sufijo="m" valor={sepMallaV} onChange={setSepMallaV} />
                   </div>
                 </Subgrupo>
-                {tipo !== "directa" && (
+                {hayCuelgue && (
                   <Subgrupo titulo="Estribos de cuelgue">
                     <div className="grid grid-cols-2 gap-4">
                       <CampoDiametro id="phiCuelgue" etiqueta="Ø" valor={phiCuelgue} onChange={setPhiCuelgue} />
@@ -292,6 +338,7 @@ export default function VigaApeoBielasPage() {
               "Anclaje con α3 = α4 = α5 = 1,00, desde la cara interior del apoyo (art. 6.5.4(7)). La horquilla se dobla en planta: es una decisión de despiece, VERIFICAR antes de acotar un plano.",
               "Ancho de reparto de la tracción transversal mín(h; L/2): criterio, no valor de norma. VERIFICAR contra la fig. A19.6.25.",
               "Carga colgada o apoyo indirecto: se cuelga toda la reacción mutua (art. 9.2.5(1)).",
+              "Directa con las barras del pilar ancladas abajo: se cuelga lo que llevan las barras, repartiendo Nd en compresión centrada con εc2 (art. 6.1(5), tabla A19.3.1), o el porcentaje impuesto. Es criterio del proyectista, no artículo.",
               "Dos reglas de detalle de Montoya, sin equivalente en el Anejo, quedan como avisos que no entran en el cumple: el tirante repartido en 0,12·l (§24.7.3.e) y h ≥ 1,2·a en la carga colgada (§24.9.1).",
             ]}
             avisos={avisos}
@@ -415,7 +462,7 @@ export default function VigaApeoBielasPage() {
                       <ResultadoCheck
                         etiqueta="Estribos de cuelgue suficientes"
                         verifica={resultado.r.cuelgue.verificaAs}
-                        detalle={`Art. 9.2.5(1): se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 0)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
+                        detalle={`${tipo === "directa" ? (resultado.barrasPilar?.impuesto ? "Porcentaje impuesto" : "Parte de las barras del pilar") : "Art. 9.2.5(1)"}: se cuelga el ${fmt(resultado.r.cuelgue.fraccionColgada * 100, 1)} % de Nd: ${fmt(resultado.r.cuelgue.cargaColgadaKN, 0)} kN en ${fmt(resultado.r.cuelgue.anchoZonaM)} m a cada lado, con fyd de estribos ${fmt(resultado.materiales.fydEstribos, 0)} MPa. Los estribos envuelven por debajo el tirante.`}
                         comparacion={{ real: { etiqueta: "As real", valor: resultado.r.cuelgue.asRealCm2 }, limite: { etiqueta: "As nec", valor: resultado.r.cuelgue.asNecCm2 }, unidad: "cm²", exige: "≥" }}
                         recomendaciones={propuestas.cuelgue}
                       />

@@ -128,6 +128,14 @@ export interface DatosVigaApeo {
   mallaVertical: MallaVigaApeo;
   cuelgue?: CuelgueVigaApeo;
   /**
+   * Con transmisión directa, fracción de Nd (0 a 1) que llevan las barras del
+   * pilar ancladas hasta la cara inferior y que hay que colgar. La calcula
+   * `repartoAxilPilar` o la impone el proyectista: es criterio, no artículo.
+   * Si se omite, la directa no cuelga nada. Con indirecta o colgada no se usa:
+   * ahí el art. 9.2.5(1) pide el 100 %.
+   */
+  fraccionBarrasPilar?: number;
+  /**
    * Brazo mecánico impuesto (m). Si se omite sale del modelo: el que permite la
    * cabeza comprimida.
    */
@@ -393,7 +401,10 @@ export interface ResultadoMallaVigaApeo {
 
 /** Paso 8: cuelgue, sólo si la carga no llega directa — art. 9.2.5. */
 export interface ResultadoCuelgueVigaApeo {
-  /** Fracción de Nd que hay que colgar: 0 directa, 1,00 indirecta o colgada (art. 9.2.5(1)) */
+  /**
+   * Fracción de Nd que hay que colgar: 1,00 indirecta o colgada (art. 9.2.5(1));
+   * con directa, la parte de las barras del pilar ancladas abajo, o 0.
+   */
   fraccionColgada: number;
   cargaColgadaKN: number;
   /** Ancho a cada lado del pilar en que se reparten los estribos de cuelgue (m) */
@@ -475,10 +486,11 @@ function resolverCapa(
 /**
  * Fracción de la carga que hay que colgar de la cabeza opuesta. Art. 9.2.5(1):
  * la armadura tiene que resistir toda la reacción mutua, así que indirecta o
- * colgada es el 100 %.
+ * colgada es el 100 %. La directa cuelga sólo lo que bajan las barras del pilar
+ * ancladas abajo, si se pidió.
  */
-function fraccionColgada(transmision: TransmisionCarga): number {
-  return transmision === "directa" ? 0 : 1;
+function fraccionColgada(transmision: TransmisionCarga, fraccionBarrasPilar: number | undefined): number {
+  return transmision === "directa" ? Math.min(Math.max(fraccionBarrasPilar ?? 0, 0), 1) : 1;
 }
 
 export function calcularVigaApeoBielas(
@@ -922,7 +934,7 @@ export function calcularVigaApeoBielas(
   };
 
   // ----------------------------------------------------------- cuelgue
-  const fraccion = fraccionColgada(transmision);
+  const fraccion = fraccionColgada(transmision, datos.fraccionBarrasPilar);
   let cuelgue: ResultadoCuelgueVigaApeo | null = null;
   if (fraccion > 0) {
     const cargaColgadaKN = fraccion * ndPilarKN;

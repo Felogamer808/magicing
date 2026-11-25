@@ -21,7 +21,8 @@ export function resolverCorteAcero(campos: Record<string, string>) {
     e: num("eCorte"),
     v: num("vRequerido"),
   };
-  const usaRigidizadores = campos.conRigidizadores === "Sí";
+  // La T va por G3, que no usa rigidizadores: lo que haya quedado guardado no cuenta.
+  const usaRigidizadores = campos.conRigidizadores === "Sí" && sec.familia !== "te-armada";
   if (!sec.completos || ![n.fy, n.e, n.v].every((x) => Number.isFinite(x) && x > 0)) return null;
   if (usaRigidizadores && (!Number.isFinite(n.a) || n.a <= 0)) return null;
   if (sec.familia === "tubo-redondo" && (!Number.isFinite(n.lv) || n.lv <= 0)) return null;

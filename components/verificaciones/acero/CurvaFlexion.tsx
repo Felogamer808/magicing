@@ -2,6 +2,7 @@
 
 import { calcularFlexionSegunSeccion } from "@/lib/calc/acero/seleccion-articulo";
 import type { Familia, ParametrosPerfil } from "@/lib/calc/acero/perfiles";
+import type { PuntaAlma } from "@/lib/calc/acero/flexion-te";
 
 /**
  * Curva Mn contra la longitud sin arriostrar, con las tres zonas del capítulo F
@@ -20,8 +21,11 @@ interface Props {
   fyPa: number;
   ePa: number;
   lbM: number;
-  lpM: number;
-  lrM: number;
+  /** null en una T con la punta del alma comprimida: F9 no define Lp ni Lr ahí. */
+  lpM: number | null;
+  lrM: number | null;
+  /** Sólo en tes. */
+  puntaAlma?: PuntaAlma;
   mpKNm: number;
   mnKNm: number;
 }
@@ -37,10 +41,11 @@ const fmt = (n: number, d = 1) =>
   n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 export function CurvaFlexion({
-  familia, params, cb, fyPa, ePa, lbM, lpM, lrM, mpKNm, mnKNm,
+  familia, params, cb, fyPa, ePa, lbM, lpM, lrM, puntaAlma, mpKNm, mnKNm,
 }: Props) {
+  const conZonas = lpM !== null && lrM !== null;
   // Se llega hasta pasada Lr para que se vea entrar la rama elástica.
-  const lbMax = Math.max(lrM * 1.35, lbM * 1.15, lpM * 3);
+  const lbMax = conZonas ? Math.max(lrM * 1.35, lbM * 1.15, lpM * 3) : Math.max(lbM * 3, 1);
   const x = (lb: number) => IZQ + (lb / lbMax) * (DER - IZQ);
   const y = (m: number) => BASE - (m / mpKNm) * (BASE - TOP);
 
@@ -49,7 +54,7 @@ export function CurvaFlexion({
   for (let i = 0; i <= pasos; i++) {
     const lb = Math.max((lbMax * i) / pasos, 0.01);
     try {
-      const r = calcularFlexionSegunSeccion({ familia, params, lbM: lb, cb, fyPa, ePa });
+      const r = calcularFlexionSegunSeccion({ familia, params, lbM: lb, cb, fyPa, ePa, puntaAlma });
       puntos.push(`${x(lb).toFixed(1)},${y(r.mnKNm).toFixed(1)}`);
     } catch {
       // Fuera del alcance del artículo: se corta la curva en lugar de inventarla.
@@ -67,9 +72,13 @@ export function CurvaFlexion({
       <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} className="h-auto w-full" role="img"
            aria-label={`Momento resistente contra longitud sin arriostrar; Lb = ${fmt(lbM, 2)} m`}>
         {/* Las tres zonas del artículo, de fondo. */}
-        {zona(0, Math.min(lpM, lbMax), "fill-exito/10")}
-        {zona(Math.min(lpM, lbMax), Math.min(lrM, lbMax), "fill-mat-fuego/10")}
-        {zona(Math.min(lrM, lbMax), lbMax, "fill-destructive/10")}
+        {conZonas && (
+          <>
+            {zona(0, Math.min(lpM, lbMax), "fill-exito/10")}
+            {zona(Math.min(lpM, lbMax), Math.min(lrM, lbMax), "fill-mat-fuego/10")}
+            {zona(Math.min(lrM, lbMax), lbMax, "fill-destructive/10")}
+          </>
+        )}
 
         <line x1={IZQ} y1={TOP - 6} x2={IZQ} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
         <line x1={IZQ} y1={BASE} x2={DER} y2={BASE} className="stroke-foreground/50" strokeWidth={1} />
@@ -89,7 +98,7 @@ export function CurvaFlexion({
         </text>
 
         {/* Lp y Lr. */}
-        {[{ v: lpM, t: "Lp" }, { v: lrM, t: "Lr" }].filter((c) => c.v <= lbMax).map((c) => (
+        {(conZonas ? [{ v: lpM, t: "Lp" }, { v: lrM, t: "Lr" }] : []).filter((c) => c.v <= lbMax).map((c) => (
           <g key={c.t}>
             <line x1={x(c.v)} y1={TOP - 6} x2={x(c.v)} y2={BASE + 5}
                   className="stroke-foreground/40" strokeWidth={1} strokeDasharray="3 2" />

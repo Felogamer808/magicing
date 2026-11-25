@@ -17,12 +17,15 @@
  * El canto mínimo h ≥ 1,2·a para que se formen las bielas es criterio de
  * Jiménez Montoya (§24.9.1), sin equivalente en el Anejo: queda como aviso.
  *
- * Es el caso de carga totalmente colgada (100 %), que es lo que pide el
- * art. 9.2.5(1).
+ * Para la viga que llega a otra se cuelga el 100 %, que es lo que pide el
+ * art. 9.2.5(1). Para el pilar que apoya con las barras ancladas abajo
+ * (`calcularCuelguePilar`) se cuelga lo que llevan las barras, calculado por
+ * `repartoAxilPilar` o impuesto: es criterio, no artículo.
  */
 
 import { GAMMA_S } from "@/lib/calc/hormigon/comun/coeficientes";
 import { areaBarraCm2 } from "@/lib/calc/armaduras";
+import { repartoAxilPilar, type ResultadoRepartoPilar } from "@/lib/calc/hormigon/comun/reparto-pilar";
 
 export interface MaterialesCuelgue {
   fykMPa: number;
@@ -70,25 +73,26 @@ export interface ResultadoCuelgue {
   cumpleAvisoCantoMinimo: boolean;
 }
 
+/** Cercos que cuelgan una fuerza: As·fyd ≥ Rd, art. 6.5.3(1), con fyd = fyk/γs. */
+function dimensionarCercos(fykMPa: number, reaccionKN: number, diametroEstriboMm: number, numeroRamas: number) {
+  const fydMPa = fykMPa / GAMMA_S;
+  // Rd(kN)·1000 / fyd(N/mm²) da mm²; /100 pasa a cm².
+  const asNecesariaCm2 = (reaccionKN * 10) / fydMPa;
+  const areaPorEstriboCm2 = numeroRamas * areaBarraCm2(diametroEstriboMm);
+  const cantidadEstribos = areaPorEstriboCm2 > 0 ? Math.ceil(asNecesariaCm2 / areaPorEstriboCm2) : 0;
+  return { fydMPa, asNecesariaCm2, areaPorEstriboCm2, cantidadEstribos };
+}
+
 export function calcularCuelgue(
   materiales: MaterialesCuelgue,
   geometria: GeometriaCuelgue,
   datos: DatosCuelgue
 ): ResultadoCuelgue {
-  const fydMPa = materiales.fykMPa / GAMMA_S;
-  // Rd(kN)·1000 / fyd(N/mm²) da mm²; /100 pasa a cm².
-  const asNecesariaCm2 = (datos.reaccionKN * 10) / fydMPa;
-
-  const areaPorEstriboCm2 = datos.numeroRamas * areaBarraCm2(datos.diametroEstriboMm);
-  const cantidadEstribos = areaPorEstriboCm2 > 0 ? Math.ceil(asNecesariaCm2 / areaPorEstriboCm2) : 0;
-
+  const cercos = dimensionarCercos(materiales.fykMPa, datos.reaccionKN, datos.diametroEstriboMm, datos.numeroRamas);
   const cantoMinimoM = 1.2 * geometria.aM;
 
   return {
-    fydMPa,
-    asNecesariaCm2,
-    areaPorEstriboCm2,
-    cantidadEstribos,
+    ...cercos,
     zona: {
       recibeDesdeCaraM: geometria.hM / 3,
       recibeDesdeEjeM: geometria.hM / 2,
@@ -98,5 +102,77 @@ export function calcularCuelgue(
     cantosComoLaFigura: geometria.hM >= geometria.h2M,
     cantoMinimoM,
     cumpleAvisoCantoMinimo: geometria.hM >= cantoMinimoM,
+  };
+}
+
+// ------------------------------------------------------------------ pilar
+
+/**
+ * Pilar que apoya sobre la viga con sus barras bajando ancladas hasta la cara
+ * inferior. Lo que lleva el hormigón entra arriba, en la cabeza comprimida, y
+ * no se cuelga; lo que llevan las barras entra abajo, por adherencia, y se sube
+ * con cercos. La fracción calculada sale de `repartoAxilPilar`; usar otra es
+ * criterio del proyectista, y por eso se puede imponer.
+ */
+export interface DatosCuelguePilar {
+  /** Axil de cálculo del pilar (kN). */
+  ndPilarKN: number;
+  fckMPa: number;
+  fykMPa: number;
+  /** Canto de la viga que recibe (m). */
+  hVigaM: number;
+  /** Lado del pilar en el plano de la viga (m). */
+  ladoPilarM: number;
+  /** Lado del pilar transversal a la viga (m). */
+  anchoPilarM: number;
+  /** Armadura longitudinal total del pilar (cm²). */
+  asPilarCm2: number;
+  /** Fracción de Nd a colgar impuesta (0 a 1). Si se omite, la calculada. */
+  fraccionImpuesta?: number;
+  diametroEstriboMm: number;
+  numeroRamas: number;
+}
+
+export interface ResultadoCuelguePilar {
+  reparto: ResultadoRepartoPilar;
+  fraccionCalculada: number;
+  fraccionAdoptada: number;
+  /** La impuesta queda por debajo de lo que llevan las barras: aviso. */
+  fraccionMenorQueCalculada: boolean;
+  cargaColgadaKN: number;
+  fydMPa: number;
+  asNecesariaCm2: number;
+  areaPorEstriboCm2: number;
+  cantidadEstribos: number;
+  /**
+   * Ancho a cada lado del eje del pilar en que se reparten los cercos (m):
+   * máx(lado del pilar; h/2), el mismo criterio que la viga de apeo. El Anejo
+   * no trae zona para este caso —la figura A19.9.7 es de viga sobre viga—, así
+   * que se informa y no entra en el cumple.
+   */
+  anchoZonaM: number;
+}
+
+export function calcularCuelguePilar(d: DatosCuelguePilar): ResultadoCuelguePilar {
+  const reparto = repartoAxilPilar({
+    fckMPa: d.fckMPa,
+    fykMPa: d.fykMPa,
+    bM: d.anchoPilarM,
+    hM: d.ladoPilarM,
+    asCm2: d.asPilarCm2,
+  });
+  const fraccionCalculada = reparto.fraccionArmadura;
+  const fraccionAdoptada = d.fraccionImpuesta ?? fraccionCalculada;
+  const cargaColgadaKN = fraccionAdoptada * d.ndPilarKN;
+  const cercos = dimensionarCercos(d.fykMPa, cargaColgadaKN, d.diametroEstriboMm, d.numeroRamas);
+
+  return {
+    reparto,
+    fraccionCalculada,
+    fraccionAdoptada,
+    fraccionMenorQueCalculada: fraccionAdoptada < fraccionCalculada - 1e-9,
+    cargaColgadaKN,
+    ...cercos,
+    anchoZonaM: Math.max(d.ladoPilarM, d.hVigaM / 2),
   };
 }

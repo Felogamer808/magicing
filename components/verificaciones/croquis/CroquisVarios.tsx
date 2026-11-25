@@ -227,6 +227,48 @@ export function CroquisCargaColgada() {
   );
 }
 
+/**
+ * Pilar que apoya sobre la viga con las barras ancladas hasta la cara inferior:
+ * el hormigón entrega arriba y las barras abajo, por adherencia; esa parte se
+ * sube con cercos.
+ */
+export function CroquisCuelguePilar() {
+  const x0 = 40;
+  const x1 = 190;
+  const yTop = 46;
+  const yBot = 112;
+  const xP0 = 96;
+  const xP1 = 134;
+
+  return (
+    <Croquis
+      viewBox="0 0 258 140"
+      ancho="max-w-[17rem]"
+      nota="Lo que lleva el hormigón del pilar entra por arriba y no se cuelga. Lo que llevan las barras entra abajo, a lo largo del anclaje, y se sube con cercos en un ancho máx(lado del pilar; h/2) a cada lado del eje."
+    >
+      <rect x={x0} y={yTop} width={x1 - x0} height={yBot - yTop} stroke="var(--mat-hormigon-borde)" strokeWidth="1.6" fill="var(--mat-hormigon)" />
+      <rect x={xP0} y={10} width={xP1 - xP0} height={yTop - 10} stroke="var(--mat-hormigon-borde)" strokeWidth="1.4" fill="var(--mat-hormigon)" />
+
+      {/* barras del pilar, bajando hasta el fondo */}
+      {[xP0 + 6, xP1 - 6].map((x) => (
+        <path key={x} d={`M${x} 12 L${x} ${yBot - 8}`} stroke="var(--mat-armadura)" strokeWidth="2" />
+      ))}
+
+      {/* cercos de cuelgue */}
+      {[78, 88, 142, 152].map((x) => (
+        <path key={x} d={`M${x} ${yBot - 5} L${x} ${yTop + 5}`} stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" opacity="0.85" />
+      ))}
+
+      <path d={`M115 0 L115 9`} stroke="currentColor" strokeWidth="1.4" markerEnd="url(#croquis-flecha)" />
+
+      <CotaV x={26} y0={yTop} y1={yBot} texto="h" />
+      <CotaH x0={xP0} x1={xP1} y={yBot + 14} texto="lado" />
+      <Referencia x={200} y={26} hacia={[xP1 - 6, 30]} texto="barras" />
+      <Referencia x={200} y={80} hacia={[152, 80]} texto="cuelgue" />
+    </Croquis>
+  );
+}
+
 /** Sección mixta: tubo circular relleno, con el acero por fuera y las barras dentro. */
 export function CroquisSeccionMixta() {
   const cx = 74;

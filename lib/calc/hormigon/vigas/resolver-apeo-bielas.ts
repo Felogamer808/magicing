@@ -1,11 +1,22 @@
 import { aNumero } from "@/lib/verificaciones/formato";
 import { calcularVigaApeoBielas, type CondicionAdherencia, type TransmisionCarga } from "@/lib/calc/hormigon/vigas/apeo-bielas";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
+import { repartoAxilPilar } from "@/lib/calc/hormigon/comun/reparto-pilar";
+import { areaBarraCm2 } from "@/lib/calc/armaduras";
 
 export const TRANSMISIONES = [
   "Directa (carga sobre la cara superior)",
   "Indirecta (pilar arranca del alma)",
   "Colgada (carga entrando por la cara inferior)",
+] as const;
+
+// Con transmisión directa, si las barras del pilar bajan ancladas hasta la
+// cara inferior, la parte del axil que llevan entra abajo y se cuelga. Es
+// criterio del proyectista, no artículo: por eso se elige y se puede imponer.
+export const BARRAS_PILAR = [
+  "No se cuelgan",
+  "Ancladas abajo, % calculado",
+  "Ancladas abajo, % impuesto",
 ] as const;
 
 // Art. 8.4.2(2) y figura A19.8.2: la barra del tirante va al fondo del
@@ -50,6 +61,9 @@ export function resolverApeoBielas(campos: Record<string, string>) {
     phiCuelgue: num("phiCuelgue"), sepCuelgue: num("sepCuelgue"),
     ramasCuelgue: num("ramasCuelgue"), cantoColgado: num("cantoColgado"),
   };
+  const modoBarras = BARRAS_PILAR.indexOf((campos.barrasPilar ?? "") as (typeof BARRAS_PILAR)[number]);
+  const colgarBarras = tipo === "directa" && modoBarras > 0;
+  const pilar = { bPilar: num("bPilar"), nBarrasPilar: num("nBarrasPilar"), phiPilar: num("phiPilar"), porcentaje: num("porcentaje") };
   if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
   if ([n.fck, n.fyk, n.luz, n.h, n.b, n.anchoPilar, n.anchoApoyoIzq, n.anchoApoyoDer, n.nd].some((x) => x <= 0)) return null;
   if ([n.nTirante, n.phiTirante, n.phiEstribo, n.phiMallaH, n.sepMallaH, n.phiMallaV, n.sepMallaV].some((x) => x <= 0)) return null;
@@ -67,7 +81,22 @@ export function resolverApeoBielas(campos: Record<string, string>) {
     n.phiTirante / 1000 +
     (n.nTirante2 > 0 ? Math.max(n.phiTirante, n.phiTirante2, n.dg * 1000 + 5, 20) / 1000 + n.phiTirante2 / 1000 : 0);
   if (ocupaM >= n.h) return null;
-  if (tipo !== "directa" && [n.phiCuelgue, n.sepCuelgue, n.ramasCuelgue].some((x) => x <= 0)) return null;
+  const hayCuelgue = tipo !== "directa" || colgarBarras;
+  if (hayCuelgue && [n.phiCuelgue, n.sepCuelgue, n.ramasCuelgue].some((x) => !(x > 0))) return null;
+  if (colgarBarras && ![pilar.bPilar, pilar.nBarrasPilar, pilar.phiPilar].every((x) => Number.isFinite(x) && x > 0)) return null;
+  const impuesto = modoBarras === 2;
+  if (colgarBarras && impuesto && !(pilar.porcentaje > 0 && pilar.porcentaje <= 100)) return null;
+
+  const reparto = colgarBarras
+    ? repartoAxilPilar({
+        fckMPa: n.fck,
+        fykMPa: n.fyk,
+        bM: pilar.bPilar,
+        hM: n.anchoPilar,
+        asCm2: pilar.nBarrasPilar * areaBarraCm2(pilar.phiPilar),
+      })
+    : null;
+  const fraccionBarrasPilar = reparto ? (impuesto ? pilar.porcentaje / 100 : reparto.fraccionArmadura) : undefined;
 
   const materiales = derivarMateriales({ fck: n.fck, fyk: n.fyk });
   const r = calcularVigaApeoBielas(
@@ -90,8 +119,9 @@ export function resolverApeoBielas(campos: Record<string, string>) {
       condicionAdherencia: adh,
       mallaHorizontal: { diametroMm: n.phiMallaH, separacionM: n.sepMallaH },
       mallaVertical: { diametroMm: n.phiMallaV, separacionM: n.sepMallaV },
+      fraccionBarrasPilar,
       cuelgue:
-        tipo === "directa"
+        !hayCuelgue
           ? undefined
           : {
               diametroMm: n.phiCuelgue,
@@ -101,7 +131,7 @@ export function resolverApeoBielas(campos: Record<string, string>) {
             },
     }
   );
-  return { n, r, materiales };
+  return { n, r, materiales, barrasPilar: reparto ? { reparto, impuesto, ...pilar } : null };
 }
 
 export type ResueltoApeoBielas = NonNullable<ReturnType<typeof resolverApeoBielas>>;

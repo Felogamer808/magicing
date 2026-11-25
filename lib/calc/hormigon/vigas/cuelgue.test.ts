@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularCuelgue } from "@/lib/calc/hormigon/vigas/cuelgue";
+import { calcularCuelgue, calcularCuelguePilar } from "@/lib/calc/hormigon/vigas/cuelgue";
 
 describe("calcularCuelgue", () => {
   const materiales = { fykMPa: 500 };
@@ -39,5 +39,45 @@ describe("calcularCuelgue", () => {
     const corto = calcularCuelgue(materiales, { ...geometria, hM: 0.3 }, datos);
     expect(corto.cumpleAvisoCantoMinimo).toBe(false);
     expect(corto.asNecesariaCm2).toBeCloseTo(bien.asNecesariaCm2, 9);
+  });
+});
+
+describe("calcularCuelguePilar", () => {
+  const base = {
+    ndPilarKN: 1000,
+    fckMPa: 25,
+    fykMPa: 500,
+    hVigaM: 0.6,
+    ladoPilarM: 0.3,
+    anchoPilarM: 0.3,
+    asPilarCm2: 4 * 2.0106192982974678, // 4φ16
+    diametroEstriboMm: 10,
+    numeroRamas: 2,
+  };
+
+  it("sin imponer, cuelga lo que llevan las barras: ≈ 18 % de 1000 kN", () => {
+    const r = calcularCuelguePilar(base);
+    expect(r.fraccionAdoptada).toBeCloseTo(0.1779, 4);
+    expect(r.cargaColgadaKN).toBeCloseTo(177.9, 1);
+    // 177,9 kN / 434,8 MPa = 4,09 cm² → 3 cercos φ10 de 2 ramas (4,71 cm²)
+    expect(r.asNecesariaCm2).toBeCloseTo(4.09, 2);
+    expect(r.cantidadEstribos).toBe(3);
+    expect(r.fraccionMenorQueCalculada).toBe(false);
+  });
+
+  it("con 50 % impuesto cuelga 500 kN", () => {
+    const r = calcularCuelguePilar({ ...base, fraccionImpuesta: 0.5 });
+    expect(r.cargaColgadaKN).toBeCloseTo(500, 9);
+    expect(r.asNecesariaCm2).toBeCloseTo(11.5, 9);
+    expect(r.fraccionCalculada).toBeCloseTo(0.1779, 4);
+  });
+
+  it("avisa si se impone menos de lo que llevan las barras", () => {
+    expect(calcularCuelguePilar({ ...base, fraccionImpuesta: 0.1 }).fraccionMenorQueCalculada).toBe(true);
+  });
+
+  it("zona: máx(lado del pilar; h/2) a cada lado", () => {
+    expect(calcularCuelguePilar(base).anchoZonaM).toBeCloseTo(0.3, 9);
+    expect(calcularCuelguePilar({ ...base, hVigaM: 1 }).anchoZonaM).toBeCloseTo(0.5, 9);
   });
 });

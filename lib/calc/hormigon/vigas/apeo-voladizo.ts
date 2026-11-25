@@ -1,4 +1,4 @@
-import { calcularAnclaje, mandrilMinimoMm, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
+import { calcularAnclaje, calcularSolape, mandrilMinimoMm, type FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
 import type { ArmaduraElegida, MaterialesDerivados } from "@/lib/calc/hormigon/comun/types";
 
 /**
@@ -35,7 +35,11 @@ import type { ArmaduraElegida, MaterialesDerivados } from "@/lib/calc/hormigon/c
  * - art. 6.5.2 (2), ec. (6.57), pág. 97 — ν' = 1 − fck/250.
  * - art. 8.4.3 (3), pág. 124 — en patillas, lbd se mide por el eje de la barra.
  * - art. 8.3, tabla A19.8.1, pág. 122 — mandril mínimo.
- * - art. 9.7 (1), pág. 152 — malla mínima de vigas de gran canto.
+ * - art. 9.7 (1)-(2), pág. 152 — malla de vigas de gran canto: cuantía y separación.
+ * - art. 9.7 (3), pág. 152 — tirante anclado por doblado, cercos en U o lbd.
+ * - art. 8.2 (2), pág. 121 — distancia libre entre barras.
+ * - art. 8.3 (3), ec. (8.1), pág. 122 — mandril de un doblado con carga.
+ * - art. 8.7.2 (3), 8.7.3, ec. (8.10), pág. 128 — solapes.
  */
 
 /** Rectángulo de apoyo o de carga: un lado en el plano de la viga y otro a través. */
@@ -86,9 +90,69 @@ export interface DatosApeoVoladizo {
   tirante: ArmaduraElegida;
   diametroEstriboMm: number;
   /** Cómo termina el tirante en los dos extremos */
-  formaAnclajeTirante: FormaAnclaje;
+  formaAnclajeTirante: FormaExtremoTirante;
+  /** Ø de las horquillas; sólo cuenta con `formaAnclajeTirante: "horquilla"` */
+  diametroHorquillaMm: number;
   /** Barras del pilar lejano que se anclan en la viga, por si trabaja a tracción */
   armaduraPilarLejano: ArmaduraElegida;
+  /** Estribos cerrados: cada uno pone una rama vertical en cada cara (m) */
+  separacionEstribosM: number;
+  /** Barras horizontales de la malla, una por cara en cada fila */
+  piel: { diametroMm: number; separacionM: number };
+}
+
+/**
+ * Recto o doblado, el tirante se ancla con su propia longitud; con horquillas,
+ * lo anclan horquillas horizontales en U solapadas con él (art. 9.7 (3)).
+ */
+export type FormaExtremoTirante = FormaAnclaje | "horquilla";
+
+/**
+ * Horquillas anidadas en la capa del tirante: una U horizontal por cada par de
+ * barras simétricas, con cada rama al lado de su barra. La fuerza del tirante
+ * pasa por solape a las ramas y la U la devuelve al nudo por el doblado.
+ */
+export interface ResultadoHorquillas {
+  /** Una por par de barras del tirante */
+  numero: number;
+  /** Con un número impar de barras, la del medio queda sin rama al lado */
+  numeroParValido: boolean;
+  asNecCm2: number;
+  /** Dos ramas por horquilla */
+  asRealCm2: number;
+  verificaArea: boolean;
+  /** Distancia libre entre barras de la capa, tirante y ramas alternadas (mm) */
+  separacionLibreMm: number;
+  /** art. 8.2 (2): máx(Ø; 20 mm). Sin dg, que no se carga (mm) */
+  separacionLibreMinMm: number;
+  verificaSeparacion: boolean;
+  /** l0 del art. 8.7.3, con α6 = 1,5 (100 % solapado), más la distancia libre si pasa de 4Ø (mm) */
+  l0Mm: number;
+  /** art. 8.7.2 (3): lo que se suma a l0 porque la distancia libre pasa de 4Ø (mm) */
+  incrementoSeparacionMm: number;
+  /** Largo del tirante entre las caras interiores de los dos nudos, donde caben los solapes (mm) */
+  disponibleSolapeMm: number;
+  verificaSolape: boolean;
+  /** Largo de cada rama, del doblado al final del solape (mm) */
+  largoRamaCargaMm: number;
+  largoRamaLejanoMm: number;
+  /** Fbt: fuerza en una rama al empezar el doblado (kN) */
+  fuerzaRamaKN: number;
+  /** a_b, perpendicular al plano del doblado: recubrimiento superior + Ø/2 (mm) */
+  abMm: number;
+  /** φm,min de la ec. (8.1), sin bajar del de la tabla A19.8.1 (mm) */
+  mandrilNecMm: number;
+  /** Lo que da la U más interior, la más cerrada: la distancia libre entre sus ramas (mm) */
+  mandrilDisponibleMm: number;
+  verificaMandril: boolean;
+}
+
+/** Una dirección de la malla de una cara, art. 9.7 (1)-(2). */
+export interface DireccionMalla {
+  asCm2PorM: number;
+  separacionM: number;
+  verificaCuantia: boolean;
+  verificaSeparacion: boolean;
 }
 
 export interface ComprobacionTension {
@@ -153,8 +217,11 @@ export interface ResultadoApeoVoladizo {
   /** Apoyo lejano comprimido, nudo de compresión pura (k1 = 1,0) */
   nudoApoyoLejano: ComprobacionTension;
 
-  anclajeTiranteCarga: AnclajeExtremo;
-  anclajeTiranteLejano: AnclajeExtremo;
+  /** null con horquillas: el tirante no se ancla solo */
+  anclajeTiranteCarga: AnclajeExtremo | null;
+  anclajeTiranteLejano: AnclajeExtremo | null;
+  /** null salvo con horquillas */
+  horquillas: ResultadoHorquillas | null;
   mandrilMinimoMm: number;
 
   /** Pilar lejano a tracción: As necesaria y anclaje dentro de la viga */
@@ -165,6 +232,16 @@ export interface ResultadoApeoVoladizo {
 
   /** Malla mínima por cara y dirección, art. 9.7 (1): máx(0,001·b·1 m; 150 mm²/m) (cm²/m) */
   mallaMinimaCm2PorM: number;
+  /** art. 9.7 (2): mín(300 mm; 2·b) (m) */
+  separacionMaximaMallaM: number;
+  /** Las ramas verticales de los estribos, una por cara */
+  mallaVertical: DireccionMalla;
+  /** Las barras horizontales de cada cara */
+  mallaHorizontal: DireccionMalla;
+  /** Estribos a lo largo de toda la viga, con la separación cargada */
+  numeroEstribos: number;
+  /** Filas de barras horizontales por cara, debajo del tirante */
+  filasPiel: number;
 }
 
 const comprobar = (sigmaMPa: number, sigmaMaxMPa: number): ComprobacionTension => ({
@@ -271,9 +348,13 @@ export function calcularApeoVoladizo(
     tirante.numero > 1 ? ((bM - 2 * recubrimientoM) * 1000 - 2 * diametroEstriboMm - phi) / (tirante.numero - 1) : Infinity;
   const cdTiranteMm = Math.min(coberturaMm, (separacionTiranteMm - phi) / 2);
   const sigmaSdTirante = Math.min((traccionTiranteKN * 10) / asRealTiranteCm2, fyd);
+  const conHorquillas = formaAnclajeTirante === "horquilla";
   const { lbdMm: lbdTirante } = calcularAnclaje(
     { fckMPa: fck, fykMPa: fyk },
-    { diametroMm: phi, situacion: "buena", forma: formaAnclajeTirante, esfuerzo: "traccion", recubrimientoMm: cdTiranteMm, sigmaSdMPa: sigmaSdTirante }
+    {
+      diametroMm: phi, situacion: "buena", forma: conHorquillas ? "recta" : formaAnclajeTirante,
+      esfuerzo: "traccion", recubrimientoMm: cdTiranteMm, sigmaSdMPa: sigmaSdTirante,
+    }
   );
 
   const extremoTirante = (horizontalM: number): AnclajeExtremo => {
@@ -281,9 +362,105 @@ export function calcularApeoVoladizo(
     return { sigmaSdMPa: sigmaSdTirante, lbdMm: lbdTirante, disponibleMm, verifica: lbdTirante <= disponibleMm };
   };
   // Del borde interior del pilar apeado al extremo libre.
-  const anclajeTiranteCarga = extremoTirante(geometria.carga.anchoM / 2 + extremoLibreM);
+  const horizontalCargaM = geometria.carga.anchoM / 2 + extremoLibreM;
   // Del borde interior del elemento lejano al otro extremo.
-  const anclajeTiranteLejano = extremoTirante(geometria.elementoLejano.anchoM / 2 + extremoLejanoM);
+  const horizontalLejanoM = geometria.elementoLejano.anchoM / 2 + extremoLejanoM;
+  const anclajeTiranteCarga = conHorquillas ? null : extremoTirante(horizontalCargaM);
+  const anclajeTiranteLejano = conHorquillas ? null : extremoTirante(horizontalLejanoM);
+
+  // ---------------------------------------------------------------- horquillas
+  // Una U horizontal por cada par de barras simétricas del tirante, anidadas
+  // en su capa: de cada cara hacia el centro, rama y barra alternadas, así que
+  // la capa tiene 2n barras equiespaciadas. El tirante pasa la fuerza a las
+  // ramas por solape (art. 8.7) y la U la devuelve al nudo por el doblado, que
+  // se comprueba con la ec. (8.1). La más interior es la más cerrada: sus
+  // ramas quedan a tres separaciones, con las dos barras centrales adentro.
+  let horquillas: ResultadoHorquillas | null = null;
+  if (conHorquillas) {
+    const phiH = datos.diametroHorquillaMm;
+    const phiMax = Math.max(phi, phiH);
+    const numero = Math.floor(tirante.numero / 2);
+    const barrasCapa = tirante.numero + 2 * numero;
+    const c0Mm = coberturaMm + phiMax / 2;
+    const separacionMm = barrasCapa > 1 ? (bM * 1000 - 2 * c0Mm) / (barrasCapa - 1) : Infinity;
+    const separacionLibreMm = separacionMm - (phi + phiH) / 2;
+    const separacionLibreMinMm = Math.max(phiMax, 20);
+
+    const asRealCm2 = 2 * numero * areaCm2({ numero: 1, diametroMm: phiH });
+
+    // l0 con α6 = 1,5: todas las barras se solapan en la misma sección. Se
+    // calcula para las dos barras del solape, cada una con su tensión, y manda
+    // la mayor. cd de barra recta: mín(a/2; c), fig. A19.8.3.
+    const cdMm = Math.min(coberturaMm, separacionLibreMm / 2);
+    const solapeDe = (diametroMm: number, sigmaSdMPa: number) =>
+      calcularSolape(
+        calcularAnclaje(
+          { fckMPa: fck, fykMPa: fyk },
+          { diametroMm, situacion: "buena", forma: "recta", esfuerzo: "traccion", recubrimientoMm: cdMm, sigmaSdMPa }
+        ),
+        diametroMm,
+        100
+      ).l0Mm;
+    const sigmaRamaMPa = asRealCm2 > 0 ? Math.min((traccionTiranteKN * 10) / asRealCm2, fyd) : fyd;
+    const incrementoSeparacionMm = separacionLibreMm > 4 * Math.min(phi, phiH) ? separacionLibreMm : 0;
+    const l0Mm = Math.max(solapeDe(phi, sigmaSdTirante), solapeDe(phiH, sigmaRamaMPa)) + incrementoSeparacionMm;
+    const disponibleSolapeMm =
+      (voladizoM + luzM - geometria.carga.anchoM / 2 - geometria.elementoLejano.anchoM / 2) * 1000;
+
+    // Doblado, ec. (8.1): φm ≥ Fbt·(1/ab + 1/(2φ))/fcd, con fcd sin pasar del
+    // de fck = 55. La U está en el plano de la capa: ab es vertical, hasta la
+    // cara superior.
+    const fcdTope = Math.min(fcd, (55 / fck) * fcd);
+    const fuerzaRamaKN = numero > 0
+      ? Math.min(traccionTiranteKN / (2 * numero), (fyd * areaCm2({ numero: 1, diametroMm: phiH })) / 10)
+      : 0;
+    const abMm = coberturaMm + phiH / 2;
+    const mandrilNecMm = Math.max((fuerzaRamaKN * 1000 * (1 / abMm + 1 / (2 * phiH))) / fcdTope, mandrilMinimoMm(phiH));
+    const mandrilDisponibleMm = 3 * separacionMm - phiH;
+
+    horquillas = {
+      numero,
+      numeroParValido: tirante.numero >= 2 && tirante.numero % 2 === 0,
+      asNecCm2: asNecTiranteCm2,
+      asRealCm2,
+      verificaArea: asRealCm2 >= asNecTiranteCm2,
+      separacionLibreMm,
+      separacionLibreMinMm,
+      verificaSeparacion: separacionLibreMm >= separacionLibreMinMm,
+      l0Mm,
+      incrementoSeparacionMm,
+      disponibleSolapeMm,
+      verificaSolape: l0Mm <= disponibleSolapeMm,
+      largoRamaCargaMm: horizontalCargaM * 1000 - coberturaMm + l0Mm,
+      largoRamaLejanoMm: horizontalLejanoM * 1000 - coberturaMm + l0Mm,
+      fuerzaRamaKN,
+      abMm,
+      mandrilNecMm,
+      mandrilDisponibleMm,
+      verificaMandril: mandrilDisponibleMm >= mandrilNecMm,
+    };
+  }
+
+  // ---------------------------------------------------------------- malla, art. 9.7
+  // 0,001·Ac por cara, con Ac por metro = b·1 m, y no menos de 150 mm²/m.
+  const mallaMinimaCm2PorM = Math.max(0.001 * bM * 1e4, 1.5);
+  const separacionMaximaMallaM = Math.min(0.3, 2 * bM);
+  const direccion = (diametroMm: number, separacionM: number): DireccionMalla => {
+    const asCm2PorM = areaCm2({ numero: 1, diametroMm }) / separacionM;
+    return {
+      asCm2PorM,
+      separacionM,
+      verificaCuantia: asCm2PorM >= mallaMinimaCm2PorM,
+      verificaSeparacion: separacionM <= separacionMaximaMallaM + 1e-9,
+    };
+  };
+  const { separacionEstribosM, piel } = datos;
+  const largoVigaM = extremoLibreM + voladizoM + luzM + extremoLejanoM;
+  // Repartidos de punta a punta, dentro del recubrimiento, sin pasar de la separación.
+  const numeroEstribos = Math.ceil((largoVigaM - 2 * recubrimientoM) / separacionEstribosM - 1e-9) + 1;
+  // De la fila inferior al tirante, que hace de fila superior.
+  const alturaPielM = hM - dTirSuperiorM - (coberturaMm + piel.diametroMm / 2) / 1000;
+  const filasPiel = Math.max(Math.ceil(alturaPielM / piel.separacionM - 1e-9), 1);
 
   // ---------------------------------------------------------------- pilar lejano
   const pilar = datos.armaduraPilarLejano;
@@ -328,12 +505,17 @@ export function calcularApeoVoladizo(
     nudoApoyoLejano,
     anclajeTiranteCarga,
     anclajeTiranteLejano,
+    horquillas,
     mandrilMinimoMm: mandrilMm,
     asNecPilarLejanoCm2,
     asRealPilarLejanoCm2,
     verificaPilarLejano: asRealPilarLejanoCm2 >= asNecPilarLejanoCm2,
     anclajePilarLejano,
-    // art. 9.7 (1): 0,001·Ac por cara, con Ac por metro de altura = b·1 m.
-    mallaMinimaCm2PorM: Math.max(0.001 * bM * 1e4, 1.5),
+    mallaMinimaCm2PorM,
+    separacionMaximaMallaM,
+    mallaVertical: direccion(diametroEstriboMm, separacionEstribosM),
+    mallaHorizontal: direccion(piel.diametroMm, piel.separacionM),
+    numeroEstribos,
+    filasPiel,
   };
 }

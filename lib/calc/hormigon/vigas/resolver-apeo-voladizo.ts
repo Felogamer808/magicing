@@ -1,6 +1,5 @@
 import { aNumero } from "@/lib/verificaciones/formato";
-import type { FormaAnclaje } from "@/lib/calc/hormigon/comun/anclaje";
-import { calcularApeoVoladizo } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
+import { calcularApeoVoladizo, type FormaExtremoTirante } from "@/lib/calc/hormigon/vigas/apeo-voladizo";
 import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
 
 /**
@@ -10,6 +9,9 @@ import { derivarMateriales } from "@/lib/calc/hormigon/comun/materiales";
  * recomendaciones, que lo repiten con un dato cambiado: con dos copias, tarde
  * o temprano dirían números distintos.
  */
+const formaDe = (texto: string | undefined): FormaExtremoTirante =>
+  texto === "gancho" || texto === "horquilla" ? texto : "recta";
+
 export function resolverApeoVoladizo(campos: Record<string, string>) {
   const num = (clave: string) => aNumero(campos[clave] ?? "");
 
@@ -24,12 +26,13 @@ export function resolverApeoVoladizo(campos: Record<string, string>) {
     p: num("p"), nMax: num("nMax"), nMin: num("nMin"),
     nTirante: num("nTirante"), phiTirante: num("phiTirante"), phiEstribo: num("phiEstribo"),
     nPilar: num("nPilar"), phiPilar: num("phiPilar"),
+    sepEstribo: num("sepEstribo"), phiPiel: num("phiPiel"), sepPiel: num("sepPiel"), phiHorquilla: num("phiHorquilla"),
   };
   if (!Object.values(n).every((x) => Number.isFinite(x) && x >= 0)) return null;
   const positivos = [
     n.fck, n.fyk, n.h, n.b, n.luz, n.voladizo, n.cargaAncho, n.cargaProf, n.apoyoCAncho, n.apoyoCProf,
     n.apoyoLAncho, n.apoyoLProf, n.elemLAncho, n.elemLProf, n.p, n.nTirante, n.phiTirante, n.phiEstribo,
-    n.nPilar, n.phiPilar,
+    n.nPilar, n.phiPilar, n.sepEstribo, n.phiPiel, n.sepPiel, n.phiHorquilla,
   ];
   if (positivos.some((x) => x <= 0)) return null;
   if (n.nMin > n.nMax) return null;
@@ -50,8 +53,11 @@ export function resolverApeoVoladizo(campos: Record<string, string>) {
       pEdKN: n.p, nLejanoMaxKN: n.nMax, nLejanoMinKN: n.nMin,
       tirante: { numero: n.nTirante, diametroMm: n.phiTirante },
       diametroEstriboMm: n.phiEstribo,
-      formaAnclajeTirante: (campos.forma === "gancho" ? "gancho" : "recta") as FormaAnclaje,
+      formaAnclajeTirante: formaDe(campos.forma),
+      diametroHorquillaMm: n.phiHorquilla,
       armaduraPilarLejano: { numero: n.nPilar, diametroMm: n.phiPilar },
+      separacionEstribosM: n.sepEstribo,
+      piel: { diametroMm: n.phiPiel, separacionM: n.sepPiel },
     }
   );
   return { n, r };
